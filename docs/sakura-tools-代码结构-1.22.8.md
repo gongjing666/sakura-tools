@@ -21,7 +21,7 @@
 | 9 | 数据写到了哪里（表/option/postmeta/transient/目录） | 排查"数据存哪了""卸载删不删" |
 | 10 | 运行时验证记录（命令 + 结果） | 复核结论 |
 | 11 | 模块与类之间的依赖强度、图谱口径 | 评估改动影响面 |
-| 12 | 待确认项清单 | 接手时优先补证 |
+| 12 | 待确认项（本轮清零）与已确认缺陷 | 接手时先看缺陷清单 |
 | 13 | 3D 图谱的节点/边定义与本次更新 | 看图前先读 |
 
 ### 0.2 证据标注规范
@@ -33,7 +33,7 @@
 | `文件:行` | 静态证据：结论直接来自该位置的代码 | `src/Plugin.php:83-86` |
 | **验证** | 运行证据：在测试站实际执行过，第 10 章有命令与输出 | 验证 §10.3 路由 11/11 |
 | **未验证** | 只有静态阅读，未在运行时复现 | 配额扣减（只读边界） |
-| **待确认** | 代码里存在歧义或超出本次范围，不下结论 | §12 清单 |
+| **待确认** | 代码里存在歧义或超出本次范围，不下结论 | §12.2（本轮为空） |
 | **口径** | 统计方式说明，避免读者误读数字 | 入度/出度的计算方式 |
 
 ### 0.3 数字口径（先对齐，避免误读）
@@ -64,6 +64,8 @@
 7. **运行时可访问性已验证。** 11 条后台路由全部 200 且标题正确、45 条 `/sufm/v1` REST 路由（51 个端点）全部注册、7 个插件 cron 事件已排程、12 项函数级探针结果符合预期（§10）。**未验证**的是生产环境的写路径（配额扣减、删除审核、卸载清理）——生产保持只读。唯一例外是测试站上补做的 5 张并发上传（§10.6），它把「上传 → 压缩 → S3 PUT → 索引落库」整条链路跑通了。
 8. **两张"文档"已经过期，不要当作事实源。** `DEVELOPMENT.md` 第 1 节的"当前文件结构"停留在 1.3.3 的 6 个文件；`/root/WordPress/docs/sakura-image-optimizer-代码分析报告.md`（本机历史报告，未随仓库分发） 停在 1.9.0 之前的命名。本报告与 3D 图谱是当前唯一同步的产物；`DECISIONS.md` 仍然有效（记录的是"为什么"，不是"现在有什么"）。
 9. **文档与图谱同源，不会再脱节。** 两者都由同一份扫描事实表（`/tmp/scan.json`，来自 `dsh-codegraph` 的 `lib/scanner.php`）经 `docs/tools/build-code-structure.mjs` 生成。改代码后重跑一次命令即可同时刷新表格与图谱（§13.6）。
+
+**本轮更新（2026-11-08）**：§12 原有的 3 项已全部核实——`fast-search.php` 无外部限制且鉴权正常；`Space_Store::grant_from_order()` 确认把订单写成 `source='points'` 并清空订单字段（高优先，现金购买可能占用积分日限额）；`Upload_Observer` 只记录成功样本（中优先，失败率与告警恒 0）。两项缺陷只登记、未改代码，详见 §8.9、§10.10 与 §12.3。
 
 ---
 
@@ -345,7 +347,7 @@ register() 之后调用     → 直接 add_action/add_filter 到 WP（不再入�
 3. **统计与备份 meta 依赖"待写记录"匹配**：待写记录以最终文件路径为键（`src/Image/Metadata_Processor.php:99-101`），flush 时先精确匹配、再匹配 `-scaled` 变体，只有在"恰好剩 1 条记录且文件名同干"时才走启发式兜底（`:222-251`）。**并发上传不会命中这个兜底分支**：`pending_records` 是实例属性（`:32`），每个 HTTP 请求都会重新构造一份 `Metadata_Processor`（`includes/class-image-processor.php:123`），进程之间不共享；`async-upload.php` 一次也只处理一个文件。2026-11-08 在测试站用本地 MinIO 做 5 张并发上传，5/5 的 `_sakura_imgopt_backup`、`sakura_imgopt_log`、S3 同步记录齐全（§10.6）。真正会丢 meta 的是"同一进程一次处理多张、路径又都对不上"的构造场景，标准媒体库上传路径不可达。
 4. 备份写入失败会中止整条链路（`src/Image/Upload_Handler.php:141-145`），这是刻意的"宁可不压，也不丢原图"。
 
-### 4.8 待确认
+### 4.8 待确认（已清零）
 
 - 无。原两条已核实关闭：并发上传未复现 `consume_pending` 匹配失败；`sakura_imgopt_metadata_budget_exhausted` 在本站无外部消费方。证据与边界见 §10.6。
 
@@ -602,7 +604,7 @@ register() 之后调用     → 直接 add_action/add_filter 到 WP（不再入�
           → 失败按 60 秒起步指数退避(Delete_Jobs.php:388/:73)
 ④ 观测    Upload_Metrics::snapshot 读 option(:143) → Prometheus::format 输出(:107/:135)
           → Alerting 每 15 分钟评估 14 天失败率(:152/:375)
-          （生产只记录成功样本，失败率告警的实际触发条件见 §6.8 ②、§12 第 3 项）
+          （生产只记录成功样本，失败率告警的实际触发条件见 §10.10-B、§12.3）
 ```
 
 ### 6.7 设计取舍（为什么这样写）
@@ -658,7 +660,7 @@ register() 之后调用     → 直接 add_action/add_filter 到 WP（不再入�
 |---|---|---|
 | 扫描必须可中断、可恢复 | 状态机 + `scans.scan_cursor` + 单次 tick 预算 | `src/Sync/Scan_Service.php:238`、`:280` |
 | 同一时刻只允许一个扫描推进 | MySQL 命名锁 `sio_tick_` | `src/Sync/Scan_Service.php:253` |
-| 动作幂等 | `dedupe_key = sha256(profile|action|key|version|target_hash)` | `src/Sync/Index_Repository.php:1063` |
+| 动作幂等 | `dedupe_key = sha256(profile\|action\|key\|version\|target_hash)` | `src/Sync/Index_Repository.php:1063` |
 
 ### 7.2 类清单
 
@@ -991,9 +993,57 @@ d3AtY29udGVudC91cGxvYWRzL3Byb2JlLzA5OTkuYmluW21pbmlvX2NhY2hlOnYyLHJldHVybjpd
 | 与 Admin IA | 向 Registry 的 `files` 模块注册 4 个 renderer（settings/users/queue/log） | `src/UserFiles/Admin/Page.php:71-78` |
 | 与 Zibll | 能力探测单例 `Zibll_Bridge`；tab、订单卡、空间面板都走它 | `src/UserFiles/Services/Zibll_Bridge.php:23` |
 
-### 8.9 待确认
+### 8.9 订单发放字段的核实（2026-11-08）
 
-- `Space_Store::grant_from_order` 的 INSERT 把 `source`/`channel` 硬编码为 `'points'`（`Space_Store.php:830-843`），而 `space_grants.source` 默认值是 `'purchase'`（`Schema.php:452`）。购买订单是否应记 `purchase`，**待确认**（疑为 1.6.0 迁移遗留）。
+**结论：已确认缺陷。** `grant_from_order()` 从主题订单里解析出 `order_id`、`order_num`、`price`、`channel`，但写库时只使用 `owner_id`、`grant_key`、`bytes`、`label`、`expires_at` 与 `meta`；`source`、`channel` 固定为 `'points'`，订单字段固定为 `0 / '' / 0 / 0`。现金购买会被记成积分兑换，订单关联与收入字段同时丢失。
+
+**调用路径**
+
+| 步骤 | 位置 | 事实 |
+|---|---|---|
+| 主题支付成功 | `wp-content/themes/zibll/zibpay/class/order-class.php:916` | 对所有支付成功订单 `do_action('payment_order_success', $order)` |
+| 插件挂载 | `src/UserFiles/Space_Panel.php:40` | `add_action('payment_order_success', [__CLASS__, 'on_payment_success'], 12, 1)` |
+| 转发 | `src/UserFiles/Space_Panel.php:72-74` | `Space_Store::instance()->on_payment_success($order)` |
+| 发放 | `src/UserFiles/Services/Space_Store.php:745-758` → `:766` | `on_payment_success()` 调 `grant_from_order()` |
+| 对账补发 | `src/UserFiles/Services/Space_Store.php:1427-1490` | `sync_orders()` 对 `order_type=21`、`status=1` 且无 grant 的订单调 `grant_from_order()`；现金与积分订单都走这里 |
+
+**解析值 vs 实际写入**
+
+`normalise_order()`（`src/UserFiles/Services/Space_Store.php:876-910`）已经拿到下列值，`meta`（`:811-818`）也保留了其中四项；问题在 `:830-843` 的 INSERT。
+
+| 列 | 解析/可用值 | `meta` | INSERT 实参 | 结果 |
+|---|---|---|---|---|
+| `source` | 未解析 | — | `'points'` | 现金订单也被标成积分兑换 |
+| `channel` | `$data['channel']` = `pay_type`（`:904`） | 写入（`:816`） | `'points'` | 实际支付方式丢失 |
+| `order_id` | `$data['order_id']`（`:899`） | 写入（`:815`） | `0` | 订单关联丢失 |
+| `order_num` | `$data['order_num']`（`:900`） | 写入（`:814`） | `''` | 订单号丢失 |
+| `price` | `$data['price']`（`:903`） | 未写 | `0` | 收入统计丢失 |
+| `points` | 未解析 | — | `0` | 订单发放路径不写积分值；直兑路径写 `$cost`（`:2319`、`:2326`） |
+
+**预期口径**
+
+- `sufm_space_grants.source` 的建表默认值是 `'purchase'`（`src/UserFiles/Schema.php:452`）。
+- 管理员发放写 `'admin'` / `'manual'`（`src/UserFiles/Services/Space_Store.php:1621`）。
+- 积分直兑写 `'points'` / `'points'`，并写入 `order_id`、`order_num` 与实际扣减的积分（`:2319`，参数 `:2325-2327`）。
+- 生产 `sufm_space_grants` 只读聚合（2026-11-08）：`order:` 前缀 1 行仍是 `source=purchase`、`channel=balance`，`order_id` / `order_num` / `price` 均非 0；`points:` 前缀 3 行中 1 行有订单字段（与直兑写法一致），2 行订单字段为 0（与 `grant_from_order()` 的写法一致）。这说明订单发放本应保留来源与订单字段，当前代码与历史数据/直兑路径不一致。
+
+**影响**
+
+1. **积分日限额被现金购买占用。** `points_used_bytes()` 按 `source = 'points'` 汇总当日 `bytes`（`:2014-2022`）；`points_state()` 用它算 `used_gb`（`:1933`）；积分兑换的前置校验（`:2154`）与写入后复核（`:2350`）都用这个值。现金购买一旦走 `grant_from_order()`，会被算成当日积分兑换，可能提前占满日上限，导致正常积分兑换被拒。
+2. **对账/收入/积分流水失真。** `order_id`、`order_num` 清零后无法按订单关联；`price` 清零后现金收入不可按列统计；`points` 恒 0 后订单发放的积分流水不可按列统计。`meta` 仍保留 `plan_id`、`order_num`、`order_id`、`channel`，可作为修复时的反查来源，但列与索引已经不可用。
+3. **新旧数据分裂。** 历史 `order:` 行是 `purchase/balance` 且字段齐全；当前代码继续发放同类订单会写成 `points/0`，同一类业务出现两种记录形态。
+
+**验证边界**
+
+- 只读反射调用 `normalise_order()`：输入 `order_type=21`、`id=123`、`order_num=probe-order`、`user_id=1`、`product_id=sufm_space_1`、`order_price=30`、`pay_type=balance`、`other` 含 `bytes/days`，返回 `order_id=123`、`order_num=probe-order`、`price=30`、`channel=balance`、`bytes=1073741824`；证明解析正确，丢弃发生在 INSERT。
+- 生产聚合见上；**未创建真实订单、未写库**（只读边界）。静态代码已足以证明「解析出的值没有进入 INSERT」；运行期只补了生产历史表与纯函数的证据。
+- 影响 1 是代码路径推导，未在生产制造现金订单验证；若后续修复，应补一条「现金订单发放后 `source` 与积分日限额」的测试。
+
+**修复建议（未实施）**
+
+- 让 `normalise_order()` 返回 `source`（按 `channel === 'points'` 判 `points`，其余 `purchase`）与需要写入的积分值；INSERT 使用 `$data['order_id']`、`$data['order_num']`、`$data['price']`，不要再用字面量。
+- 补两条测试：现金订单（`pay_type=balance`）应写 `purchase/balance` 且订单字段齐全；积分订单应写 `points/points` 且订单字段与积分值齐全。另加一条「现金发放不计入 `points_used_bytes()`」的断言。
+- 历史数据修复应以 `meta` 反查订单号/订单 ID 后回填，并先在生产备份上演练；不要仅按 `source='points'` 批量改，因为直兑行本来就是 `points`。
 
 ---
 
@@ -1216,7 +1266,7 @@ sufm_routes=45 endpoints=51
 
 - 第 7 条只读调用两个类的纯函数并回显字段名，未写任何 option/postmeta；profile 为 `prof_1d60d87b0606`（测试站 MinIO）。
 - 第 8 条说明测试站没有 1.12.0 之前的遗留任务，`Storage::maybe_migrate` 的迁移分支本轮没有可触发的数据；该分支按静态阅读保留，未做破坏性造数。
-- `Upload_Metrics` 的失败/死信计数仍保留在结构里（`record_batch()` 支持非 ok 样本），但生产唯一调用方 `Upload_Observer` 固定 `ok=true`——这是本轮新发现的可观测性缺口，已登记为 §12 第 3 项，不在本轮清理范围。
+- `Upload_Metrics` 的失败/死信计数仍保留在结构里（`record_batch()` 支持非 ok 样本），但生产唯一调用方 `Upload_Observer` 固定 `ok=true`——这是本轮新发现的可观测性缺口，已登记为 §12.3 的已确认缺陷，不在本轮清理范围。
 
 ### 10.9 §7.7 三项的运行期验证记录（2026-11-08）
 
@@ -1262,6 +1312,56 @@ sufm_routes=45 endpoints=51
 - 两组验证后 `s3_options` 的 md5 都回到 `e223e71b2fe351912289ccffebb5435d`，active profile 回到 `prof_1d60d87b0606`（bucket `sio-e2e`），profiles 只剩该 profile。
 - 清理后测试站最终状态：`sio_sync_index=26`（synced 24 / pending 2）、`sio_sync_scans=0`、`sio_sync_counts=3`、`sio_sync_events=1`、`sio_sync_jobs=0`、`sio_sync_operations=0`。
 - 未覆盖：A 组的 local 阶段在单 tick 内跑完，未触发预算边界；「local 中途续跑」由 B 组补证。B 组没有构造「JSON 损坏/目录被删」的 cursor-missing 路径，该路径仅有静态阅读（`src/Sync/Scan_Service.php:376-383`）。
+
+### 10.10 §12 三项的运行期验证记录（2026-11-08）
+
+本轮三项都在**生产只读**环境核实：WP-CLI 只读查询、`curl` 只读请求、`ReflectionMethod` 纯函数调用；没有创建订单、上传、删除或修改 option。`fast-search.php` 的外部 Web 限制只能由生产 nginx 回答，因此没有用测试站替代；测试站保留同版本代码用于对照。
+
+**A. `fast-search.php` 的 Web 可达性**
+
+| # | 验证点 | 操作 | 结果 |
+|---:|---|---|---|
+| 1 | 缺少参数 | `curl` 直接请求端点 | HTTP 403；`{"success":false,"data":{"message":"Forbidden."}}` |
+| 2 | 错误签名 | `u=1`、未来 `e`、活动 `p`、`s=deadbeef` | HTTP 403；错误签名不会进入查询 |
+| 3 | 有效管理员签名 | `Search_Token::create(1, 'prof_9463a17e7884', 300)` 生成参数；`limit=1`、`status=all` | HTTP 200；`Content-Type: application/json`；438 字节；`success=true`；`total=132`；`has_more=true`；返回 1 行（`status=synced`、`type=image`）；token 未输出、未落盘 |
+| 4 | 外部 Web 限制 | 检查生产 nginx 与站点根目录 | `/www/server/panel/vhost/nginx/www.nboke.com.conf` 无 `fast-search` 专属 `location`；只有通用 `enable-php-84.conf` 与 wp-config/wp-login 等特例；`/www/wwwroot/www.nboke.com/.htaccess` 不存在 |
+
+补充：令牌实现为 `src/Sync/Search_Token.php:32`（`TTL=600`）、`:53-55`（HMAC `v1|u|e|p`）、`:65-73`（`create()`，TTL 夹取 60–3600）；端点校验见 `fast-search.php:53-68`，管理员能力检查见 `:72-82`。本轮用 300 秒令牌，过期后不复用。
+
+**B. S3 上传指标：只有成功样本**
+
+命令（生产只读）：
+
+```
+wp eval '$m=(new \Sakura\ImageOptimizer\S3\Upload_Metrics())->snapshot(); echo wp_json_encode(array("totals"=>$m["totals"],"week"=>$m["week"],"last_error"=>$m["last_error"]));' --allow-root --path=/www/wwwroot/www.nboke.com
+```
+
+| # | 验证点 | 结果 |
+|---:|---|---|
+| 5 | 累计指标 | `attempts=91`、`ok=91`、`fail=0`、`dead=0`、`rate=0`、`bytes=50940161` |
+| 6 | 14 天窗口 | `attempts=91`、`ok=91`、`fail=0`、`dead=0`、`rate=0`（与累计相同，说明样本都在窗口内） |
+| 7 | 最近错误 | `last_error.has=false`；没有失败样本可展示 |
+
+静态对照：`src/S3/Upload_Observer.php:29-31` 只挂 `sakura_imgopt_s3_uploaded`；`:41-53` 只构造 `array('ok' => true, ...)` 后调 `record_batch()`。`src/S3/Object_Store.php:182`、`:322`、`:345` 的 `do_action('sakura_imgopt_s3_uploaded')` 都在 PUT/HEAD 校验成功之后；失败路径（`:160-171`、`:311-315`、`:332-343`、`:348-354`）直接返回 `WP_Error`/拒绝，不触发该钩子。`Upload_Metrics::record_batch()` 本身支持 `ok=false` 与 `dead`（`src/S3/Upload_Metrics.php:84-125`），但生产没有第二个调用方。`Alerting::evaluate()` 用 `week.attempts` 与 `week.rate` 判 `failure_rate`（`src/S3/Alerting.php:152-169`），所以失败率恒 0。
+
+**C. `Space_Store::grant_from_order()` 的字段写入**
+
+| # | 验证点 | 操作 | 结果 |
+|---:|---|---|---|
+| 8 | 解析结果 | 生产只读反射调用私有 `normalise_order()`，输入见 §8.9 | `order_id=123`、`order_num=probe-order`、`price=30`、`channel=balance`、`bytes=1073741824` |
+| 9 | 生产发放记录 | `wp eval` 聚合 `sufm_space_grants` | `order:` 1 行：`source=purchase`、`channel=balance`，`order_id`/`order_num`/`price` 均非 0；`points:` 3 行：1 行有订单字段，2 行订单字段为 0；3 行 `price=0` |
+| 10 | 写入差异 | 对照 `src/UserFiles/Services/Space_Store.php:830-843` | INSERT 的 `source`/`channel` 为字面量 `'points'`，`order_id=0`、`order_num=''`、`price=0`、`points=0`；解析值只进入 `meta`（`:811-818`） |
+| 11 | 积分日限额影响 | 读 `:2014-2022`、`:1933`、`:2154`、`:2350` | `points_used_bytes()` 按 `source='points'` 汇总当日字节；现金订单被写成 `points` 后会占用 `used_gb`，可能触发「今日兑换已达上限」 |
+
+**边界**：第 8 条是纯函数反射，不写库；第 9 条是只读聚合；**没有创建真实订单**。静态代码已足以证明解析值未进入 INSERT；第 11 条是代码路径推导，未在生产制造现金订单。修复时应补现金/积分两类发放测试与「现金发放不计入积分日限额」的断言（§8.9 修复建议）。
+
+**D. 结论汇总**
+
+| 原 §12 # | 项 | 结论 | 证据强度 |
+|---:|---|---|---|
+| 1 | `fast-search.php` 外部限制 | **无缺陷**：无额外 nginx/.htaccess 限制；无 token/错签名 403，有效管理员签名 200 | 运行期 403/200 + 配置静态核对 |
+| 2 | `grant_from_order()` 字段 | **确认缺陷**：`source/channel` 写死 `points`，订单字段清零；现金购买会计入积分日限额 | 反射 + 生产聚合 + 静态 SQL |
+| 3 | 上传失败不可见 | **确认缺陷**：只记录 `ok=true`，失败路径不触发；生产 91 次成功、0 次失败样本，失败率恒 0 | 生产快照 + 钩子调用图 |
 
 ---
 
@@ -1332,19 +1432,34 @@ sufm_routes=45 endpoints=51
 
 ---
 
-## 12. 待确认项汇总
+## 12. 待确认项汇总（本轮清零）与已确认缺陷
 
-以下 3 项是本次分析中**没有直接证据**或**超出只读边界**的地方。除此之外，正文结论都有代码位置或测试结果支撑。
+截至 2026-11-08，正文中没有“只有结论、没有代码位置或运行证据”的待确认项。原 §12 的 3 项已全部核实：`fast-search.php` 无缺陷；`Space_Store::grant_from_order()` 与 S3 上传观测确认为代码缺陷，但本轮**没有修改插件代码**，只记录证据与修复建议。
 
-已关闭（本轮）：原第 1 项「`scans.scan_cursor` 一列双语义」与原第 2 项「`sio_sync_operations` 的消费语义」已用静态阅读 + 测试站运行期证据核实（§7.7、§10.9）。
+### 12.1 本轮核实结果
 
-已关闭（此前）：原第 4 项「缩略图 `provider` 取值未枚举」与原第 5 项「HTML 旧引擎 ob 回调边界」已用静态 + 运行期证据核实（§5.7、§10.7）；原第 6 项「并发上传 `consume_pending` 匹配失败」见 §10.6；原第 12 项「`.dsh-ops/` 非插件产物」已清理并加入 `.gitignore`（§2.1）；原 S3 章的 `Upload_Queue`、`snapshot` 的 `counts/backlog`、两套 `target_hash`、`Sync_Status` 遗留方法与 `PREVIOUS_PATH_OPTION` 四条已在本轮结论并落地（§6.8、§10.8）。
-
-| # | 问题 | 证据位置 | 影响 | 建议验证方式 |
+| 原 # | 事项 | 结论 | 关键证据 | 正文 |
 |---:|---|---|---|---|
-| 1 | `fast-search.php` 是否另有 nginx/htaccess 限制 | `fast-search.php:1-12` | 影响端点可否被外部直接访问 | 生产站 `curl` 一次该 URL 看返回 |
-| 2 | `Space_Store::grant_from_order` 把 source 硬编码为 `'points'` | `src/UserFiles/Services/Space_Store.php:830-843` vs `Schema.php:452` | 购买/积分来源无法区分，影响对账 | 用测试订单走一次发放，查 `sufm_space_grants.source` |
-| 3 | 生产只记录成功上传样本，`failure_rate` 告警与失败计数恒不触发 | `src/S3/Upload_Observer.php:30`、`:41`、`:49`（固定 `ok=true`）→ `src/S3/Alerting.php:152-165`；失败路径未接观测 | 现网 `attempts_total{result="fail/dead"}`、14 天失败率与告警永远是 0，故障不可见 | 在 `Object_Store` 失败分支补 `record_batch(ok=false)` 后用测试站造一次失败上传；或先查维护者是否另有外部监控 |
+| 1 | `fast-search.php` 是否另有 nginx/.htaccess 限制 | **无缺陷**：生产环境没有额外封禁；入口自身按 HMAC + 管理员能力鉴权 | 生产无 token/错签名 403，有效管理员签名 200（438 字节，`total=132`）；nginx 配置无 `fast-search` 专属 `location` | §10.10-A |
+| 2 | `grant_from_order()` 的 `source` 与订单字段 | **确认缺陷**：`source`/`channel` 固定写 `'points'`，`order_id`/`order_num`/`price`/`points` 清零 | 生产只读反射 `normalise_order()` 解析出 `order_id=123`、`price=30`、`channel=balance`；INSERT（`src/UserFiles/Services/Space_Store.php:830-843`）丢弃这些值；生产 `sufm_space_grants` 已有订单行与 `points` 行并存 | §8.9、§10.10-C |
+| 3 | S3 上传失败是否进入指标 | **确认缺陷**：只记录成功样本，失败路径不触发观测钩子 | 生产快照 `attempts=91`、`ok=91`、`fail=0`、`dead=0`、`rate=0`；`Upload_Observer.php:41-53` 固定 `ok=true`；`Object_Store` 失败分支不触发 `sakura_imgopt_s3_uploaded` | §10.10-B |
+
+### 12.2 待确认项
+
+**无。** 本轮不再保留“需要后续验证”的代码问题。下面这些此前的待确认项均已有结论，供接手者追溯：`scans.scan_cursor` 双语义与 `sio_sync_operations` 消费语义（§7.7、§10.9）；缩略图 `provider` 取值与 HTML 旧引擎 `ob_start` 边界（§5.7、§10.7）；并发上传 `consume_pending` 匹配（§10.6）；`.dsh-ops/` 非插件产物（§2.1）；S3 章四条遗留代码（§6.8、§10.8）。
+
+### 12.3 已确认缺陷（未修复）
+
+| 优先级 | 缺陷 | 影响 | 修复建议 | 依据 |
+|---|---|---|---|---|
+| **高** | `Space_Store::grant_from_order()` 把所有订单发放写成 `source='points'`，并清空订单字段 | ① 现金与积分购买无法按 `source` 区分；② `order_id`/`order_num`/`price` 清零，按订单对账与收入统计失真；③ `points_used_bytes()` 按 `source='points'` 汇总（`Space_Store.php:2014-2022`），现金购买会占用积分日限额（`:2154`、`:2350`），可能提前阻断积分兑换 | 按 `data['channel']` 分支：积分订单写 `source='points'`，其余写 `purchase`；INSERT 使用 `normalise_order()` 已解析的 `order_id`、`order_num`、`price` 与积分值；补现金/积分两类发放测试，并断言现金发放不计入积分日限额 | §8.9、§10.10-C |
+| **中** | `Upload_Observer` 只记录 `ok=true`，失败路径不写指标 | 生产 `attempts_total{result="fail"}`、`dead`、14 天失败率与 `failure_rate` 告警恒为 0；上传故障不会进入该指标与告警，需依赖其它日志或监控发现 | 在 `Object_Store` 的失败分支调用 `Upload_Metrics::record_batch()` 写 `ok=false`（必要时标 `dead` 并带 `error`），或明确改由外部监控覆盖并在文档中登记；补一条失败样本测试 | §10.10-B |
+
+两项都属于**行为缺陷**，不是文档口径问题。修复会改变代码与测试，本轮未获授权，故只登记；修复后需重跑 `phpunit`、`phpstan`、`phpcs` 并按《图谱同步说明》§7 重建图谱（节点数不变，行为说明需更新）。
+
+### 12.4 不属于代码待确认项的遗留
+
+《图谱同步说明》§10.3 记录的“181 vs 178 文件数”是旧导出排除规则未留档造成的**图谱口径差异**，与当前插件代码行为无关；当前图谱统一为 180 节点 / 812 连线 / 190 钩子。它保留在图谱文档的已知局限中，不计入本节。
 
 ---
 
@@ -1358,10 +1473,10 @@ sufm_routes=45 endpoints=51
 | 连线 | 812 = 599 `ref` + 50 `modref` + 163 `contains` |
 | 钩子 | 190（面板显示，不建节点） |
 | 悬空边 | 0 |
-| 本轮变更 | 无代码/类变化；只补 §7.7 正文与 §10.9 验证记录，图谱无需重建 |
+| 本轮变更 | 无代码/类变化；只补 §8.9、§10.10、§12 正文，图谱无需重建 |
 | 数据来源 | `/tmp/scan-new.json`（上一轮 `§6.8` 清理后重扫；本轮未改代码，未重扫）——由 `docs/tools/collect-comments.php` 与 codegraph 的 `scanner.php` 生成，与本文所有表格同源 |
 
-本轮没有新增/删除类，节点、连线与钩子统计与上一轮完全一致，`docs/graph-preview/` 无需重新生成。§7.7 的三项结论都是已有节点（`Scan_Service`、`Remote_Operation_Guard`、`Sync_Center_Module`）的职责细化，没有产生新的图谱关系；因此文档与图谱仍按上一轮结论对齐。
+本轮没有新增/删除类，节点、连线与钩子统计与上一轮完全一致，`docs/graph-preview/` 无需重新生成。§12 三项结论中，`Space_Store` 与 `Upload_Observer` 是已有节点的职责细化与缺陷记录；`fast-search.php` 是脚本型文件，本来就不进入图谱。三项都没有产生新的图谱关系，因此文档与图谱仍按上一轮结论对齐。
 
 **生成与注入脚本**（都在 `docs/tools/`，可重复执行）：`build-code-structure.mjs`（事实表 → 表格 + graph.json）、`graph-inject.mjs`（graph.json → index.html 内嵌 DATA，含悬空边校验）、`assemble-doc.py`（分章 + 表格 → 本文）。完整命令见《图谱同步说明》§7。
 

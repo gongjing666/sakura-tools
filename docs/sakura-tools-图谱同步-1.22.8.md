@@ -182,9 +182,9 @@ cp /tmp/graph.png docs/graph-preview/preview.png
 | 3 | 钩子数 = 附录 B 行数 | 同上 | 190 = 190 ✅ |
 | 4 | 连线数 = 三类之和 | `599 + 163 + 50` | 812 ✅ |
 | 5 | 悬空边 | `graph-inject.mjs` 每次注入前校验 | 0 ✅ |
-| 6 | 同源重建 | 用 `/tmp/scan-new.json` 重建 13 个生成块并重新组装，与仓库正文比对 | §6.8 清理后那版 md5 为 `1c82079ea7777f5d5beeaf6b8a18e6bf`；本轮 §7.7 改写、行号校正并重建生成块后为 `0d24b7f14154b2f104a39a3038a1ddbb` ✅ |
+| 6 | 同源重建 | 用 `/tmp/scan-new.json` 重建 13 个生成块并重新组装，与仓库正文比对 | §6.8 清理后那版 md5 为 `1c82079ea7777f5d5beeaf6b8a18e6bf`；本轮 §7.7 改写、行号校正并重建生成块后为 `f2948e675caf9dbdb3cf58d0395623c9` ✅ |
 | 7 | 注入幂等 | 连续执行两次 | 第二次 `changed:false`（165,914 B 未变）✅ |
-| 8 | 文档可重装 | `python3 docs/tools/assemble-doc.py --parts /tmp/docparts --chapters docs/tools/chapters --out /tmp/verify-sakura-doc.md` | 与仓库正文逐字节一致（md5 `0d24b7f14154b2f104a39a3038a1ddbb`）✅ |
+| 8 | 文档可重装 | `python3 docs/tools/assemble-doc.py --parts /tmp/docparts --chapters docs/tools/chapters --out /tmp/verify-sakura-doc.md` | 与仓库正文逐字节一致（md5 `f2948e675caf9dbdb3cf58d0395623c9`）✅ |
 | 9 | 渲染 | Chrome headless + SwiftShader 截图 `preview.png` | 星簇正常；页脚 178 / 180 / 812 / 190；S3 详情 36 文件 ✅ |
 | 10 | 文件数一致 | `stats.files` = 附录 C 行数 | 178 = 178 ✅ |
 

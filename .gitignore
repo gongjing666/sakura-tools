@@ -13,3 +13,6 @@
 .idea/
 .vscode/
 *.log
+
+# DSH ops panel captures (runtime artifacts written into cwd, never shipped)
+.dsh-ops/

@@ -115,7 +115,7 @@ sakura-tools/
 └── DEVELOPMENT.md / DECISIONS.md / readme.txt   历史文档与决策记录
 ```
 
-> **待确认（非插件产物）**：目录下还有一个 `.dsh-ops/panel/`（4 个文件），内容是本机 DSH 工具的运行记录，不属于插件。建议清理或加入 `.gitignore`，避免误提交。
+> **非插件产物说明**：插件根目录曾出现 `.dsh-ops/panel/`，是 dsh-ops 面板按「当前工作目录」写入的捕获文件，不属于插件。该目录由面板代码写死（`dsh-ops/lib/panel/config.js:8` 的 `PANEL_DIR`，`lib/cli/panel.js:42` 取 `cwd`），本机 DSH 的工作目录正好是插件根，因此每开一次会话就可能多一份快照。2026-11-08 已清理归档（当时 11 个文件 / 3.3 MB）并把 `.dsh-ops/` 加入 `.gitignore`；只要 DSH 仍以本目录为工作目录，它仍会重新生成。
 
 ### 2.2 模块总览
 
@@ -1074,7 +1074,7 @@ sufm_routes=45 endpoints=51
 
 ## 12. 待确认项汇总
 
-以下 12 项是本次分析中**没有直接证据**或**超出只读边界**的地方。除此之外，正文结论都有代码位置或测试结果支撑。
+以下 11 项是本次分析中**没有直接证据**或**超出只读边界**的地方。除此之外，正文结论都有代码位置或测试结果支撑。（原第 12 项「`.dsh-ops/` 非插件产物」已处理：清理归档并加入 `.gitignore`，见 §2.1。）
 
 | # | 问题 | 证据位置 | 影响 | 建议验证方式 |
 |---:|---|---|---|---|
@@ -1089,7 +1089,6 @@ sufm_routes=45 endpoints=51
 | 9 | 上传与删除的 `target_hash` 字段集合不同 | `src/S3/Synchronous_Uploader.php:482` vs `src/S3/Delete_Jobs.php:54` | 跨路径比对可能永假 | 打印两条 hash 的字段集合对比 |
 | 10 | `Sync_Status::enqueue` / `fail_job` 无调用方；`Upload_URL::PREVIOUS_PATH_OPTION` 未使用 | `src/S3/Sync_Status.php:294`、`:333`、`src/S3/Upload_URL.php:12` | 死代码 | 全仓 grep 确认 |
 | 11 | `Space_Store::grant_from_order` 把 source 硬编码为 `'points'` | `src/UserFiles/Services/Space_Store.php:830-843` vs `Schema.php:452` | 购买/积分来源无法区分，影响对账 | 用测试订单走一次发放，查 `sufm_space_grants.source` |
-| 12 | 插件根目录 `.dsh-ops/panel/`（4 文件）非插件产物 | 目录本身 | 可能被误提交/误分发 | 清理或加入 `.gitignore` |
 
 ---
 

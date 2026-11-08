@@ -32,7 +32,7 @@
 |---|---|---|
 | `文件:行` | 静态证据：结论直接来自该位置的代码 | `src/Plugin.php:83-86` |
 | **验证** | 运行证据：在测试站实际执行过，第 10 章有命令与输出 | 验证 §10.3 路由 11/11 |
-| **未验证** | 只有静态阅读，未在运行时复现 | 上传队列排空（只读边界） |
+| **未验证** | 只有静态阅读，未在运行时复现 | 配额扣减（只读边界） |
 | **待确认** | 代码里存在歧义或超出本次范围，不下结论 | §12 清单 |
 | **口径** | 统计方式说明，避免读者误读数字 | 入度/出度的计算方式 |
 
@@ -61,7 +61,7 @@
 4. **后台信息架构是静态声明的。** `src/Admin/Registry.php:41-101` 用一张常量数组声明「模块 → tab → 权限门 → renderer key」；`Menu` 只做建屏与分发，`Shell` 只画外壳。**加一个 tab = 改 Registry + 注册 renderer 两处**，不需要动菜单代码。
 5. **功能面是 5 个子系统 + 3 条横切。** 子系统：图片优化管线（§4）、缩略图 URL 重写（§5）、对象存储 S3（§6）、同步索引 Sync（§7）、用户文件空间 UserFiles（§8）。横切：数据落点（§9）、钩子索引（§9.2）、REST/CLI/Cron（§9.3）。
 6. **代码量集中在两处。** UserFiles（46 文件 / 20,495 行）与 S3（37 文件 / 10,798 行）合计占生产代码的 52.3%；两者也是唯一有自建表、有异步队列、有加密凭据的部分。
-7. **运行时可访问性已验证。** 11 条后台路由全部 200 且标题正确、45 条 `/sufm/v1` REST 路由（51 个端点）全部注册、7 个插件 cron 事件已排程、12 项函数级探针结果符合预期（§10）。**未验证**的是所有写路径（上传排空、配额扣减、删除审核、卸载清理）——这是本次只读边界的必然结果。
+7. **运行时可访问性已验证。** 11 条后台路由全部 200 且标题正确、45 条 `/sufm/v1` REST 路由（51 个端点）全部注册、7 个插件 cron 事件已排程、12 项函数级探针结果符合预期（§10）。**未验证**的是生产环境的写路径（配额扣减、删除审核、卸载清理）——生产保持只读。唯一例外是测试站上补做的 5 张并发上传（§10.6），它把「上传 → 压缩 → S3 PUT → 索引落库」整条链路跑通了。
 8. **两张"文档"已经过期，不要当作事实源。** `DEVELOPMENT.md` 第 1 节的"当前文件结构"停留在 1.3.3 的 6 个文件；`/root/WordPress/docs/sakura-image-optimizer-代码分析报告.md`（本机历史报告，未随仓库分发） 停在 1.9.0 之前的命名。本报告与 3D 图谱是当前唯一同步的产物；`DECISIONS.md` 仍然有效（记录的是"为什么"，不是"现在有什么"）。
 9. **文档与图谱同源，不会再脱节。** 两者都由同一份扫描事实表（`/tmp/scan.json`，来自 `dsh-codegraph` 的 `lib/scanner.php`）经 `docs/tools/build-code-structure.mjs` 生成。改代码后重跑一次命令即可同时刷新表格与图谱（§13.6）。
 
@@ -312,7 +312,7 @@ register() 之后调用     → 直接 add_action/add_filter 到 WP（不再入�
 | `delete_attachment` | action | — | 清理 | `:158` |
 | `admin_post_sakura_imgopt_reset_stats` / `wp_ajax_sakura_imgopt_scan_crop` / `wp_ajax_sakura_imgopt_stats_page` | action | — | 设置页与统计 | `includes/class-image-optimizer-module.php:72-74` |
 
-主动触发（供外部系统接入）：`sakura_imgopt_metadata_budget_exhausted`（`src/Image/Metadata_Processor.php:139`）、`sakura_imgopt_restore_started` / `sakura_imgopt_restored`（`src/Image/Restore_Service.php:149`、`:175`）。
+主动触发（供外部系统接入）：`sakura_imgopt_metadata_budget_exhausted`（`src/Image/Metadata_Processor.php:139`）、`sakura_imgopt_restore_started` / `sakura_imgopt_restored`（`src/Image/Restore_Service.php:149`、`:175`）。其中 `sakura_imgopt_metadata_budget_exhausted` 在本站没有监听者（§10.6）。
 
 ### 4.5 数据落点
 
@@ -342,13 +342,12 @@ register() 之后调用     → 直接 add_action/add_filter 到 WP（不再入�
 
 1. **"不变小就保留原图"是唯一的质量底线**。`No_Gain_Guard` 里"任一为 0 视为可替换"是个例外分支，意味着拿不到体积信息时会覆盖原图（`src/Image/No_Gain_Guard.php:39-58`）。
 2. **子尺寸压缩有 20 秒预算**，超时只记 skipped 并 `break`，本请求不补做、也没有后续队列（`src/Image/Metadata_Processor.php:136-141`、`:193-212`）。大相册站点的首张上传可能只压了一部分尺寸。
-3. **统计与备份 meta 依赖"待写记录"匹配**：待消费记录多于 1 条或文件名无关时，该附件的统计与 `_sakura_imgopt_backup` 不会写（`src/Image/Metadata_Processor.php:245-251`）——并发上传可能命中，**未验证**（见 §12）。
+3. **统计与备份 meta 依赖"待写记录"匹配**：待写记录以最终文件路径为键（`src/Image/Metadata_Processor.php:99-101`），flush 时先精确匹配、再匹配 `-scaled` 变体，只有在"恰好剩 1 条记录且文件名同干"时才走启发式兜底（`:222-251`）。**并发上传不会命中这个兜底分支**：`pending_records` 是实例属性（`:32`），每个 HTTP 请求都会重新构造一份 `Metadata_Processor`（`includes/class-image-processor.php:123`），进程之间不共享；`async-upload.php` 一次也只处理一个文件。2026-11-08 在测试站用本地 MinIO 做 5 张并发上传，5/5 的 `_sakura_imgopt_backup`、`sakura_imgopt_log`、S3 同步记录齐全（§10.6）。真正会丢 meta 的是"同一进程一次处理多张、路径又都对不上"的构造场景，标准媒体库上传路径不可达。
 4. 备份写入失败会中止整条链路（`src/Image/Upload_Handler.php:141-145`），这是刻意的"宁可不压，也不丢原图"。
 
 ### 4.8 待确认
 
-- 并发上传时 `consume_pending` 的匹配失败是否会在生产复现，需要跑一次并发上传验证（本次只读，未做）。
-- `sakura_imgopt_metadata_budget_exhausted` 目前只有触发、无内置监听者，是否有外部消费方未知。
+- 无。原两条已核实关闭：并发上传未复现 `consume_pending` 匹配失败；`sakura_imgopt_metadata_budget_exhausted` 在本站无外部消费方。证据与边界见 §10.6。
 
 ---
 
@@ -927,7 +926,7 @@ register() 之后调用     → 直接 add_action/add_filter 到 WP（不再入�
 
 ## 10. 运行时验证记录
 
-**边界声明**：本次为**只读验证**——只执行查询、纯函数调用与 GET 请求；没有触发上传排空、配额扣减、删除审核、卸载清理等写路径。所有命令都在测试站 `/root/sio-e2e` 执行，插件以软链挂载到 `/root/work/sakura-tools`（同一份代码）。
+**边界声明**：生产环境为**只读验证**——只执行查询、纯函数调用与 GET 请求，没有触发任何写路径。日常命令都在测试站 `/root/sio-e2e` 执行，插件以软链挂载到 `/root/work/sakura-tools`（同一份代码）。测试站上另补做了一次写验证：2026-11-08 的 5 张并发上传（§10.6），数据只落在测试站自己的 MariaDB 与 MinIO，未触及生产。
 
 ### 10.1 环境与激活状态
 
@@ -1001,7 +1000,24 @@ sufm_routes=45 endpoints=51
 | 11 | `Uninstaller::monitoring_options()` | 3 | 3 | ✅ |
 | 12 | `Space_Rules::limit_for(1)` + `Quota::snapshot(1)` | 512 MB 档 | limit 536,870,912；used 22,389,628；quota 536,870,912；available 514,481,284 | ✅ used + available = quota |
 
-**未验证（受只读边界所限）**：上传排空（`wp_update_attachment_metadata` → S3 PUT）、配额扣减（`Quota::commit`）、删除审核（`Requests::approve` → `Executor::run`）、卸载清理（`Uninstaller`）。正文中凡涉及这四条路径的描述均为**静态阅读**。
+**未验证（受只读边界所限）**：配额扣减（`Quota::commit`）、删除审核（`Requests::approve` → `Executor::run`）、卸载清理（`Uninstaller`）。正文中凡涉及这三条路径的描述均为**静态阅读**。上传 → S3 PUT 已在测试站跑通（§10.6），但生产环境从未执行。
+
+### 10.6 并发上传与钩子消费方（补充验证，2026-11-08）
+
+**A. 并发上传（测试站 + 本地 MinIO）**
+
+- 环境：`/root/sio-e2e`，PHP 8.4 + `php -S`（`PHP_CLI_SERVER_WORKERS=4`），S3 指向 `127.0.0.1:19010` 的 MinIO（bucket `sio-e2e`）；图片设置 `enable_compression=1`、`convert_format=webp`、`quality=82`、`backup_enabled=1`。
+- 方法：用 `wp eval-file` 生成 admin 的登录 cookie 与 `media-form` nonce（必须先 `wp_set_current_user(1)` 再 `wp_create_nonce('media-form')`，否则 nonce 按 uid 0 计算，上传返回 403「您点击的链接已过期」），再用 5 个 curl 进程同时 POST `/wp-admin/async-upload.php`，每个请求一张 1600×1200 的 JPEG（720–834 KB）。
+- 结果：5 个请求全部 HTTP 200，返回附件 ID 225–229；单请求耗时 0.84s / 0.85s / 1.70s / 2.57s / 0.89s（4 个 worker，2 个排队），总墙钟 2.58s。逐附件核对：`_sakura_imgopt_backup`（origin `.jpg` → converted `.webp`）、`sakura_imgopt_log`（`status=success`、`engine=imagick`、压缩率 82.2%–83.2%）、`_sakura_imgopt_s3_status=synced` 与 4 个 `_sakura_imgopt_s3_objects` 全部齐全；`sio_sync_index` 新增 20 行（5 附件 × 4 对象），磁盘上 20 个 `.webp` 与 5 个备份原图。
+- 结论：并发上传**没有**复现「待写记录匹配失败」。原因在代码：`pending_records` 是 `Metadata_Processor` 的实例属性（`src/Image/Metadata_Processor.php:32`），每个请求各自构造一份（`includes/class-image-processor.php:123`），进程间不共享；`async-upload.php` 一次只处理一个文件，flush 时必然是「1 条记录 + 同路径精确命中」（`src/Image/Metadata_Processor.php:230-234`）。
+- 未覆盖：单请求一次上传多张（循环调用 `wp_handle_upload`）的调用方。只有这种场景会让待写记录 `count > 1`，此时只剩精确匹配与 `-scaled` 兜底（`src/Image/Metadata_Processor.php:236-251`），对不上就丢弃；本次未构造运行。
+
+**B. `sakura_imgopt_metadata_budget_exhausted` 的消费方**
+
+- 静态：全仓（排除 `tests/`、`stubs/`、`docs/`）只有触发点 `src/Image/Metadata_Processor.php:139`；`tests/MetadataProcessorBudgetTest.php:64` 仅断言动作发生。
+- 运行时：`wp eval-file` 打印 `$wp_filter`，生产站与测试站对 `sakura_imgopt_metadata_budget_exhausted` 与过滤器 `sakura_imgopt_metadata_budget` 均为 `NONE`。
+- 站级静态：`grep -rn` 扫 `/www/wwwroot/www.nboke.com/wp-content`（排除本插件）0 命中，测试站同样 0；生产激活插件为 object-cache-pro、sakura-database-care、sakura-tools、tinymce-advanced、zibll-site-enhance，主题 zibll，均不消费它。
+- 结论：**本站没有外部消费方**；该 action 与过滤器是公开扩展点（供站外或后续插件接入），不是内部依赖。站外是否存在消费者无法从本站穷举，只能确认「当前站点与已安装代码没有」。
 
 ---
 
@@ -1074,7 +1090,7 @@ sufm_routes=45 endpoints=51
 
 ## 12. 待确认项汇总
 
-以下 11 项是本次分析中**没有直接证据**或**超出只读边界**的地方。除此之外，正文结论都有代码位置或测试结果支撑。（原第 12 项「`.dsh-ops/` 非插件产物」已处理：清理归档并加入 `.gitignore`，见 §2.1。）
+以下 10 项是本次分析中**没有直接证据**或**超出只读边界**的地方。除此之外，正文结论都有代码位置或测试结果支撑。（原第 12 项「`.dsh-ops/` 非插件产物」已处理：清理归档并加入 `.gitignore`，见 §2.1；原第 6 项「并发上传 `consume_pending` 匹配失败」已核实关闭，见 §10.6。）
 
 | # | 问题 | 证据位置 | 影响 | 建议验证方式 |
 |---:|---|---|---|---|
@@ -1083,12 +1099,11 @@ sufm_routes=45 endpoints=51
 | 3 | `fast-search.php` 是否另有 nginx/htaccess 限制 | `fast-search.php:1-12` | 影响端点可否被外部直接访问 | 生产站 `curl` 一次该 URL 看返回 |
 | 4 | 缩略图 `provider` 取值未枚举 | `src/Thumbnail/Settings.php:968-979` | 新增供应商可能静默落到 Generic | 读 `Settings::defaults()` + 枚举 UI 选项 |
 | 5 | HTML 旧引擎（`engine='html'`）的 ob 回调边界 | `includes/class-thumbnail-optimizer-module.php:99`、`:128` | 出问题时难定位 | 测试站开启该模式对比输出 HTML |
-| 6 | 图片并发上传时 `consume_pending` 匹配失败 | `src/Image/Metadata_Processor.php:245-251` | 该附件统计/备份 meta 可能丢失 | 并发 5 张上传后查 `_sakura_imgopt_backup` 是否齐全 |
-| 7 | `Upload_Queue` 生产无实例化 | `src/S3/Upload_Queue.php:21`、`src/S3/Storage.php:135-137` | 死代码，误导读者 | 全仓 grep 确认只有测试引用 |
-| 8 | `Upload_Metrics::snapshot` 的 `counts` 无调用方 | `src/S3/Prometheus.php:124`、`Alerting.php:277`、`Sync_Center_Panel.php:29` | 删除队列 `queued/dead` 恒 0 | 设计意图还是遗漏，需问维护者 |
-| 9 | 上传与删除的 `target_hash` 字段集合不同 | `src/S3/Synchronous_Uploader.php:482` vs `src/S3/Delete_Jobs.php:54` | 跨路径比对可能永假 | 打印两条 hash 的字段集合对比 |
-| 10 | `Sync_Status::enqueue` / `fail_job` 无调用方；`Upload_URL::PREVIOUS_PATH_OPTION` 未使用 | `src/S3/Sync_Status.php:294`、`:333`、`src/S3/Upload_URL.php:12` | 死代码 | 全仓 grep 确认 |
-| 11 | `Space_Store::grant_from_order` 把 source 硬编码为 `'points'` | `src/UserFiles/Services/Space_Store.php:830-843` vs `Schema.php:452` | 购买/积分来源无法区分，影响对账 | 用测试订单走一次发放，查 `sufm_space_grants.source` |
+| 6 | `Upload_Queue` 生产无实例化 | `src/S3/Upload_Queue.php:21`、`src/S3/Storage.php:135-137` | 死代码，误导读者 | 全仓 grep 确认只有测试引用 |
+| 7 | `Upload_Metrics::snapshot` 的 `counts` 无调用方 | `src/S3/Prometheus.php:124`、`Alerting.php:277`、`Sync_Center_Panel.php:29` | 删除队列 `queued/dead` 恒 0 | 设计意图还是遗漏，需问维护者 |
+| 8 | 上传与删除的 `target_hash` 字段集合不同 | `src/S3/Synchronous_Uploader.php:482` vs `src/S3/Delete_Jobs.php:54` | 跨路径比对可能永假 | 打印两条 hash 的字段集合对比 |
+| 9 | `Sync_Status::enqueue` / `fail_job` 无调用方；`Upload_URL::PREVIOUS_PATH_OPTION` 未使用 | `src/S3/Sync_Status.php:294`、`:333`、`src/S3/Upload_URL.php:12` | 死代码 | 全仓 grep 确认 |
+| 10 | `Space_Store::grant_from_order` 把 source 硬编码为 `'points'` | `src/UserFiles/Services/Space_Store.php:830-843` vs `Schema.php:452` | 购买/积分来源无法区分，影响对账 | 用测试订单走一次发放，查 `sufm_space_grants.source` |
 
 ---
 

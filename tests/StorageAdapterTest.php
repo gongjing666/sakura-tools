@@ -35,4 +35,21 @@ final class StorageAdapterTest extends TestCase {
 		$this->assertInstanceOf( WP_Error::class, $result );
 		$this->assertSame( 'sakura_s3_invalid_file', $result->get_error_code() );
 	}
+
+	public function test_upload_rejection_emits_failure_event_with_attachment(): void {
+		$GLOBALS['sakura_test_actions'] = array();
+		$adapter = new Storage_Adapter( new Options( array() ) );
+		$path    = ABSPATH . 'missing.jpg';
+
+		$result = $adapter->upload_file( '', $path, false, 42 );
+
+		$this->assertInstanceOf( WP_Error::class, $result );
+		$this->assertCount( 1, $GLOBALS['sakura_test_actions'] );
+		[ $hook, $args ] = $GLOBALS['sakura_test_actions'][0];
+		$this->assertSame( 'sakura_imgopt_s3_upload_failed', $hook );
+		$this->assertSame( '', $args[0] );
+		$this->assertSame( $path, $args[1] );
+		$this->assertInstanceOf( WP_Error::class, $args[2] );
+		$this->assertSame( 42, $args[3] );
+	}
 }

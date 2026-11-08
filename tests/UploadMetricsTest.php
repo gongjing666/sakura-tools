@@ -8,12 +8,117 @@
 declare( strict_types=1 );
 
 use PHPUnit\Framework\TestCase;
+use Sakura\ImageOptimizer\S3\Options;
 use Sakura\ImageOptimizer\S3\Upload_Metrics;
+use Sakura\ImageOptimizer\S3\Upload_Observer;
+
+/**
+ * In-memory event table with just enough SQL surface for Upload_Metrics.
+ */
+final class UploadMetricsDatabase {
+	public string $prefix = 'test_';
+	public string $last_error = '';
+	/** @var array<int,array<string,mixed>> */
+	public array $rows = array();
+	/** @var array<int,array<string,mixed>> */
+	public array $inserts = array();
+
+	public function insert( $table, $row ) {
+		$this->inserts[] = $row;
+		$this->rows[]     = $row;
+		return 1;
+	}
+
+	public function get_results( $sql ) {
+		$rows = $this->rows;
+		if ( preg_match( "/day >= '([0-9-]+)'/", (string) $sql, $match ) ) {
+			$rows = array_values( array_filter( $rows, static fn( array $row ): bool => (string) $row['day'] >= $match[1] ) );
+		}
+
+		if ( str_contains( (string) $sql, 'GROUP BY day, result' ) ) {
+			return $this->aggregate( $rows, true );
+		}
+		if ( str_contains( (string) $sql, 'GROUP BY result' ) ) {
+			return $this->aggregate( $rows, false );
+		}
+
+		return array();
+	}
+
+	private function aggregate( array $rows, bool $by_day ): array {
+		$groups = array();
+		foreach ( $rows as $row ) {
+			$key = $by_day ? (string) $row['day'] . '|' . (string) $row['result'] : (string) $row['result'];
+			if ( ! isset( $groups[ $key ] ) ) {
+				$groups[ $key ] = (object) array(
+					'day'     => $by_day ? (string) $row['day'] : null,
+					'result'  => (string) $row['result'],
+					'n'       => 0,
+					'bytes'   => 0,
+					'ms_sum'  => 0,
+					'max_ms'  => 0,
+				);
+			}
+			$groups[ $key ]->n++;
+			$groups[ $key ]->bytes  += 'ok' === $row['result'] ? (int) $row['bytes'] : 0;
+			$groups[ $key ]->ms_sum += (int) $row['duration_ms'];
+			$groups[ $key ]->max_ms  = max( (int) $groups[ $key ]->max_ms, (int) $row['duration_ms'] );
+		}
+
+		return array_values( $groups );
+	}
+
+	public function get_row( $sql ) {
+		$rows = array_values( array_filter( $this->rows, static fn( array $row ): bool => in_array( $row['result'], array( 'fail', 'dead' ), true ) ) );
+		if ( ! $rows ) {
+			return null;
+		}
+		$row = $rows[ count( $rows ) - 1 ];
+
+		return (object) array(
+			'created_at'    => (string) $row['created_at'],
+			'error_message' => (string) $row['error_message'],
+			'attachment_id' => (int) $row['attachment_id'],
+			'object_key'    => (string) $row['object_key'],
+		);
+	}
+
+	public function get_var( $sql ) {
+		if ( ! $this->rows ) {
+			return null;
+		}
+		return max( array_column( $this->rows, 'created_at' ) );
+	}
+
+	public function get_col( $sql ) {
+		return array( 'id', 'created_at', 'day', 'result', 'error_message' );
+	}
+
+	public function query( $sql ) {
+		if ( str_starts_with( trim( (string) $sql ), 'DELETE FROM' ) ) {
+			$count       = count( $this->rows );
+			$this->rows  = array();
+			return $count;
+		}
+		return false;
+	}
+}
 
 final class UploadMetricsTest extends TestCase {
+	private ?object $previous_wpdb = null;
+	private UploadMetricsDatabase $db;
 
 	protected function setUp(): void {
-		$GLOBALS['sakura_test_options'] = array();
+		$this->previous_wpdb = $GLOBALS['wpdb'] ?? null;
+		$this->db            = new UploadMetricsDatabase();
+		$GLOBALS['wpdb']     = $this->db;
+		$GLOBALS['sakura_test_options'] = array(
+			Upload_Metrics::SCHEMA_OPTION => Upload_Metrics::VERSION,
+		);
+	}
+
+	protected function tearDown(): void {
+		$GLOBALS['wpdb'] = $this->previous_wpdb;
 	}
 
 	public function test_empty_snapshot(): void {
@@ -27,7 +132,7 @@ final class UploadMetricsTest extends TestCase {
 		$this->assertArrayNotHasKey( 'backlog', $snapshot );
 	}
 
-	public function test_records_success_and_failure(): void {
+	public function test_records_success_and_failure_as_events(): void {
 		$metrics = new Upload_Metrics();
 		$metrics->record_batch(
 			array(
@@ -37,6 +142,7 @@ final class UploadMetricsTest extends TestCase {
 					'bytes'      => 2048,
 					'attachment' => 1,
 					'key'        => 'a.jpg',
+					'profile'    => 'prof',
 				),
 				array(
 					'ok'         => true,
@@ -44,14 +150,17 @@ final class UploadMetricsTest extends TestCase {
 					'bytes'      => 1024,
 					'attachment' => 2,
 					'key'        => 'b.jpg',
+					'profile'    => 'prof',
 				),
 				array(
 					'ok'         => false,
 					'ms'         => 300,
 					'bytes'      => 0,
 					'error'      => 'Access Denied',
+					'error_code' => 'access_denied',
 					'attachment' => 3,
 					'key'        => 'c.jpg',
+					'profile'    => 'prof',
 					'dead'       => true,
 				),
 			)
@@ -59,6 +168,9 @@ final class UploadMetricsTest extends TestCase {
 
 		$snapshot = $metrics->snapshot();
 
+		$this->assertCount( 3, $this->db->inserts );
+		$this->assertSame( 'prof', $this->db->inserts[0]['profile_id'] );
+		$this->assertSame( gmdate( 'Y-m-d' ), $this->db->inserts[0]['day'] );
 		$this->assertSame( 2, $snapshot['today']['ok'] );
 		$this->assertSame( 1, $snapshot['today']['fail'] );
 		$this->assertSame( 1, $snapshot['today']['dead'] );
@@ -72,9 +184,10 @@ final class UploadMetricsTest extends TestCase {
 		$this->assertTrue( $snapshot['last_error']['has'] );
 		$this->assertSame( 'Access Denied', $snapshot['last_error']['message'] );
 		$this->assertSame( 3, $snapshot['last_error']['attachment'] );
+		$this->assertSame( 'access_denied', $this->db->inserts[2]['error_code'] );
 	}
 
-	public function test_prunes_old_buckets(): void {
+	public function test_snapshot_keeps_legacy_totals_but_drops_old_daily_buckets(): void {
 		$old = array(
 			'ok'       => 9,
 			'fail'     => 0,
@@ -84,40 +197,45 @@ final class UploadMetricsTest extends TestCase {
 			'max_ms'   => 0,
 			'attempts' => 9,
 		);
-		update_option(
-			Upload_Metrics::OPTION,
-			array(
-				'version'    => Upload_Metrics::VERSION,
-				'totals'     => array( 'ok' => 9, 'fail' => 0, 'dead' => 0, 'bytes' => 0, 'ms_sum' => 0, 'max_ms' => 0, 'attempts' => 9 ),
-				'days'       => array( '2020-01-01' => $old ),
-				'last_error' => array( 'at' => 0, 'message' => '', 'attachment' => 0, 'key' => '' ),
-				'updated_at' => 0,
-			)
+		$GLOBALS['sakura_test_options'][ Upload_Metrics::OPTION ] = array(
+			'version'    => '1.0.0',
+			'totals'     => $old,
+			'days'       => array( '2020-01-01' => $old ),
+			'last_error' => array( 'at' => 0, 'message' => '', 'attachment' => 0, 'key' => '' ),
+			'updated_at' => 1,
 		);
 
 		$metrics = new Upload_Metrics();
-		$metrics->record_batch(
-			array(
-				array(
-					'ok'    => true,
-					'ms'    => 50,
-					'bytes' => 10,
-				),
-			)
-		);
+		$metrics->record_batch( array( array( 'ok' => true, 'ms' => 50, 'bytes' => 10 ) ) );
+		$snapshot = $metrics->snapshot();
 
-		$stored = get_option( Upload_Metrics::OPTION );
-		$this->assertArrayNotHasKey( '2020-01-01', $stored['days'] );
-		$this->assertCount( 1, $stored['days'] );
-		$this->assertSame( 10, $stored['totals']['ok'] ); // Totals are not reset by pruning.
+		$this->assertSame( 10, $snapshot['totals']['ok'] );
+		$this->assertSame( 1, $snapshot['today']['ok'] );
+		$this->assertSame( 1, $snapshot['week']['attempts'] );
 	}
 
-	public function test_reset_removes_option(): void {
+	public function test_failed_upload_observer_records_attachment_and_error(): void {
+		$observer = new Upload_Observer( new Options( array( 'active_profile_id' => 'prof', 'profiles' => array( 'prof' => array( 'provider' => 'minio', 'bucket' => 'test' ) ) ) ), new Upload_Metrics() );
+		$observer->record_failed( 'bad.jpg', '/missing/file.jpg', new WP_Error( 'sakura_s3_upload_failed', 'Access Denied' ), 7 );
+
+		$snapshot = ( new Upload_Metrics() )->snapshot();
+		$this->assertSame( 1, $snapshot['today']['fail'] );
+		$this->assertSame( 'Access Denied', $snapshot['last_error']['message'] );
+		$this->assertSame( 7, $snapshot['last_error']['attachment'] );
+		$this->assertSame( 'bad.jpg', $snapshot['last_error']['key'] );
+		$this->assertSame( 'prof', $this->db->inserts[0]['profile_id'] );
+	}
+
+	public function test_reset_clears_events_and_legacy_option(): void {
 		$metrics = new Upload_Metrics();
 		$metrics->record_batch( array( array( 'ok' => true, 'ms' => 1 ) ) );
-		$this->assertNotSame( false, get_option( Upload_Metrics::OPTION ) );
+		$this->assertCount( 1, $this->db->rows );
+		$GLOBALS['sakura_test_options'][ Upload_Metrics::OPTION ] = array( 'totals' => array( 'ok' => 1 ) );
 
 		$metrics->reset();
+
+		$this->assertCount( 0, $this->db->rows );
 		$this->assertFalse( get_option( Upload_Metrics::OPTION ) );
+		$this->assertSame( Upload_Metrics::VERSION, get_option( Upload_Metrics::SCHEMA_OPTION ) );
 	}
 }

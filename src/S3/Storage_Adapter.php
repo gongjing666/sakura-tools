@@ -57,6 +57,22 @@ final class Storage_Adapter {
 	}
 
 	/**
+	 * Emit one failure event for Upload_Observer.
+	 *
+	 * This is the only place that turns a per-key WP_Error into an event, so a
+	 * failed transfer is recorded exactly once even when the guard or store
+	 * throws before returning a result map.
+	 *
+	 * @param string    $key           Object key.
+	 * @param string    $path          Local path.
+	 * @param \WP_Error $error         Failure.
+	 * @param int       $attachment_id Attachment ID, or 0.
+	 */
+	private function report_failure( string $key, string $path, \WP_Error $error, int $attachment_id ): void {
+		do_action( 'sakura_imgopt_s3_upload_failed', $key, $path, $error, $attachment_id );
+	}
+
+	/**
 	 * Constructor.
 	 *
 	 * @param Options|null $options Optional options for tests.
@@ -94,55 +110,73 @@ final class Storage_Adapter {
 	/**
 	 * Upload one local file.
 	 *
-	 * @param string $key          Object key.
-	 * @param string $filename     Local file.
-	 * @param bool   $delete_local Delete after success.
+	 * @param string $key           Object key.
+	 * @param string $filename      Local file.
+	 * @param bool   $delete_local  Delete after success.
+	 * @param int    $attachment_id Attachment ID, or 0.
 	 * @return true|\WP_Error
 	 */
-	public function upload_file( string $key, string $filename, bool $delete_local = false ) {
-		$key = $this->normalize_key( $key );
+	public function upload_file( string $key, string $filename, bool $delete_local = false, int $attachment_id = 0 ) {
+		$requested = $key;
+		$key       = $this->normalize_key( $key );
 		if ( false === $key ) {
-			return new \WP_Error( 'sakura_s3_invalid_file', __( '文件不存在、不可读或对象 Key 无效。', 'sakura-imgopt' ) );
+			$error = new \WP_Error( 'sakura_s3_invalid_file', __( '文件不存在、不可读或对象 Key 无效。', 'sakura-imgopt' ) );
+			$this->report_failure( $requested, $filename, $error, $attachment_id );
+			return $error;
 		}
 
 		if ( ! is_file( $filename ) || ! is_readable( $filename ) ) {
-			return new \WP_Error( 'sakura_s3_invalid_file', __( '文件不存在或不可读。', 'sakura-imgopt' ) );
+			$error = new \WP_Error( 'sakura_s3_invalid_file', __( '文件不存在或不可读。', 'sakura-imgopt' ) );
+			$this->report_failure( $key, $filename, $error, $attachment_id );
+			return $error;
 		}
+
 		try {
-			$store = $this->store();
+			$store   = $this->store();
 			$results = $this->guard()->execute( array( $key ), 'upload', static function () use ( $store, $key, $filename, $delete_local ): array {
 				return array( $key => $store->upload_file( $key, $filename, $delete_local ) );
 			}, $this->mutation_check, array( $key => self::file_evidence( $filename ) ) );
-			return $results[ $key ];
+			$result  = $results[ $key ] ?? new \WP_Error( 'sakura_s3_upload_missing_result', __( '上传结果缺失。', 'sakura-imgopt' ) );
+			if ( is_wp_error( $result ) ) {
+				$this->report_failure( $key, $filename, $result, $attachment_id );
+			}
+			return $result;
 		} catch ( \Throwable $e ) {
-			return new \WP_Error( 'sakura_s3_upload_failed', $e->getMessage() );
+			$error = new \WP_Error( 'sakura_s3_upload_failed', $e->getMessage() );
+			$this->report_failure( $key, $filename, $error, $attachment_id );
+			return $error;
 		}
 	}
 
 	/**
 	 * Upload several files, preserving the requested order per key.
 	 *
-	 * @param array<int,array{key:string,path:string}> $files       Files.
-	 * @param int                                      $concurrency Effective 1-4.
+	 * @param array<int,array{key:string,path:string}> $files         Files.
+	 * @param int                                      $concurrency   Effective 1-4.
+	 * @param int                                      $attachment_id Attachment ID, or 0.
 	 * @return array<string,true|\WP_Error>
 	 */
-	public function upload_many( array $files, int $concurrency = 1 ): array {
+	public function upload_many( array $files, int $concurrency = 1, int $attachment_id = 0 ): array {
 		$normalized = array();
 		foreach ( $files as $file ) {
-			$key = $this->normalize_key( (string) ( $file['key'] ?? '' ) );
+			$requested = (string) ( $file['key'] ?? '' );
+			$path      = (string) ( $file['path'] ?? '' );
+			$key       = $this->normalize_key( $requested );
 			if ( false === $key ) {
+				$error = new \WP_Error( 'sakura_s3_invalid_file', __( '文件不存在、不可读或对象 Key 无效。', 'sakura-imgopt' ) );
+				$this->report_failure( $requested, $path, $error, $attachment_id );
 				continue;
 			}
 			$normalized[] = array(
 				'key'  => $key,
-				'path' => (string) ( $file['path'] ?? '' ),
+				'path' => $path,
 			);
 		}
 
+		$paths = array_column( $normalized, 'path', 'key' );
 		try {
-			$store = $this->store();
-			$paths = array_column( $normalized, 'path', 'key' );
-			return $this->guard()->execute( array_keys( $paths ), 'upload', static function ( array $keys ) use ( $store, $paths, $concurrency ): array {
+			$store   = $this->store();
+			$results = $this->guard()->execute( array_keys( $paths ), 'upload', static function ( array $keys ) use ( $store, $paths, $concurrency ): array {
 				$admitted = array();
 				foreach ( $keys as $key ) {
 					$admitted[] = array( 'key' => $key, 'path' => $paths[ $key ] );
@@ -154,8 +188,17 @@ final class Storage_Adapter {
 			foreach ( $normalized as $file ) {
 				$results[ $file['key'] ] = new \WP_Error( 'sakura_s3_upload_failed', $e->getMessage() );
 			}
-			return $results;
 		}
+
+		foreach ( $normalized as $file ) {
+			$key    = (string) $file['key'];
+			$result = $results[ $key ] ?? new \WP_Error( 'sakura_s3_upload_missing_result', __( '上传结果缺失。', 'sakura-imgopt' ) );
+			if ( is_wp_error( $result ) ) {
+				$this->report_failure( $key, (string) $file['path'], $result, $attachment_id );
+			}
+		}
+
+		return $results;
 	}
 
 	/**

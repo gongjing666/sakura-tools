@@ -28,6 +28,7 @@ final class Upload_Observer implements Module {
 
 	public function register_hooks( Hook_Loader $hooks ): void {
 		$hooks->add_action( 'sakura_imgopt_s3_uploaded', array( $this, 'record_uploaded' ), 10, 4 );
+		$hooks->add_action( 'sakura_imgopt_s3_upload_failed', array( $this, 'record_failed' ), 10, 4 );
 	}
 
 	/**
@@ -48,7 +49,7 @@ final class Upload_Observer implements Module {
 		$bytes = is_string( $filename ) && is_file( $filename ) ? (int) filesize( $filename ) : 0;
 		$this->metrics->record_batch(
 			array(
-				array( 'ok' => true, 'ms' => 0, 'bytes' => $bytes, 'attachment' => 0, 'key' => $key ),
+				array( 'ok' => true, 'ms' => 0, 'bytes' => $bytes, 'attachment' => 0, 'key' => $key, 'profile' => $profile ),
 			)
 		);
 		$file = is_string( $filename ) ? $filename : '';
@@ -61,5 +62,46 @@ final class Upload_Observer implements Module {
 		if ( Checksums::is_md5_etag( $md5 ) ) {
 			( new Index_Repository() )->record_md5( $profile, $key, $md5 );
 		}
+	}
+
+	/**
+	 * Persist a failed transfer as evidence, including its attachment when known.
+	 *
+	 * Failures are not skipped when the key is empty or the profile is missing:
+	 * a rejected path is exactly the kind of evidence the old option lost.
+	 *
+	 * @param string         $key           Object key.
+	 * @param string         $filename      Local path.
+	 * @param \WP_Error|mixed $error         Transfer error.
+	 * @param int            $attachment_id Attachment ID, or 0.
+	 */
+	public function record_failed( $key, $filename, $error, $attachment_id = 0 ): void {
+		$key      = (string) $key;
+		$filename = is_string( $filename ) ? $filename : '';
+		$profile  = (string) $this->options->active_profile_id();
+
+		if ( is_wp_error( $error ) ) {
+			$code    = (string) $error->get_error_code();
+			$message = (string) $error->get_error_message();
+		} else {
+			$code    = 'sakura_s3_upload_failed';
+			$message = is_string( $error ) ? $error : '';
+		}
+
+		$bytes = '' !== $filename && is_file( $filename ) ? (int) filesize( $filename ) : 0;
+		$this->metrics->record_batch(
+			array(
+				array(
+					'ok'         => false,
+					'ms'         => 0,
+					'bytes'      => $bytes,
+					'error'      => $message,
+					'error_code' => $code,
+					'attachment' => (int) $attachment_id,
+					'key'        => $key,
+					'profile'    => $profile,
+				),
+			)
+		);
 	}
 }

@@ -86,11 +86,11 @@ namespace Sakura\ImageOptimizer\Tests {
 			$this->assertSame( array( 'init', 'admin_init', Delete_Worker::HOOK ), array_column( $hooks->actions(), 'hook' ) );
 		}
 
-		public function test_upload_observer_has_only_completed_upload_listener(): void {
+		public function test_upload_observer_registers_success_and_failure_listeners(): void {
 			$hooks = new Hook_Loader();
 			( new Upload_Observer() )->register_hooks( $hooks );
-			$this->assertSame( array( 'sakura_imgopt_s3_uploaded' ), array_column( $hooks->actions(), 'hook' ) );
-			$this->assertSame( 4, $hooks->actions()[0]['accepted_args'] );
+			$this->assertSame( array( 'sakura_imgopt_s3_uploaded', 'sakura_imgopt_s3_upload_failed' ), array_column( $hooks->actions(), 'hook' ) );
+			$this->assertSame( array( 4, 4 ), array_column( $hooks->actions(), 'accepted_args' ) );
 			$this->assertSame( array(), $hooks->filters() );
 		}
 

@@ -95,6 +95,9 @@ final class Activation {
 		// 创建/升级对账索引表。
 		\Sakura\ImageOptimizer\Sync\Schema::maybe_install();
 
+		// 上传指标事件表：并发写入用追加行，而不是读改写 option。
+		\Sakura\ImageOptimizer\S3\Upload_Metrics::maybe_install();
+
 		// 用户文件空间：建表并记录版本；后台任务由 Module 在 init 上排程。
 		\Nboke\UserFiles\Schema::maybe_install();
 		if ( ! wp_next_scheduled( 'sufm_tick' ) ) {

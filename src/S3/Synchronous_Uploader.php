@@ -263,7 +263,7 @@ final class Synchronous_Uploader {
 
 		if ( $upload ) {
 			$concurrency = Upload_Capabilities::effective( Upload_Capabilities::requested() );
-			$results     = $this->adapter->upload_many( $upload, $concurrency );
+			$results     = $this->adapter->upload_many( $upload, $concurrency, $attachment_id );
 			foreach ( $upload as $file ) {
 				$key       = (string) $file['key'];
 				$cache_key = md5( $key . '|' . $manifest[ $key ]['version'] );

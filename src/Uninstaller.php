@@ -108,7 +108,7 @@ final class Uninstaller {
 
 		// Legacy queue tables from <= 1.11 are no longer created, but upgraded
 		// sites may still carry them; uninstall removes them if present.
-		foreach ( array( 'sio_s3_uploads', 'sio_s3_deletes' ) as $table ) {
+		foreach ( array( 'sio_s3_uploads', 'sio_s3_deletes', 'sio_s3_upload_events' ) as $table ) {
 			$name = $wpdb->prefix . $table;
 			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.SchemaChange, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Fixed table names.
 			$wpdb->query( "DROP TABLE IF EXISTS `{$name}`" );
@@ -118,6 +118,7 @@ final class Uninstaller {
 		delete_option( 'sakura_imgopt_sync_migration' );
 		delete_option( 'sakura_imgopt_s3_queue_schema' );
 		delete_option( 'sakura_imgopt_s3_delete_schema' );
+		delete_option( 'sakura_imgopt_s3_upload_schema' );
 		delete_option( 'sakura_imgopt_sync_index_enabled' );
 		delete_option( 'sakura_imgopt_sync_recent_ready' );
 		delete_option( 'sakura_imgopt_sync_verify_cursor' );

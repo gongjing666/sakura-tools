@@ -2,7 +2,7 @@
  "meta": {
   "plugin": "sakura-tools",
   "version": "1.22.8",
-  "generatedAt": "2026-11-08T13:38:39.148Z",
+  "generatedAt": "2026-11-08T16:10:16.319Z",
   "source": "dsh-codegraph lib/scanner.php（token_get_all 三趟静态扫描）",
   "doc": "sakura-tools-代码结构-1.22.8.md"
  },
@@ -2338,7 +2338,7 @@
    "kind": "class",
    "file": "src/UserFiles/Services/Space_Store.php",
    "line": 22,
-   "val": 9.732420048477152,
+   "val": 10.119288512538816,
    "color": "#fca5a5",
    "x": 1,
    "y": 1294,
@@ -8208,7 +8208,7 @@
     "static",
     "call"
    ],
-   "w": 34
+   "w": 44
   },
   {
    "source": "cls:Nboke\\UserFiles\\Services\\Space_Store",
@@ -8399,7 +8399,7 @@
     "static",
     "call"
    ],
-   "w": 12
+   "w": 10
   },
   {
    "source": "cls:Nboke\\UserFiles\\Space_Panel",

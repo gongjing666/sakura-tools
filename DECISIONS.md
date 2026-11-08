@@ -530,3 +530,35 @@ body.upload-php.sufm-tree-active.folded { --sufm-tree-left: 56px; }
 接入时的正确姿势：DB 仍是唯一真相，Meili 只是派生缓存；`wp sufm reindex` 全量重建且可重复执行；同步水位可观测；服务不可用时自动回退 SQL；owner 过滤在服务端强制。
 
 **顺带记一条运维待办（未执行）**：master key 目前写在进程命令行里（`ps` 本机可见），叠加 `ms.77il.cn` 公网反代，建议后续改为 0600 配置文件或环境变量注入，并给该 vhost 加 IP 白名单 / 仅内网；同时补一个 systemd unit 或宝塔守护，避免重启后搜索服务静默消失。
+
+## 空间扩容支付收口（2026-11-08）
+
+**背景**：空间扩容订单原来走 Zibll 的 `payment_order_success`，`Space_Store::grant_from_order()` 把 `source`/`channel` 固定写成 `'points'`，并把 `order_id`/`order_num`/`price`/`points` 清零。现金（含余额）购买因此被记成积分兑换，既污染订单/收入字段，也会占用 `points_used_bytes()` 的积分日限额。与此同时，主题对所有支付方式共用一个成功钩子，插件无法从钩子上区分余额与外部扫码。
+
+**决策**：
+
+1. **空间扩容默认只开放余额**。`Space_Store::ALLOWED_METHODS` 只含 `balance`（`src/UserFiles/Services/Space_Store.php:44`）；`payment_methods()` 末尾经 `filter_payment_methods()`（`:248`）按 `sufm_space_allowed_payment_methods` 过滤，`purchase()`（`:291`）再用过滤后的 map 做服务端硬校验。外部扫码必须由站点所有者显式 add_filter 放开，风险自担。
+2. **订单发放按渠道记账**。`normalise_order()`（`:979`）解析 `points`（`other.points` 优先，`pay_detail.points` 次之，积分渠道可用 `round(price)` 回退）与 `pay_detail`；`grant_ledger_fields()`（`:826`）输出 `source/channel/order_id/order_num/price/points`；`grant_from_order()`（`:861`）参数化 INSERT（`:928-946`）。余额单写 `purchase/balance` 且订单字段齐全；积分单写 `points/points` 且保留积分；其他渠道写 `purchase/<pay_type>`。
+3. **保留防重复发放**：积分直兑会创建 `sufm_space_points` 订单并触发同一个成功钩子；该订单的 `plan('points')` 不存在、`bytes=0`，`grant_from_order()` 返回 `false`，不会重复发放。任何改写都必须保留这条断言。
+4. **退款按订单渠道补偿钱包**。`order_refunded`（`Space_Store::register_hooks()`，`:2539`）→ `on_order_refunded()`（`:1248`）先把匹配 grant 原子置 `refund_pending`，再释放配额，然后 `settle_refund()`（`:1387`）：`balance` 加 `order_price`，`points` 加积分（缺失时 `round(price)`），其他渠道只释放授权。成功置 `refunded`；失败 `attempts+1`，满 5 次置 `refund_failed`。重试由 `retry_refunds()`（`:1652`）在 tick 中执行，先用条件 UPDATE 抢占订单，避免两个 worker 重复加钱。
+5. **退款查重使用主题 meta 路由**。`wallet_refund_recorded()`（`:1612`）优先 `zib_get_user_meta()`，检查同 `order_num`、`type='space_expand_refund'`、`value>0` 的记录，覆盖“钱包已加钱、grant 状态未写回”的崩溃窗口；主题记录最多 50 条且无唯一键，这是弱幂等边界。
+6. **每日自动对账**。`maybe_reconcile()`（`:1811`）用 option `sufm_space_reconcile_last`（`:49`）做 24 小时水位，调用 `reconcile(true,100)`（`:2017`）补发 paid-no-grant；`ready=false` 或 `missing > healed` 记 `space.reconcile.alert`。手动 REST 对账保留。
+7. **面板空态**。`Space_Panel::build_data()` 用 `cash_ready = 现金套餐非空 && 支付方式非空`（`src/UserFiles/Space_Panel.php:137`）与 `points_ready = points_state.enabled && 积分套餐非空`（`:141`）；两者都 false 才不渲染。无现金时默认积分，`confirmPurchase()` 在积分模式下不建现金单。
+
+**测试与运行证据（2026-11-08，测试站 `/root/sio-e2e`）**：
+
+- 单测 `SpaceStorePaymentTest` / `SpaceStoreRefundTest` / `SpaceRulesTest` = 20 tests / 69 assertions；`phpstan` 对 `Space_Store.php` 无错误。
+- 余额退款：100→130（+30），重复回调不再加钱；积分退款：520→610（+90）；崩溃窗口预写退款记录后不重复加钱；外部 `alipay` 只释放授权。
+- 失败重试：`user_missing` 首退后 `refund_pending/attempts=1`，恢复用户并调旧 `updated_at` 后 `retry_refunds(20)` 返回 1，最终 `refunded/attempts=2`；连续 5 次失败置 `refund_failed`。
+- 每日对账：有效 paid-no-grant 单补发、无效单不补，写水位并产生 `space.reconcile.alert`。
+- 面板四态：现金+积分 8251 字节 / 仅积分 6408 / 仅现金 6195 / 都不可用 `null`；临时 `sufm_space_settings` 已恢复。
+
+**已知边界**：
+
+- 预充值余额仍由主题的支付宝/微信充值产生，站点仍是收款方；退款、发票、消费者权益与资金合规责任不因“空间只收余额”消失。本决策是支付入口收口，不是零风险。
+- 外部渠道退款不代付，必须在主题/支付平台完成；插件只释放授权。
+- 主题 `balance_record`/`points_record` 最多 50 条且无唯一键，查重可能被挤出；不是强幂等。
+- `refund_failed` 不会自动复活，需要人工处理；`maybe_reconcile()` 先写水位，失败要等 24 小时再自动重试。
+- 历史 grant 不回填，修复只影响新写入；积分没有独立开关，关闭积分入口应清空积分套餐或把单价设为 0。
+
+**维护动作**：改支付/发放/退款代码必须同步 `tests/Services/SpaceStorePaymentTest.php`、`SpaceStoreRefundTest.php`，跑 `phpunit`/`phpstan`/`phpcs`，并按《图谱同步说明》重扫图谱。

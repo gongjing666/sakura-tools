@@ -196,8 +196,21 @@
 			box.setAttribute('open', 'open');
 		}
 
-		// Move focus into the dialog: the first plan card is the primary control.
+		// Move focus into the dialog: the first usable control wins when a
+		// channel is missing (points-only sites have no cash plan cards).
 		var first = node('input[name="sufm-space-plan"]');
+
+		if (!first) {
+			first = node('input[name="sufm-space-points-plan"]');
+		}
+
+		if (!first) {
+			first = node('input[name="sufm-space-method"]');
+		}
+
+		if (!first) {
+			first = node('[data-sufm-space-redeem-gb]');
+		}
 
 		if (first && typeof first.focus === 'function') {
 			first.focus();
@@ -498,6 +511,12 @@
 		var method = checkedMethod();
 
 		clearMessages();
+
+		// The points channel has its own submit path (redeemGo); never create a
+		// cash order from it, even if the button is somehow visible.
+		if (pointsMode()) {
+			return;
+		}
 
 		if (!plan) {
 			showError(text('needPlan', '请先选择套餐。'));

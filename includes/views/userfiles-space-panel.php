@@ -19,8 +19,10 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-$sufm_space_plans   = isset( $data['plans'] ) && is_array( $data['plans'] ) ? $data['plans'] : array();
-$sufm_space_methods = isset( $data['methods'] ) && is_array( $data['methods'] ) ? $data['methods'] : array();
+$sufm_space_plans        = isset( $data['plans'] ) && is_array( $data['plans'] ) ? $data['plans'] : array();
+$sufm_space_methods      = isset( $data['methods'] ) && is_array( $data['methods'] ) ? $data['methods'] : array();
+$sufm_space_cash_ready   = ! empty( $data['cash_ready'] );
+$sufm_space_points_ready = ! empty( $data['points_ready'] );
 $sufm_space_parts   = isset( $data['breakdown_parts'] ) && is_array( $data['breakdown_parts'] ) ? $data['breakdown_parts'] : array();
 $sufm_space_quota   = isset( $data['quota_human'] ) ? (string) $data['quota_human'] : '';
 
@@ -65,15 +67,20 @@ foreach ( $sufm_space_plans as $sufm_space_plan ) {
 	break;
 }
 
-foreach ( $sufm_space_methods as $sufm_space_way_id => $sufm_space_way ) {
-	unset( $sufm_space_way );
-	$sufm_space_first_way = (string) $sufm_space_way_id;
-	break;
-}
+if ( $sufm_space_cash_ready ) {
+	foreach ( $sufm_space_methods as $sufm_space_way_id => $sufm_space_way ) {
+		unset( $sufm_space_way );
+		$sufm_space_first_way = (string) $sufm_space_way_id;
+		break;
+	}
 
-// Prefer the balance channel when the theme offers it.
-if ( isset( $sufm_space_methods['balance'] ) ) {
-	$sufm_space_first_way = 'balance';
+	// Prefer the balance channel when the theme offers it.
+	if ( isset( $sufm_space_methods['balance'] ) ) {
+		$sufm_space_first_way = 'balance';
+	}
+} elseif ( $sufm_space_points_ready ) {
+	// No cashier: open on the points channel so the footer CTA is usable.
+	$sufm_space_first_way = 'points';
 }
 
 $sufm_space_json_flags = JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT;
@@ -89,6 +96,7 @@ $sufm_space_json_flags = JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_
 			<?php echo esc_html( implode( ' · ', $sufm_space_parts_line ) ); ?>
 		</p>
 
+		<?php if ( $sufm_space_cash_ready ) : ?>
 		<div class="sufm-space-plans" data-sufm-space-plans-cash role="radiogroup" aria-label="<?php esc_attr_e( '选择扩容套餐', 'sakura-imgopt' ); ?>">
 			<?php foreach ( $sufm_space_plans as $sufm_space_plan ) : ?>
 				<?php $sufm_space_plan_id = (string) ( $sufm_space_plan['id'] ?? '' ); ?>
@@ -107,9 +115,8 @@ $sufm_space_json_flags = JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_
 					<em class="muted-2-color sufm-space-plan-days"><?php echo esc_html( (string) ( $sufm_space_plan['days_label'] ?? '' ) ); ?></em>
 				</label>
 			<?php endforeach; ?>
-
-			
 		</div>
+		<?php endif; ?>
 
 		<?php
 		$sufm_space_pts_plans = isset( $data['points_plans'] ) && is_array( $data['points_plans'] ) ? $data['points_plans'] : array();
@@ -120,7 +127,7 @@ $sufm_space_json_flags = JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_
 			break;
 		}
 		?>
-		<?php if ( array() !== $sufm_space_pts_plans ) : ?>
+		<?php if ( $sufm_space_points_ready && array() !== $sufm_space_pts_plans ) : ?>
 			<div class="sufm-space-plans" data-sufm-space-plans-points role="radiogroup" aria-label="<?php esc_attr_e( '选择积分套餐', 'sakura-imgopt' ); ?>" hidden>
 				<?php foreach ( $sufm_space_pts_plans as $sufm_space_pp ) : ?>
 					<?php
@@ -146,34 +153,44 @@ $sufm_space_json_flags = JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_
 		<?php endif; ?>
 
 		<div class="sufm-space-methods" role="radiogroup" aria-label="<?php esc_attr_e( '选择支付方式', 'sakura-imgopt' ); ?>">
-			<?php foreach ( $sufm_space_methods as $sufm_space_way_id => $sufm_space_way ) : ?>
+			<?php if ( $sufm_space_cash_ready ) : ?>
+				<?php foreach ( $sufm_space_methods as $sufm_space_way_id => $sufm_space_way ) : ?>
+					<label class="sufm-space-method but but-sm">
+						<input type="radio"
+							name="sufm-space-method"
+							value="<?php echo esc_attr( (string) $sufm_space_way_id ); ?>"
+							<?php checked( (string) $sufm_space_way_id, $sufm_space_first_way ); ?> />
+						<span><?php echo esc_html( (string) ( $sufm_space_way['name'] ?? $sufm_space_way_id ) ); ?></span>
+					</label>
+				<?php endforeach; ?>
+			<?php endif; ?>
+			<?php if ( $sufm_space_points_ready ) : ?>
 				<label class="sufm-space-method but but-sm">
 					<input type="radio"
 						name="sufm-space-method"
-						value="<?php echo esc_attr( (string) $sufm_space_way_id ); ?>"
-						<?php checked( (string) $sufm_space_way_id, $sufm_space_first_way ); ?> />
-					<span><?php echo esc_html( (string) ( $sufm_space_way['name'] ?? $sufm_space_way_id ) ); ?></span>
-				</label>
-			<?php endforeach; ?>
-			<?php if ( ! empty( $data['points']['enabled'] ) ) : ?>
-				<label class="sufm-space-method but but-sm">
-					<input type="radio"
-						name="sufm-space-method"
-						value="points" />
+						value="points"
+						<?php checked( 'points', $sufm_space_first_way ); ?> />
 					<span><?php esc_html_e( '积分', 'sakura-imgopt' ); ?></span>
 				</label>
+			<?php endif; ?>
+			<?php if ( ! $sufm_space_cash_ready && $sufm_space_points_ready ) : ?>
+				<span class="muted-2-color em09"><?php esc_html_e( '余额支付暂未开启，可使用积分兑换。', 'sakura-imgopt' ); ?></span>
 			<?php endif; ?>
 		<?php
 			$sufm_space_yuan = function_exists( 'zibpay_get_user_balance' ) ? (float) zibpay_get_user_balance( get_current_user_id() ) : 0.0;
 			?>
-			<span class="sufm-space-wallet sufm-space-wallet--balance">
-				<?php esc_html_e( '余额', 'sakura-imgopt' ); ?>
-				<strong>¥<?php echo esc_html( number_format( $sufm_space_yuan, 2 ) ); ?></strong>
-			</span>
-			<span class="sufm-space-wallet sufm-space-wallet--points">
-				<?php esc_html_e( '积分', 'sakura-imgopt' ); ?>
-				<strong><?php echo esc_html( number_format( (float) ( $data['points']['balance'] ?? 0 ), 0 ) ); ?></strong>
-			</span>
+			<?php if ( $sufm_space_cash_ready ) : ?>
+				<span class="sufm-space-wallet sufm-space-wallet--balance">
+					<?php esc_html_e( '余额', 'sakura-imgopt' ); ?>
+					<strong>¥<?php echo esc_html( number_format( $sufm_space_yuan, 2 ) ); ?></strong>
+				</span>
+			<?php endif; ?>
+			<?php if ( $sufm_space_points_ready ) : ?>
+				<span class="sufm-space-wallet sufm-space-wallet--points">
+					<?php esc_html_e( '积分', 'sakura-imgopt' ); ?>
+					<strong><?php echo esc_html( number_format( (float) ( $data['points']['balance'] ?? 0 ), 0 ) ); ?></strong>
+				</span>
+			<?php endif; ?>
 		</div>
 
 		<p class="sufm-space-dialog-summary" data-sufm-space-summary></p>
@@ -182,7 +199,7 @@ $sufm_space_json_flags = JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_
 		</p>
 
 		<?php $sufm_space_pts = isset( $data['points'] ) && is_array( $data['points'] ) ? $data['points'] : array(); ?>
-		<?php if ( ! empty( $sufm_space_pts['enabled'] ) ) : ?>
+		<?php if ( $sufm_space_points_ready ) : ?>
 			<?php
 			$sufm_space_pts_per_gb  = isset( $sufm_space_pts['per_gb'] ) ? (int) $sufm_space_pts['per_gb'] : 0;
 			$sufm_space_pts_balance = isset( $sufm_space_pts['balance'] ) ? (int) $sufm_space_pts['balance'] : 0;
@@ -230,6 +247,7 @@ $sufm_space_json_flags = JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_
 		<p class="sufm-space-error" data-sufm-space-error role="alert" aria-live="polite"></p>
 		<p class="sufm-space-result" data-sufm-space-result role="status" aria-live="polite"></p>
 
+		<?php if ( $sufm_space_cash_ready ) : ?>
 		<div class="sufm-space-qr" data-sufm-space-qr hidden>
 			<img alt="<?php esc_attr_e( '支付宝二维码', 'sakura-imgopt' ); ?>"
 				data-sufm-space-qr-img
@@ -238,12 +256,15 @@ $sufm_space_json_flags = JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_
 			<p class="muted-2-color em09" data-sufm-space-qr-hint><?php esc_html_e( '请用支付宝扫描二维码完成支付', 'sakura-imgopt' ); ?></p>
 			<a class="but but-sm" data-sufm-space-qr-open href="#" target="_blank" rel="noopener" hidden><?php esc_html_e( '在支付宝中打开', 'sakura-imgopt' ); ?></a>
 		</div>
+		<?php endif; ?>
 	</div>
 
 	<div class="sufm-space-dialog-foot">
 		<button type="button" class="but but-sm" data-sufm-space-close><?php esc_html_e( '取消', 'sakura-imgopt' ); ?></button>
 		<button type="button" class="but c-blue but-sm" id="sufm-space-confirm"><?php esc_html_e( '确认支付', 'sakura-imgopt' ); ?></button>
-		<button type="button" class="but but-sm sufm-space-redeem-go" data-sufm-space-redeem-go hidden><?php esc_html_e( '用积分兑换', 'sakura-imgopt' ); ?></button>
+		<?php if ( $sufm_space_points_ready ) : ?>
+			<button type="button" class="but but-sm sufm-space-redeem-go" data-sufm-space-redeem-go hidden><?php esc_html_e( '用积分兑换', 'sakura-imgopt' ); ?></button>
+		<?php endif; ?>
 	</div>
 </dialog>
 

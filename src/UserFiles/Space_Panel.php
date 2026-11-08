@@ -124,15 +124,26 @@ final class Space_Panel {
 			return null;
 		}
 
-		$store   = Space_Store::instance();
-		$plans   = $store->plans();
-		$methods = $store->payment_methods();
+		$store = Space_Store::instance();
+		$uid   = (int) get_current_user_id();
 
-		if ( array() === $plans || array() === $methods ) {
+		$plans        = $store->plans();
+		$methods      = $store->payment_methods();
+		$points_state = $store->points_state( $uid );
+		$points_plans = self::points_plans();
+
+		// Either channel alone is enough to justify the panel: a site can sell
+		// balance top-ups without points, or points without a cashier.
+		$cash_ready   = array() !== $plans && array() !== $methods;
+		// Points only make sense with a pickable package: the dialog has no
+		// free-form size field, so an enabled rate without rows would open a
+		// channel the user cannot submit.
+		$points_ready = ! empty( $points_state['enabled'] ) && array() !== $points_plans;
+
+		if ( ! $cash_ready && ! $points_ready ) {
 			return null;
 		}
 
-		$uid       = (int) get_current_user_id();
 		$breakdown = Space_Rules::breakdown( $uid );
 		$vip_labels = Space_Rules::vip_labels();
 		$vip_level  = (int) ( $breakdown['vip'] ?? 0 );
@@ -173,8 +184,10 @@ final class Space_Panel {
 			'breakdown_parts' => $parts,
 			'quota_human'     => Space_Store::bytes_human( (int) ( $breakdown['final'] ?? 0 ) ),
 			'used_human'      => '',
-			'points'          => Space_Store::instance()->points_state( $uid ),
-			'points_plans'    => self::points_plans(),
+			'points'          => $points_state,
+			'points_plans'    => $points_plans,
+			'cash_ready'      => $cash_ready,
+			'points_ready'    => $points_ready,
 			'vip_labels'      => $vip_labels,
 			'grants'          => $store->my_grants( $uid, 5 ),
 			'strings'         => array(

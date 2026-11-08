@@ -32,6 +32,23 @@ final class Space_Store {
 	public const PRODUCT_PREFIX = 'sufm_space_';
 
 	/**
+	 * Payment channels this plugin can reconcile on its own.
+	 *
+	 * A space order is only granted after the theme reports it as paid. Balance
+	 * is synchronous: zibpay_initiate_balance() either returns payok=1 or an
+	 * error, so there is no unpaid order left behind. QR channels can stay
+	 * pending forever and need an operator to reconcile them, so they are opt-in.
+	 *
+	 * @var string[]
+	 */
+	public const ALLOWED_METHODS = array( 'balance' );
+
+	/**
+	 * Option storing the last automatic reconciliation timestamp.
+	 */
+	public const RECONCILE_OPTION = 'sufm_space_reconcile_last';
+
+	/**
 	 * Singleton.
 	 *
 	 * @var self|null
@@ -213,9 +230,47 @@ final class Space_Store {
 			$this->methods[ $id ] = array( 'name' => '' !== $name ? $name : $id );
 		}
 
-		// T5: both channels are exposed again (balance = synchronous, alipay = QR).
+		$this->methods = $this->filter_payment_methods( $this->methods );
 
 		return $this->methods;
+	}
+
+	/**
+	 * Keeps only the payment channels this plugin is allowed to sell through.
+	 *
+	 * Sites that can reconcile another channel (for example a QR channel with a
+	 * manual settlement process) can opt in with the
+	 * sufm_space_allowed_payment_methods filter and return its key here.
+	 *
+	 * @param array<string,array<string,string>> $methods Methods keyed by id.
+	 * @return array<string,array<string,string>>
+	 */
+	public function filter_payment_methods( array $methods ): array {
+		$allowed = apply_filters( 'sufm_space_allowed_payment_methods', self::ALLOWED_METHODS );
+
+		if ( ! is_array( $allowed ) ) {
+			$allowed = self::ALLOWED_METHODS;
+		}
+
+		$keys = array();
+
+		foreach ( $allowed as $key ) {
+			if ( ! is_string( $key ) ) {
+				continue;
+			}
+
+			$key = sanitize_key( $key );
+
+			if ( '' !== $key ) {
+				$keys[ $key ] = true;
+			}
+		}
+
+		if ( array() === $keys ) {
+			return array();
+		}
+
+		return array_intersect_key( $methods, $keys );
 	}
 
 	/* --------------------------------------------------------------------- */
@@ -758,6 +813,46 @@ final class Space_Store {
 	}
 
 	/**
+	 * Maps a normalised order to the ledger columns stored on a grant row.
+	 *
+	 * The legacy implementation wrote 'points','points' and zero order fields for
+	 * every channel. That made a cash balance order look like a points
+	 * redemption and consumed the points daily allowance. The order row is the
+	 * source of truth: only pay_type=points is a points grant.
+	 *
+	 * @param array<string,mixed> $data Output of normalise_order().
+	 * @return array<string,mixed>
+	 */
+	public function grant_ledger_fields( array $data ): array {
+		$channel = isset( $data['channel'] ) ? sanitize_key( (string) $data['channel'] ) : '';
+
+		if ( strlen( $channel ) > 24 ) {
+			$channel = substr( $channel, 0, 24 );
+		}
+
+		$source = 'points' === $channel ? 'points' : 'purchase';
+		$points = isset( $data['points'] ) ? max( 0, (int) $data['points'] ) : 0;
+		$price  = isset( $data['price'] ) ? max( 0.0, (float) $data['price'] ) : 0.0;
+
+		if ( 'points' === $source ) {
+			if ( 0 >= $points && 0.0 < $price ) {
+				$points = (int) round( $price );
+			}
+
+			$price = 0.0;
+		}
+
+		return array(
+			'source'    => $source,
+			'channel'   => $channel,
+			'order_id'  => isset( $data['order_id'] ) ? max( 0, (int) $data['order_id'] ) : 0,
+			'order_num' => isset( $data['order_num'] ) ? (string) $data['order_num'] : '',
+			'price'     => $price,
+			'points'    => $points,
+		);
+	}
+
+	/**
 	 * Idempotent grant creation from a paid order.
 	 *
 	 * @param mixed $order Theme order row (object) or array.
@@ -808,12 +903,15 @@ final class Space_Store {
 		$grant_key  = 'order:' . $data['order_num'];
 		$expires_at = $days > 0 ? gmdate( 'Y-m-d H:i:s', time() + ( $days * 86400 ) ) : null;
 		$now        = Space_Rules::now();
+		$ledger     = $this->grant_ledger_fields( $data );
 		$meta       = wp_json_encode(
 			array(
 				'plan_id'   => $data['plan_id'],
 				'order_num' => $data['order_num'],
 				'order_id'  => $data['order_id'],
 				'channel'   => $data['channel'],
+				'source'    => $ledger['source'],
+				'points'    => $ledger['points'],
 			)
 		);
 
@@ -829,13 +927,18 @@ final class Space_Store {
 
 		$inserted = (int) $wpdb->query(
 			$wpdb->prepare(
-				"INSERT IGNORE INTO {$table} {$columns} VALUES (%d, %s, 'points', 'points', %d, %s, %s, 'active', 0, '', 0, %d, 0, '', %s, %s, %s)",
+				"INSERT IGNORE INTO {$table} {$columns} VALUES (%d, %s, %s, %s, %d, %s, %s, 'active', %d, %s, %f, %d, 0, '', %s, %s, %s)",
 				$user_id,
 				$grant_key,
+				$ledger['source'],
+				$ledger['channel'],
 				$bytes,
 				$label,
 				$expires_at,
-				0,
+				$ledger['order_id'],
+				$ledger['order_num'],
+				$ledger['price'],
+				$ledger['points'],
 				$meta,
 				$now,
 				$now
@@ -894,6 +997,14 @@ final class Space_Store {
 
 		$product_id = isset( $row['product_id'] ) ? (string) $row['product_id'] : '';
 		$order_num  = isset( $row['order_num'] ) ? (string) $row['order_num'] : '';
+		$pay_detail = isset( $row['pay_detail'] ) ? $this->decode_other( $row['pay_detail'] ) : array();
+		$points     = 0;
+
+		if ( isset( $other['points'] ) ) {
+			$points = (int) $other['points'];
+		} elseif ( isset( $pay_detail['points'] ) ) {
+			$points = (int) $pay_detail['points'];
+		}
 
 		return array(
 			'order_id'   => isset( $row['id'] ) ? (int) $row['id'] : 0,
@@ -906,6 +1017,8 @@ final class Space_Store {
 			'label'      => isset( $other['label'] ) ? (string) $other['label'] : '',
 			'bytes'      => isset( $other['bytes'] ) ? (int) $other['bytes'] : 0,
 			'days'       => isset( $other['days'] ) ? (int) $other['days'] : 0,
+			'points'     => $points,
+			'pay_detail' => $pay_detail,
 		);
 	}
 
@@ -1053,6 +1166,10 @@ final class Space_Store {
 				return __( '已撤销', 'sakura-imgopt' );
 			case 'pending':
 				return __( '待重试', 'sakura-imgopt' );
+			case 'refund_pending':
+				return __( '退款处理中', 'sakura-imgopt' );
+			case 'refund_failed':
+				return __( '退款失败', 'sakura-imgopt' );
 			default:
 				return '' === $state ? __( '未知', 'sakura-imgopt' ) : $state;
 		}
@@ -1119,9 +1236,11 @@ final class Space_Store {
 	}
 
 	/**
-	 * Revokes the grants of a refunded order (idempotent).
+	 * Revokes the grants of a refunded order and compensates the wallet.
 	 *
-	 * The hook passes zibpay_order.id, not order_num.
+	 * The hook passes zibpay_order.id, not order_num. Rows are first moved to
+	 * refund_pending (atomic claim); the wallet refund is then attempted. A
+	 * failure leaves the rows claimable by retry_refunds() on the next tick.
 	 *
 	 * @param mixed $order_id Order table primary key.
 	 * @return void
@@ -1142,7 +1261,7 @@ final class Space_Store {
 		$orders = $wpdb->prefix . 'zibpay_order';
 		$order  = $wpdb->get_row(
 			$wpdb->prepare(
-				"SELECT id, order_num, order_type, user_id FROM {$orders} WHERE id = %d",
+				"SELECT id, order_num, order_type, user_id, order_price, pay_type, product_id, other, pay_detail FROM {$orders} WHERE id = %d",
 				$order_id
 			),
 			ARRAY_A
@@ -1162,50 +1281,562 @@ final class Space_Store {
 			return;
 		}
 
-		$table  = $this->table();
-		$owners = $wpdb->get_col(
+		$table = $this->table();
+		$now   = Space_Rules::now();
+
+		// Claim the grants first: a second hook (or the tick retry) sees zero
+		// rows and never refunds the wallet twice.
+		$claimed = (int) $wpdb->query(
 			$wpdb->prepare(
-				"SELECT DISTINCT owner_id FROM {$table} WHERE order_num = %s AND state IN ('active','pending')",
+				"UPDATE {$table} SET state = 'refund_pending', last_error = '', updated_at = %s WHERE order_num = %s AND state IN ('active','pending')",
+				$now,
 				$order_num
 			)
 		);
 
-		$bytes = (int) $wpdb->get_var(
-			$wpdb->prepare(
-				"SELECT COALESCE(SUM(bytes),0) FROM {$table} WHERE order_num = %s AND state IN ('active','pending')",
-				$order_num
-			)
-		);
-
-		$rows = (int) $wpdb->query(
-			$wpdb->prepare(
-				"UPDATE {$table} SET state = 'refunded', last_error = '', updated_at = %s WHERE order_num = %s AND state IN ('active','pending')",
-				Space_Rules::now(),
-				$order_num
-			)
-		);
-
-		// Already refunded (or never granted): stay silent, write no event.
-		if ( 0 >= $rows ) {
+		if ( 0 >= $claimed ) {
 			return;
 		}
 
-		if ( is_array( $owners ) ) {
-			foreach ( $owners as $owner_id ) {
-				Space_Rules::flush( (int) $owner_id );
-			}
+		$owners = $this->refund_owners( $order_num );
+		$bytes  = (int) $wpdb->get_var(
+			$wpdb->prepare(
+				"SELECT COALESCE(SUM(bytes),0) FROM {$table} WHERE order_num = %s AND state = 'refund_pending'",
+				$order_num
+			)
+		);
+
+		// The quota must drop even when the wallet refund has to be retried.
+		foreach ( $owners as $owner_id ) {
+			Space_Rules::flush( $owner_id );
+		}
+
+		$result = $this->settle_refund( $order, $order_num );
+
+		if ( ! empty( $result['ok'] ) ) {
+			$this->log_event(
+				'space.grant.refunded',
+				array(
+					'owner_id'  => isset( $order['user_id'] ) ? (int) $order['user_id'] : 0,
+					'result'    => 'ok',
+					'order_num' => $order_num,
+					'detail'    => array(
+						'order_id' => $order_id,
+						'bytes'    => $bytes,
+						'rows'     => $claimed,
+						'channel'  => (string) ( $result['channel'] ?? '' ),
+						'amount'   => $result['amount'] ?? 0,
+						'kind'     => (string) ( $result['kind'] ?? '' ),
+					),
+				)
+			);
+
+			return;
 		}
 
 		$this->log_event(
-			'space.grant.refunded',
+			'space.grant.refund_deferred',
 			array(
 				'owner_id'  => isset( $order['user_id'] ) ? (int) $order['user_id'] : 0,
-				'result'    => 'ok',
+				'result'    => 'error',
 				'order_num' => $order_num,
 				'detail'    => array(
 					'order_id' => $order_id,
-					'bytes'    => $bytes,
-					'rows'     => $rows,
+					'error'    => (string) ( $result['error'] ?? 'unknown' ),
+					'attempts' => (int) ( $result['attempts'] ?? 0 ),
+				),
+			)
+		);
+	}
+
+	/**
+	 * Distinct owners of rows waiting for a refund.
+	 *
+	 * @param string $order_num Order number.
+	 * @return int[]
+	 */
+	private function refund_owners( string $order_num ): array {
+		global $wpdb;
+
+		if ( ! is_object( $wpdb ) ) {
+			return array();
+		}
+
+		$table = $this->table();
+		$ids   = $wpdb->get_col(
+			$wpdb->prepare(
+				"SELECT DISTINCT owner_id FROM {$table} WHERE order_num = %s AND state = 'refund_pending'",
+				$order_num
+			)
+		);
+
+		if ( ! is_array( $ids ) ) {
+			return array();
+		}
+
+		return array_values( array_unique( array_map( 'intval', $ids ) ) );
+	}
+
+	/**
+	 * Attempts the wallet side of a refund for rows already in refund_pending.
+	 *
+	 * @param array<string,mixed> $order     Raw zibpay_order row.
+	 * @param string              $order_num Order number.
+	 * @return array<string,mixed>
+	 */
+	private function settle_refund( array $order, string $order_num ): array {
+		$data = $this->normalise_order( $order );
+
+		if ( null === $data ) {
+			return $this->fail_refund( $order_num, 'order_invalid' );
+		}
+
+		$plan  = $this->wallet_refund_plan( $data );
+		$ok    = true;
+		$error = '';
+
+		if ( 'balance' === $plan['kind'] && 0 < $plan['amount'] ) {
+			$user_id = (int) $data['user_id'];
+
+			if ( 0 >= $user_id ) {
+				$ok    = false;
+				$error = 'user_missing';
+			} elseif ( $this->wallet_refund_recorded( $user_id, $order_num, 'balance' ) ) {
+				// A previous attempt added the money but crashed before the
+				// grant row was marked refunded: do not pay twice.
+				$ok = true;
+			} elseif ( ! function_exists( 'zibpay_update_user_balance' ) ) {
+				$ok    = false;
+				$error = 'wallet_unavailable';
+			} else {
+				$ok = (bool) zibpay_update_user_balance(
+					$user_id,
+					array(
+						'order_num' => $order_num,
+						'value'     => (float) $plan['amount'],
+						'type'      => 'space_expand_refund',
+						'desc'      => __( '空间扩容退款', 'sakura-imgopt' ),
+					)
+				);
+
+				if ( ! $ok ) {
+					$error = 'wallet_refund_failed';
+				}
+			}
+		} elseif ( 'points' === $plan['kind'] && 0 < $plan['amount'] ) {
+			$user_id = (int) $data['user_id'];
+
+			if ( 0 >= $user_id ) {
+				$ok    = false;
+				$error = 'user_missing';
+			} elseif ( $this->wallet_refund_recorded( $user_id, $order_num, 'points' ) ) {
+				$ok = true;
+			} elseif ( ! function_exists( 'zibpay_update_user_points' ) ) {
+				$ok    = false;
+				$error = 'wallet_unavailable';
+			} else {
+				$ok = (bool) zibpay_update_user_points(
+					$user_id,
+					array(
+						'order_num' => $order_num,
+						'value'     => (int) $plan['amount'],
+						'type'      => 'space_expand_refund',
+						'desc'      => __( '空间扩容退款', 'sakura-imgopt' ),
+					)
+				);
+
+				if ( ! $ok ) {
+					$error = 'wallet_refund_failed';
+				}
+			}
+		}
+
+		if ( ! $ok ) {
+			$failure = $this->fail_refund( $order_num, $error );
+
+			return array(
+				'ok'       => false,
+				'error'    => $error,
+				'rows'     => (int) ( $failure['rows'] ?? 0 ),
+				'attempts' => (int) ( $failure['attempts'] ?? 0 ),
+				'channel'  => (string) $plan['channel'],
+				'kind'     => (string) $plan['kind'],
+				'amount'   => $plan['amount'],
+			);
+		}
+
+		global $wpdb;
+
+		$owners = $this->refund_owners( $order_num );
+		$table  = $this->table();
+		$now    = Space_Rules::now();
+
+		$wpdb->query(
+			$wpdb->prepare(
+				"UPDATE {$table} SET state = 'refunded', last_error = '', attempts = attempts + 1, updated_at = %s WHERE order_num = %s AND state = 'refund_pending'",
+				$now,
+				$order_num
+			)
+		);
+
+		foreach ( $owners as $owner_id ) {
+			Space_Rules::flush( $owner_id );
+		}
+
+		return array(
+			'ok'      => true,
+			'error'   => '',
+			'channel' => (string) $plan['channel'],
+			'kind'    => (string) $plan['kind'],
+			'amount'  => $plan['amount'],
+		);
+	}
+
+	/**
+	 * Records a failed refund attempt and moves rows to refund_failed at 5.
+	 *
+	 * @param string $order_num Order number.
+	 * @param string $error     Machine error code.
+	 * @return array<string,mixed>
+	 */
+	private function fail_refund( string $order_num, string $error ): array {
+		global $wpdb;
+
+		if ( ! is_object( $wpdb ) ) {
+			return array( 'rows' => 0, 'attempts' => 0 );
+		}
+
+		$table = $this->table();
+		$rows  = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT id, owner_id, attempts FROM {$table} WHERE order_num = %s AND state = 'refund_pending' ORDER BY id ASC",
+				$order_num
+			),
+			ARRAY_A
+		);
+
+		if ( ! is_array( $rows ) ) {
+			return array( 'rows' => 0, 'attempts' => 0 );
+		}
+
+		$now      = Space_Rules::now();
+		$failed   = 0;
+		$attempts = 0;
+
+		foreach ( $rows as $row ) {
+			$grant_id = isset( $row['id'] ) ? (int) $row['id'] : 0;
+			$owner_id = isset( $row['owner_id'] ) ? (int) $row['owner_id'] : 0;
+			$count    = ( isset( $row['attempts'] ) ? (int) $row['attempts'] : 0 ) + 1;
+			$state    = 5 <= $count ? 'refund_failed' : 'refund_pending';
+			$attempts = max( $attempts, $count );
+
+			$wpdb->query(
+				$wpdb->prepare(
+					"UPDATE {$table} SET state = %s, attempts = %d, last_error = %s, updated_at = %s WHERE id = %d AND state = 'refund_pending'",
+					$state,
+					$count,
+					$error,
+					$now,
+					$grant_id
+				)
+			);
+
+			if ( 'refund_failed' === $state ) {
+				$failed++;
+			}
+
+			Space_Rules::flush( $owner_id );
+		}
+
+		if ( 0 < $failed ) {
+			$this->log_event(
+				'space.grant.refund_failed',
+				array(
+					'owner_id'  => 0,
+					'result'    => 'error',
+					'order_num' => $order_num,
+					'detail'    => array(
+						'error'    => $error,
+						'attempts' => $attempts,
+						'rows'     => $failed,
+					),
+				)
+			);
+		}
+
+		return array( 'rows' => count( $rows ), 'attempts' => $attempts );
+	}
+
+	/**
+	 * Decides which wallet (if any) a refunded order must be credited to.
+	 *
+	 * @param array<string,mixed> $data Normalised order.
+	 * @return array<string,mixed>
+	 */
+	private function wallet_refund_plan( array $data ): array {
+		$channel = isset( $data['channel'] ) ? sanitize_key( (string) $data['channel'] ) : '';
+
+		if ( 'balance' === $channel ) {
+			return array(
+				'kind'    => 'balance',
+				'channel' => $channel,
+				'amount'  => max( 0.0, (float) ( $data['price'] ?? 0 ) ),
+			);
+		}
+
+		if ( 'points' === $channel ) {
+			$amount = isset( $data['points'] ) ? max( 0, (int) $data['points'] ) : 0;
+
+			if ( 0 >= $amount ) {
+				$amount = (int) round( max( 0.0, (float) ( $data['price'] ?? 0 ) ) );
+			}
+
+			return array( 'kind' => 'points', 'channel' => $channel, 'amount' => $amount );
+		}
+
+		// Alipay / WeChat were refunded outside the plugin; only release the grant.
+		return array( 'kind' => 'external', 'channel' => $channel, 'amount' => 0 );
+	}
+
+	/**
+	 * Whether the theme already logged this refund in the wallet history.
+	 *
+	 * The theme keeps the newest 50 records without a unique key, so this guards
+	 * the crash window between the wallet write and the grant update.
+	 *
+	 * @param int    $user_id   User id.
+	 * @param string $order_num Order number.
+	 * @param string $kind      balance|points.
+	 * @return bool
+	 */
+	private function wallet_refund_recorded( int $user_id, string $order_num, string $kind ): bool {
+		if ( 0 >= $user_id || '' === $order_num || ! function_exists( 'get_user_meta' ) ) {
+			return false;
+		}
+
+		$key = 'balance' === $kind ? 'balance_record' : 'points_record';
+
+		// Zibll stores these histories through its own meta router (an option
+		// row), so plain get_user_meta() returns nothing on a real site.
+		$records = function_exists( 'zib_get_user_meta' )
+			? zib_get_user_meta( $user_id, $key, true )
+			: get_user_meta( $user_id, $key, true );
+
+		if ( ! is_array( $records ) ) {
+			return false;
+		}
+
+		foreach ( $records as $record ) {
+			if ( ! is_array( $record ) ) {
+				continue;
+			}
+
+			$record_num  = isset( $record['order_num'] ) ? (string) $record['order_num'] : '';
+			$record_type = isset( $record['type'] ) ? (string) $record['type'] : '';
+			$record_val  = isset( $record['value'] ) ? (float) $record['value'] : 0.0;
+
+			if ( $record_num === $order_num && 'space_expand_refund' === $record_type && 0 < $record_val ) {
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	/**
+	 * Re-tries wallet compensation for grants stuck in refund_pending.
+	 *
+	 * @param int $limit Max orders per run.
+	 * @return int Orders handled.
+	 */
+	public function retry_refunds( int $limit = 20 ): int {
+		if ( ! $this->has_table() ) {
+			return 0;
+		}
+
+		global $wpdb;
+
+		if ( ! is_object( $wpdb ) ) {
+			return 0;
+		}
+
+		$limit     = max( 1, min( 100, $limit ) );
+		$table     = $this->table();
+		$threshold = gmdate( 'Y-m-d H:i:s', time() - 60 );
+
+		$rows = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT order_num, MAX(order_id) AS order_id FROM {$table} WHERE state = 'refund_pending' AND attempts < 5 AND updated_at <= %s GROUP BY order_num ORDER BY MIN(id) ASC LIMIT %d",
+				$threshold,
+				$limit
+			),
+			ARRAY_A
+		);
+
+		if ( ! is_array( $rows ) || array() === $rows ) {
+			return 0;
+		}
+
+		$handled = 0;
+
+		foreach ( $rows as $row ) {
+			$order_num = isset( $row['order_num'] ) ? (string) $row['order_num'] : '';
+			$order_id  = isset( $row['order_id'] ) ? (int) $row['order_id'] : 0;
+
+			if ( '' === $order_num ) {
+				continue;
+			}
+
+			// Claim the order before touching the wallet: two cron workers can
+			// select the same refund_pending rows, but only one may credit it.
+			$claimed = (int) $wpdb->query(
+				$wpdb->prepare(
+					"UPDATE {$table} SET updated_at = %s WHERE order_num = %s AND state = 'refund_pending' AND updated_at <= %s",
+					Space_Rules::now(),
+					$order_num,
+					$threshold
+				)
+			);
+
+			if ( 0 >= $claimed ) {
+				continue;
+			}
+
+			$handled++;
+			$order = $this->load_order( $order_id, $order_num );
+
+			if ( null === $order ) {
+				$failure = $this->fail_refund( $order_num, 'order_missing' );
+
+				$this->log_event(
+					'space.grant.refund_deferred',
+					array(
+						'owner_id'  => 0,
+						'result'    => 'error',
+						'order_num' => $order_num,
+						'detail'    => array(
+							'error'    => 'order_missing',
+							'attempts' => (int) ( $failure['attempts'] ?? 0 ),
+						),
+					)
+				);
+
+				continue;
+			}
+
+			$result = $this->settle_refund( $order, $order_num );
+
+			if ( ! empty( $result['ok'] ) ) {
+				$this->log_event(
+					'space.grant.refunded',
+					array(
+						'owner_id'  => isset( $order['user_id'] ) ? (int) $order['user_id'] : 0,
+						'result'    => 'ok',
+						'order_num' => $order_num,
+						'detail'    => array(
+							'retry'   => true,
+							'channel' => (string) ( $result['channel'] ?? '' ),
+							'amount'  => $result['amount'] ?? 0,
+							'kind'    => (string) ( $result['kind'] ?? '' ),
+						),
+					)
+				);
+
+				continue;
+			}
+
+			$this->log_event(
+				'space.grant.refund_deferred',
+				array(
+					'owner_id'  => 0,
+					'result'    => 'error',
+					'order_num' => $order_num,
+					'detail'    => array(
+						'retry'    => true,
+						'error'    => (string) ( $result['error'] ?? 'unknown' ),
+						'attempts' => (int) ( $result['attempts'] ?? 0 ),
+					),
+				)
+			);
+		}
+
+		return $handled;
+	}
+
+	/**
+	 * Loads a theme order by primary key, falling back to order number.
+	 *
+	 * @param int    $order_id  Order id (may be 0 on legacy rows).
+	 * @param string $order_num Order number.
+	 * @return array<string,mixed>|null
+	 */
+	private function load_order( int $order_id, string $order_num ): ?array {
+		global $wpdb;
+
+		if ( ! is_object( $wpdb ) ) {
+			return null;
+		}
+
+		$orders = $wpdb->prefix . 'zibpay_order';
+		$order  = null;
+
+		if ( 0 < $order_id ) {
+			$order = $wpdb->get_row(
+				$wpdb->prepare(
+					"SELECT id, order_num, order_type, user_id, order_price, pay_type, product_id, other, pay_detail FROM {$orders} WHERE id = %d",
+					$order_id
+				),
+				ARRAY_A
+			);
+		}
+
+		if ( ! is_array( $order ) && '' !== $order_num ) {
+			$order = $wpdb->get_row(
+				$wpdb->prepare(
+					"SELECT id, order_num, order_type, user_id, order_price, pay_type, product_id, other, pay_detail FROM {$orders} WHERE order_num = %s LIMIT 1",
+					$order_num
+				),
+				ARRAY_A
+			);
+		}
+
+		return is_array( $order ) ? $order : null;
+	}
+
+	/**
+	 * Daily paid-without-grant sweep, at most once per 24 hours.
+	 *
+	 * @return void
+	 */
+	private function maybe_reconcile(): void {
+		if ( ! function_exists( 'get_option' ) || ! function_exists( 'update_option' ) ) {
+			return;
+		}
+
+		$last = (int) get_option( self::RECONCILE_OPTION, 0 );
+
+		if ( 0 < $last && $last > time() - DAY_IN_SECONDS ) {
+			return;
+		}
+
+		update_option( self::RECONCILE_OPTION, time(), false );
+
+		$result = $this->reconcile( true, 100 );
+
+		if ( ! empty( $result['ready'] ) && (int) $result['missing'] <= (int) $result['healed'] ) {
+			return;
+		}
+
+		$this->log_event(
+			'space.reconcile.alert',
+			array(
+				'owner_id' => 0,
+				'result'   => empty( $result['ready'] ) ? 'error' : 'warn',
+				'detail'   => array(
+					'missing' => (int) ( $result['missing'] ?? 0 ),
+					'healed'  => (int) ( $result['healed'] ?? 0 ),
+					'error'   => (string) ( $result['error'] ?? '' ),
+					'auto'    => true,
 				),
 			)
 		);
@@ -1756,14 +2387,15 @@ final class Space_Store {
 	}
 
 	/**
-	 * Minute cron entry: sweep + retry. Reconcile deliberately stays manual.
+	 * Minute cron entry: sweep, retry pending grants, retry refunds, reconcile.
 	 *
 	 * @return void
 	 */
 	public function tick(): void {
-		$start = microtime( true );
-		$swept = 0;
-		$retried = 0;
+		$start    = microtime( true );
+		$swept    = 0;
+		$retried  = 0;
+		$refunded = 0;
 
 		try {
 			$swept = $this->sweep_expired();
@@ -1791,6 +2423,32 @@ final class Space_Store {
 			);
 		}
 
+		try {
+			$refunded = $this->retry_refunds( 20 );
+		} catch ( \Throwable $e ) {
+			$this->log_event(
+				'space.tick.error',
+				array(
+					'owner_id' => 0,
+					'result'   => 'error',
+					'detail'   => array( 'stage' => 'refund', 'message' => $e->getMessage() ),
+				)
+			);
+		}
+
+		try {
+			$this->maybe_reconcile();
+		} catch ( \Throwable $e ) {
+			$this->log_event(
+				'space.tick.error',
+				array(
+					'owner_id' => 0,
+					'result'   => 'error',
+					'detail'   => array( 'stage' => 'reconcile', 'message' => $e->getMessage() ),
+				)
+			);
+		}
+
 		$elapsed = microtime( true ) - $start;
 
 		if ( 5.0 < $elapsed ) {
@@ -1800,9 +2458,10 @@ final class Space_Store {
 					'owner_id' => 0,
 					'result'   => 'warn',
 					'detail'   => array(
-						'seconds' => round( $elapsed, 3 ),
-						'expired' => $swept,
-						'retried' => $retried,
+						'seconds'  => round( $elapsed, 3 ),
+						'expired'  => $swept,
+						'retried'  => $retried,
+						'refunded' => $refunded,
 					),
 				)
 			);

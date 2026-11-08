@@ -183,6 +183,7 @@ final class Uninstaller {
 			'sakura_imgopt_thumb_cache_flush',
 			'sakura_imgopt_thumb_probe',
 			'sakura_imgopt_thumb_stats',
+			'sufm_space_reconcile_last',
 			'sufm_sync_state',
 		);
 	}

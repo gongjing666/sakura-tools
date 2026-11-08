@@ -1,5 +1,8 @@
-# Development tooling (PHPStan / WordPress stubs); not shipped with the plugin.
-/vendor/
+# Development tooling (PHPStan / WordPress stubs) is not shipped with the plugin.
+# vendor/s3 is production runtime code (Strauss-prefixed AWS SDK) and is tracked.
+/vendor/*
+!/vendor/s3/
+/vendor/s3/vendor/
 
 # PHPUnit cache
 /.phpunit.cache/

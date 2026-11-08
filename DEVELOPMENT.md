@@ -487,7 +487,7 @@ location ^~ /wp-content/.sakura-s3-cache/ {
 
 - `tests/AnimationDetectorTest.php`、`tests/BackupPathTest.php`、`tests/HookLoaderTest.php` 为纯 PHP 单元测试，不依赖 WordPress 运行环境；`tests/bootstrap.php` 提供 `ABSPATH`、`apply_filters()`、`add_action()`、`add_filter()` shim。
 - 运行：`composer test`（PHPUnit 10.5）；静态分析：`composer phpstan`（level 5）。当前 18 tests / 38 assertions 全部通过（`ModuleRegistrationTest` 验证模块接口与集中钩子注册）。
-- `.github/workflows/tests.yml` 在 PHP 8.1/8.2/8.3 上跑单元测试；`phpstan.yml` 跑静态分析。CI 需先 `composer install`。
+- `.github/workflows/tests.yml` 在 PHP 8.2/8.3/8.4 上跑单元测试；`phpstan.yml` 跑静态分析。CI 需先 `composer install`；`vendor/s3/` 已随仓库提供，无需额外构建。
 - `ModuleRegistrationTest` 覆盖接口实现、集中注册、构造不挂钩子、S3 启停分支。
 
 ### 13.3 发布文件
@@ -558,12 +558,25 @@ location ^~ /wp-content/.sakura-s3-cache/ {
 - `Image_Processor` 仍是上传/备份/还原/元数据编排者；`Restore_Service` 的路径归一化仍调用 `Backup` 静态方法，属渐进迁移。
 - 统计聚合在测试清理后按现存日志重算为 90 条，历史测试附件日志不可恢复。
 
-**测试命令**（开发依赖需 `composer install`，完成后可移除根 `vendor/`，保留 `vendor/s3/`）：
+**测试命令**（开发依赖需 `composer install`；根 `vendor/` 不提交，`vendor/s3/` 是随仓库提供的运行时依赖）：
 
 ```bash
 composer test
 composer phpstan
 ```
+
+**开发 clone 与 E2E**
+
+- 建议在 Web 根之外开发：`git clone git@github.com:gongjing666/sakura-tools.git /root/work/sakura-tools`，然后 `composer install`。
+- `vendor/s3/` 是 Strauss 前缀化的运行时依赖，已纳入版本控制；根 `vendor/` 只放开发工具，不提交。
+- E2E 脚本支持 `SIO_E2E_PLUGIN_SRC`：
+
+```bash
+SIO_E2E_PLUGIN_SRC=/root/work/sakura-tools /root/sio-e2e/e2e.sh up
+/root/sio-e2e/e2e.sh status   # 显示当前插件源码
+```
+
+- 不传变量时仍指向生产插件；Forge worktree 各自需要根 `vendor/`（`composer install`），`vendor/s3/` 随 Git 提供。
 
 
 ### 14.6 分层架构 Phase 2C（1.3.3）

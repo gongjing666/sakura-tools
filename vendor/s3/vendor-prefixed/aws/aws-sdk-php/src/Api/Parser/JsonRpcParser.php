@@ -1,0 +1,92 @@
+<?php
+/**
+ * @license Apache-2.0
+ *
+ * Modified by __root__ on 24-October-2026 using {@see https://github.com/BrianHenryIE/strauss}.
+ */
+namespace Sakura\Vendor\Aws\Api\Parser;
+
+use Sakura\Vendor\Aws\Api\Operation;
+use Sakura\Vendor\Aws\Api\StructureShape;
+use Sakura\Vendor\Aws\Api\Service;
+use Sakura\Vendor\Aws\Result;
+use Sakura\Vendor\Aws\CommandInterface;
+use Sakura\Vendor\Psr\Http\Message\ResponseInterface;
+use Sakura\Vendor\Psr\Http\Message\StreamInterface;
+
+/**
+ * @internal Implements JSON-RPC parsing (e.g., DynamoDB)
+ */
+class JsonRpcParser extends AbstractParser
+{
+    use PayloadParserTrait;
+
+    /**
+     * @param Service    $api    Service description
+     * @param JsonParser $parser JSON body builder
+     */
+    public function __construct(Service $api, ?JsonParser $parser = null)
+    {
+        parent::__construct($api);
+        $this->parser = $parser ?: new JsonParser();
+    }
+
+    public function __invoke(
+        CommandInterface $command,
+        ResponseInterface $response
+    ) {
+        $operation = $this->api->getOperation($command->getName());
+
+        return $this->parseResponse($response, $operation);
+    }
+
+    /**
+     * This method parses a response based on JSON RPC protocol.
+     *
+     * @param ResponseInterface $response the response to parse.
+     * @param Operation $operation the operation which holds information for
+     *        parsing the response.
+     *
+     * @return Result
+     */
+    private function parseResponse(ResponseInterface $response, Operation $operation)
+    {
+        if (null === $operation['output']) {
+            return new Result([]);
+        }
+
+        $outputShape = $operation->getOutput();
+        foreach ($outputShape->getMembers() as $memberName => $memberProps) {
+            if (!empty($memberProps['eventstream'])) {
+                return new Result([
+                    $memberName => new EventParsingIterator(
+                        $response->getBody(),
+                        $outputShape->getMember($memberName),
+                        $this
+                    )
+                ]);
+            }
+        }
+
+        $body = $response->getBody();
+        if ($body->isSeekable()) {
+            $body->rewind();
+        }
+
+        $result = $this->parseMemberFromStream(
+            $body,
+            $operation->getOutput(),
+            $response
+        );
+
+        return new Result(is_null($result) ? [] : $result);
+    }
+
+    public function parseMemberFromStream(
+        StreamInterface $stream,
+        StructureShape $member,
+        $response
+    ) {
+        return $this->parser->parse($member, $this->parseJson($stream, $response));
+    }
+}

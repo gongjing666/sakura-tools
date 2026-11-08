@@ -1,0 +1,114 @@
+<?php
+/**
+ * @license Apache-2.0
+ *
+ * Modified by __root__ on 24-October-2026 using {@see https://github.com/BrianHenryIE/strauss}.
+ */
+namespace Sakura\Vendor\Aws\Crypto;
+
+use Sakura\Vendor\Aws\Exception\CryptoException;
+use Sakura\Vendor\GuzzleHttp\Psr7;
+use Sakura\Vendor\GuzzleHttp\Psr7\StreamDecoratorTrait;
+use Sakura\Vendor\Psr\Http\Message\StreamInterface;
+
+/**
+ * @internal Represents a stream of data to be gcm decrypted.
+ */
+class AesGcmDecryptingStream implements AesStreamInterface
+{
+    use StreamDecoratorTrait;
+
+    private $aad;
+
+    private $initializationVector;
+
+    private $key;
+
+    private $keySize;
+
+    private $cipherText;
+
+    private $tag;
+
+    private $tagLength;
+
+    /**
+     * @var StreamInterface
+     */
+    private $stream;
+
+    /**
+     * @param StreamInterface $cipherText
+     * @param string $key
+     * @param string $initializationVector
+     * @param string $tag
+     * @param string $aad
+     * @param int $tagLength
+     * @param int $keySize
+     */
+    public function __construct(
+        StreamInterface $cipherText,
+        $key,
+        $initializationVector,
+        $tag,
+        $aad = '',
+        $tagLength = 128,
+        $keySize = 256
+    ) {
+        $this->cipherText = $cipherText;
+        $this->key = $key;
+        $this->initializationVector = $initializationVector;
+        $this->tag = $tag;
+        $this->aad = $aad;
+        $this->tagLength = $tagLength;
+        $this->keySize = $keySize;
+        // unsetting the property forces the first access to go through
+        // __get().
+        unset($this->stream);
+    }
+
+    public function getOpenSslName()
+    {
+        return "aes-{$this->keySize}-gcm";
+    }
+
+    public function getAesName()
+    {
+        return 'AES/GCM/NoPadding';
+    }
+
+    public function getCurrentIv()
+    {
+        return $this->initializationVector;
+    }
+
+    public function createStream()
+    {
+        if (strlen($this->tag) !== 16) {
+            throw new CryptoException(
+                'Unsupported GCM tag length; only 128-bit tags are supported.'
+            );
+        }
+
+        $result = \openssl_decrypt(
+            (string)$this->cipherText,
+            $this->getOpenSslName(),
+            $this->key,
+            OPENSSL_RAW_DATA,
+            $this->initializationVector,
+            $this->tag,
+            $this->aad
+        );
+        if ($result === false) {
+            throw new CryptoException('The requested object could not be '
+            . 'decrypted due to an invalid authentication tag.');
+        }
+        return Psr7\Utils::streamFor($result);
+
+    }
+
+    public function isWritable(): bool
+    {
+        return false;
+    }
+}

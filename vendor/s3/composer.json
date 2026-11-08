@@ -1,0 +1,22 @@
+{
+    "require": {
+        "aws/aws-sdk-php": "^3.387"
+    },
+    "scripts": {
+        "pre-autoload-dump": "Aws\\Script\\Composer\\Composer::removeUnusedServices"
+    },
+    "extra": {
+        "aws/aws-sdk-php": [
+            "S3"
+        ]
+    },
+    "autoload": {
+        "psr-4": {
+            "S3Uploads\\": "src/"
+        }
+    },
+    "config": {
+        "optimize-autoloader": true,
+        "sort-packages": true
+    }
+}

@@ -1,0 +1,54 @@
+<?php
+/**
+ * @license Apache-2.0
+ *
+ * Modified by __root__ on 24-October-2026 using {@see https://github.com/BrianHenryIE/strauss}.
+ */
+namespace Sakura\Vendor\Aws\Api\ErrorParser;
+
+use Sakura\Vendor\Aws\Api\Parser\AbstractParser;
+use Sakura\Vendor\Aws\Api\Parser\JsonParser;
+use Sakura\Vendor\Aws\Api\Service;
+use Sakura\Vendor\Aws\CommandInterface;
+use Sakura\Vendor\Psr\Http\Message\ResponseInterface;
+
+/**
+ * Parsers JSON-RPC errors.
+ */
+class JsonRpcErrorParser extends AbstractErrorParser
+{
+    use JsonParserTrait;
+
+    private $parser;
+
+    public function __construct(?Service $api = null, ?JsonParser $parser = null)
+    {
+        parent::__construct($api);
+        $this->parser = $parser ?: new JsonParser();
+    }
+
+    public function __invoke(
+        ResponseInterface $response,
+        ?CommandInterface $command = null
+    ) {
+        $response = AbstractParser::getResponseWithCachingStream($response);
+        $data = $this->genericHandler($response);
+
+        // Make the casing consistent across services.
+        if ($data['parsed']) {
+            $data['parsed'] = array_change_key_case($data['parsed']);
+        }
+
+        if (isset($data['parsed']['__type'])) {
+            if (!isset($data['code'])) {
+                $parts = explode('#', $data['parsed']['__type']);
+                $data['code'] = isset($parts[1]) ? $parts[1] : $parts[0];
+            }
+            $data['message'] = $data['parsed']['message'] ?? null;
+        }
+
+        $this->populateShape($data, $response, $command);
+
+        return $data;
+    }
+}

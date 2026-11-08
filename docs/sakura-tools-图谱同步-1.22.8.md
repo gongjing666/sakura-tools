@@ -1,26 +1,26 @@
 # sakura-tools 3D 图谱同步说明（v1.22.8）
 
-> 配套文档：[sakura-tools 代码结构 1.22.8](sakura-tools-代码结构-1.22.8.md)。本文只回答三件事：**图谱变了什么、怎么和文档对上、以后怎么重建**。
+> 配套文档：[sakura-tools 代码结构 1.22.8](sakura-tools-代码结构-1.22.8.md) ｜ **代码基线** commit `55a9938`。本文只回答三件事：**图谱变了什么、怎么和文档对上、以后怎么重建**。
 
 ## 0. 结论
 
-- 图谱由同一份扫描事实表与文档同时产出，不是手工对齐的副产物；上一轮（2026-11-08 清理死代码）已全量重建，本轮（§12 三项核实）只补正文、未改代码，图谱不变。
-- 规模：**178 个生产 PHP 文件 / 163 个类 / 17 个模块 / 180 个节点 / 812 条连线**（599 `ref` + 163 `contains` + 50 `modref`）/ **190 个钩子** / **0 悬空边**。
-- 上一轮与清理前相比：删掉 `Upload_Queue` 类节点及其 `contains` 边（-1 节点），新增 `Uninstaller → Upload_URL` 的一条 `ref` 边（+1），总连线仍为 812。详见 §2.1；本轮无图谱变化见 §2.2。
-- 页面四角数字由 `graph.json` 的 `stats` 注入，不再手写；最近一次重建的截图显示 178 / 180 / 812 / 190，与文档附录计数一致。
+- 图谱由同一份扫描事实表与文档同时产出，不是手工对齐的副产物；本轮（2026-11-08 上传指标并发修复）改了代码与钩子，已重扫、重建并重截预览图（§2.3）。
+- 规模：**178 个生产 PHP 文件 / 163 个类 / 17 个模块 / 180 个节点 / 814 条连线**（601 `ref` + 163 `contains` + 50 `modref`）/ **191 个钩子** / **0 悬空边**。
+- 与清理前相比：删掉 `Upload_Queue` 类节点及其 `contains` 边（-1 节点），新增 `Uninstaller → Upload_URL` 的一条 `ref` 边（+1）；本轮再新增 2 条 `ref`、1 个钩子，总连线 812→814。详见 §2.1 与 §2.3。
+- 页面四角数字由 `graph.json` 的 `stats` 注入，不再手写；本轮重建后的截图显示 178 / 180 / 814 / 191，与文档附录计数一致。
 - 生成、注入、组装三个脚本已固化到 `docs/tools/`，可在任意机器重跑（§7）。
 
 ## 1. 数据管线：谁生成谁
 
 ```
 scanner.php（token_get_all 三趟静态扫描）
-        │  /tmp/scan.json        178 文件 / 163 类 / 190 钩子 / 全部边
+        │  /tmp/scan.json        178 文件 / 163 类 / 191 钩子 / 全部边
         ├── collect-comments.php → /tmp/comments.json   163 条类注释（"职责"列的依据）
         ▼
 build-code-structure.mjs
         ├── modules.md  class-index.md  file-index.md  hooks.md  module-matrix.md  top-edges.md
         ├── classes/<模块>.md   15 个分类表
-        └── graph.json          180 节点 / 812 连线 / 确定性坐标
+        └── graph.json          180 节点 / 814 连线 / 确定性坐标
         ▼
 graph-inject.mjs ──► docs/graph-preview/index.html（内嵌 DATA）+ graph.json
         ▼
@@ -40,14 +40,13 @@ assemble-doc.py  ──► sakura-tools-代码结构-1.22.8.md（分章正文 + 
 
 ## 2. 与上一版导出的对比
 
-| 项 | 旧导出（`/tmp/graph.json.bak`） | 上次重建 | 说明 |
-|---|---:|---:|---|
+| 项 | 旧导出（`/tmp/graph.json.bak`） | 当前导出 | 说明 |
 | 文件数 | 181 | 178 | 口径改为"生产 PHP"，排除 `tests/`、`stubs/`、`.dsh-ops/`；上一轮删 `Upload_Queue.php` 再 -1 |
 | 模块 | 15 | 17 | 根文件统一命名 `根文件`、`src` 单列、`includes` 与 `includes/views` 分开 |
 | 类 | 147 | 163 | 清理前 164，删 `Upload_Queue` 后 163；见下方 id 规则变更 |
 | 节点 | 162 | 180 | 163 类 + 17 模块 |
-| 连线 | 761 | 812 | 旧 559 ref + 147 contains + 55 modref → 599 + 163 + 50 |
-| 钩子 | 未收录（页脚写死 111） | 190（`stats.hooks`） | 现在页脚数字来自数据 |
+| 连线 | 761 | 814 | 旧 559 ref + 147 contains + 55 modref → 601 + 163 + 50 |
+| 钩子 | 未收录（页脚写死 111） | 191（`stats.hooks`） | 现在页脚数字来自数据 |
 | 布局 | 力导向 320 次迭代，radius 1699.4 | 确定性球面，radius 1710，`iterations: 0` | 同数据每次坐标一致，可 diff |
 | 节点 id | 短类名，如 `cls:Alerting` | FQCN，如 `cls:Sakura\ImageOptimizer\S3\Alerting` | 见下方说明 |
 
@@ -66,9 +65,9 @@ assemble-doc.py  ──► sakura-tools-代码结构-1.22.8.md（分章正文 + 
 
 **代价**：新旧节点无法逐 id 对齐，所以不提供"从 162 到 180"的逐节点清单，只给可复核的计数与行数核对（§6、§8）。上一轮清理的增量已在 §2.1 单列；以后逐版追踪请保留每版 `graph.json`，`meta.version` 已写入版本号。
 
-### 2.2 本轮增量（2026-11-08 §12 三项核实）
+### 2.2 前一轮增量（2026-11-08 §12 三项核实）
 
-| 项 | 本轮结果 | 说明 |
+| 项 | 该轮结果 | 说明 |
 |---|---|---|
 | 节点 | 180 → 180 | 无新增/删除类；`fast-search.php` 是脚本型文件，本来不进图 |
 | 连线 | 812 → 812 | 599 `ref` + 50 `modref` + 163 `contains` 均未变 |
@@ -76,7 +75,20 @@ assemble-doc.py  ──► sakura-tools-代码结构-1.22.8.md（分章正文 + 
 | 文档 | §8.9 改写、§10.10 新增、§12 改写 | 对应 `Space_Store::grant_from_order()` 字段缺陷、`Upload_Observer` 只记成功样本、fast-search 无缺陷 |
 | 悬空边 | 0 | 未重新注入，沿用上一轮已校验数据 |
 
-本轮三项结论都落在已有节点上：`Space_Store`、`Upload_Observer` 的职责与缺陷记录写入正文，`fast-search.php` 不在图谱节点集合内；没有新增或删除任何图谱对象，因此 `graph-preview/` 不需要重建，`preview.png` 也不需要重新截图。
+该轮三项结论都落在已有节点上：`Space_Store`、`Upload_Observer` 的职责与缺陷记录写入正文，`fast-search.php` 不在图谱节点集合内；没有新增或删除任何图谱对象，当时没有重建 `graph-preview/`。
+
+### 2.3 本轮增量（2026-11-08 上传指标并发修复）
+
+| 变更 | 图谱对象 | 计数影响 | 文档对应 |
+|---|---|---|---|
+| 新增 `ref` | `cls:Sakura\ImageOptimizer\Activation` → `cls:Sakura\ImageOptimizer\S3\Upload_Metrics`（`new`，w=2） | `ref` 599→601；`src → src/S3` 的 `modref` 权重 22→24 | §6.9.2、§12.4 |
+| 新增 `ref` | `cls:Sakura\ImageOptimizer\S3\Upload_Metrics` → `cls:Sakura\ImageOptimizer\S3\Log`（w=2） | `ref` +1（模块内，不改变 `modref`） | §6.9.2 |
+| 权重变化 | `Upload_Observer → Options`、`Upload_Observer → Upload_Metrics` | `w` 4→5（新增失败采集分支的引用） | §6.9 |
+| 新增钩子 | `sakura_imgopt_s3_upload_failed`（`src/S3/Upload_Observer.php:31`） | 钩子 190→191 | §6.4、§9.2 |
+| 节点 | 163 类 + 17 模块 | 180→180，无增删 | — |
+| 表 | `sio_s3_upload_events` | 不进图；文档 §9.1 由 22 张增至 23 张 | §6.9.2、§9.1 |
+
+本轮没有新增/删除类，所以节点与 `contains` 边不变；变化全部来自 `Upload_Metrics` 重写与失败钩子接线。`modref` 总数仍是 50，但 `src → src/S3` 这一格的权重从 22 升到 24，因为 `Activation` 现在引用 `Upload_Metrics`。页面四角数字已由 `graph-inject.mjs` 重写为 178 / 180 / 814 / 191，`preview.png` 已重截。
 
 ## 3. 节点与连线的定义
 
@@ -98,7 +110,7 @@ assemble-doc.py  ──► sakura-tools-代码结构-1.22.8.md（分章正文 + 
 | `type` | 数量 | `w` 含义 | 语义 | 示例 |
 |---|---:|---|---|---|
 | `contains` | 163 | 固定 1 | 模块 → 类（归属） | `mod:src/S3` → `cls:…\S3\Options` |
-| `ref` | 599 | 静态引用次数 | 类 → 类 | `Executor` → `Time`（w=50） |
+| `ref` | 601 | 静态引用次数 | 类 → 类 | `Executor` → `Time`（w=50） |
 | `modref` | 50 | 跨模块引用边数 | 模块 → 模块 | `includes` → `src/S3`（w=40） |
 
 `ref` 的 `kinds` 数组记录了引用形态（`use` / `type` / `call` / `static` / `new` / `implements` / `callback`），鼠标点开详情可看到"引用/被引用"两侧。
@@ -134,7 +146,7 @@ assemble-doc.py  ──► sakura-tools-代码结构-1.22.8.md（分章正文 + 
 | 34 | `src/Sync` → `src/S3` | 同步的动作队列复用 S3 的存储适配与选项 |
 | 33 | `src/S3` → `src/Sync` | 上传完成后回写同步索引 |
 | 22 | `includes` → `src/Image` | 图片门面装配 |
-| 22 | `src` → `src/S3` | 插件启动时构造 S3 旁支；本轮 `Uninstaller` 引用 `Upload_URL` 后由 21 升到 22 |
+| 24 | `src` → `src/S3` | 插件启动时构造 S3 旁支；清理轮 `Uninstaller` 引用 `Upload_URL` 后 21→22，本轮 `Activation` 引用 `Upload_Metrics` 后再 22→24 |
 | 22 | `src/Image` → `src/Contracts` | 处理器实现接口 |
 
 > S3 与 Sync 互指（34 / 33）是全图最粗的一对，文档 §11.1 把它标为"事实上是一个整体"，改动时必须成对评估。
@@ -146,10 +158,10 @@ assemble-doc.py  ──► sakura-tools-代码结构-1.22.8.md（分章正文 + 
 | 模块节点 | 17 | §2.2 模块总览表（17 行） | `scan.files` 按模块聚合 |
 | 类节点 | 163 | 附录 A 类索引（163 行，每行给 `文件:行`） | `scan.nodes(kind=class)` |
 | `contains` 边 | 163 | §4–§8 各子系统的类表（同模块归属） | 模块 → 类 |
-| `ref` 边 | 599 | §11.1 矩阵、§11.3 最粗 12 条边 | `scan.edges` |
+| `ref` 边 | 601 | §11.1 矩阵、§11.3 最粗 12 条边 | `scan.edges` |
 | `modref` 边 | 50 | §11.1 矩阵的非零格（17×17） | 类边按模块聚合 |
-| 钩子 | 190 | 附录 B（190 行）+ §9.2 分布表 | `scan.hooks` |
-| 22 张自定义表 | — | §9.1（图谱不建表节点，避免图噪） | 测试站 `SHOW TABLES` |
+| 钩子 | 191 | 附录 B（191 行）+ §9.2 分布表 | `scan.hooks` |
+| 23 张自定义表 | — | §9.1（图谱不建表节点，避免图噪） | 测试站 `SHOW TABLES` |
 
 ## 7. 重建步骤（可直接复制执行）
 
@@ -191,18 +203,18 @@ cp /tmp/graph.png docs/graph-preview/preview.png
 |---:|---|---|---|
 | 1 | 类节点数 = 附录 A 行数 | 解析 graph.json 与 Markdown 表格 | 163 = 163 ✅ |
 | 2 | 模块节点数 = §2.2 行数 | 同上 | 17 = 17 ✅ |
-| 3 | 钩子数 = 附录 B 行数 | 同上 | 190 = 190 ✅ |
-| 4 | 连线数 = 三类之和 | `599 + 163 + 50` | 812 ✅ |
+| 3 | 钩子数 = 附录 B 行数 | 同上 | 191 = 191 ✅ |
+| 4 | 连线数 = 三类之和 | `601 + 163 + 50` | 814 ✅ |
 | 5 | 悬空边 | `graph-inject.mjs` 每次注入前校验 | 0 ✅ |
-| 6 | 同源重建 | 分章 `p1–p6` + `build-code-structure.mjs` 生成块重新组装，与仓库正文比对 | §6.8 清理后 `1c82079ea7777f5d5beeaf6b8a18e6bf`；§7.7 改写后 `f2948e675caf9dbdb3cf58d0395623c9`；§12 三项回写后 `b479d3fb379c695a2c8ce2eac2a1f02b` ✅ |
-| 7 | 注入幂等 | `graph-inject.mjs` dry-run 与页面 `DATA` 比对 | 节点/连线/坐标完全一致；仅 `meta.generatedAt` 不同（页面 `10:10:42Z`、`/tmp` 为 `11:01:12Z`），故 dry-run 报 `changed:true`；未写回，避免仅为时间戳改动产物 ⚠️ |
-| 8 | 文档可重装 | `python3 docs/tools/assemble-doc.py --parts /tmp/docparts --chapters docs/tools/chapters --out /tmp/verify-sakura-doc.md` | 与仓库正文逐字节一致（md5 `b479d3fb379c695a2c8ce2eac2a1f02b`）✅ |
-| 9 | 渲染 | Chrome headless + SwiftShader 截图 `preview.png` | 星簇正常；页脚 178 / 180 / 812 / 190；S3 详情 36 文件 ✅ |
+| 6 | 同源重建 | 分章 `p1–p6` + `build-code-structure.mjs` 生成块重新组装，与仓库正文比对 | §6.8 清理后 `1c82079ea7777f5d5beeaf6b8a18e6bf`；§7.7 改写后 `f2948e675caf9dbdb3cf58d0395623c9`；§12 三项回写后 `b479d3fb379c695a2c8ce2eac2a1f02b`；本轮上传指标修复最终稿 `affe363d81b6325cbe739b54aac28446` ✅ |
+| 7 | 注入幂等 | `graph-inject.mjs` dry-run 与页面 `DATA` 比对 | 本轮 `--write` 后 dry-run 报 `changed:false`、`dangling:0`，页面 `DATA` 与 `graph.json` 的结构与计数完全一致 ✅ |
+| 8 | 文档可重装 | `python3 docs/tools/assemble-doc.py --parts /tmp/docparts-um --chapters docs/tools/chapters --out /tmp/verify-sakura-doc.md` | 与仓库正文逐字节一致（md5 `affe363d81b6325cbe739b54aac28446`）✅ |
+| 9 | 渲染 | Chrome headless + SwiftShader 截图 `preview.png` | 星簇正常；页脚 178 / 180 / 814 / 191；S3 详情 36 文件 ✅ |
 | 10 | 文件数一致 | `stats.files` = 附录 C 行数 | 178 = 178 ✅ |
 
-> 第 9 项是必要的：DSH 内置浏览器没有 WebGL，页面会渲染成空白 canvas，用它"看图谱"会得出错误结论。第 7 项是数据幂等而非字节幂等：两份 `graph.json` 仅 `meta.generatedAt` 不同，`graph-inject` 会因此报 `changed:true`；图谱结构未变，所以本轮不写回。
+> 第 9 项是必要的：DSH 内置浏览器没有 WebGL，页面会渲染成空白 canvas，用它"看图谱"会得出错误结论。第 7 项的幂等判据是页面 `DATA` 与 `graph.json` 的结构、计数、悬空边一致，不是 HTML 文件字节不变；`meta.generatedAt` 会随生成时间变化，重建时以 dry-run 的 `changed`、节点/连线计数和悬空边为准。
 
-**2026-11-08 四轮补充**：上午核实文档 §5.7 的两条待确认（缩略图 `provider` 取值、HTML 旧引擎 ob 回调边界），新增 §10.7、§12 由 10 项减为 8 项，未动类与钩子；傍晚处理 §6.8 四条遗留代码（删 `Upload_Queue`、收口 `Upload_Metrics::snapshot` 的 `counts/backlog`、说明两套 `target_hash` 不统一、标注 `Sync_Status` 遗留方法并接入 `Upload_URL::PREVIOUS_PATH_OPTION`），新增 §10.8、§12 由 8 项减为 5 项，图谱随之重建为 **180 / 812 / 190**；晚间处理 §7.7 三项（`sio_sync_operations` 准入账本、Sync 中心 admin-ajax、`scan_cursor` 双语义），新增 §10.9、§12 由 5 项减为 3 项，图谱不变；随后处理 §12 剩余三项（生产只读验证 `fast-search.php` 无额外 Web 限制、`grant_from_order()` 字段写入缺陷、`Upload_Observer` 只记录成功样本），改写 §8.9 并新增 §10.10，§12 由 3 项清零并转为两项已确认缺陷——这一轮未改代码，图谱仍为 **180 / 812 / 190**，无需重建。
+**2026-11-08 五轮补充**：上午核实文档 §5.7 的两条待确认（缩略图 `provider` 取值、HTML 旧引擎 ob 回调边界），新增 §10.7、§12 由 10 项减为 8 项，未动类与钩子；傍晚处理 §6.8 四条遗留代码（删 `Upload_Queue`、收口 `Upload_Metrics::snapshot` 的 `counts/backlog`、说明两套 `target_hash` 不统一、标注 `Sync_Status` 遗留方法并接入 `Upload_URL::PREVIOUS_PATH_OPTION`），新增 §10.8、§12 由 8 项减为 5 项，图谱随之重建为 **180 / 812 / 190**；晚间处理 §7.7 三项（`sio_sync_operations` 准入账本、Sync 中心 admin-ajax、`scan_cursor` 双语义），新增 §10.9、§12 由 5 项减为 3 项，图谱不变；随后处理 §12 剩余三项（生产只读验证 `fast-search.php` 无额外 Web 限制、`grant_from_order()` 字段写入缺陷、`Upload_Observer` 只记录成功样本），改写 §8.9 并新增 §10.10，§12 由 3 项清零并转为两项已确认缺陷——这一轮未改代码，图谱仍为 **180 / 812 / 190**，无需重建；深夜完成上传指标并发修复（追加事件表 + 成功/失败双钩子），新增 §6.9 与 §10.11、§12 重写，图谱重建为 **180 / 814 / 191**——节点不变、`ref` +2、钩子 +1。
 
 ## 9. 读图方法
 
@@ -233,11 +245,11 @@ cp /tmp/graph.png docs/graph-preview/preview.png
 
 | 文件 | 大小 | 作用 |
 |---|---:|---|
-| `docs/sakura-tools-代码结构-1.22.8.md` | 186 KB | 正文：§0–§13 + 附录 A–D（2026-11-08 更新 §5.7 / §6.8 / §7.7 / §8.9 / §10.7–10.10 / §12） |
+| `docs/sakura-tools-代码结构-1.22.8.md` | 200 KB | 正文：§0–§13 + 附录 A–D（2026-11-08 更新 §5.7 / §6.8 / §7.7 / §8.9 / §10.7–10.11 / §12） |
 | `docs/sakura-tools-图谱同步-1.22.8.md` | 本文 | 图谱变更与重建说明 |
-| `docs/graph-preview/index.html` | 166 KB | 单文件 3D 图谱（数据内嵌；3d-force-graph 库走 CDN，需联网） |
-| `docs/graph-preview/graph.json` | 203 KB | 同数据，供脚本消费 |
-| `docs/graph-preview/preview.png` | 187 KB | 1440×900 渲染截图 |
+| `docs/graph-preview/index.html` | 163 KB | 单文件 3D 图谱（数据内嵌；3d-force-graph 库走 CDN，需联网） |
+| `docs/graph-preview/graph.json` | 199 KB | 同数据，供脚本消费 |
+| `docs/graph-preview/preview.png` | 201 KB | 1440×900 渲染截图 |
 | `docs/tools/build-code-structure.mjs` | 15 KB | 事实表 → 表格 + graph.json |
 | `docs/tools/graph-inject.mjs` | 3.2 KB | graph.json → index.html（含悬空边校验、幂等） |
 | `docs/tools/assemble-doc.py` | 2.6 KB | 分章 + 表格 → 正文 |

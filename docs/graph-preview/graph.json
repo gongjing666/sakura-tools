@@ -2,7 +2,7 @@
  "meta": {
   "plugin": "sakura-tools",
   "version": "1.22.8",
-  "generatedAt": "2026-11-08T10:10:42.122Z",
+  "generatedAt": "2026-11-08T13:38:39.148Z",
   "source": "dsh-codegraph lib/scanner.php（token_get_all 三趟静态扫描）",
   "doc": "sakura-tools-代码结构-1.22.8.md"
  },
@@ -11,11 +11,11 @@
   "modules": 17,
   "classes": 163,
   "nodes": 180,
-  "links": 812,
-  "refLinks": 599,
+  "links": 814,
+  "refLinks": 601,
   "modrefLinks": 50,
   "containsLinks": 163,
-  "hooks": 190
+  "hooks": 191
  },
  "layout": {
   "radius": 1710,
@@ -1273,8 +1273,8 @@
    "module": "src/S3",
    "kind": "class",
    "file": "src/S3/Upload_Metrics.php",
-   "line": 22,
-   "val": 4.233202097703345,
+   "line": 27,
+   "val": 5.059644256269408,
    "color": "#5aa9ff",
    "x": -496.6,
    "y": 1085.5,
@@ -1288,7 +1288,7 @@
    "kind": "class",
    "file": "src/S3/Upload_Observer.php",
    "line": 20,
-   "val": 2.7712812921102037,
+   "val": 3.2,
    "color": "#5aa9ff",
    "x": -598.8,
    "y": 1072.8,
@@ -3584,6 +3584,16 @@
   },
   {
    "source": "cls:Sakura\\ImageOptimizer\\Activation",
+   "target": "cls:Sakura\\ImageOptimizer\\S3\\Upload_Metrics",
+   "type": "ref",
+   "kinds": [
+    "static",
+    "call"
+   ],
+   "w": 2
+  },
+  {
+   "source": "cls:Sakura\\ImageOptimizer\\Activation",
    "target": "cls:Nboke\\UserFiles\\Schema",
    "type": "ref",
    "kinds": [
@@ -5713,6 +5723,16 @@
    "w": 2
   },
   {
+   "source": "cls:Sakura\\ImageOptimizer\\S3\\Upload_Metrics",
+   "target": "cls:Sakura\\ImageOptimizer\\S3\\Log",
+   "type": "ref",
+   "kinds": [
+    "static",
+    "call"
+   ],
+   "w": 2
+  },
+  {
    "source": "cls:Sakura\\ImageOptimizer\\S3\\Upload_Observer",
    "target": "cls:Sakura\\ImageOptimizer\\S3\\Options",
    "type": "ref",
@@ -5721,7 +5741,7 @@
     "new",
     "call"
    ],
-   "w": 4
+   "w": 5
   },
   {
    "source": "cls:Sakura\\ImageOptimizer\\S3\\Upload_Observer",
@@ -5732,7 +5752,7 @@
     "new",
     "call"
    ],
-   "w": 4
+   "w": 5
   },
   {
    "source": "cls:Sakura\\ImageOptimizer\\S3\\Upload_Observer",
@@ -9527,15 +9547,15 @@
   },
   {
    "source": "mod:src",
-   "target": "mod:src/UserFiles",
+   "target": "mod:src/S3",
    "type": "modref",
-   "w": 7
+   "w": 24
   },
   {
    "source": "mod:src",
-   "target": "mod:src/S3",
+   "target": "mod:src/UserFiles",
    "type": "modref",
-   "w": 22
+   "w": 7
   },
   {
    "source": "mod:src/Admin",

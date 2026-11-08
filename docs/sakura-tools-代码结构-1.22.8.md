@@ -1,7 +1,7 @@
 # 樱花工具箱（sakura-tools）代码结构分析报告
 
-> **版本** 1.22.8 ｜ **代码基线** 工作区 HEAD `96622ab`（"Remove unused OSS settings view"）｜ **分析日期** 2026-11-08
-> **分析对象** `/www/wwwroot/www.nboke.com/wp-content/plugins/sakura-tools`（生产副本；阅读与运行期验证均为只读，§6.8 的清理只删除/收口无调用方代码）
+> **版本** 1.22.8 ｜ **代码基线** commit `55a9938`（在 `96622ab` 基础上合入 §6.8 清理与 §6.9 上传指标并发修复）｜ **分析日期** 2026-11-08
+> **分析对象** `/www/wwwroot/www.nboke.com/wp-content/plugins/sakura-tools`（生产副本；§6.8/§6.9 的代码变更已包含在基线提交中，其余阅读与运行期验证均为只读）
 > **测试环境** `/root/sio-e2e`（独立 WordPress + MariaDB 127.0.0.1:13316 + MinIO 127.0.0.1:19010），插件以软链方式挂载，行为与生产一致
 > **配套产物** 3D 图谱 `docs/graph-preview/index.html`（同源数据 `graph.json`）、生成器 `docs/tools/build-code-structure.mjs`、图谱说明 `docs/sakura-tools-图谱同步-1.22.8.md`
 
@@ -41,10 +41,10 @@
 | 指标 | 数值 | 口径 |
 |---|---:|---|
 | 生产 PHP 文件 | **178** | 不含 `tests/`(71 文件) `stubs/`(2) `vendor/` `assets/`(JS/CSS) |
-| 生产 PHP 行数 | **59,495** | 同上，含空行与注释 |
+| 生产 PHP 行数 | **59,766** | 同上，含空行与注释 |
 | 类 / 接口 | **163** | 含 7 个接口；另有 64 个全局函数未计入图谱节点 |
-| 钩子注册 | **190** | 仅生产代码中的 `add_action`/`add_filter`，不含 `do_action` 触发点 |
-| 自定义数据表 | **22** | 15 张 `{prefix}sufm_*` + 6 张 `{prefix}sio_sync_*` + 1 张 `{prefix}sio_s3_deletes` |
+| 钩子注册 | **191** | 仅生产代码中的 `add_action`/`add_filter`，不含 `do_action` 触发点 |
+| 自定义数据表 | **23** | 15 张 `{prefix}sufm_*` + 6 张 `{prefix}sio_sync_*` + 2 张 `{prefix}sio_s3_*`（`sio_s3_deletes`、`sio_s3_upload_events`） |
 | 后台页面 | **11** | 4 个顶级模块 + 13 个 tab 中实际可访问的 11 个（zibll 依赖主题，log 归入 files） |
 
 > 说明：`includes/views/` 的 12 个模板文件不含类与函数声明，因此不出现在类索引中，但它们承担全部旧版页面渲染（见 §2.3）。
@@ -53,19 +53,20 @@
 
 ## 1. 结论摘要
 
-**先看这九条，能省掉 80% 的翻文件时间。**
+**先看这十条，能省掉 80% 的翻文件时间。**
 
-1. **双轨架构，且短期内不会合并。** `includes/` 是 1.3–1.9 的旧层（14 文件 / 5,999 行 / 14 类），`src/` 是 1.10 之后的新层（150 类）。两层的通信方式是**构造函数注入 + 类直接调用**，没有中间容器；唯一共享的抽象是 `src/Contracts/` 的 5 个接口。旧层没有被淘汰，反而承载了图片优化的核心链路（`includes/class-image-processor.php`）。
+1. **双轨架构，且短期内不会合并。** `includes/` 是 1.3–1.9 的旧层（14 文件 / 5,999 行 / 14 类），`src/` 是 1.10 之后的新层（149 类，含 7 个接口）。两层的通信方式是**构造函数注入 + 类直接调用**，没有中间容器；唯一共享的抽象是 `src/Contracts/` 的 5 个接口。旧层没有被淘汰，反而承载了图片优化的核心链路（`includes/class-image-processor.php`）。
 2. **全插件的装配只有一个入口。** `src/Plugin.php:70-197` 的 `boot()` + `build_modules()` 能看到**所有**依赖关系：先建 5 个仓储，再按固定顺序 new 出 20 多个模块/服务，最后 `Admin\Menu` 必须最后注册（`src/Plugin.php:193`）。读代码从这里开始，比按目录读快得多。
 3. **模块契约极窄。** `src/Contracts/Module.php:23-31` 只有一个 `register_hooks(Hook_Loader): void`，且明确禁止在构造函数里挂 WP 钩子。所有钩子集中到 `src/Support/Hook_Loader.php`，先入队、`register()` 时一次性交付，**注册后新加的钩子立即生效**（`register_frontend` 依赖这个行为）。
 4. **后台信息架构是静态声明的。** `src/Admin/Registry.php:41-101` 用一张常量数组声明「模块 → tab → 权限门 → renderer key」；`Menu` 只做建屏与分发，`Shell` 只画外壳。**加一个 tab = 改 Registry + 注册 renderer 两处**，不需要动菜单代码。
 5. **功能面是 5 个子系统 + 3 条横切。** 子系统：图片优化管线（§4）、缩略图 URL 重写（§5）、对象存储 S3（§6）、同步索引 Sync（§7）、用户文件空间 UserFiles（§8）。横切：数据落点（§9）、钩子索引（§9.2）、REST/CLI/Cron（§9.3）。
-6. **代码量集中在两处。** UserFiles（46 文件 / 20,495 行）与 S3（36 文件 / 10,536 行）合计占生产代码的 52.2%；两者也是唯一有自建表、有异步队列、有加密凭据的部分。
-7. **运行时可访问性已验证。** 11 条后台路由全部 200 且标题正确、45 条 `/sufm/v1` REST 路由（51 个端点）全部注册、7 个插件 cron 事件已排程、12 项函数级探针结果符合预期（§10）。**未验证**的是生产环境的写路径（配额扣减、删除审核、卸载清理）——生产保持只读。唯一例外是测试站上补做的 5 张并发上传（§10.6），它把「上传 → 压缩 → S3 PUT → 索引落库」整条链路跑通了。
+6. **代码量集中在两处。** UserFiles（46 文件 / 20,495 行）与 S3（36 文件 / 10,803 行）合计占生产代码的 52.4%；两者也是自定义表、加密凭据与补偿队列最集中的部分。
+7. **运行时可访问性已验证。** 11 条后台路由全部 200 且标题正确、45 条 `/sufm/v1` REST 路由（51 个端点）全部注册、7 个插件 cron 事件已排程、12 项函数级探针结果符合预期（§10）。**未验证**的是生产环境的写路径（配额扣减、删除审核、卸载清理）——生产保持只读。测试站上补做的写验证有两次：5 张并发上传（§10.6）跑通「上传 → 压缩 → S3 PUT → 索引落库」，4×200 条并发指标写入（§10.11）验证事件表零丢失。
 8. **两张"文档"已经过期，不要当作事实源。** `DEVELOPMENT.md` 第 1 节的"当前文件结构"停留在 1.3.3 的 6 个文件；`/root/WordPress/docs/sakura-image-optimizer-代码分析报告.md`（本机历史报告，未随仓库分发） 停在 1.9.0 之前的命名。本报告与 3D 图谱是当前唯一同步的产物；`DECISIONS.md` 仍然有效（记录的是"为什么"，不是"现在有什么"）。
-9. **文档与图谱同源，不会再脱节。** 两者都由同一份扫描事实表（`/tmp/scan.json`，来自 `dsh-codegraph` 的 `lib/scanner.php`）经 `docs/tools/build-code-structure.mjs` 生成。改代码后重跑一次命令即可同时刷新表格与图谱（§13.6）。
+9. **文档与图谱同源，不会再脱节。** 两者都由同一份扫描事实表（来自 `dsh-codegraph` 的 `lib/scanner.php`）经 `docs/tools/build-code-structure.mjs` 生成。改代码后重跑一次命令即可同时刷新表格与图谱（§13.6）。
+10. **上传指标已从单 option 改为事件表。** 旧实现每次 `record_batch()` 读改写同一个 option，4 进程各写 200 条只留下 202 条（丢 75%）；现在每条结果独立 INSERT 到 `{prefix}sio_s3_upload_events`（`src/S3/Upload_Metrics.php:79`、`:149`），`snapshot()` 用 SQL 聚合（`:204`），成功与失败分别由 `sakura_imgopt_s3_uploaded` / `sakura_imgopt_s3_upload_failed` 采集（`src/S3/Upload_Observer.php:30-31`）。返回结构不变，旧 option 只作为冻结基线读取。详见 §6.9 与 §10.11。
 
-**本轮更新（2026-11-08）**：§12 原有的 3 项已全部核实——`fast-search.php` 无外部限制且鉴权正常；`Space_Store::grant_from_order()` 确认把订单写成 `source='points'` 并清空订单字段（高优先，现金购买可能占用积分日限额）；`Upload_Observer` 只记录成功样本（中优先，失败率与告警恒 0）。两项缺陷只登记、未改代码，详见 §8.9、§10.10 与 §12.3。
+**本轮更新（2026-11-08）**：§12 原有 3 项已全部核实，处理结果分三类：① `fast-search.php` **无缺陷**，生产环境没有额外封禁，入口按 HMAC + 管理员能力鉴权；② `Space_Store::grant_from_order()` **确认缺陷且未修复**——现金订单被写成 `source='points'` 并清空订单字段，可能占用积分日限额（§8.9、§12.3）；③ 上传失败不可见**已修复**——旧 `Upload_Observer` 只记录成功样本，本轮改为追加事件表 + 失败钩子，并发压测 800/800 条落库（§6.9、§10.11）。
 
 ---
 
@@ -94,7 +95,7 @@ sakura-tools/
 │   ├── class-thumbnail-manager.php     按尺寸禁用缩略图生成
 │   └── class-s3-storage-module.php     对象存储设置页
 ├── includes/views/             12 文件 / 4,711 行               ← 旧版页面模板
-├── src/                        4 文件 / 754 行                  ← 组合根
+├── src/                        4 文件 / 758 行                  ← 组合根
 │   ├── Plugin.php              启动、装配、注册 WP-CLI 命令
 │   ├── Activation.php          默认值、迁移、建表、排程
 │   ├── Deactivation.php        清排程与能力，保留数据
@@ -103,15 +104,15 @@ sakura-tools/
 ├── src/Image/                  10 文件 / 3,177 行   上传链路、引擎回退、元数据、还原、尺寸目录
 ├── src/Oss/                    2 文件 / 505 行      HTML 过滤器与 URL 重写纯函数
 ├── src/Thumbnail/              15 文件 / 3,764 行   缩略图策略、供应商、探测、统计、主题桥
-├── src/S3/                     36 文件 / 10,536 行  凭据加密、上传、删除队列、同步中心、监控
+├── src/S3/                     36 文件 / 10,803 行  凭据加密、上传、删除队列、同步中心、监控
 ├── src/Sync/                   17 文件 / 5,792 行   索引表、扫描状态机、动作队列、校验、CLI
 ├── src/UserFiles/              46 文件 / 20,495 行  上传/配额/审核/执行/REST/空间套餐/Zibll 桥
 ├── src/Backup/                 2 文件 / 459 行
 ├── src/Contracts/              5 文件 / 392 行      5 个接口
 ├── src/Filesystem/ src/Settings/ src/Stats/ src/Support/   5 文件 / 633 行
-├── assets/                     25 文件 / 28,773 行  后台 JS/CSS（admin.css、各模块脚本）
+├── assets/                     28 文件 / 28,845 行  后台 JS/CSS（admin.css、各模块脚本）
 ├── languages/                  翻译文件
-├── tests/                      72 文件 / 8,800 行   PHPUnit（不计入生产规模）
+├── tests/                      71 文件 / 8,806 行   PHPUnit（不计入生产规模）
 ├── stubs/                      2 文件 / 136 行      PHPStan 引导
 ├── vendor/                     第三方依赖（AWS SDK 等，不计入）
 └── DEVELOPMENT.md / DECISIONS.md / readme.txt   历史文档与决策记录
@@ -124,14 +125,14 @@ sakura-tools/
 | 模块 | 文件数 | 代码行 | 类(含接口) | 说明 |
 |---|---:|---:|---:|---|
 | src/UserFiles | 46 | 20495 | 46 | 用户文件空间：上传、配额、审核执行、REST、Zibll 桥接 |
-| src/S3 | 36 | 10536 | 36 | 对象存储：配置/加密、上传同步、删除队列、同步中心、监控告警 |
+| src/S3 | 36 | 10803 | 36 | 对象存储：配置/加密、上传同步、删除队列、同步中心、监控告警 |
 | includes | 14 | 5999 | 14 | 1.3–1.9 时代的旧类，仍在承重（媒体库、优化器、缩略图、S3、处理器） |
 | src/Sync | 17 | 5792 | 17 | 持久化同步索引：扫描、任务、校验、CLI、快速检索查询 |
 | includes/views | 12 | 4711 | 0 | 旧式页面模板（由 includes 类 require 渲染） |
 | src/Thumbnail | 15 | 3764 | 15 | 缩略图 URL 重写策略：上下文、尺寸、供应商、探测、缓存 |
 | src/Image | 10 | 3177 | 10 | 图片处理管线：改名、备份、引擎选择、元数据、还原、尺寸目录 |
 | src/Admin | 7 | 1895 | 7 | 后台信息架构：Registry 路由表、Menu、Layout、Shell、Assets、环境自检 |
-| src | 4 | 754 | 4 | 组合根与生命周期：Plugin、Activation、Deactivation、Uninstaller |
+| src | 4 | 758 | 4 | 组合根与生命周期：Plugin、Activation、Deactivation、Uninstaller |
 | src/Oss | 2 | 505 | 2 | HTML 过滤器与 URL 重写工具（缩略图策略复用的纯函数） |
 | src/Backup | 2 | 459 | 2 | 原图备份仓储与公网暴露探测 |
 | src/Contracts | 5 | 392 | 5 | 五个接口：Module / Backup / File_System / Settings / Stats |
@@ -140,7 +141,7 @@ sakura-tools/
 | src/Support | 2 | 178 | 2 | Hook_Loader（延迟注册）与 UTF-8 截断工具 |
 | src/Filesystem | 1 | 97 | 1 | 文件系统仓储适配器 |
 | src/Stats | 1 | 73 | 1 | 统计仓储适配器 |
-| 合计 | 178 | 59495 | 163 | 生产代码；另有 tests 72 文件/8800 行、stubs 2 文件另计 |
+| 合计 | 178 | 59766 | 163 | 生产代码；另有 tests 72 文件/8800 行、stubs 2 文件另计 |
 
 **怎么读这张表**：行数不等于复杂度——`src/UserFiles` 20k 行里有 40% 是 REST 控制器与视图模板（重复度高、改动风险低）；`src/Sync` 只有 5.8k 行却包含状态机与 SQL 层，是改动风险最高的模块。
 
@@ -515,11 +516,11 @@ register() 之后调用     → 直接 add_action/add_filter 到 WP（不再入�
 | `Ignored_Paths` | src/S3/Ignored_Paths.php:20 |  | 4 / 4 | 4 / 0 |  | 保存同步扫描需跳过的额外路径前缀 |
 | `Inventory` | src/S3/Inventory.php:22 |  | 1 / 1 | 0 / 0 |  | 把字节宽度换算为可读格式 |
 | `Legacy_Snapshot` | src/S3/Legacy_Snapshot.php:24 |  | 3 / 5 | 3 / 7 |  | 无同步索引时构建缓存的本地远端快照 |
-| `Log` | src/S3/Log.php:17 |  | 1 / 1 | 8 / 0 |  | 仅在 WP_DEBUG 开启时输出 S3 日志 |
+| `Log` | src/S3/Log.php:17 |  | 1 / 1 | 10 / 0 |  | 仅在 WP_DEBUG 开启时输出 S3 日志 |
 | `Migration_Service` | src/S3/Migration_Service.php:17 |  | 2 / 2 | 2 / 0 |  | 以注入回调执行纯迁移循环 |
 | `Monitoring_Panel` | src/S3/Monitoring_Panel.php:21 |  | 4 / 8 | 4 / 6 |  | 渲染监控与 webhook 表单并处理提交 |
 | `Object_Store` | src/S3/Object_Store.php:19 |  | 7 / 10 | 8 / 11 |  | 以注入客户端执行无状态对象存储操作 |
-| `Options` | src/S3/Options.php:19 |  | 23 / 25 | 74 / 4 |  | 规范化 s3_options 并处理旧版迁移与常量覆盖 |
+| `Options` | src/S3/Options.php:19 |  | 23 / 25 | 75 / 4 |  | 规范化 s3_options 并处理旧版迁移与常量覆盖 |
 | `Profile_Manager` | src/S3/Profile_Manager.php:23 |  | 2 / 3 | 3 / 5 |  | 按保存的配置档切换当前生效配置 |
 | `Prometheus` | src/S3/Prometheus.php:24 | implements Module | 8 / 11 | 7 / 4 | 3 | 输出受令牌保护的 Prometheus 指标文档 |
 | `Providers` | src/S3/Providers.php:9 |  | 2 / 2 | 8 / 0 |  | 列出受支持的 S3 兼容服务商 |
@@ -528,15 +529,15 @@ register() 之后调用     → 直接 add_action/add_filter 到 WP（不再入�
 | `S3_Storage_Page` | src/S3/S3_Storage_Page.php:9 |  | 2 / 3 | 2 / 18 |  | 渲染 S3 设置页与只读跳转提示 |
 | `Settings_Saver` | src/S3/Settings_Saver.php:11 |  | 4 / 6 | 4 / 14 |  | 处理 S3 设置的后台提交保存 |
 | `Storage` | src/S3/Storage.php:22 | implements Module | 20 / 24 | 6 / 31 | 14 | 注册 S3 钩子并协调上传入队 |
-| `Storage_Adapter` | src/S3/Storage_Adapter.php:20 |  | 12 / 16 | 33 / 12 |  | 把本地路径映射为对象键并经对象存储上传 |
+| `Storage_Adapter` | src/S3/Storage_Adapter.php:20 |  | 12 / 17 | 33 / 13 |  | 把本地路径映射为对象键并经对象存储上传 |
 | `Sync_Actions` | src/S3/Sync_Actions.php:20 |  | 5 / 5 | 4 / 10 |  | 对清单选定对象执行上传、下载或删除 |
 | `Sync_Center_Module` | src/S3/Sync_Center_Module.php:27 | implements Module | 16 / 25 | 2 / 52 | 13 | 添加同步中心页面及只读扫描与导出端点 |
 | `Sync_Center_Panel` | src/S3/Sync_Center_Panel.php:20 |  | 1 / 1 | 2 / 4 |  | 展示上传队列吞吐指标面板 |
 | `Sync_Status` | src/S3/Sync_Status.php:23 |  | 23 / 23 | 30 / 5 |  | 用附件元数据保存同步状态、对象键与重试任务 |
 | `Synchronous_Uploader` | src/S3/Synchronous_Uploader.php:26 |  | 7 / 13 | 16 / 12 |  | 在创建附件的请求内完成其全部文件上传 |
 | `Upload_Capabilities` | src/S3/Upload_Capabilities.php:23 |  | 3 / 3 | 8 / 2 |  | 判定打包 SDK 能否并发多个 HTTP 请求 |
-| `Upload_Metrics` | src/S3/Upload_Metrics.php:22 |  | 7 / 12 | 11 / 0 |  | 把上传结果聚合写入单个选项 |
-| `Upload_Observer` | src/S3/Upload_Observer.php:20 | implements Module | 3 / 3 | 1 / 12 | 1 | 独立记录上传指标与索引 MD5 |
+| `Upload_Metrics` | src/S3/Upload_Metrics.php:27 |  | 10 / 18 | 13 / 2 |  | 把上传结果逐条追加到事件表并按 SQL 聚合快照 |
+| `Upload_Observer` | src/S3/Upload_Observer.php:20 | implements Module | 4 / 4 | 3 / 12 | 2 | 记录上传成功/失败事件并回写索引 MD5 |
 | `Upload_URL` | src/S3/Upload_URL.php:9 |  | 2 / 2 | 7 / 0 |  | 接管上传目录与地址选项的改写生命周期 |
 | `Upload_Verify` | src/S3/Upload_Verify.php:20 |  | 3 / 3 | 6 / 0 |  | 比对本地文件与 S3 对象上报的 ETag |`
 
@@ -555,8 +556,11 @@ register() 之后调用     → 直接 add_action/add_filter 到 WP（不再入�
 | `Delete_Jobs::enqueue` | `src/S3/Delete_Jobs.php:188` | 幂等批量入队，dead 行可复活 | ⇐ `Storage.php:229` |
 | `Delete_Jobs::start` / `fail` | `src/S3/Delete_Jobs.php:304` / `:388` | 租约领 claim；失败退避，8 次转 dead | ⇐ `Delete_Worker::process_delete`（`src/S3/Delete_Worker.php:157`） |
 | `Delete_Worker::run` | `src/S3/Delete_Worker.php:102` | 20 秒 / 20 条上限内排空队列 | ⇐ cron `sakura_imgopt_s3_delete_tick`（`:50`） |
-| `Object_Store::upload_file` | `src/S3/Object_Store.php:74` | 单部件 PUT 或 multipart，成功后 HEAD 校验 | ⇐ `Storage_Adapter::upload_file`（`:114`） |
-| `Remote_Operation_Guard::execute` | `src/S3/Remote_Operation_Guard.php:61` | 逐 key 预约，失败转 uncertain 阻断后续 | 所有远端写入（`src/S3/Storage_Adapter.php:113`） |
+| `Object_Store::upload_file` | `src/S3/Object_Store.php:74` | 单部件 PUT 或 multipart，成功后 HEAD 校验 | ⇐ `Storage_Adapter::upload_file`（`:119`） |
+| `Storage_Adapter::report_failure` | `src/S3/Storage_Adapter.php:71` | 把任一 key 的 `WP_Error` 统一转成失败事件，保证每次失败只上报一次 | ⇐ `upload_file`（`:119`）与 `upload_many`（`:159`）的所有失败分支 |
+| `Upload_Observer::record_failed` | `src/S3/Upload_Observer.php:78` | 从 `WP_Error` 取 code/message，连同附件 ID、对象键、profile 写事件表 | ⇐ `sakura_imgopt_s3_upload_failed`（`:31`） |
+| `Upload_Metrics::record_batch` / `snapshot` | `src/S3/Upload_Metrics.php:149` / `:204` | 每条结果独立 INSERT；快照用 SQL 聚合 totals/days 并合并旧 option 基线 | ⇐ `Upload_Observer`；⇒ 后台卡片、Prometheus、Alerting、`wp sakura-sync stats` |
+| `Remote_Operation_Guard::execute` | `src/S3/Remote_Operation_Guard.php:61` | 逐 key 预约，失败转 uncertain 阻断后续 | 所有远端写入（`src/S3/Storage_Adapter.php:136`、`:179`、`:346`） |
 | `Sync_Center_Module::ajax_action` | `src/S3/Sync_Center_Module.php:586` | 单条/批量 upload、download、delete、adopt 分发 | ⇐ `wp_ajax_sakura_s3_sync_action` |
 
 ### 6.4 入口钩子
@@ -572,7 +576,8 @@ register() 之后调用     → 直接 add_action/add_filter 到 WP（不再入�
 | `wp_ajax_sakura_s3_sync_{scan,scan_step,cancel,resume,page,test,action,refresh,toggle_index}` | ajax（9 个） | `src/S3/Sync_Center_Module.php:102-110` |
 | `admin_post_sakura_s3_sync_export` / `_ignored_save` | action | `:112-113` |
 | `add_attachment` / `wp_update_attachment_metadata` / `delete_attachment` | action / filter | `src/S3/Storage.php:138` / `:140` / `:144` |
-| `sakura_imgopt_s3_uploaded` | action（供扩展点） | `src/S3/Upload_Observer.php:30`（`Object_Store.php:182` 触发） |
+| `sakura_imgopt_s3_uploaded` | action（成功观测） | `src/S3/Upload_Observer.php:30`（`Object_Store.php:182` 触发） |
+| `sakura_imgopt_s3_upload_failed` | action（失败观测） | `src/S3/Upload_Observer.php:31`（`src/S3/Storage_Adapter.php:72` 触发） |
 | `sakura_imgopt_s3_delete_tick`（60 秒） / `sakura_imgopt_s3_alert_check`（15 分钟） | cron | `src/S3/Delete_Worker.php:46-51`、`src/S3/Alerting.php:375-377` |
 | `sakura_imgopt_metrics` | init / query var | `src/S3/Prometheus.php:26-30`、`:73-77` |
 | `wp sakura-s3` | WP-CLI | `includes/class-s3-cli.php:501` |
@@ -580,8 +585,8 @@ register() 之后调用     → 直接 add_action/add_filter 到 WP（不再入�
 ### 6.5 数据落点
 
 - **option `s3_options`**：`enabled`、`provider`、`bucket`、`region`、`endpoint`、key/secret（密文）、`upload_path`、`upload_url_path`、`profiles`、`retired_targets`、`active_profile_id`（`src/S3/Options.php:24`、`:97-114`；写入 `Settings_Saver.php:165-189`）。实测 14 键、`enabled=true`、`provider=minio`（§10.4）。
-- 其余 option：`sakura_imgopt_upload_concurrency`（`src/S3/Settings_Saver.php:106`）、`sakura_imgopt_sync_ignored`（`Ignored_Paths.php:25`）、`sakura_imgopt_s3_upload_metrics`（`Upload_Metrics.php:27`）、`sakura_imgopt_s3_prometheus_token`（`Prometheus.php:26`，实测 32 hex）、`sakura_imgopt_s3_alerts`（`Alerting.php:26`）、`sakura_imgopt_s3_delete_schema`（`Delete_Jobs.php:32`，实测 `1.2.2`）、`sakura_imgopt_s3_migrate_state`（`History_Migrator.php:21`）、`upload_url_path` 与旧值 `sakura_imgopt_previous_upload_url_path`（`Upload_URL.php:11`）。
-- **自定义表 2 张**：`{prefix}sio_s3_deletes`（`src/S3/Delete_Jobs.php:109`，建表 `:109-129`）、`{prefix}sio_sync_operations`（`src/S3/Remote_Operation_Guard.php:26-39`）。
+- 其余 option：`sakura_imgopt_upload_concurrency`（`src/S3/Settings_Saver.php:106`）、`sakura_imgopt_sync_ignored`（`Ignored_Paths.php:25`）、`sakura_imgopt_s3_upload_metrics`（`Upload_Metrics.php:32`，**冻结基线，只读**；升级前的累计值原样保留用于合并，不再写入）、`sakura_imgopt_s3_upload_schema`（`Upload_Metrics.php:37`，事件表建表标记，实测 `2.0.0`）、`sakura_imgopt_s3_prometheus_token`（`Prometheus.php:26`，实测 32 hex）、`sakura_imgopt_s3_alerts`（`Alerting.php:26`）、`sakura_imgopt_s3_delete_schema`（`Delete_Jobs.php:32`，实测 `1.2.2`）、`sakura_imgopt_s3_migrate_state`（`History_Migrator.php:21`）、`upload_url_path` 与旧值 `sakura_imgopt_previous_upload_url_path`（`Upload_URL.php:11`）。
+- **自定义表 3 张**：`{prefix}sio_s3_deletes`（`src/S3/Delete_Jobs.php:109`，建表 `:109-129`）、`{prefix}sio_sync_operations`（`src/S3/Remote_Operation_Guard.php:26-39`）、`{prefix}sio_s3_upload_events`（`src/S3/Upload_Metrics.php:52`，建表 `:79-115`）。
 - **postmeta 8 个**：`_sakura_imgopt_s3_status` / `_error` / `_objects` / `_synced_at` / `_jobs` / `_target` / `_failures` / `_object_versions`（`src/S3/Sync_Status.php:25-49`）。
 - **transient**：`sakura_imgopt_s3_snapshot_compat`（`Legacy_Snapshot.php:29`）、`sakura_imgopt_s3_alert_last`（`Alerting.php:32`）、`sakura_imgopt_doge_token_<md5(ak)>`（`includes/class-s3-doge-cloud.php:30`）。
 - **退役清理**：option `sakura_imgopt_upload_mode`、cron `sakura_imgopt_s3_retry` / `_upload_watchdog` / `_upload_tick`（`src/S3/Storage.php:469`、`:477-478`、`Delete_Worker.php:58`）——1.20 的"异步上传队列"已被"同请求同步上传"取代。
@@ -595,16 +600,18 @@ register() 之后调用     → 直接 add_action/add_filter 到 WP（不再入�
 ② 上传    add_attachment 仅 mark_pending(Storage.php:138/:173)
           → wp_update_attachment_metadata 调 finalize(:140/:191)
           → manifest 与 target_hash 比对(Synchronous_Uploader.php:93/:488)
-          → Remote_Operation_Guard::execute 批量上传(Storage_Adapter.php:129/:113)
+          → Remote_Operation_Guard::execute 批量上传(Storage_Adapter.php:159/:179)
           → Object_Store 写入 + HEAD 校验(Object_Store.php:74/:158)
           → do_action sakura_imgopt_s3_uploaded(:182) → Upload_Observer 写索引与指标
 ③ 删除    delete_attachment 读 status->objects(Storage.php:212-229)
           → Delete_Jobs::enqueue 幂等入表(:188) → Delete_Worker::kick 触发 cron(:232)
           → process_delete 领租约；附件非 SYNCED 则 postpone 300 秒(:163/:171)
           → 失败按 60 秒起步指数退避(Delete_Jobs.php:388/:73)
-④ 观测    Upload_Metrics::snapshot 读 option(:143) → Prometheus::format 输出(:107/:135)
+④ 观测    成功 sakura_imgopt_s3_uploaded(Object_Store.php:182) → record_uploaded(:42) → record_batch(:149) INSERT
+          失败 Storage_Adapter 各 WP_Error → report_failure(:71) → sakura_imgopt_s3_upload_failed(:72)
+          → record_failed(:78) → record_batch INSERT
+          → snapshot 用 SQL 聚合事件表(:204) + 旧 option 基线 → Prometheus::format(:107/:135)
           → Alerting 每 15 分钟评估 14 天失败率(:152/:375)
-          （生产只记录成功样本，失败率告警的实际触发条件见 §10.10-B、§12.3）
 ```
 
 ### 6.7 设计取舍（为什么这样写）
@@ -615,6 +622,7 @@ register() 之后调用     → 直接 add_action/add_filter 到 WP（不再入�
 | **远端删除走补偿表** | 删除请求不能因为 S3 超时而失败，所以先入 `sio_s3_deletes` 再由 cron 排空（`src/S3/Delete_Jobs.php:22`） |
 | **远端写入前有准入表** | `Remote_Operation_Guard` 逐 key 预约，避免"同一对象并发上传/删除"导致的乱序（`src/S3/Remote_Operation_Guard.php:14`） |
 | 凭据密文、profile 可切换 | `Sodium` 优先、`OpenSSL` 回落；切换 profile 时密文原样复制，不重新加密（`src/S3/Profile_Manager.php:31`） |
+| **指标写入用追加事件表**，不用 option 读改写 | 旧实现每次 `record_batch` 读出整个 option、在内存累加、再整体写回（清理前 `src/S3/Upload_Metrics.php:80`、`:132`），并发请求会互相覆盖：4 进程各 200 条只落 202 条。事件行由 MySQL 原子 INSERT，快照用 SQL 聚合（`:204`）；代价是表随上传量增长、`totals` 每次全量聚合 |
 
 ### 6.8 四条遗留代码的核实与清理（2026-11-08 关闭）
 
@@ -644,7 +652,56 @@ register() 之后调用     → 直接 add_action/add_filter 到 WP（不再入�
 
 - `Sync_Status::enqueue()` / `jobs()` / `fail_job()`（`src/S3/Sync_Status.php:299`、`:328`、`:342`）是 1.12.0 之前异步上传的重试簿记：写 `JOBS_META=_sakura_imgopt_s3_jobs`，退避 `min(3600, 60*2^min(5,attempts))`，8 次置 `dead`。`src/` 内除定义外**无调用方**，但 `Storage::maybe_migrate`（`src/S3/Storage.php:464-516`）仍直接读同一份 postmeta，把老站遗留任务迁移成 `record_failures` 后删除，所以 `JOBS_META` 常量不能删。
 - 处置：三个方法**保留**并加 `@deprecated 1.12.0`，docblock 写明只服务于遗留数据迁移、新代码不要调用（公开 API，测试仍覆盖）；`Storage::maybe_migrate` 保留。
-- `Upload_URL::PREVIOUS_PATH_OPTION`（`src/S3/Upload_URL.php:12`，值 `sakura_imgopt_previous_upload_path`）原先「声明未使用」，但 `src/Uninstaller.php:216-225` 一直用**字面量**读/删这个 option 来还原老站的 `upload_path`。处置：`Uninstaller` 引入 `use Sakura\ImageOptimizer\S3\Upload_URL;`，把读/还原/删除 `upload_url_path` 与 `upload_path` 旧值的三处逻辑改用 `Upload_URL::PREVIOUS_URL_OPTION` / `PREVIOUS_PATH_OPTION`（`:208/:214/:216/:225`）。常量由此获得真实引用，字面量消失；行为不变（探针里 `previous_upload_path=NULL`、`previous_upload_url_path` 为空，说明本站没有可还原的旧值）。
+- `Upload_URL::PREVIOUS_PATH_OPTION`（`src/S3/Upload_URL.php:12`，值 `sakura_imgopt_previous_upload_path`）原先「声明未使用」，但清理前 `Uninstaller::cleanup_persistent_data()` 一直用**字面量**读/删这个 option 来还原老站的 `upload_path`。处置：`Uninstaller` 引入 `use Sakura\ImageOptimizer\S3\Upload_URL;`，把读/还原/删除 `upload_url_path` 与 `upload_path` 旧值的三处逻辑改用 `Upload_URL::PREVIOUS_URL_OPTION` / `PREVIOUS_PATH_OPTION`（现 `src/Uninstaller.php:209`、`:215`、`:217`、`:226`）。常量由此获得真实引用，字面量消失；行为不变（探针里 `previous_upload_path=NULL`、`previous_upload_url_path` 为空，说明本站没有可还原的旧值）。
+
+### 6.9 上传指标的并发修复（2026-11-08）
+
+§10.10-B 记录的「上传失败不可见」只解决了「有没有失败样本」，没有解决「样本会不会丢」。本轮把数据层一并换掉，目标是多人同时上传时每条成功/失败都留下可聚合的记录。
+
+#### 6.9.1 问题：option 读改写会互相覆盖
+
+旧实现 `record_batch()` 的路径是 `get_option()` → 内存累加 → `update_option()`（清理前 `src/S3/Upload_Metrics.php:80`、`:132`），没有锁，也没有 CAS。两个请求同时读到同一份旧值，后写回的那份会把先写回的样本整体覆盖。测试站用 4 个独立 WP-CLI 进程各写 200 条并发样本：
+
+| 实现 | 期望 | 实际 | 丢失 |
+|---|---:|---:|---:|
+| 旧 option 读改写 | 800 | 202 | 598（74.75%） |
+| 新事件表 INSERT | 800 | 800 | 0 |
+
+成功样本走同一条 `record_batch()`，所以生产快照里的 91 条成功也只是「至少 91 条」，不能当作精确计数。这个结论解释了为什么仅补一个失败调用点不够：只要写入仍是读改写，失败样本同样会丢。
+
+#### 6.9.2 方案：追加事件表 + SQL 聚合
+
+- **写入**：`Upload_Metrics::record_batch()`（`src/S3/Upload_Metrics.php:149`）把每个样本变成一行 `INSERT`，不读旧值。`result` 取 `ok` / `dead` / `fail`，`created_at` 与 `day` 统一按 UTC 生成；`object_key` 截 1024 字节、`error_message` 截 500 字符、`profile_id` 截 40。
+- **失败采集**：`Storage_Adapter` 是所有上传路径的共同入口（`Synchronous_Uploader::finalize`、`Sync_Actions`、CLI）。新增 `report_failure()`（`src/S3/Storage_Adapter.php:71`）把每个 key 的 `WP_Error` 转成 `sakura_imgopt_s3_upload_failed`（`:72`），`upload_file()`（`:119`）与 `upload_many()`（`:159`）的非法 key、文件不可读、守卫异常、缺失结果、存储异常都经过它；`Upload_Observer::record_failed()`（`src/S3/Upload_Observer.php:78`）补齐附件 ID 后写表。`Synchronous_Uploader.php:266` 把 `$attachment_id` 传给 `upload_many()`，所以失败行能直接定位到附件。
+- **读取**：`snapshot()`（`src/S3/Upload_Metrics.php:204`）先按 `result` 聚合 totals，再按 `day,result` 聚合 14 天日桶，然后用 `result IN ('fail','dead')` 取最近错误，最后与旧 option 的冻结基线合并。返回结构与旧版一致（`totals`/`today`/`week`/`last_error`/`updated_at` 以及 `with_formats` 的展示字段），所以 `Prometheus`、`Alerting`、`Sync_Center_Panel`、`wp sakura-sync stats` 无需改动。
+- **建表**：`maybe_install()`（`:68`）比较 `sakura_imgopt_s3_upload_schema` 与 `VERSION=2.0.0`（`:42`），不一致时由 `install()`（`:79`）用 `dbDelta()` 建表，再用 `SHOW COLUMNS` 校验 `result`/`day`/`error_message`；校验失败会记 `sakura_imgopt_s3_log` 且不写 schema 标记，下次请求会重试。激活时 `src/Activation.php:99` 主动调用一次，运行期第一次 `record_batch()`/`snapshot()` 也会惰性兜底。
+
+表结构（`src/S3/Upload_Metrics.php:52`，测试站 `t_sio_s3_upload_events` 实测一致）：
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `id` | bigint unsigned AI | 事件序号，`last_error` 按它倒序取最新 |
+| `created_at` / `day` | datetime / date | UTC 时间与日桶键 |
+| `user_id` | bigint unsigned | 触发请求的用户，CLI 为 0 |
+| `attachment_id` | bigint unsigned | 附件 ID；适配器层未知时为 0 |
+| `object_key` | varbinary(1024) | 对象键；非法 key 时为空串 |
+| `result` | varchar(16) | `ok` / `fail` / `dead` |
+| `error_code` / `error_message` | varchar(64) / varchar(500) | `WP_Error` 的 code 与 message |
+| `bytes` / `duration_ms` | bigint / int unsigned | 成功时累计字节；耗时 |
+| `profile_id` | varchar(40) | 上传目标 profile |
+
+索引：`PRIMARY KEY(id)`、`day_result(day,result)`、`created_at`、`attachment_id`、`profile_day(profile_id,day)`。表为 InnoDB、`utf8mb4_unicode_520_ci`。
+
+#### 6.9.3 兼容与卸载
+
+- **旧 option 不迁移、不删除**：`sakura_imgopt_s3_upload_metrics` 作为冻结基线被 `legacy()`（`:322`）读取，升级后生产已有的 91 条成功立即出现在快照里，不会清零。`record_batch()` 不再写它。
+- **reset 清两层**：`reset()`（`:308`）执行 `DELETE FROM` 事件表并 `delete_option(OPTION)`，但保留 `sakura_imgopt_s3_upload_schema`，避免下一次写表又触发建表。
+- **卸载**：`src/Uninstaller.php:111` 的删表清单已加入 `sio_s3_upload_events`，`:121` 删除 `sakura_imgopt_s3_upload_schema`；旧 option 仍在 `monitoring_options()`（`:161`）里，按原有监控数据策略清理。
+- **已知边界**：① 事件表不做 TTL 裁剪，`totals` 是自安装以来的全量，表会随上传量增长；② 若站点先回滚到旧版（旧版只写 option）再升级，冻结基线会包含回滚期间写入的值，而事件表也保留了同一时期的行，可能重复计数——本设计不做去重；③ `upload_many()` 的合法 key + 缺失文件会在进入存储前被 `Remote_Operation_Guard` 拦截，留下 `sio_sync_operations` 的 uncertain 行，同时仍写一条 `sio_remote_uncertain` 失败事件；前者需要操作员处理，后者只是观测记录。
+
+#### 6.9.4 验证结果（摘要）
+
+测试站上先删空事件表，再执行 4 进程 × 200 条失败写入：`t_sio_s3_upload_events` 得到 800 行、4 个不同 `attachment_id`，快照 `totals.fail=800`；失败采集探针写入 4 行（`attachment_id` 4242/4343/4444，空 key 与缺失文件都有记录），`error_code=sakura_s3_invalid_file`。加上旧 option 的 30 条成功基线后，快照为 `attempts=830`、`fail=800`、`rate=96.3855`；CLI、Prometheus 与后台卡片三种消费方均正常输出。验证命令与输出见 §10.11，执行后已清空事件行与守卫行，测试站快照回到 30 成功 / 0 失败。
 
 ---
 
@@ -773,7 +830,7 @@ register() 之后调用     → 直接 add_action/add_filter 到 WP（不再入�
 | 不确定保留 | dispatch 抛异常、返回 `WP_Error`、返回非 `true`，或 release 失败 → `state='uncertain'`，`last_error` 截 250 字符 | `:93-105`、`:133-138` |
 | 冲突语义 | 主键冲突即返回 `sio_remote_busy`；同一物理对象不会并发写入 | `:116-119` |
 | 清理入口 | `pending()` 只读列出最多 100 行（含崩溃遗留的 inflight）；`acknowledge_settled(resource,token)` 校验两个 64 位 hex 后无条件删除；**没有 TTL、没有自动回收** | `:141-158` |
-| 调用面 | `Storage_Adapter::upload_file` / `upload_many` / `delete_keys` 都经 `guard()->execute(...)` | `src/S3/Storage_Adapter.php:113`、`:145`、`:303` |
+| 调用面 | `Storage_Adapter::upload_file` / `upload_many` / `delete_keys` 都经 `guard()->execute(...)` | `src/S3/Storage_Adapter.php:136`、`:179`、`:346` |
 | 消费面 | 没有后台页面、CLI 或 cron 调用 `pending()` / `acknowledge_settled`；除类自身外仅测试引用 | 全仓 grep + `tests/RemoteOperationGuardTest.php` |
 
 **执行顺序**（`:61-106`）：先对全部 key 逐个 `acquire`；随后才执行可选的 `check()`（队列所有权复核）。`check` 失败或抛异常时，所有已取得的 reservation 会被释放，**尚未发送任何远端写入**。只有 `check` 通过后才调用 `dispatch`。这保证了「先占位、再确认、最后发送」的顺序。
@@ -1049,9 +1106,9 @@ d3AtY29udGVudC91cGxvYWRzL3Byb2JlLzA5OTkuYmluW21pbmlvX2NhY2hlOnYyLHJldHVybjpd
 
 ## 9. 横切：数据落点、钩子、REST、CLI 与 Cron
 
-### 9.1 数据落点总表（22 张自定义表）
+### 9.1 数据落点总表（23 张自定义表）
 
-测试站实测 22 张（15 张 `sufm_*` + 6 张 `sio_sync_*` + 1 张 `sio_s3_deletes`，命令见 §10.2）：
+测试站实测 23 张（15 张 `sufm_*` + 6 张 `sio_sync_*` + 2 张 `sio_s3_*`，命令见 §10.2）：
 
 | 表 | 归属 | 用途 | 建立位置 |
 |---|---|---|---|
@@ -1077,18 +1134,19 @@ d3AtY29udGVudC91cGxvYWRzL3Byb2JlLzA5OTkuYmluW21pbmlvX2NhY2hlOnYyLHJldHVybjpd
 | `sio_sync_events` | Sync | 同步审计事件 | 同上 |
 | `sio_sync_operations` | S3 / Sync | 远端变更准入记录 | `src/S3/Remote_Operation_Guard.php:26-39` |
 | `sio_s3_deletes` | S3 | 远端删除补偿队列 | `src/S3/Delete_Jobs.php:109` |
+| `sio_s3_upload_events` | S3 | 上传结果事件（成功/失败逐条追加，快照按 SQL 聚合） | `src/S3/Upload_Metrics.php:79-115` |
 
 > 表名在源码里以 `$wpdb->prefix . 'sufm_files'` 形式拼接（`src/UserFiles/Schema.php:41`），前缀随站点变化；测试站前缀为 `t_`。
 
 **非表落点**（分章详见 §4.5 / §5.5 / §6.5 / §7.5 / §8.6）：option 约 60 个、postmeta 约 13 个（8 个 `_sakura_imgopt_s3_*` + `_sakura_imgopt_backup` / `sakura_imgopt_log` / `_sakura_imgopt_orig` + `sufm_quota_bytes` + 只读 `_wp_attached_file`）、transient 7 个、上传目录 1 个子目录（`sakura-imgopt-backup/`）。
 
-### 9.2 钩子分布（190 条）
+### 9.2 钩子分布（191 条）
 
 | 模块 | 钩子数 | 说明 |
 |---|---:|---|
 | `includes/` | 68 | 旧层：图片门面 7 + 缩略图装配 8 + S3 设置页 9 + 媒体库/设置页 AJAX 等 |
 | `src/UserFiles` | 58 | 最大；REST 只注册 1 个 `rest_api_init`，其余是 cron、媒体库、Zibll、支付 |
-| `src/S3` | 42 | admin-post 7 + ajax 11 + 附件 3 + cron 2 + 同步中心 9 + 其余 |
+| `src/S3` | 43 | admin-post 7 + ajax 11 + 附件 3 + cron 2 + 同步中心 9 + 其余（含新增失败观测） |
 | `src/Sync` | 9 | 3 个附件钩子 + 4 个 cron + `cron_schedules` + `init` |
 | `src/Admin` | 6 | `admin_menu` / `admin_enqueue_scripts` / `admin_init` 等 |
 | `src/Support` | 2 | 工具类注册 |
@@ -1096,7 +1154,7 @@ d3AtY29udGVudC91cGxvYWRzL3Byb2JlLzA5OTkuYmluW21pbmlvX2NhY2hlOnYyLHJldHVybjpd
 | `src/`（根） | 1 | `sakura_imgopt_daily_backup_cleanup`（`src/Plugin.php:106`） |
 | 未归属（模板/函数） | 3 | `includes/views/` 或全局函数内注册 |
 
-完整 190 条见**附录 B**（按模块分组，含文件:行、优先级、回调）。
+完整 191 条见**附录 B**（按模块分组，含文件:行、优先级、回调）。
 
 ### 9.3 REST、CLI 与 Cron
 
@@ -1142,18 +1200,18 @@ version:   1.22.8
 
 WordPress 核心与 PHP 版本、MariaDB 127.0.0.1:13316、MinIO 127.0.0.1:19010 均正常；后台 `admin` 可登录（用于 §10.4 的路由检查）。
 
-### 10.2 数据表（22 张，全部存在）
+### 10.2 数据表（23 张）
 
 ```
 $ ./e2e.sh wp db query "SHOW TABLES LIKE 't_sufm_%'; SHOW TABLES LIKE 't_sio_%';"
 t_sufm_artifacts            t_sio_s3_deletes
-t_sufm_delete_batches       t_sio_sync_counts
-t_sufm_delete_request_items t_sio_sync_events
-t_sufm_delete_requests      t_sio_sync_index
-t_sufm_events               t_sio_sync_jobs
-t_sufm_file_tokens          t_sio_sync_operations
-t_sufm_files                t_sio_sync_scans
-t_sufm_folders
+t_sufm_delete_batches       t_sio_s3_upload_events
+t_sufm_delete_request_items t_sio_sync_counts
+t_sufm_delete_requests      t_sio_sync_events
+t_sufm_events               t_sio_sync_index
+t_sufm_file_tokens          t_sio_sync_jobs
+t_sufm_files                t_sio_sync_operations
+t_sufm_folders              t_sio_sync_scans
 t_sufm_jobs
 t_sufm_media_operations
 t_sufm_notifications
@@ -1162,6 +1220,8 @@ t_sufm_reservations
 t_sufm_space_grants
 t_sufm_usage
 ```
+
+> `t_sio_s3_upload_events` 是升级后由 `Upload_Metrics::maybe_install()` 惰性创建的：建表前不存在，第一次 `snapshot()` 或 `record_batch()` 后出现，并把 `sakura_imgopt_s3_upload_schema` 写成 `2.0.0`（§10.11）。
 
 ### 10.3 Cron（7 条插件事件已排程）
 
@@ -1266,7 +1326,7 @@ sufm_routes=45 endpoints=51
 
 - 第 7 条只读调用两个类的纯函数并回显字段名，未写任何 option/postmeta；profile 为 `prof_1d60d87b0606`（测试站 MinIO）。
 - 第 8 条说明测试站没有 1.12.0 之前的遗留任务，`Storage::maybe_migrate` 的迁移分支本轮没有可触发的数据；该分支按静态阅读保留，未做破坏性造数。
-- `Upload_Metrics` 的失败/死信计数仍保留在结构里（`record_batch()` 支持非 ok 样本），但生产唯一调用方 `Upload_Observer` 固定 `ok=true`——这是本轮新发现的可观测性缺口，已登记为 §12.3 的已确认缺陷，不在本轮清理范围。
+- `Upload_Metrics` 的失败/死信计数仍保留在结构里（`record_batch()` 支持非 ok 样本），但生产唯一调用方 `Upload_Observer` 固定 `ok=true`——这是清理当轮发现的可观测性缺口。该缺口已在后续「上传指标并发修复」中关闭（§6.9、§10.11），本条保留为当轮记录，不再代表当前实现。
 
 ### 10.9 §7.7 三项的运行期验证记录（2026-11-08）
 
@@ -1342,7 +1402,9 @@ wp eval '$m=(new \Sakura\ImageOptimizer\S3\Upload_Metrics())->snapshot(); echo w
 | 6 | 14 天窗口 | `attempts=91`、`ok=91`、`fail=0`、`dead=0`、`rate=0`（与累计相同，说明样本都在窗口内） |
 | 7 | 最近错误 | `last_error.has=false`；没有失败样本可展示 |
 
-静态对照：`src/S3/Upload_Observer.php:29-31` 只挂 `sakura_imgopt_s3_uploaded`；`:41-53` 只构造 `array('ok' => true, ...)` 后调 `record_batch()`。`src/S3/Object_Store.php:182`、`:322`、`:345` 的 `do_action('sakura_imgopt_s3_uploaded')` 都在 PUT/HEAD 校验成功之后；失败路径（`:160-171`、`:311-315`、`:332-343`、`:348-354`）直接返回 `WP_Error`/拒绝，不触发该钩子。`Upload_Metrics::record_batch()` 本身支持 `ok=false` 与 `dead`（`src/S3/Upload_Metrics.php:84-125`），但生产没有第二个调用方。`Alerting::evaluate()` 用 `week.attempts` 与 `week.rate` 判 `failure_rate`（`src/S3/Alerting.php:152-169`），所以失败率恒 0。
+静态对照：修复前的 `src/S3/Upload_Observer.php:29-31` 只挂 `sakura_imgopt_s3_uploaded`；`:41-53` 只构造 `array('ok' => true, ...)` 后调 `record_batch()`。`src/S3/Object_Store.php:182`、`:322`、`:345` 的 `do_action('sakura_imgopt_s3_uploaded')` 都在 PUT/HEAD 校验成功之后；失败路径（`:160-171`、`:311-315`、`:332-343`、`:348-354`）直接返回 `WP_Error`/拒绝，不触发该钩子。`Upload_Metrics::record_batch()` 本身支持 `ok=false` 与 `dead`（清理前 `src/S3/Upload_Metrics.php:84-125`），但生产没有第二个调用方。`Alerting::evaluate()` 用 `week.attempts` 与 `week.rate` 判 `failure_rate`（`src/S3/Alerting.php:152-169`），所以失败率恒 0。
+
+**以上是修复前的生产证据。** 2026-11-08 本轮已按 §6.9 改为事件表并补上失败钩子，测试站复测见 §10.11；本节保留原始只读证据用于追溯，不再代表当前实现。
 
 **C. `Space_Store::grant_from_order()` 的字段写入**
 
@@ -1361,7 +1423,72 @@ wp eval '$m=(new \Sakura\ImageOptimizer\S3\Upload_Metrics())->snapshot(); echo w
 |---:|---|---|---|
 | 1 | `fast-search.php` 外部限制 | **无缺陷**：无额外 nginx/.htaccess 限制；无 token/错签名 403，有效管理员签名 200 | 运行期 403/200 + 配置静态核对 |
 | 2 | `grant_from_order()` 字段 | **确认缺陷**：`source/channel` 写死 `points`，订单字段清零；现金购买会计入积分日限额 | 反射 + 生产聚合 + 静态 SQL |
-| 3 | 上传失败不可见 | **确认缺陷**：只记录 `ok=true`，失败路径不触发；生产 91 次成功、0 次失败样本，失败率恒 0 | 生产快照 + 钩子调用图 |
+| 3 | 上传失败不可见 | **原缺陷，本轮已修复**：修复前只记录 `ok=true`，失败路径不触发；生产 91 次成功、0 次失败样本，失败率恒 0。现改为事件表 + `sakura_imgopt_s3_upload_failed`（§6.9） | 生产快照 + 钩子调用图 + §10.11 并发复测 |
+
+### 10.11 上传指标并发修复的运行期验证（2026-11-08）
+
+环境同 §10.7：测试站 `/root/sio-e2e`（PHP 8.4.27，MariaDB 13316，MinIO 19010），插件软链到 `/root/work/sakura-tools`，表前缀 `t_`。以下操作**全部在测试站**执行，生产只读；验证结束后已清空事件行与守卫行，测试站没有留下探针数据。
+
+**A. 迁移与建表**
+
+| # | 验证点 | 操作 | 结果 |
+|---:|---|---|---|
+| 1 | 升级前状态 | 查表与 schema option | `t_sio_s3_upload_events` 不存在；`sakura_imgopt_s3_upload_schema` 为空 |
+| 2 | 惰性建表 | 调用 `(new Upload_Metrics())->snapshot()` | 表自动创建；`sakura_imgopt_s3_upload_schema=2.0.0` |
+| 3 | 表结构 | `SHOW CREATE TABLE t_sio_s3_upload_events` | 12 个字段与 §6.9.2 一致；`day_result`、`created_at`、`attachment_id`、`profile_day` 四个索引；InnoDB、`utf8mb4_unicode_520_ci` |
+| 4 | 旧基线保留 | 建表后立即读 `snapshot()` | `totals.ok=30`、`fail=0`、`attempts=30`、`bytes=1279424`——升级前的 option 没有被迁移、清零或重复写入 |
+
+**B. 失败采集**
+
+用 `Storage_Adapter::upload_file()` 与 `upload_many()` 直接制造失败（不经过真实网络），共写入 4 行：
+
+| # | 场景 | 写入的 `attachment_id` | `object_key` | `error_code` |
+|---:|---|---:|---|---|
+| 5 | 空 key | 4242 | 空串 | `sakura_s3_invalid_file` |
+| 6 | `upload_file()` 文件不存在 | 4343 | `probe/missing-two.txt` | `sakura_s3_invalid_file` |
+| 7 | `upload_many()` 非法 key | 4444 | 空串 | `sakura_s3_invalid_file` |
+| 8 | 合法 key + 缺失文件（先经守卫） | 4444 | `probe/missing-two.txt` | `sio_remote_uncertain` |
+
+四行都带 `profile_id=prof_1d60d87b0606`。第 8 条同时说明：`upload_many()` 的合法 key 会先进入 `Remote_Operation_Guard`，守卫返回 `sio_remote_uncertain` 并留下 `sio_sync_operations` 的 uncertain 行（该行已人工删除）；这是守卫的既有语义（§7.7），指标只是把同一失败记录到事件表，两者不互相替代。
+
+**C. 并发写入**
+
+先 `DELETE FROM t_sio_s3_upload_events`，再用 4 个独立的 WP-CLI 进程各调用 200 次 `Upload_Metrics::record_batch( array( 'ok' => false, 'attachment' => ..., 'key' => ... ) )`，然后直接数表：
+
+```
+$ ./e2e.sh wp db query "SELECT COUNT(*) AS rows, COUNT(DISTINCT attachment_id) AS attachments FROM t_sio_s3_upload_events;"
+rows  attachments
+800   4
+```
+
+| # | 验证点 | 结果 |
+|---:|---|---|
+| 9 | 事件行数 | **800 / 800**，零丢失；4 个进程各自写入的附件 ID 都出现 |
+| 10 | 旧实现对照 | 同一台机器、同一并发模型改为读改写 option 时只落 **202 / 800**（丢 598 条，74.75%） |
+
+**D. 聚合与消费方**
+
+800 条失败加上旧 option 的 30 条成功基线后，快照为：
+
+| # | 验证点 | 结果 |
+|---:|---|---|
+| 11 | `snapshot().totals` | `ok=30`、`fail=800`、`dead=0`、`attempts=830`、`rate=96.3855`、`rate_text=96.4%`、`bytes=1279424` |
+| 12 | today / week | 均为 `attempts=830`、`fail=800`；说明当天日桶与 14 天窗口都包含事件行 |
+| 13 | `last_error` | `has=true`、`attachment=900004`、`key=probe/conc/4-199`、`message=probe concurrent 4/199` |
+| 14 | `wp sakura-sync stats --format=table` | `Today: 30 ok, 800 failed, rate 96.4%, avg 0 ms, 1.22 MB`；`Last 14 days: 830 attempts, 800 failed, rate 96.4%` |
+| 15 | Prometheus | `Prometheus::format()` 输出 1762 字节；`attempts{result="ok"}=30`、`fail=800`、`dead=0`；`failure_ratio=96.385542` |
+| 16 | 后台卡片 | `Sync_Center_Panel::render()` 输出 1698 字节，含 `sakura-s3-metric-error` 节点并显示 `last_error` 文本；没有因返回结构变化报错 |
+
+**E. 清理与最终状态**
+
+| # | 验证点 | 结果 |
+|---:|---|---|
+| 17 | 清事件行 | `t_sio_s3_upload_events` 行数回到 0 |
+| 18 | 清守卫行 | `t_sio_sync_operations` 的探针 uncertain 行删除，行数 0 |
+| 19 | 快照回归 | `totals` 回到 `ok=30`、`fail=0`、`attempts=30`；`last_error.has=false` |
+| 20 | 表与 schema 保留 | 空表仍在，`sakura_imgopt_s3_upload_schema=2.0.0`；测试站下次上传可直接写入 |
+
+**边界**：本节验证的是数据层并发、失败采集与三个消费方的兼容性，没有用真实上传把 800 条失败灌进队列；真实上传链路的端到端验证仍是 §10.6 的 5 张成功样本。生产环境没有执行建表、写事件或 `reset()`，生产升级后的建表行为由 A 组与单元测试覆盖。
 
 ---
 
@@ -1379,7 +1506,7 @@ wp eval '$m=(new \Sakura\ImageOptimizer\S3\Upload_Metrics())->snapshot(); echo w
 | Thumbnail |  | 1 |  |  |  |  |  |  |  | 2 |  |  |  |  |  |  |  |
 | Image |  |  | 9 |  |  |  |  |  |  |  |  | 22 |  | 9 |  | 2 |  |
 | Admin | 9 |  |  |  |  |  |  |  |  |  |  | 3 |  |  | 3 |  |  |
-| src | 7 | 22 | 10 | 20 |  | 1 |  | 7 |  |  | 1 |  |  | 2 | 3 | 1 | 1 |
+| src | 7 | 24 | 10 | 20 |  | 1 |  | 7 |  |  | 1 |  |  | 2 | 3 | 1 | 1 |
 | Oss |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |
 | Backup |  |  | 4 |  |  |  |  |  |  |  |  | 1 |  |  |  |  |  |
 | Contracts |  |  |  |  |  |  |  |  |  |  |  |  |  |  | 1 |  |  |
@@ -1432,34 +1559,42 @@ wp eval '$m=(new \Sakura\ImageOptimizer\S3\Upload_Metrics())->snapshot(); echo w
 
 ---
 
-## 12. 待确认项汇总（本轮清零）与已确认缺陷
+## 12. 待确认项与已确认缺陷
 
-截至 2026-11-08，正文中没有“只有结论、没有代码位置或运行证据”的待确认项。原 §12 的 3 项已全部核实：`fast-search.php` 无缺陷；`Space_Store::grant_from_order()` 与 S3 上传观测确认为代码缺陷，但本轮**没有修改插件代码**，只记录证据与修复建议。
+截至 2026-11-08，正文中没有“只有结论、没有代码位置或运行证据”的待确认项。原 §12 的 3 项已全部核实：`fast-search.php` 无缺陷；`Space_Store::grant_from_order()` 确认为高优先缺陷（未修复）；S3 上传指标确认为缺陷，并已在本轮改为事件表 + 失败钩子（已修复）。
 
-### 12.1 本轮核实结果
+### 12.1 核实结果
 
 | 原 # | 事项 | 结论 | 关键证据 | 正文 |
 |---:|---|---|---|---|
 | 1 | `fast-search.php` 是否另有 nginx/.htaccess 限制 | **无缺陷**：生产环境没有额外封禁；入口自身按 HMAC + 管理员能力鉴权 | 生产无 token/错签名 403，有效管理员签名 200（438 字节，`total=132`）；nginx 配置无 `fast-search` 专属 `location` | §10.10-A |
-| 2 | `grant_from_order()` 的 `source` 与订单字段 | **确认缺陷**：`source`/`channel` 固定写 `'points'`，`order_id`/`order_num`/`price`/`points` 清零 | 生产只读反射 `normalise_order()` 解析出 `order_id=123`、`price=30`、`channel=balance`；INSERT（`src/UserFiles/Services/Space_Store.php:830-843`）丢弃这些值；生产 `sufm_space_grants` 已有订单行与 `points` 行并存 | §8.9、§10.10-C |
-| 3 | S3 上传失败是否进入指标 | **确认缺陷**：只记录成功样本，失败路径不触发观测钩子 | 生产快照 `attempts=91`、`ok=91`、`fail=0`、`dead=0`、`rate=0`；`Upload_Observer.php:41-53` 固定 `ok=true`；`Object_Store` 失败分支不触发 `sakura_imgopt_s3_uploaded` | §10.10-B |
+| 2 | `grant_from_order()` 的 `source` 与订单字段 | **确认缺陷，未修复**：`source`/`channel` 固定写 `'points'`，`order_id`/`order_num`/`price`/`points` 清零 | 生产只读反射 `normalise_order()` 解析出 `order_id=123`、`price=30`、`channel=balance`；INSERT（`src/UserFiles/Services/Space_Store.php:830-843`）丢弃这些值；生产 `sufm_space_grants` 已有订单行与 `points` 行并存 | §8.9、§10.10-C |
+| 3 | S3 上传失败是否进入指标 | **确认缺陷，已修复**：修复前只记录成功样本，失败路径不触发观测钩子；现改为追加事件表，成功/失败双钩子采集 | 生产快照 `attempts=91`、`ok=91`、`fail=0`、`dead=0`、`rate=0`（修复前）；测试站 4×200 并发写入 800/800 行，快照 `attempts=830`、`fail=800` | §10.10-B、§6.9、§10.11 |
 
 ### 12.2 待确认项
 
-**无。** 本轮不再保留“需要后续验证”的代码问题。下面这些此前的待确认项均已有结论，供接手者追溯：`scans.scan_cursor` 双语义与 `sio_sync_operations` 消费语义（§7.7、§10.9）；缩略图 `provider` 取值与 HTML 旧引擎 `ob_start` 边界（§5.7、§10.7）；并发上传 `consume_pending` 匹配（§10.6）；`.dsh-ops/` 非插件产物（§2.1）；S3 章四条遗留代码（§6.8、§10.8）。
+**无。** 不再保留“需要后续验证”的代码问题。下面这些此前的待确认项均已有结论，供接手者追溯：`scans.scan_cursor` 双语义与 `sio_sync_operations` 消费语义（§7.7、§10.9）；缩略图 `provider` 取值与 HTML 旧引擎 `ob_start` 边界（§5.7、§10.7）；并发上传 `consume_pending` 匹配（§10.6）；`.dsh-ops/` 非插件产物（§2.1）；S3 章四条遗留代码（§6.8、§10.8）。
 
 ### 12.3 已确认缺陷（未修复）
 
 | 优先级 | 缺陷 | 影响 | 修复建议 | 依据 |
 |---|---|---|---|---|
 | **高** | `Space_Store::grant_from_order()` 把所有订单发放写成 `source='points'`，并清空订单字段 | ① 现金与积分购买无法按 `source` 区分；② `order_id`/`order_num`/`price` 清零，按订单对账与收入统计失真；③ `points_used_bytes()` 按 `source='points'` 汇总（`Space_Store.php:2014-2022`），现金购买会占用积分日限额（`:2154`、`:2350`），可能提前阻断积分兑换 | 按 `data['channel']` 分支：积分订单写 `source='points'`，其余写 `purchase`；INSERT 使用 `normalise_order()` 已解析的 `order_id`、`order_num`、`price` 与积分值；补现金/积分两类发放测试，并断言现金发放不计入积分日限额 | §8.9、§10.10-C |
-| **中** | `Upload_Observer` 只记录 `ok=true`，失败路径不写指标 | 生产 `attempts_total{result="fail"}`、`dead`、14 天失败率与 `failure_rate` 告警恒为 0；上传故障不会进入该指标与告警，需依赖其它日志或监控发现 | 在 `Object_Store` 的失败分支调用 `Upload_Metrics::record_batch()` 写 `ok=false`（必要时标 `dead` 并带 `error`），或明确改由外部监控覆盖并在文档中登记；补一条失败样本测试 | §10.10-B |
 
-两项都属于**行为缺陷**，不是文档口径问题。修复会改变代码与测试，本轮未获授权，故只登记；修复后需重跑 `phpunit`、`phpstan`、`phpcs` 并按《图谱同步说明》§7 重建图谱（节点数不变，行为说明需更新）。
+这是本轮唯一保留的未修复行为缺陷，不是文档口径问题。修复会改变代码与测试，需先获得授权；修复后应重跑 `phpunit`、`phpstan`、`phpcs`，并按《图谱同步说明》§7 重建图谱。
 
-### 12.4 不属于代码待确认项的遗留
+### 12.4 本轮关闭的问题（已修复）
 
-《图谱同步说明》§10.3 记录的“181 vs 178 文件数”是旧导出排除规则未留档造成的**图谱口径差异**，与当前插件代码行为无关；当前图谱统一为 180 节点 / 812 连线 / 190 钩子。它保留在图谱文档的已知局限中，不计入本节。
+| 原问题 | 修复前 | 修复后 | 验证 |
+|---|---|---|---|
+| 上传失败不进入指标，失败率与告警恒 0 | `Upload_Observer` 只挂 `sakura_imgopt_s3_uploaded`，样本固定 `ok=true`；`Object_Store` 失败分支不发事件 | 每条结果独立 INSERT 到 `sio_s3_upload_events`；`Storage_Adapter::report_failure()` 发 `sakura_imgopt_s3_upload_failed`，`Upload_Observer::record_failed()` 采集 | `phpunit` 393 tests / 1138 assertions / 5 skipped；4×200 并发 800/800；CLI、Prometheus、后台卡片均正常（§10.11） |
+| 并发写指标互相覆盖 | 读改写 option，4×200 只落 202 行 | 原子 INSERT + `snapshot()` SQL 聚合；旧 option 保留为冻结基线 | 测试站 800/800；旧实现对照 202/800 |
+
+修复涉及的代码位置：`src/S3/Upload_Metrics.php:79-115`（建表）、`:149`（写入）、`:204`（聚合）、`:322`（旧基线）；`src/S3/Storage_Adapter.php:71`（失败事件）；`src/S3/Upload_Observer.php:30-31`（双钩子）、`:78`（失败采集）；`src/Activation.php:99`（激活建表）；`src/Uninstaller.php:111`/`:121`（卸载清理）。
+
+### 12.5 不属于代码待确认项的遗留
+
+《图谱同步说明》§10.3 记录的“181 vs 178 文件数”是旧导出排除规则未留档造成的**图谱口径差异**，与当前插件代码行为无关；当前图谱统一为 180 节点 / 814 连线 / 191 钩子。它保留在图谱文档的已知局限中，不计入本节。
 
 ---
 
@@ -1469,14 +1604,16 @@ wp eval '$m=(new \Sakura\ImageOptimizer\S3\Upload_Metrics())->snapshot(); echo w
 
 | 项 | 本次结果 |
 |---|---|
-| 节点 | 180 = 163 类 + 17 模块 |
-| 连线 | 812 = 599 `ref` + 50 `modref` + 163 `contains` |
-| 钩子 | 190（面板显示，不建节点） |
+| 节点 | 180 = 163 类 + 17 模块（类集合未变） |
+| 连线 | 814 = 601 `ref` + 50 `modref` + 163 `contains` |
+| 钩子 | 191（面板显示，不建节点） |
 | 悬空边 | 0 |
-| 本轮变更 | 无代码/类变化；只补 §8.9、§10.10、§12 正文，图谱无需重建 |
-| 数据来源 | `/tmp/scan-new.json`（上一轮 `§6.8` 清理后重扫；本轮未改代码，未重扫）——由 `docs/tools/collect-comments.php` 与 codegraph 的 `scanner.php` 生成，与本文所有表格同源 |
+| 本轮变更 | 新增 2 条 `ref`（`Activation → Upload_Metrics`、`Upload_Metrics → Log`），`modref src → src/S3` 22→24，钩子 190→191；无节点增删，但因代码变化已重扫并重建 `docs/graph-preview/` |
+| 数据来源 | 本轮重新扫描的事实表（codegraph `scanner.php` 输出）——由 `docs/tools/collect-comments.php` 生成类注释，与本文所有表格同源 |
 
-本轮没有新增/删除类，节点、连线与钩子统计与上一轮完全一致，`docs/graph-preview/` 无需重新生成。§12 三项结论中，`Space_Store` 与 `Upload_Observer` 是已有节点的职责细化与缺陷记录；`fast-search.php` 是脚本型文件，本来就不进入图谱。三项都没有产生新的图谱关系，因此文档与图谱仍按上一轮结论对齐。
+本轮没有新增/删除类，节点数仍是 180，但 `Upload_Metrics` 的方法与职责、`Upload_Observer` 的钩子数发生了变化：前者从“读改写 option”改为“事件表 INSERT + SQL 聚合”，后者从 1 个钩子变为成功/失败 2 个钩子。图谱因此新增两条类级引用边（`Activation → Upload_Metrics`、`Upload_Metrics → Log`），跨模块边 `src → src/S3` 从 22 增至 24，钩子统计从 190 增至 191。节点没有增删，但**不能沿用上一轮导出的边与钩子数字**，已重新生成。
+
+`fast-search.php` 是脚本型文件，本来就不进入图谱；`Space_Store` 仍是未修复缺陷，属于已有节点的职责说明，没有新增关系。
 
 **生成与注入脚本**（都在 `docs/tools/`，可重复执行）：`build-code-structure.mjs`（事实表 → 表格 + graph.json）、`graph-inject.mjs`（graph.json → index.html 内嵌 DATA，含悬空边校验）、`assemble-doc.py`（分章 + 表格 → 本文）。完整命令见《图谱同步说明》§7。
 
@@ -1556,15 +1693,15 @@ wp eval '$m=(new \Sakura\ImageOptimizer\S3\Upload_Metrics())->snapshot(); echo w
 | 64 | `Sakura\ImageOptimizer\S3\S3_Storage_Page` | src/S3/S3_Storage_Page.php:9 | 3 |
 | 65 | `Sakura\ImageOptimizer\S3\Settings_Saver` | src/S3/Settings_Saver.php:11 | 6 |
 | 66 | `Sakura\ImageOptimizer\S3\Storage` | src/S3/Storage.php:22 | 24 |
-| 67 | `Sakura\ImageOptimizer\S3\Storage_Adapter` | src/S3/Storage_Adapter.php:20 | 16 |
+| 67 | `Sakura\ImageOptimizer\S3\Storage_Adapter` | src/S3/Storage_Adapter.php:20 | 17 |
 | 68 | `Sakura\ImageOptimizer\S3\Sync_Actions` | src/S3/Sync_Actions.php:20 | 5 |
 | 69 | `Sakura\ImageOptimizer\S3\Sync_Center_Module` | src/S3/Sync_Center_Module.php:27 | 25 |
 | 70 | `Sakura\ImageOptimizer\S3\Sync_Center_Panel` | src/S3/Sync_Center_Panel.php:20 | 1 |
 | 71 | `Sakura\ImageOptimizer\S3\Sync_Status` | src/S3/Sync_Status.php:23 | 23 |
 | 72 | `Sakura\ImageOptimizer\S3\Synchronous_Uploader` | src/S3/Synchronous_Uploader.php:26 | 13 |
 | 73 | `Sakura\ImageOptimizer\S3\Upload_Capabilities` | src/S3/Upload_Capabilities.php:23 | 3 |
-| 74 | `Sakura\ImageOptimizer\S3\Upload_Metrics` | src/S3/Upload_Metrics.php:22 | 12 |
-| 75 | `Sakura\ImageOptimizer\S3\Upload_Observer` | src/S3/Upload_Observer.php:20 | 3 |
+| 74 | `Sakura\ImageOptimizer\S3\Upload_Metrics` | src/S3/Upload_Metrics.php:27 | 18 |
+| 75 | `Sakura\ImageOptimizer\S3\Upload_Observer` | src/S3/Upload_Observer.php:20 | 4 |
 | 76 | `Sakura\ImageOptimizer\S3\Upload_URL` | src/S3/Upload_URL.php:9 | 2 |
 | 77 | `Sakura\ImageOptimizer\S3\Upload_Verify` | src/S3/Upload_Verify.php:20 | 3 |
 | 78 | `Sakura\ImageOptimizer\Settings\Settings_Repository` | src/Settings/Settings_Repository.php:23 | 22 |
@@ -1654,7 +1791,7 @@ wp eval '$m=(new \Sakura\ImageOptimizer\S3\Upload_Metrics())->snapshot(); echo w
 | 162 | `Sakura\ImageOptimizer\Plugin` | src/Plugin.php:42 | 3 |
 | 163 | `Sakura\ImageOptimizer\Uninstaller` | src/Uninstaller.php:23 | 10 |
 
-## 附录 B：钩子索引（190 条，按模块分组）
+## 附录 B：钩子索引（191 条，按模块分组）
 
 ### includes（68 个）
 
@@ -1746,7 +1883,7 @@ wp eval '$m=(new \Sakura\ImageOptimizer\S3\Upload_Metrics())->snapshot(); echo w
 | `init` | action | redirect_legacy | src/Admin/Menu.php:36 |
 | `wp_ajax_sakura_save_layout` | action | ajax_save | src/Admin/Layout.php:236 |
 
-### src/S3（42 个）
+### src/S3（43 个）
 
 | 钩子 | 类型 | 回调 | 注册位置 |
 |---|---|---|---|
@@ -1776,6 +1913,7 @@ wp eval '$m=(new \Sakura\ImageOptimizer\S3\Upload_Metrics())->snapshot(); echo w
 | `posts_where` | filter | History_Migrator::batch_ids | src/S3/History_Migrator.php:263 |
 | `sakura_imgopt_restore_started` | action | on_restore_started | src/S3/Storage.php:150 |
 | `sakura_imgopt_restored` | action | reconcile_attachment | src/S3/Storage.php:151 |
+| `sakura_imgopt_s3_upload_failed` | action | record_failed | src/S3/Upload_Observer.php:31 |
 | `sakura_imgopt_s3_uploaded` | action | record_uploaded | src/S3/Upload_Observer.php:30 |
 | `wp_ajax_sakura_s3_sync_action` | action | ajax_action | src/S3/Sync_Center_Module.php:108 |
 | `wp_ajax_sakura_s3_sync_cancel` | action | ajax_cancel | src/S3/Sync_Center_Module.php:104 |
@@ -1891,7 +2029,7 @@ wp eval '$m=(new \Sakura\ImageOptimizer\S3\Upload_Metrics())->snapshot(); echo w
 | `plugins_loaded` | action |  | sakura-tools.php:103 |
 | `plugins_loaded` | action |  | sakura-tools.php:25 |
 
-合计 190 条钩子（已排除 tests/stubs 中的注册）。
+合计 191 条钩子（已排除 tests/stubs 中的注册）。
 
 ## 附录 C：文件索引（178 个生产 PHP 文件）
 
@@ -1925,7 +2063,7 @@ wp eval '$m=(new \Sakura\ImageOptimizer\S3\Upload_Metrics())->snapshot(); echo w
 | includes/views/userfiles-space-panel.php | includes/views | 255 | — |
 | includes/views/userfiles-tab.php | includes/views | 304 | — |
 | sakura-tools.php | 根文件 | 109 | — |
-| src/Activation.php | src | 130 | `Activation` |
+| src/Activation.php | src | 133 | `Activation` |
 | src/Admin/Assets.php | src/Admin | 223 | `Assets` |
 | src/Admin/Basic_Settings_Module.php | src/Admin | 94 | `Basic_Settings_Module` |
 | src/Admin/Environment_Report.php | src/Admin | 343 | `Environment_Report` |
@@ -1979,7 +2117,7 @@ wp eval '$m=(new \Sakura\ImageOptimizer\S3\Upload_Metrics())->snapshot(); echo w
 | src/S3/Restore_Plan.php | src/S3 | 87 | `Restore_Plan` |
 | src/S3/S3_Storage_Page.php | src/S3 | 291 | `S3_Storage_Page` |
 | src/S3/Settings_Saver.php | src/S3 | 239 | `Settings_Saver` |
-| src/S3/Storage_Adapter.php | src/S3 | 409 | `Storage_Adapter` |
+| src/S3/Storage_Adapter.php | src/S3 | 452 | `Storage_Adapter` |
 | src/S3/Storage.php | src/S3 | 779 | `Storage` |
 | src/S3/Sync_Actions.php | src/S3 | 161 | `Sync_Actions` |
 | src/S3/Sync_Center_Module.php | src/S3 | 1519 | `Sync_Center_Module` |
@@ -1987,8 +2125,8 @@ wp eval '$m=(new \Sakura\ImageOptimizer\S3\Upload_Metrics())->snapshot(); echo w
 | src/S3/Sync_Status.php | src/S3 | 462 | `Sync_Status` |
 | src/S3/Synchronous_Uploader.php | src/S3 | 525 | `Synchronous_Uploader` |
 | src/S3/Upload_Capabilities.php | src/S3 | 76 | `Upload_Capabilities` |
-| src/S3/Upload_Metrics.php | src/S3 | 330 | `Upload_Metrics` |
-| src/S3/Upload_Observer.php | src/S3 | 66 | `Upload_Observer` |
+| src/S3/Upload_Metrics.php | src/S3 | 512 | `Upload_Metrics` |
+| src/S3/Upload_Observer.php | src/S3 | 108 | `Upload_Observer` |
 | src/S3/Upload_URL.php | src/S3 | 44 | `Upload_URL` |
 | src/S3/Upload_Verify.php | src/S3 | 95 | `Upload_Verify` |
 | src/Settings/Settings_Repository.php | src/Settings | 285 | `Settings_Repository` |
@@ -2027,7 +2165,7 @@ wp eval '$m=(new \Sakura\ImageOptimizer\S3\Upload_Metrics())->snapshot(); echo w
 | src/Thumbnail/Stats.php | src/Thumbnail | 192 | `Stats` |
 | src/Thumbnail/Theme_Bridge.php | src/Thumbnail | 79 | `Theme_Bridge` |
 | src/Thumbnail/Theme_Cache.php | src/Thumbnail | 229 | `Theme_Cache` |
-| src/Uninstaller.php | src | 363 | `Uninstaller` |
+| src/Uninstaller.php | src | 364 | `Uninstaller` |
 | src/UserFiles/Admin/Page.php | src/UserFiles | 192 | `Page` |
 | src/UserFiles/Admin/Space_Page.php | src/UserFiles | 274 | `Space_Page` |
 | src/UserFiles/Capabilities.php | src/UserFiles | 155 | `Capabilities` |

@@ -1,0 +1,40 @@
+includes:
+    - vendor/szepeviktor/phpstan-wordpress/extension.neon
+
+parameters:
+    level: 5
+    paths:
+        - sakura-tools.php
+        - uninstall.php
+        - includes
+        - src
+    bootstrapFiles:
+        - stubs/phpstan-bootstrap.php
+    scanFiles:
+        - stubs/phpstan-plugin-dependencies.php
+    treatPhpDocTypesAsCertain: false
+
+    # Ignoring a pattern that no longer matches is itself an error: it means
+    # the code moved and the note below became a lie.
+    reportUnmatchedIgnoredErrors: true
+
+    ignoreErrors:
+        # Views are plain templates included from inside a method, so phpstan
+        # analyses them as standalone files and cannot see the variables the
+        # caller assigned. PHPCS covers their escaping and i18n instead.
+        -
+            message: '#Variable \$(entry_status|files_enabled|files_entry|enabled) might not be defined\.#'
+            path: includes/views/*
+
+        # ZibPay/zibpay_* live in the active theme (zibll), not in this plugin.
+        # The calls are guarded by class_exists()/function_exists() and by
+        # try/catch, so a theme without them degrades to the plain path.
+        -
+            message: '#(Call to static method (add_order|close_order_single|refund_order)\(\) on an unknown class ZibPay|Function zibpay_points_initiate_pay not found)\.#'
+            path: src/UserFiles/Services/Space_Store.php
+
+        # The prefixed Guzzle copy ships under vendor/s3/vendor-prefixed and is
+        # deliberately not scanned (it is third-party code, ~40k lines).
+        -
+            message: '#(Instantiated class|Call to (static )?method .* on an unknown class|has invalid return type) Sakura\\Vendor\\GuzzleHttp\\#'
+            path: src/S3/Object_Store.php

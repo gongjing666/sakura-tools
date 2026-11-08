@@ -1,0 +1,8477 @@
+# Copyright (C) 2026 星晴
+# This file is distributed under the GPL-2.0-or-later.
+msgid ""
+msgstr ""
+"Project-Id-Version: 樱花工具箱 1.19.0\n"
+"Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/sakura-tools\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"POT-Creation-Date: 2026-11-04T13:35:50+08:00\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"X-Generator: WP-CLI 2.12.0\n"
+"X-Domain: sakura-imgopt\n"
+
+#. Plugin Name of the plugin
+#: sakura-tools.php
+#: src/Admin/Menu.php:56
+#: src/Admin/Shell.php:64
+#: src/Admin/Shell.php:126
+msgid "樱花工具箱"
+msgstr ""
+
+#. Plugin URI of the plugin
+#: sakura-tools.php
+msgid "https://www.nboke.com"
+msgstr ""
+
+#. Description of the plugin
+#: sakura-tools.php
+msgid "模块化 WordPress 媒体工具箱：图片压缩、缩略图控制、媒体库整理与 S3 云存储，可按需启用。"
+msgstr ""
+
+#. Author of the plugin
+#: sakura-tools.php
+msgid "星晴"
+msgstr ""
+
+#: includes/class-gd-handler.php:66
+msgid "无法读取图片信息"
+msgstr ""
+
+#: includes/class-gd-handler.php:77
+#: src/Image/File_Processor.php:279
+msgid "图片像素超过处理上限，已跳过以避免内存耗尽。"
+msgstr ""
+
+#: includes/class-gd-handler.php:86
+msgid "GD 无法创建图片资源"
+msgstr ""
+
+#: includes/class-gd-handler.php:92
+msgid "GD 无法分配画布内存"
+msgstr ""
+
+#: includes/class-gd-handler.php:133
+msgid "当前 GD 不支持 AVIF 输出"
+msgstr ""
+
+#: includes/class-gd-handler.php:158
+msgid "GD 写入图片失败"
+msgstr ""
+
+#: includes/class-gd-handler.php:172
+#: includes/class-imagick-handler.php:253
+msgid "无法原子替换处理后的图片文件"
+msgstr ""
+
+#: includes/class-image-optimizer-module.php:88
+msgid "禁止 WordPress 裁剪"
+msgstr ""
+
+#: includes/class-image-optimizer-module.php:104
+msgid "选择要禁止的裁剪尺寸"
+msgstr ""
+
+#: includes/class-image-optimizer-module.php:114
+msgid "上传文件重命名"
+msgstr ""
+
+#: includes/class-image-optimizer-module.php:130
+msgid "开启重命名"
+msgstr ""
+
+#: includes/class-image-optimizer-module.php:136
+msgid "上传时按设定规则重命名文件，避免文件名重复，减少媒体库里出现重复文件。"
+msgstr ""
+
+#: includes/class-image-optimizer-module.php:151
+msgid "重命名规则"
+msgstr ""
+
+#: includes/class-image-optimizer-module.php:161
+msgid "图片压缩与格式转换"
+msgstr ""
+
+#: includes/class-image-optimizer-module.php:177
+msgid "开启上传压缩"
+msgstr ""
+
+#: includes/class-image-optimizer-module.php:183
+msgid "上传图片时自动压缩/转换格式"
+msgstr ""
+
+#: includes/class-image-optimizer-module.php:198
+msgid "压缩模式"
+msgstr ""
+
+#: includes/class-image-optimizer-module.php:216
+msgid "目标格式"
+msgstr ""
+
+#: includes/class-image-optimizer-module.php:234
+msgid "参与处理的源格式"
+msgstr ""
+
+#: includes/class-image-optimizer-module.php:252
+msgid "压缩质量"
+msgstr ""
+
+#: includes/class-image-optimizer-module.php:258
+msgid "数字越小文件越小，数字越大画质越好。推荐 75 到 85。"
+msgstr ""
+
+#: includes/class-image-optimizer-module.php:291
+msgid "大图放行上限"
+msgstr ""
+
+#: includes/class-image-optimizer-module.php:309
+msgid "备份原图"
+msgstr ""
+
+#: includes/class-image-optimizer-module.php:316
+msgid "处理图片前，先把原图复制到服务器上的备份文件夹，方便以后一键还原。只有真正被处理的图片才会保留备份；关闭后不再创建新备份，已经存在的备份仍可还原。还原成功后，这次备份会自动删除。"
+msgstr ""
+
+#: includes/class-image-optimizer-module.php:323
+#: includes/views/settings-backup.php:123
+msgid "自动清理策略"
+msgstr ""
+
+#: includes/class-image-optimizer-module.php:339
+msgid "保留天数"
+msgstr ""
+
+#: includes/class-image-optimizer-module.php:357
+msgid "容量上限"
+msgstr ""
+
+#: includes/class-image-optimizer-module.php:375
+msgid "卸载时删除数据"
+msgstr ""
+
+#: includes/class-image-optimizer-module.php:382
+msgid "默认关闭：卸载插件后仍保留设置、云存储密钥、统计数据与备份文件，重新安装可以接着用。开启后卸载会删除这些数据，并把本插件改过的图片地址和上传目录恢复原样。"
+msgstr ""
+
+#: includes/class-image-optimizer-module.php:389
+msgid "批量优化性能"
+msgstr ""
+
+#: includes/class-image-optimizer-module.php:405
+msgid "每批处理张数"
+msgstr ""
+
+#: includes/class-image-optimizer-module.php:411
+msgid "每次处理几张图片（1 到 20）。调大速度更快，但更占服务器资源；配置一般的服务器建议保持 1。"
+msgstr ""
+
+#: includes/class-image-optimizer-module.php:426
+msgid "批次间延迟（毫秒）"
+msgstr ""
+
+#: includes/class-image-optimizer-module.php:432
+msgid "每批之间的休息时间（0–2000 毫秒）。调大对前端访问更友好，调小处理更快。推荐 300–500。"
+msgstr ""
+
+#: includes/class-image-optimizer-module.php:440
+msgid "媒体库「图像优化」批量处理时的性能参数。批量优化采用分批异步处理，避免请求超时和服务器过载。"
+msgstr ""
+
+#: includes/class-image-optimizer-module.php:442
+msgid "注意：批量优化仅适用于存储在本地服务器的图片。如果媒体库已经被阿里云 OSS、腾讯云 COS、七牛、又拍云等云存储插件接管，图片实际在云端、本地没有副本，这里的批量优化就无法处理。这种情况建议在「上传时」就完成压缩和格式转换。"
+msgstr ""
+
+#: includes/class-image-optimizer-module.php:462
+msgid "毫秒"
+msgstr ""
+
+#: includes/class-image-optimizer-module.php:470
+msgid "勾选你不需要的裁剪尺寸。WordPress 将停止生成被勾选的尺寸，节省存储空间。原图始终保留。"
+msgstr ""
+
+#: includes/class-image-optimizer-module.php:471
+msgid "点击「扫描裁剪配置」，可以查看站点配置文件、当前主题和已启用插件分别设置了哪些尺寸，以及每个尺寸现在会不会生成。"
+msgstr ""
+
+#: includes/class-image-optimizer-module.php:496
+msgid "当前未注册任何中间尺寸。"
+msgstr ""
+
+#: includes/class-image-optimizer-module.php:500
+#: includes/class-image-optimizer-module.php:1097
+msgid "尚未扫描"
+msgstr ""
+
+#: includes/class-image-optimizer-module.php:501
+msgid "wp-config.php：尚未扫描。"
+msgstr ""
+
+#: includes/class-image-optimizer-module.php:513
+#: includes/class-image-optimizer-module.php:1094
+msgid "扫描裁剪配置"
+msgstr ""
+
+#: includes/class-image-optimizer-module.php:520
+msgid "扫描会读取站点配置、当前主题和已启用插件的设置，按「WordPress 自带 → 主题 → 插件 → 本插件禁用清单」的顺序判断每个尺寸来自哪里。同一个尺寸被多处设置时，后面的会覆盖前面的；实际已经注册的尺寸优先。扫描只更新「来源」和「状态」，不会改动你的勾选。"
+msgstr ""
+
+#: includes/class-image-optimizer-module.php:525
+#: includes/class-image-optimizer-module.php:1104
+msgid "扫描提示"
+msgstr ""
+
+#: includes/class-image-optimizer-module.php:531
+msgid "禁用"
+msgstr ""
+
+#: includes/class-image-optimizer-module.php:532
+msgid "尺寸名称"
+msgstr ""
+
+#: includes/class-image-optimizer-module.php:533
+msgid "宽 × 高"
+msgstr ""
+
+#: includes/class-image-optimizer-module.php:534
+msgid "生成状态"
+msgstr ""
+
+#: includes/class-image-optimizer-module.php:535
+msgid "裁剪方式"
+msgstr ""
+
+#: includes/class-image-optimizer-module.php:536
+#: includes/views/settings-stats.php:82
+#: src/UserFiles/Media/Media_Hooks.php:1912
+msgid "来源"
+msgstr ""
+
+#: includes/class-image-optimizer-module.php:552
+#: src/Image/Crop_Config_Scanner.php:100
+msgid "正常生成"
+msgstr ""
+
+#: includes/class-image-optimizer-module.php:565
+#: includes/class-image-optimizer-module.php:635
+#: includes/class-image-optimizer-module.php:1102
+#: src/Image/Crop_Config_Scanner.php:101
+msgid "已禁止"
+msgstr ""
+
+#: includes/class-image-optimizer-module.php:584
+#: includes/class-image-optimizer-module.php:1098
+msgid "运行中已注册，未定位静态来源"
+msgstr ""
+
+#: includes/class-image-optimizer-module.php:586
+msgid "WordPress 核心（设置中已关闭）"
+msgstr ""
+
+#: includes/class-image-optimizer-module.php:590
+#: includes/class-image-optimizer-module.php:1099
+msgid "未扫描"
+msgstr ""
+
+#: includes/class-image-optimizer-module.php:605
+#: includes/class-image-optimizer-module.php:1105
+#: includes/views/thumb-settings.php:39
+msgid "自动"
+msgstr ""
+
+#: includes/class-image-optimizer-module.php:618
+msgid "多来源宽高不一致，已按运行时值显示。"
+msgstr ""
+
+#: includes/class-image-optimizer-module.php:629
+#: includes/class-image-optimizer-module.php:1100
+msgid "硬裁剪"
+msgstr ""
+
+#: includes/class-image-optimizer-module.php:629
+#: includes/class-image-optimizer-module.php:1101
+msgid "等比缩放"
+msgstr ""
+
+#: includes/class-image-optimizer-module.php:635
+#: includes/class-image-optimizer-module.php:1103
+msgid "正常启用"
+msgstr ""
+
+#: includes/class-image-optimizer-module.php:638
+msgid "已在本插件中禁止，上传超大图时不会再生成 2560 像素的缩放版。"
+msgstr ""
+
+#: includes/class-image-optimizer-module.php:639
+msgid "未在本插件中禁止，上传超大图时 WordPress 会照常生成 2560 像素的缩放版。"
+msgstr ""
+
+#: includes/class-image-optimizer-module.php:641
+#: src/Image/Crop_Config_Scanner.php:204
+msgid "2560px 缩放版"
+msgstr ""
+
+#: includes/class-image-optimizer-module.php:641
+msgid "WordPress 自带规则"
+msgstr ""
+
+#: includes/class-image-optimizer-module.php:646
+msgid "超大图缩放"
+msgstr ""
+
+#: includes/class-image-optimizer-module.php:650
+msgid "未勾选的尺寸会正常生成。一般建议保留 thumbnail（缩略图）和 medium（中等），其余按需禁用；来源为「仅静态发现」的尺寸当前不会生成，可以放心勾选。"
+msgstr ""
+
+#. translators: 1: scan time, 2: duration in ms, 3: total, 4: enabled, 5: disabled, 6: removed, 7: pending, 8: conflicts
+#: includes/class-image-optimizer-module.php:667
+#, php-format
+msgid "上次扫描：%1$s（%2$d ms）· 尺寸 %3$d：正常 %4$d / 已禁止 %5$d / 已移除 %6$d / 待核实 %7$d / 冲突 %8$d"
+msgstr ""
+
+#. translators: %d: files scanned in the active theme
+#: includes/class-image-optimizer-module.php:681
+#, php-format
+msgid " · 主题 %d 个文件"
+msgstr ""
+
+#. translators: 1: number of plugins, 2: files scanned across plugins
+#: includes/class-image-optimizer-module.php:694
+#, php-format
+msgid " · 插件 %1$d 个（%2$d 个文件）"
+msgstr ""
+
+#. translators: %s: wp-config.php label/path.
+#: includes/class-image-optimizer-module.php:716
+#, php-format
+msgid "%s：未找到或不可读，已跳过常量扫描。"
+msgstr ""
+
+#. translators: 1: wp-config label/path, 2: total constants, 3: defined count, 4: defined values or default note
+#: includes/class-image-optimizer-module.php:731
+#, php-format
+msgid "%1$s：相关常量 %2$d 个，已定义 %3$d 个%4$s"
+msgstr ""
+
+#: includes/class-image-optimizer-module.php:735
+msgid "（均使用默认值）"
+msgstr ""
+
+#: includes/class-image-optimizer-module.php:740
+msgid "上传图片时按规则重命名文件，避免中文、特殊字符或重名带来的兼容问题。"
+msgstr ""
+
+#: includes/class-image-optimizer-module.php:744
+msgid "上传图片时按所选模式压缩或转换格式；转换结果会替换媒体库中的原图 URL，原图可按需备份。"
+msgstr ""
+
+#: includes/class-image-optimizer-module.php:764
+#: includes/views/oss-settings.php:80
+#: includes/views/thumb-settings.php:151
+#: src/Thumbnail/CLI.php:132
+msgid "启用"
+msgstr ""
+
+#: includes/class-image-optimizer-module.php:784
+msgid "可用占位符：{filename} 原文件名、{ext} 扩展名、{date} 日期、{time} 时间、{year}/{month}/{day}、{rand} 5 位随机、{rand8} 8 位随机。示例：{date}-{time}-{rand}"
+msgstr ""
+
+#: includes/class-image-optimizer-module.php:819
+msgid "仅压缩"
+msgstr ""
+
+#: includes/class-image-optimizer-module.php:823
+msgid "压缩并转换格式"
+msgstr ""
+
+#: includes/class-image-optimizer-module.php:827
+msgid "仅转换格式"
+msgstr ""
+
+#: includes/class-image-optimizer-module.php:841
+msgid "AVIF 文件更小，但兼容性略差；需要最大兼容性请选 WebP。这个选项只在「压缩并转换格式」和「仅转换格式」下有效；「仅压缩」会保留原格式，不使用这里的设置。"
+msgstr ""
+
+#: includes/class-image-optimizer-module.php:863
+msgid "只有上传图片的源格式命中这里勾选的格式，才会进入压缩/转换流程；未命中的图片只按 WordPress 默认上传流程保存。"
+msgstr ""
+
+#: includes/class-image-optimizer-module.php:864
+msgid "注意：SVG、APNG、AVIF 能否处理，取决于服务器上的图片组件（Imagick 或 GD）是否支持。"
+msgstr ""
+
+#: includes/class-image-optimizer-module.php:865
+msgid "SVG 默认不勾选：处理 SVG 时通常会被转成普通图片，文件反而变大。确实需要处理再勾选。"
+msgstr ""
+
+#: includes/class-image-optimizer-module.php:888
+#: includes/class-image-optimizer-module.php:938
+#: src/UserFiles/Admin/Space_Page.php:167
+msgid "MB"
+msgstr ""
+
+#: includes/class-image-optimizer-module.php:891
+msgid "px"
+msgstr ""
+
+#: includes/class-image-optimizer-module.php:892
+msgid "超过其中任意一个上限的图片会直接跳过：不备份、不压缩、也不转换格式，避免服务器处理大图时超时。填 0 表示不限制。默认 24 MB、3840 × 2160（4K，竖图同样适用）。"
+msgstr ""
+
+#: includes/class-image-optimizer-module.php:916
+msgid "设置原图备份的自动清理规则。留空或填 0 表示不限制。"
+msgstr ""
+
+#: includes/class-image-optimizer-module.php:926
+msgid "天"
+msgstr ""
+
+#: includes/class-image-optimizer-module.php:927
+msgid "超过这个天数的备份会被每天自动删除。填 0 表示永久保留。"
+msgstr ""
+
+#: includes/class-image-optimizer-module.php:939
+msgid "备份占用超过这个容量时，会从最旧的备份开始自动删除。填 0 表示不限制。"
+msgstr ""
+
+#: includes/class-image-optimizer-module.php:977
+msgid "批量"
+msgstr ""
+
+#: includes/class-image-optimizer-module.php:977
+#: includes/views/s3-sync-center.php:577
+#: src/S3/Object_Store.php:153
+#: src/S3/Object_Store.php:314
+#: src/S3/Object_Store.php:352
+#: src/S3/Sync_Center_Module.php:190
+msgid "上传"
+msgstr ""
+
+#: includes/class-image-optimizer-module.php:986
+msgid "未改动"
+msgstr ""
+
+#: includes/class-image-optimizer-module.php:992
+#, php-format
+msgid "节省 %s%%"
+msgstr ""
+
+#: includes/class-image-optimizer-module.php:994
+msgid "已跳过"
+msgstr ""
+
+#: includes/class-image-optimizer-module.php:996
+#: includes/views/s3-sync-center.php:351
+#: includes/views/s3-sync-center.php:394
+#: includes/views/s3-sync-center.php:484
+#: includes/views/settings-stats.php:62
+#: src/UserFiles/Frontend/Tab.php:479
+#: src/UserFiles/Media/Media_Hooks.php:1989
+msgid "失败"
+msgstr ""
+
+#: includes/class-image-optimizer-module.php:1019
+#: includes/class-s3-storage-module.php:117
+#: includes/class-s3-storage-module.php:141
+#: includes/class-s3-storage-module.php:175
+#: includes/class-s3-storage-module.php:189
+#: src/Admin/Layout.php:442
+#: src/S3/Connection_Tester.php:21
+#: src/S3/History_Migrator.php:128
+#: src/S3/Monitoring_Panel.php:164
+#: src/S3/Settings_Saver.php:46
+#: src/S3/Sync_Center_Module.php:281
+#: src/S3/Sync_Center_Module.php:312
+#: src/S3/Sync_Center_Module.php:368
+#: src/S3/Sync_Center_Module.php:391
+#: src/S3/Sync_Center_Module.php:420
+#: src/S3/Sync_Center_Module.php:444
+#: src/S3/Sync_Center_Module.php:500
+#: src/S3/Sync_Center_Module.php:535
+#: src/S3/Sync_Center_Module.php:563
+#: src/S3/Sync_Center_Module.php:742
+msgid "权限不足。"
+msgstr ""
+
+#: includes/class-image-optimizer-module.php:1055
+#: includes/class-image-optimizer-module.php:1114
+#: includes/class-media-library-module.php:460
+#: includes/class-media-library-module.php:642
+#: includes/class-media-library-module.php:807
+#: includes/class-media-library-module.php:836
+#: includes/class-media-library-module.php:869
+#: includes/class-media-library-module.php:890
+#: includes/class-media-library-module.php:923
+msgid "权限不足"
+msgstr ""
+
+#: includes/class-image-optimizer-module.php:1095
+#: src/S3/S3_Storage_Page.php:320
+msgid "正在扫描…"
+msgstr ""
+
+#: includes/class-image-optimizer-module.php:1096
+msgid "扫描失败，请稍后重试。"
+msgstr ""
+
+#: includes/class-image-optimizer-module.php:1122
+msgid "扫描结果保存失败，请检查数据库写入权限。"
+msgstr ""
+
+#: includes/class-image-optimizer-module.php:1292
+msgid "Imagick（推荐）"
+msgstr ""
+
+#: includes/class-image-optimizer-module.php:1304
+msgid "GD（备用）"
+msgstr ""
+
+#: includes/class-image-optimizer-module.php:1307
+msgid "没有可用的图片组件"
+msgstr ""
+
+#: includes/class-media-library-module.php:164
+msgid "S3 同步"
+msgstr ""
+
+#: includes/class-media-library-module.php:214
+msgid "所有格式"
+msgstr ""
+
+#: includes/class-media-library-module.php:270
+#: includes/views/oss-settings.php:52
+#: includes/views/settings-main.php:48
+msgid "图像优化"
+msgstr ""
+
+#: includes/class-media-library-module.php:271
+msgid "图像还原"
+msgstr ""
+
+#. translators: %s: number of skipped attachments.
+#: includes/class-media-library-module.php:376
+#, php-format
+msgid "已跳过 %s 个由对象存储/CDN 托管的附件：本地备份还原不会更新桶内对象，因此未执行还原。"
+msgstr ""
+
+#: includes/class-media-library-module.php:399
+msgid "没有可处理的附件：你没有编辑这些附件的权限。"
+msgstr ""
+
+#: includes/class-media-library-module.php:410
+#: includes/class-media-library-module.php:441
+msgid "图像优化进度"
+msgstr ""
+
+#: includes/class-media-library-module.php:468
+msgid "队列为空"
+msgstr ""
+
+#: includes/class-media-library-module.php:531
+msgid "源文件不存在或无法访问"
+msgstr ""
+
+#: includes/class-media-library-module.php:563
+msgid "原图备份失败，已跳过处理（原图未改动）"
+msgstr ""
+
+#: includes/class-media-library-module.php:754
+msgid "还原原图"
+msgstr ""
+
+#: includes/class-media-library-module.php:763
+msgid "确定还原为压缩前的原图吗？当前压缩文件将被替换。"
+msgstr ""
+
+#: includes/class-media-library-module.php:766
+msgid "还原中..."
+msgstr ""
+
+#: includes/class-media-library-module.php:773
+msgid "已还原"
+msgstr ""
+
+#: includes/class-media-library-module.php:777
+msgid "还原失败"
+msgstr ""
+
+#: includes/class-media-library-module.php:781
+msgid "请求失败"
+msgstr ""
+
+#: includes/class-media-library-module.php:790
+#: includes/views/settings-backup.php:48
+msgid "原图备份"
+msgstr ""
+
+#: includes/class-media-library-module.php:810
+#: src/Image/Restore_Service.php:82
+msgid "无效的附件 ID"
+msgstr ""
+
+#: includes/class-media-library-module.php:815
+msgid "该图片由外部存储（如 OSS）托管，不支持还原原图。"
+msgstr ""
+
+#. translators: 1: 文件数, 2: 释放空间
+#: includes/class-media-library-module.php:854
+#, php-format
+msgid "已清空 %1$d 个备份文件，释放 %2$s。"
+msgstr ""
+
+#: includes/class-media-library-module.php:878
+msgid "已刷新。"
+msgstr ""
+
+#. translators: 1: 文件数, 2: 释放空间
+#: includes/class-media-library-module.php:904
+#, php-format
+msgid "已清理 %1$d 个过期备份，释放 %2$s。"
+msgstr ""
+
+#: includes/class-s3-doge-cloud.php:113
+msgid "多吉云临时凭据请求失败："
+msgstr ""
+
+#: includes/class-s3-doge-cloud.php:117
+msgid "多吉云临时凭据请求返回非 200 状态。"
+msgstr ""
+
+#: includes/class-s3-storage-module.php:194
+msgid "S3 未启用或配置不完整，已拒绝重试。"
+msgstr ""
+
+#: includes/class-s3-storage-module.php:226
+msgid "没有可重试的上传或删除任务。"
+msgstr ""
+
+#. translators: 1: upload jobs, 2: delete jobs.
+#: includes/class-s3-storage-module.php:241
+#, php-format
+msgid "已将 %1$d 个上传任务和 %2$d 个删除任务加入持久队列。"
+msgstr ""
+
+#: includes/class-thumbnail-optimizer-module.php:288
+msgid "已保存设置，但未从对象存储配置中解析出图片域名，前台不会处理任何图片。"
+msgstr ""
+
+#: includes/class-thumbnail-optimizer-module.php:357
+msgid "存储配置（厂商 / 图片域名 / 端点）已变更，之前的探测结论与缓存的缩略图地址已作废，改写暂时关闭。请重新探测确认后再启用。"
+msgstr ""
+
+#: includes/class-thumbnail-optimizer-module.php:394
+msgid "没有权限。"
+msgstr ""
+
+#: includes/views/basic-settings.php:40
+msgid "通过"
+msgstr ""
+
+#: includes/views/basic-settings.php:41
+msgid "建议"
+msgstr ""
+
+#: includes/views/basic-settings.php:42
+#: includes/views/basic-settings.php:56
+msgid "需要处理"
+msgstr ""
+
+#: includes/views/basic-settings.php:57
+msgid "有建议"
+msgstr ""
+
+#: includes/views/basic-settings.php:57
+msgid "环境可用"
+msgstr ""
+
+#: includes/views/basic-settings.php:75
+#: includes/views/basic-settings.php:86
+#: includes/views/basic-settings.php:160
+#: includes/views/basic-settings.php:204
+#: includes/views/basic-settings.php:210
+#: includes/views/thumb-settings.php:68
+#: src/Thumbnail/Provider_Status.php:113
+#: src/UserFiles/Admin/Space_Page.php:251
+#: src/UserFiles/Services/Space_Store.php:1041
+msgid "未知"
+msgstr ""
+
+#: includes/views/basic-settings.php:78
+#: includes/views/basic-settings.php:89
+msgid "不限制"
+msgstr ""
+
+#. translators: %s: seconds.
+#: includes/views/basic-settings.php:81
+#, php-format
+msgid "%s 秒"
+msgstr ""
+
+#: includes/views/basic-settings.php:111
+msgid "基础设置"
+msgstr ""
+
+#: includes/views/basic-settings.php:112
+msgid "服务器运行参数、PHP 扩展与图像引擎能力，一页看清；卡片间隔在这里统一设置。"
+msgstr ""
+
+#: includes/views/basic-settings.php:114
+msgid "进入图像优化"
+msgstr ""
+
+#: includes/views/basic-settings.php:115
+msgid "重新检测"
+msgstr ""
+
+#: includes/views/basic-settings.php:116
+msgid "服务端渲染 · 加载时刷新"
+msgstr ""
+
+#. translators: %d: number of checks.
+#: includes/views/basic-settings.php:122
+#, php-format
+msgid "检测 %d 项"
+msgstr ""
+
+#: includes/views/basic-settings.php:124
+msgid "项通过"
+msgstr ""
+
+#: includes/views/basic-settings.php:125
+#, php-format
+msgid "%1$d 项建议 · %2$d 项需要处理"
+msgstr ""
+
+#: includes/views/basic-settings.php:127
+#, php-format
+msgid "PHP %1$s · %2$s"
+msgstr ""
+
+#: includes/views/basic-settings.php:137
+msgid "服务器运行环境"
+msgstr ""
+
+#: includes/views/basic-settings.php:138
+msgid "PHP、Web 服务与 WordPress 的当前读数。"
+msgstr ""
+
+#: includes/views/basic-settings.php:146
+#: src/Admin/Environment_Report.php:54
+msgid "PHP 版本"
+msgstr ""
+
+#: includes/views/basic-settings.php:150
+msgid "满足 8.2+"
+msgstr ""
+
+#: includes/views/basic-settings.php:150
+msgid "低于 8.2"
+msgstr ""
+
+#: includes/views/basic-settings.php:155
+msgid "运行方式"
+msgstr ""
+
+#: includes/views/basic-settings.php:159
+msgid "Web 服务器"
+msgstr ""
+
+#: includes/views/basic-settings.php:163
+#: src/Admin/Environment_Report.php:56
+msgid "内存上限"
+msgstr ""
+
+#: includes/views/basic-settings.php:167
+msgid "建议 256M+"
+msgstr ""
+
+#: includes/views/basic-settings.php:172
+msgid "最大执行时间"
+msgstr ""
+
+#: includes/views/basic-settings.php:176
+msgid "上传文件上限"
+msgstr ""
+
+#: includes/views/basic-settings.php:180
+msgid "建议 32M+"
+msgstr ""
+
+#: includes/views/basic-settings.php:185
+msgid "POST 上限"
+msgstr ""
+
+#: includes/views/basic-settings.php:189
+#: src/Admin/Environment_Report.php:61
+msgid "OPcache"
+msgstr ""
+
+#: includes/views/basic-settings.php:193
+#: src/Admin/Environment_Report.php:55
+msgid "WordPress"
+msgstr ""
+
+#: includes/views/basic-settings.php:202
+msgid "数据库"
+msgstr ""
+
+#: includes/views/basic-settings.php:205
+msgid "MySQL / MariaDB"
+msgstr ""
+
+#: includes/views/basic-settings.php:209
+msgid "时区"
+msgstr ""
+
+#: includes/views/basic-settings.php:221
+#: src/Admin/Environment_Report.php:58
+msgid "图像引擎"
+msgstr ""
+
+#: includes/views/basic-settings.php:222
+msgid "WordPress 当前可用的图像处理能力；Imagick 优先，GD 作为回退。"
+msgstr ""
+
+#: includes/views/basic-settings.php:230
+msgid "首选编辑器"
+msgstr ""
+
+#: includes/views/basic-settings.php:239
+#: includes/views/basic-settings.php:246
+#: src/Admin/Environment_Report.php:278
+msgid "未安装"
+msgstr ""
+
+#: includes/views/basic-settings.php:240
+#: includes/views/basic-settings.php:247
+#: includes/views/userfiles-space-admin.php:134
+#: src/Thumbnail/Provider_Status.php:110
+msgid "可用"
+msgstr ""
+
+#: includes/views/basic-settings.php:240
+#: includes/views/basic-settings.php:247
+#: includes/views/thumb-settings.php:54
+#: includes/views/thumb-settings.php:58
+msgid "不可用"
+msgstr ""
+
+#: includes/views/basic-settings.php:252
+#: includes/views/basic-settings.php:256
+#: src/Admin/Environment_Report.php:59
+#: src/Admin/Environment_Report.php:60
+msgid "支持"
+msgstr ""
+
+#: includes/views/basic-settings.php:252
+#: includes/views/basic-settings.php:256
+#: src/Admin/Environment_Report.php:59
+#: src/Admin/Environment_Report.php:60
+#: src/Thumbnail/Provider_Status.php:112
+msgid "不支持"
+msgstr ""
+
+#: includes/views/basic-settings.php:259
+msgid "支持格式"
+msgstr ""
+
+#: includes/views/basic-settings.php:279
+msgid "环境检查"
+msgstr ""
+
+#: includes/views/basic-settings.php:280
+msgid "按插件的实际依赖逐项核对。"
+msgstr ""
+
+#: includes/views/basic-settings.php:302
+msgid "PHP 扩展"
+msgstr ""
+
+#: includes/views/basic-settings.php:311
+msgid "S3 上传依赖 cURL 与 OpenSSL；图片处理依赖 Imagick 或 GD。"
+msgstr ""
+
+#: includes/views/basic-settings.php:319
+msgid "卡片间隔"
+msgstr ""
+
+#: includes/views/basic-settings.php:320
+msgid "所有插件页面共用一组间隔；保存后刷新页面生效。"
+msgstr ""
+
+#: includes/views/basic-settings.php:322
+msgid "全局"
+msgstr ""
+
+#: includes/views/basic-settings.php:329
+msgid "左右间隔"
+msgstr ""
+
+#. translators: %d: maximum gap in pixels.
+#: includes/views/basic-settings.php:334
+#, php-format
+msgid "列与列之间 · 0–%d px"
+msgstr ""
+
+#: includes/views/basic-settings.php:338
+msgid "上下间隔"
+msgstr ""
+
+#. translators: %d: maximum gap in pixels.
+#: includes/views/basic-settings.php:343
+#, php-format
+msgid "行与行之间 · 0–%d px"
+msgstr ""
+
+#: includes/views/basic-settings.php:346
+msgid "保存间隔"
+msgstr ""
+
+#: includes/views/basic-settings.php:347
+msgid "只保存这两个数值，不会清理缓存，也不改动其它页面布局。"
+msgstr ""
+
+#: includes/views/media-progress.php:29
+#: includes/views/media-progress.php:39
+msgid "批量处理"
+msgstr ""
+
+#: includes/views/media-progress.php:32
+msgid "批量任务运行中"
+msgstr ""
+
+#: includes/views/media-progress.php:33
+#: includes/views/media-progress.php:56
+#: includes/views/media-progress.php:107
+msgid "返回媒体库"
+msgstr ""
+
+#: includes/views/media-progress.php:40
+msgid "批量任务在后台逐张执行，请保持此页面打开。任务结束后会给出成功、失败与跳过统计。"
+msgstr ""
+
+#: includes/views/media-progress.php:43
+msgid "队列"
+msgstr ""
+
+#: includes/views/media-progress.php:44
+msgid "张图片"
+msgstr ""
+
+#: includes/views/media-progress.php:45
+msgid "任务结束后自动汇总"
+msgstr ""
+
+#: includes/views/media-progress.php:51
+msgid "当前没有待处理任务"
+msgstr ""
+
+#: includes/views/media-progress.php:53
+msgid "没有待处理的图片。请回到媒体库选择图片后重新发起批量优化或还原。"
+msgstr ""
+
+#. translators: %s: number of skipped attachments.
+#: includes/views/media-progress.php:73
+#, php-format
+msgid "有 %s 张图片存放在云存储或 CDN 上，已跳过还原。"
+msgstr ""
+
+#. translators: %s: Number of images queued for processing.
+#: includes/views/media-progress.php:90
+#, php-format
+msgid "准备处理 %s 张图片…"
+msgstr ""
+
+#: includes/views/media-progress.php:97
+msgid "批量处理进度"
+msgstr ""
+
+#. translators: 1: processed count, 2: total count.
+#: includes/views/media-progress.php:126
+#, php-format
+msgid "正在处理 %1$s / %2$s…"
+msgstr ""
+
+#. translators: %s: number of successful items.
+#: includes/views/media-progress.php:128
+#, php-format
+msgid "成功 %s 张"
+msgstr ""
+
+#. translators: %s: number of failed items.
+#: includes/views/media-progress.php:130
+#, php-format
+msgid "，失败 %s 张"
+msgstr ""
+
+#. translators: %s: number of skipped items.
+#: includes/views/media-progress.php:132
+#, php-format
+msgid "，跳过 %s 张"
+msgstr ""
+
+#: includes/views/media-progress.php:133
+msgid "发生错误，已停止。"
+msgstr ""
+
+#: includes/views/media-progress.php:134
+msgid "请求失败，已停止。请刷新页面重试。"
+msgstr ""
+
+#: includes/views/media-progress.php:135
+msgid "还原"
+msgstr ""
+
+#: includes/views/media-progress.php:136
+msgid "优化"
+msgstr ""
+
+#. translators: %s: operation name (optimize or restore).
+#: includes/views/media-progress.php:138
+#, php-format
+msgid "%s完成！"
+msgstr ""
+
+#. translators: %s: total number of items.
+#: includes/views/media-progress.php:140
+#, php-format
+msgid "总计：%s 张"
+msgstr ""
+
+#. translators: %s: successful item count markup.
+#: includes/views/media-progress.php:142
+#, php-format
+msgid "成功：%s 张"
+msgstr ""
+
+#. translators: %s: failed item count markup.
+#: includes/views/media-progress.php:144
+#, php-format
+msgid "失败：%s 张"
+msgstr ""
+
+#. translators: 1: skipped count, 2: skip reason label.
+#: includes/views/media-progress.php:146
+#, php-format
+msgid "跳过：%1$s 张%2$s"
+msgstr ""
+
+#: includes/views/media-progress.php:147
+msgid "（云存储或 CDN）"
+msgstr ""
+
+#: includes/views/media-progress.php:148
+msgid "（动图、超过上限、格式不支持或体积没有变小）"
+msgstr ""
+
+#: includes/views/oss-settings.php:20
+#: includes/views/oss-settings.php:195
+msgid "小图 thumbnail"
+msgstr ""
+
+#: includes/views/oss-settings.php:21
+#: includes/views/oss-settings.php:199
+msgid "中图 medium"
+msgstr ""
+
+#: includes/views/oss-settings.php:22
+#: includes/views/oss-settings.php:203
+msgid "大图 large"
+msgstr ""
+
+#: includes/views/oss-settings.php:26
+msgid "文章列表模式"
+msgstr ""
+
+#: includes/views/oss-settings.php:27
+msgid "仅匹配主文章列表中 posts-item list 的缩略图区域。"
+msgstr ""
+
+#: includes/views/oss-settings.php:30
+msgid "文章卡片 / UI 模式"
+msgstr ""
+
+#: includes/views/oss-settings.php:31
+msgid "仅匹配主文章列表中 posts-item card 的缩略图区域。"
+msgstr ""
+
+#: includes/views/oss-settings.php:34
+#: includes/views/thumb-settings.php:203
+msgid "侧边栏小工具"
+msgstr ""
+
+#: includes/views/oss-settings.php:35
+msgid "仅匹配真实 .sidebar 容器及确认挂载在侧边栏位置的 Ajax 小工具。"
+msgstr ""
+
+#: includes/views/oss-settings.php:48
+#: includes/views/oss-settings.php:59
+#: includes/views/thumb-settings.php:97
+msgid "缩略图优化"
+msgstr ""
+
+#: includes/views/oss-settings.php:51
+#: includes/views/thumb-settings.php:88
+msgid "规则已开启"
+msgstr ""
+
+#: includes/views/oss-settings.php:51
+#: includes/views/thumb-settings.php:89
+msgid "规则未开启"
+msgstr ""
+
+#: includes/views/oss-settings.php:60
+msgid "只处理明确授权的列表、卡片与侧边栏缩略图区域；正文、封面、广告和页头页脚图片不会被接管。"
+msgstr ""
+
+#: includes/views/oss-settings.php:62
+#: includes/views/oss-settings.php:237
+#: includes/views/thumb-settings.php:105
+#: includes/views/thumb-settings.php:474
+msgid "保存设置"
+msgstr ""
+
+#: includes/views/oss-settings.php:66
+msgid "已开启"
+msgstr ""
+
+#: includes/views/oss-settings.php:66
+msgid "未开启"
+msgstr ""
+
+#: includes/views/oss-settings.php:67
+msgid "未填写域名"
+msgstr ""
+
+#: includes/views/oss-settings.php:68
+msgid "按 URL 主机名精确匹配"
+msgstr ""
+
+#: includes/views/oss-settings.php:76
+msgid "作用域与规则"
+msgstr ""
+
+#: includes/views/oss-settings.php:76
+msgid "只有位于授权容器内的图片才会被改写。"
+msgstr ""
+
+#: includes/views/oss-settings.php:84
+msgid "开启缩略图参数拼接"
+msgstr ""
+
+#: includes/views/oss-settings.php:89
+msgid "侧边栏小工具兜底"
+msgstr ""
+
+#: includes/views/oss-settings.php:89
+msgid "子比主题专用"
+msgstr ""
+
+#: includes/views/oss-settings.php:93
+msgid "允许处理真实侧边栏容器中的小工具图片"
+msgstr ""
+
+#: includes/views/oss-settings.php:95
+msgid "仅识别侧边栏位置，不处理顶部/底部全宽小工具、主内容区小工具或顶部多功能组件。"
+msgstr ""
+
+#: includes/views/oss-settings.php:97
+msgid "当前不是子比主题：侧边栏 Ajax 兜底停用；主内容区仍可按下方作用域 class 使用。"
+msgstr ""
+
+#: includes/views/oss-settings.php:102
+msgid "OSS 域名"
+msgstr ""
+
+#: includes/views/oss-settings.php:105
+msgid "必填。按 URL 的精确主机名匹配，不再使用模糊字符串匹配。"
+msgstr ""
+
+#: includes/views/oss-settings.php:109
+msgid "裁剪保留位置 (pos)"
+msgstr ""
+
+#: includes/views/oss-settings.php:114
+msgid "智能(auto)"
+msgstr ""
+
+#: includes/views/oss-settings.php:115
+msgid "居中"
+msgstr ""
+
+#: includes/views/oss-settings.php:116
+msgid "上"
+msgstr ""
+
+#: includes/views/oss-settings.php:117
+msgid "下"
+msgstr ""
+
+#: includes/views/oss-settings.php:118
+msgid "左"
+msgstr ""
+
+#: includes/views/oss-settings.php:119
+msgid "右"
+msgstr ""
+
+#: includes/views/oss-settings.php:131
+msgid "仅在宽和高都存在且启用裁剪时生效。"
+msgstr ""
+
+#: includes/views/oss-settings.php:135
+msgid "作用域 class（高级）"
+msgstr ""
+
+#: includes/views/oss-settings.php:139
+msgid "列表行容器"
+msgstr ""
+
+#: includes/views/oss-settings.php:140
+msgid "单条内容"
+msgstr ""
+
+#: includes/views/oss-settings.php:141
+msgid "缩略图区域"
+msgstr ""
+
+#: includes/views/oss-settings.php:142
+msgid "侧边栏容器"
+msgstr ""
+
+#: includes/views/oss-settings.php:151
+msgid "逗号分隔。默认适配子比主题；其它主题请填写包裹图片的列表/条目/缩略图容器 class。图片必须位于这些容器内才会被改写，避免误改头像、Logo 等站点图片。"
+msgstr ""
+
+#: includes/views/oss-settings.php:157
+msgid "按显示场景设置参数"
+msgstr ""
+
+#: includes/views/oss-settings.php:157
+msgid "每个场景可选基础预设或自定义参数，互不联动。"
+msgstr ""
+
+#: includes/views/oss-settings.php:169
+msgid "基础预设"
+msgstr ""
+
+#: includes/views/oss-settings.php:178
+msgid "场景自定义"
+msgstr ""
+
+#: includes/views/oss-settings.php:179
+msgid "例如 ?fmt=webp&amp;w=500&amp;mode=clip"
+msgstr ""
+
+#: includes/views/oss-settings.php:182
+msgid "支持 ?query=params 或 !style=name；留空时使用所选基础预设。"
+msgstr ""
+
+#: includes/views/oss-settings.php:189
+msgid "基础尺寸预设"
+msgstr ""
+
+#: includes/views/oss-settings.php:189
+msgid "宽/高为 0 表示不限制；自定义参数覆盖宽高裁剪。"
+msgstr ""
+
+#: includes/views/oss-settings.php:214
+#: includes/views/thumb-settings.php:290
+msgid "宽"
+msgstr ""
+
+#: includes/views/oss-settings.php:218
+#: includes/views/thumb-settings.php:291
+msgid "高"
+msgstr ""
+
+#: includes/views/oss-settings.php:223
+msgid "裁剪"
+msgstr ""
+
+#: includes/views/oss-settings.php:227
+msgid "预设自定义"
+msgstr ""
+
+#: includes/views/oss-settings.php:228
+msgid "填写后忽略该预设的宽高裁剪"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:52
+#: includes/views/s3-sync-center.php:614
+#: includes/views/s3-sync-center.php:625
+msgid "错误"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:52
+#: includes/views/s3-sync-center.php:615
+#: includes/views/s3-sync-center.php:625
+msgid "警告"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:52
+#: includes/views/s3-sync-center.php:616
+#: includes/views/s3-sync-center.php:625
+msgid "信息"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:70
+#: src/UserFiles/Frontend/Tab.php:475
+#: src/UserFiles/Media/Media_Hooks.php:1981
+msgid "排队中"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:71
+msgid "进行中"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:72
+#: includes/views/userfiles-admin.php:190
+#: src/UserFiles/Frontend/Tab.php:477
+#: src/UserFiles/Media/Media_Hooks.php:1985
+msgid "已完成"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:73
+msgid "已中断"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:74
+#: src/UserFiles/Admin/Page.php:216
+#: src/UserFiles/Frontend/Tab.php:480
+#: src/UserFiles/Media/Media_Hooks.php:1991
+msgid "已停止"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:77
+msgid "扫描本地目录"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:78
+msgid "读取云端文件列表"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:79
+msgid "核对汇总"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:81
+msgid "未开始"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:104
+msgid "兼容模式"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:165
+#: includes/views/s3-sync-center.php:292
+#: includes/views/s3-sync-center.php:376
+#: includes/views/s3-sync-center.php:487
+#: src/S3/Sync_Center_Module.php:201
+#: src/S3/Sync_Status.php:474
+msgid "已同步"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:166
+#: includes/views/s3-sync-center.php:352
+#: includes/views/s3-sync-center.php:483
+#: src/S3/Sync_Center_Module.php:202
+msgid "待上传"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:167
+#: src/S3/Sync_Center_Module.php:203
+#: src/S3/Sync_Status.php:478
+msgid "同步失败"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:168
+#: includes/views/s3-sync-center.php:353
+#: includes/views/s3-sync-center.php:485
+#: src/S3/Sync_Center_Module.php:204
+msgid "仅云端"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:169
+#: includes/views/s3-sync-center.php:486
+#: includes/views/s3-sync-center.php:565
+#: src/S3/Sync_Center_Module.php:198
+msgid "内容不一致"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:179
+#: includes/views/s3-sync-center.php:498
+#: includes/views/settings-stats.php:79
+#: includes/views/userfiles-tab.php:102
+#: src/S3/Sync_Center_Module.php:208
+#: src/UserFiles/Frontend/Tab.php:351
+#: src/UserFiles/Frontend/Tab.php:482
+msgid "图片"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:180
+#: includes/views/s3-sync-center.php:499
+#: includes/views/userfiles-tab.php:105
+#: src/S3/Sync_Center_Module.php:209
+#: src/UserFiles/Frontend/Tab.php:354
+#: src/UserFiles/Frontend/Tab.php:485
+msgid "视频"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:181
+#: includes/views/s3-sync-center.php:500
+#: includes/views/userfiles-tab.php:104
+#: src/S3/Sync_Center_Module.php:210
+#: src/UserFiles/Frontend/Tab.php:353
+#: src/UserFiles/Frontend/Tab.php:484
+msgid "压缩包"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:182
+#: includes/views/s3-sync-center.php:501
+#: src/S3/Sync_Center_Module.php:211
+msgid "其他"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:185
+msgid "尚未核对"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:186
+msgid "未接管媒体 URL"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:187
+#: includes/views/thumb-settings.php:112
+msgid "连接正常"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:187
+#: includes/views/s3-sync-center.php:426
+msgid "配置不完整"
+msgstr ""
+
+#. translators: 1: start, 2: end, 3: total.
+#: includes/views/s3-sync-center.php:191
+#: src/S3/Sync_Center_Module.php:184
+#, php-format
+msgid "显示 %1$s–%2$s 项，共 %3$s 项"
+msgstr ""
+
+#. translators: %s: error.
+#: includes/views/s3-sync-center.php:198
+#, php-format
+msgid "兼容模式：同步记录已停用，当前为缓存快照（%1$s），云端列举失败：%2$s。"
+msgstr ""
+
+#. translators: %s: build time.
+#: includes/views/s3-sync-center.php:198
+#, php-format
+msgid "兼容模式：同步记录已停用，当前显示 <strong>%s</strong> 构建的缓存快照；扫描、搜索与分页暂不可用，重新启用同步记录后恢复。"
+msgstr ""
+
+#. translators: %s: build time.
+#: includes/views/s3-sync-center.php:199
+#: includes/views/s3-sync-center.php:441
+msgid "启用同步记录"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:230
+msgid "配置完整"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:230
+msgid "请检查设置"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:237
+msgid "Object Storage / Sync Center"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:238
+#: src/S3/Sync_Center_Panel.php:76
+msgid "S3 同步中心"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:239
+msgid "把本地媒体库和云存储放在一起对照：看清哪些已同步、哪些只在一端、哪些失败，并能继续迁移。"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:240
+msgid "名词说明：「核对」指对比本地与云端的文件清单；「已停止重试」表示失败多次后不再自动重试。"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:244
+msgid "开始完整核对"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:248
+msgid "刷新差异"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:250
+#: includes/views/s3-sync-center.php:643
+msgid "导出差异表格（CSV）"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:251
+msgid "只读取元数据，不移动文件"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:254
+msgid "连接摘要"
+msgstr ""
+
+#. translators: %s: scan time.
+#: includes/views/s3-sync-center.php:257
+#, php-format
+msgid "最近核对 %s"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:260
+msgid "尚未配置存储桶"
+msgstr ""
+
+#. translators: 1: coverage, 2: cloud size.
+#: includes/views/s3-sync-center.php:265
+#, php-format
+msgid "同步覆盖率 %1$s%% · 云端 %2$s"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:269
+msgid "本页跳转"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:270
+msgid "本页"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:271
+msgid "总览"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:272
+#: includes/views/s3-sync-center.php:339
+msgid "任务中心"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:273
+#: includes/views/s3-sync-center.php:472
+msgid "文件核对"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:274
+msgid "日志"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:275
+msgid "存储分布"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:278
+msgid "同步摘要"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:280
+msgid "本地媒体"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:281
+#: includes/views/s3-sync-center.php:287
+#: includes/views/s3-sync-center.php:293
+#: includes/views/s3-sync-center.php:457
+#: includes/views/settings-backup.php:50
+#: src/UserFiles/Frontend/Tab.php:357
+msgid "个文件"
+msgstr ""
+
+#. translators: %s: scan time.
+#: includes/views/s3-sync-center.php:283
+#, php-format
+msgid "最近扫描 %s"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:286
+#: includes/views/s3-sync-center.php:375
+msgid "云端文件"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:289
+msgid "按云存储清单统计"
+msgstr ""
+
+#. translators: %s: coverage.
+#: includes/views/s3-sync-center.php:294
+#, php-format
+msgid "%s%% 覆盖率"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:298
+msgid "待处理差异"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:299
+#: src/UserFiles/Admin/Page.php:221
+#: src/UserFiles/Frontend/Tab.php:359
+msgid "项"
+msgstr ""
+
+#. translators: 1: pending, 2: failed, 3: remote.
+#: includes/views/s3-sync-center.php:300
+#, php-format
+msgid "%1$d 待上传 · %2$d 失败 · %3$d 仅云端"
+msgstr ""
+
+#. translators: %d: mismatch.
+#: includes/views/s3-sync-center.php:301
+#, php-format
+msgid "其中 %d 项需人工核对"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:304
+msgid "失败任务"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:305
+msgid "个"
+msgstr ""
+
+#. translators: %d: jobs.
+#: includes/views/s3-sync-center.php:306
+#, php-format
+msgid "重试队列 %d 个任务"
+msgstr ""
+
+#. translators: %d: jobs.
+#: includes/views/s3-sync-center.php:307
+msgid "动作队列已调度"
+msgstr ""
+
+#. translators: %d: jobs.
+#: includes/views/s3-sync-center.php:307
+msgid "动作队列按需调度"
+msgstr ""
+
+#. translators: 1: phase, 2: processed.
+#: includes/views/s3-sync-center.php:317
+#, php-format
+msgid "核对进行中（%1$s，已处理 %2$s 个），可关闭页面由后台继续；也可随时停止。"
+msgstr ""
+
+#. translators: 1: phase, 2: processed.
+#: includes/views/s3-sync-center.php:317
+msgid "准备中"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:319
+msgid "上一次核对中断，同步记录仍可用；点击“继续核对”会从断点续跑，不会产生重复行。"
+msgstr ""
+
+#. translators: 1: difference, 2: pending, 3: failed, 4: remote.
+#: includes/views/s3-sync-center.php:329
+#, php-format
+msgid "最近一次全量核对发现 <strong>%1$s 项差异</strong>：%2$s 个只在本地上传、%3$s 个上传失败、%4$s 个只在云端。建议先处理失败项，再执行批量上传。"
+msgstr ""
+
+#. translators: 1: difference, 2: pending, 3: failed, 4: remote.
+#: includes/views/s3-sync-center.php:330
+msgid "查看失败项"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:338
+msgid "Task Center"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:340
+msgid "核对、重试与迁移都从这里开始；失败任务保留错误与重试次数。"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:345
+#: includes/views/settings-backup.php:59
+#: includes/views/userfiles-admin.php:194
+#: includes/views/userfiles-admin.php:289
+#: includes/views/userfiles-space-admin.php:709
+msgid "刷新"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:349
+msgid "任务分类"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:350
+msgid "全部差异"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:360
+msgid "最近一次全量核对"
+msgstr ""
+
+#. translators: 1: scan time, 2: phase.
+#: includes/views/s3-sync-center.php:362
+#, php-format
+msgid "同步记录表 %1$s · %2$s"
+msgstr ""
+
+#. translators: 1: scan time, 2: phase.
+#: includes/views/s3-sync-center.php:362
+msgid "实时读取"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:364
+msgid "读取本地图片目录和云端文件清单；不移动文件，可随时刷新。"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:368
+msgid "同步覆盖进度"
+msgstr ""
+
+#. translators: 1: synced, 2: total, 3: local files, 4: cloud objects.
+#: includes/views/s3-sync-center.php:370
+#, php-format
+msgid "<strong>%1$s</strong> / %2$s 个文件 · 本地 %3$s · 云端 %4$s"
+msgstr ""
+
+#. translators: 1: synced, 2: total, 3: local files, 4: cloud objects.
+#: includes/views/s3-sync-center.php:371
+msgid "同步记录表 · 实时读取"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:374
+msgid "本地文件"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:377
+msgid "待处理"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:381
+msgid "重新核对"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:382
+msgid "停止核对"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:383
+msgid "继续核对"
+msgstr ""
+
+#. translators: %d: failed.
+#: includes/views/s3-sync-center.php:384
+#, php-format
+msgid "重试失败 (%d)"
+msgstr ""
+
+#. translators: %d: failed.
+#: includes/views/s3-sync-center.php:385
+msgid "查看日志"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:387
+msgid "同步记录表实时读取 · 扫描可断点续跑"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:387
+msgid "兼容模式 · 只读快照"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:393
+msgid "近 7 天文件变更"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:394
+msgid "正常"
+msgstr ""
+
+#. translators: 1: ok, 2: failed.
+#: includes/views/s3-sync-center.php:394
+#, php-format
+msgid "共 %1$s / %2$s 个样本"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:396
+msgid "近七天文件变更"
+msgstr ""
+
+#. translators: 1: day, 2: count.
+#: includes/views/s3-sync-center.php:404
+#, php-format
+msgid "%1$s：正常 %2$d"
+msgstr ""
+
+#. translators: 1: day, 2: count.
+#: includes/views/s3-sync-center.php:406
+#, php-format
+msgid "%1$s：失败 %2$d"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:420
+msgid "Connection"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:421
+msgid "连接与队列健康"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:426
+#: src/S3/S3_Storage_Page.php:66
+msgid "配置可用"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:427
+msgid "凭据已加密"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:430
+#: src/S3/S3_Storage_Page.php:167
+msgid "服务商"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:431
+msgid "存储桶"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:433
+msgid "媒体 URL"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:434
+msgid "最近核对"
+msgstr ""
+
+#. translators: 1: time, 2: local, 3: cloud.
+#: includes/views/s3-sync-center.php:434
+#, php-format
+msgid "%1$s · %2$s / %3$s"
+msgstr ""
+
+#. translators: 1: time, 2: local, 3: cloud.
+#: includes/views/s3-sync-center.php:435
+msgid "重试队列"
+msgstr ""
+
+#. translators: %d: jobs.
+#: includes/views/s3-sync-center.php:435
+#, php-format
+msgid "%d 个任务"
+msgstr ""
+
+#. translators: 1: waiting, 2: dead.
+#: includes/views/s3-sync-center.php:435
+#, php-format
+msgid "动作队列 %1$d 待执行 / %2$d 死信"
+msgstr ""
+
+#. translators: 1: waiting, 2: dead.
+#: includes/views/s3-sync-center.php:436
+msgid "本轮指标"
+msgstr ""
+
+#. translators: 1: pages, 2: batches, 3: avg ms, 4: 429, 5: 5xx.
+#: includes/views/s3-sync-center.php:436
+#, php-format
+msgid "页面 %1$d · 批次 %2$d · 均 %3$d ms · 429 %4$d · 5xx %5$d"
+msgstr ""
+
+#. translators: 1: pages, 2: batches, 3: avg ms, 4: 429, 5: 5xx.
+#: includes/views/s3-sync-center.php:437
+msgid "定时任务"
+msgstr ""
+
+#. translators: 1: pages, 2: batches, 3: avg ms, 4: 429, 5: 5xx.
+#: includes/views/s3-sync-center.php:437
+msgid "已调度"
+msgstr ""
+
+#. translators: 1: pages, 2: batches, 3: avg ms, 4: 429, 5: 5xx.
+#: includes/views/s3-sync-center.php:437
+msgid "未调度"
+msgstr ""
+
+#. translators: 1: pages, 2: batches, 3: avg ms, 4: 429, 5: 5xx.
+#: includes/views/s3-sync-center.php:437
+msgid "按需执行"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:438
+msgid "凭据"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:438
+msgid "已加密"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:438
+msgid "未展示"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:441
+msgid "停用同步记录"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:442
+#: src/S3/S3_Storage_Page.php:209
+msgid "测试连接"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:443
+#: src/S3/S3_Storage_Page.php:161
+msgid "连接设置"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:451
+msgid "Storage Mix"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:452
+msgid "云端体积分布"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:457
+msgid "云端文件体积分布"
+msgstr ""
+
+#. translators: %s: size.
+#: includes/views/s3-sync-center.php:464
+#, php-format
+msgid "本地 %s"
+msgstr ""
+
+#. translators: %s: size.
+#: includes/views/s3-sync-center.php:464
+#, php-format
+msgid "云端 %s"
+msgstr ""
+
+#. translators: %s: size.
+#: includes/views/s3-sync-center.php:464
+#, php-format
+msgid "差 %s"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:471
+msgid "Reconciliation"
+msgstr ""
+
+#. translators: %d: total.
+#: includes/views/s3-sync-center.php:472
+#, php-format
+msgid "%d 项差异"
+msgstr ""
+
+#. translators: %d: total.
+#: includes/views/s3-sync-center.php:473
+msgid "按文件名、大小和修改时间比对本地与云端；删除操作始终二次确认。"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:476
+msgid "重新核对（本地 + 云端）"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:477
+msgid "导出当前筛选"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:481
+msgid "差异筛选"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:482
+#: includes/views/s3-sync-center.php:613
+msgid "全部"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:492
+msgid "搜索文件"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:493
+msgid "按路径前缀搜索，如 2024/05/…"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:495
+#: includes/views/userfiles-tab.php:100
+msgid "文件类型"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:497
+msgid "全部类型"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:503
+msgid "时间范围"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:505
+msgid "全部时间"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:506
+msgid "最近 7 天"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:507
+msgid "最近 30 天"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:512
+msgid "项已选"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:512
+msgid "最多 10 项"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:514
+#: src/S3/Sync_Center_Module.php:171
+msgid "批量上传"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:515
+#: src/S3/Sync_Center_Module.php:172
+msgid "批量下载"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:516
+#: src/S3/Sync_Center_Module.php:173
+msgid "批量删除远端"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:517
+#: src/S3/Sync_Center_Module.php:174
+msgid "清除选择"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:521
+msgid "本地与云端文件核对"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:524
+msgid "全选当前页"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:525
+#: includes/views/userfiles-admin.php:299
+#: src/UserFiles/Frontend/Tab.php:415
+#: src/UserFiles/Frontend/Tab.php:487
+#: src/UserFiles/Services/Uploader.php:257
+msgid "文件"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:526
+msgid "类型"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:527
+msgid "大小"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:528
+msgid "本地"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:529
+msgid "云端"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:530
+#: includes/views/settings-stats.php:84
+#: includes/views/userfiles-admin.php:114
+#: includes/views/userfiles-admin.php:122
+#: includes/views/userfiles-admin.php:205
+#: includes/views/userfiles-space-admin.php:719
+msgid "状态"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:531
+msgid "最后变化"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:532
+#: includes/views/userfiles-admin.php:207
+#: includes/views/userfiles-space-admin.php:720
+#: src/UserFiles/Frontend/Tab.php:382
+msgid "操作"
+msgstr ""
+
+#. translators: %s: file name.
+#: includes/views/s3-sync-center.php:552
+#: src/UserFiles/Frontend/Tab.php:378
+#, php-format
+msgid "选择 %s"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:564
+#: includes/views/s3-sync-center.php:565
+#: src/S3/Sync_Center_Module.php:196
+msgid "已存在"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:564
+#: includes/views/s3-sync-center.php:565
+#: src/S3/Sync_Center_Module.php:197
+msgid "缺失"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:572
+#: includes/views/s3-sync-center.php:582
+msgid "重新上传"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:574
+#: includes/views/s3-sync-center.php:579
+#: src/S3/Object_Store.php:673
+#: src/S3/Sync_Center_Module.php:191
+msgid "下载"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:580
+#: src/S3/Sync_Center_Module.php:192
+msgid "删除远端"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:584
+#: src/S3/Sync_Center_Module.php:194
+msgid "详情"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:591
+msgid "没有符合筛选条件的文件。"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:594
+msgid "每页显示行数"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:595
+#: includes/views/settings-stats.php:97
+msgid "每页"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:601
+msgid "分页"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:608
+msgid "Activity"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:609
+msgid "同步日志"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:610
+msgid "默认显示最近 6 条；可查询更多，完整日志可在任务详情中查看。"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:612
+msgid "日志级别"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:636
+msgid "暂无同步事件。"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:640
+#, php-format
+msgid "查询更多日志（还有 %d 条）"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:640
+msgid "查询更多日志"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:649
+msgid "Notes"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:650
+msgid "核对口径"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:651
+msgid "页面显示的是差异，不直接等于“未同步”。"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:655
+msgid "已同步："
+msgstr ""
+
+#: includes/views/s3-sync-center.php:655
+msgid "本地与云端 Key 存在，且大小/修改时间在容差内。"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:656
+msgid "待上传："
+msgstr ""
+
+#: includes/views/s3-sync-center.php:656
+msgid "本地有、云端无；包含排队中的任务。"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:657
+msgid "仅云端："
+msgstr ""
+
+#: includes/views/s3-sync-center.php:657
+msgid "云端有、本地无；不会自动删除，避免误删 CDN 回源文件。"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:658
+msgid "内容不一致："
+msgstr ""
+
+#: includes/views/s3-sync-center.php:658
+msgid "Key 相同但大小或内容（MD5/ETag）不一致，需重新上传或人工核对。"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:659
+msgid "危险操作："
+msgstr ""
+
+#: includes/views/s3-sync-center.php:659
+msgid "删除云端文件必须二次确认并勾选风险确认；不提供批量删除。"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:668
+msgid "Danger Zone"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:669
+msgid "从云端永久删除这个文件？"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:670
+msgid "此操作会直接从云存储删除文件，不可撤销；不会删除本地文件，但使用 CDN 的页面可能马上出现图片 404。请确认这个文件确实不再需要。"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:676
+#: src/S3/Sync_Center_Module.php:180
+msgid "请输入 DELETE 以确认（区分大小写）"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:681
+#: includes/views/userfiles-space-panel.php:142
+#: includes/views/userfiles-tab.php:219
+#: src/UserFiles/Frontend/Tab.php:425
+#: src/UserFiles/Media/Media_Hooks.php:1179
+msgid "取消"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:682
+msgid "永久删除云端文件"
+msgstr ""
+
+#: includes/views/s3-sync-center.php:688
+msgid "扫描只读；上传、下载、删除均由行内动作显式触发。"
+msgstr ""
+
+#: includes/views/settings-backup.php:33
+#, php-format
+msgid "备份 %s 个"
+msgstr ""
+
+#: includes/views/settings-backup.php:40
+msgid "备份管理"
+msgstr ""
+
+#: includes/views/settings-backup.php:41
+msgid "管理优化前的原图快照与自动清理策略。清空备份后，已优化图片将无法一键还原。"
+msgstr ""
+
+#: includes/views/settings-backup.php:43
+msgid "保存清理策略"
+msgstr ""
+
+#: includes/views/settings-backup.php:58
+msgid "占用概览"
+msgstr ""
+
+#: includes/views/settings-backup.php:58
+msgid "备份用于「一键还原」，清空后已优化图片将无法还原为原图。"
+msgstr ""
+
+#: includes/views/settings-backup.php:59
+msgid "刷新占用数据"
+msgstr ""
+
+#: includes/views/settings-backup.php:64
+msgid "占用空间"
+msgstr ""
+
+#: includes/views/settings-backup.php:65
+msgid "备份文件"
+msgstr ""
+
+#: includes/views/settings-backup.php:68
+msgid "立即清理过期备份"
+msgstr ""
+
+#: includes/views/settings-backup.php:69
+msgid "清空全部备份"
+msgstr ""
+
+#: includes/views/settings-backup.php:80
+msgid "备份目录访问保护"
+msgstr ""
+
+#: includes/views/settings-backup.php:81
+msgid "如果别人能直接从网上把备份的原图下载走，优化就白做了。插件会自动加一层访问限制，但只对 Apache 服务器有效。"
+msgstr ""
+
+#. translators: 1: detection time, 2: detection result.
+#: includes/views/settings-backup.php:94
+#, php-format
+msgid "上次检测（%1$s）：%2$s"
+msgstr ""
+
+#: includes/views/settings-backup.php:99
+msgid "尚未检测。点击下面的按钮，服务器会实际请求备份目录里的一个文件来判断。"
+msgstr ""
+
+#: includes/views/settings-backup.php:106
+msgid "当前服务器"
+msgstr ""
+
+#: includes/views/settings-backup.php:107
+msgid "会自动拦截"
+msgstr ""
+
+#: includes/views/settings-backup.php:107
+msgid "不会自动拦截，需要在站点配置里加规则"
+msgstr ""
+
+#: includes/views/settings-backup.php:111
+msgid "Nginx、OpenResty、IIS、Caddy 等服务器，请在站点配置里拒绝这个路径："
+msgstr ""
+
+#: includes/views/settings-backup.php:115
+msgid "检测是否可被公网访问"
+msgstr ""
+
+#: includes/views/settings-backup.php:123
+msgid "留空或填 0 表示不限制。"
+msgstr ""
+
+#: includes/views/settings-backup.php:147
+msgid "处理中..."
+msgstr ""
+
+#: includes/views/settings-backup.php:156
+msgid "操作失败"
+msgstr ""
+
+#: includes/views/settings-backup.php:160
+#: includes/views/settings-backup.php:182
+msgid "请求失败，请重试"
+msgstr ""
+
+#: includes/views/settings-backup.php:166
+msgid "确定要清空全部原图备份吗？此操作不可恢复。"
+msgstr ""
+
+#: includes/views/settings-backup.php:171
+msgid "检测中…"
+msgstr ""
+
+#: includes/views/settings-backup.php:178
+msgid "检测失败"
+msgstr ""
+
+#: includes/views/settings-main.php:39
+#, php-format
+msgid "图片组件 %s"
+msgstr ""
+
+#: includes/views/settings-main.php:49
+msgid "轻量、可控的 WordPress 图片优化中心。统一管理缩略图裁剪、上传重命名、格式转换、原图备份与批量处理。"
+msgstr ""
+
+#: includes/views/settings-main.php:51
+msgid "保存更改"
+msgstr ""
+
+#: includes/views/settings-main.php:58
+msgid "01 尺寸"
+msgstr ""
+
+#: includes/views/settings-main.php:59
+msgid "02 命名"
+msgstr ""
+
+#: includes/views/settings-main.php:60
+msgid "03 压缩"
+msgstr ""
+
+#: includes/views/settings-main.php:61
+msgid "04 批量"
+msgstr ""
+
+#: includes/views/settings-stats.php:34
+#, php-format
+msgid "累计节省 %s"
+msgstr ""
+
+#: includes/views/settings-stats.php:39
+msgid "优化统计"
+msgstr ""
+
+#: includes/views/settings-stats.php:40
+msgid "汇总图片处理结果、空间节省与最近执行记录，便于持续观察媒体优化效果。"
+msgstr ""
+
+#: includes/views/settings-stats.php:42
+msgid "返回图像优化"
+msgstr ""
+
+#: includes/views/settings-stats.php:43
+msgid "确定重置统计吗？此操作不可撤销。"
+msgstr ""
+
+#: includes/views/settings-stats.php:43
+#: includes/views/settings-stats.php:72
+msgid "重置统计"
+msgstr ""
+
+#: includes/views/settings-stats.php:48
+msgid "已统计"
+msgstr ""
+
+#: includes/views/settings-stats.php:50
+#: includes/views/settings-stats.php:60
+msgid "总处理次数"
+msgstr ""
+
+#: includes/views/settings-stats.php:51
+#, php-format
+msgid "平均压缩率 %s%%"
+msgstr ""
+
+#: includes/views/settings-stats.php:56
+msgid "统计已重置。"
+msgstr ""
+
+#: includes/views/settings-stats.php:59
+msgid "统计摘要"
+msgstr ""
+
+#: includes/views/settings-stats.php:60
+#: includes/views/settings-stats.php:61
+#: includes/views/settings-stats.php:62
+#: includes/views/settings-stats.php:63
+msgid "次"
+msgstr ""
+
+#: includes/views/settings-stats.php:60
+msgid "含上传与批量处理"
+msgstr ""
+
+#: includes/views/settings-stats.php:61
+msgid "成功"
+msgstr ""
+
+#: includes/views/settings-stats.php:61
+msgid "已完成优化"
+msgstr ""
+
+#: includes/views/settings-stats.php:62
+msgid "保留原图未处理"
+msgstr ""
+
+#: includes/views/settings-stats.php:63
+#: includes/views/thumb-settings.php:419
+msgid "跳过"
+msgstr ""
+
+#: includes/views/settings-stats.php:63
+msgid "体积未减小，保留原图"
+msgstr ""
+
+#: includes/views/settings-stats.php:64
+msgid "累计节省空间"
+msgstr ""
+
+#: includes/views/settings-stats.php:64
+#, php-format
+msgid "原始 %1$s → 优化后 %2$s"
+msgstr ""
+
+#: includes/views/settings-stats.php:65
+msgid "平均压缩率"
+msgstr ""
+
+#: includes/views/settings-stats.php:70
+msgid "最近处理记录"
+msgstr ""
+
+#: includes/views/settings-stats.php:70
+#, php-format
+msgid "上次重置：%s"
+msgstr ""
+
+#: includes/views/settings-stats.php:70
+msgid "可在下方切换每页 25 / 50 / 100 条"
+msgstr ""
+
+#: includes/views/settings-stats.php:72
+msgid "确定要重置汇总统计吗？（每张图片的处理记录会保留）"
+msgstr ""
+
+#: includes/views/settings-stats.php:78
+#: includes/views/userfiles-space-admin.php:715
+msgid "时间"
+msgstr ""
+
+#: includes/views/settings-stats.php:80
+msgid "格式"
+msgstr ""
+
+#: includes/views/settings-stats.php:81
+msgid "引擎"
+msgstr ""
+
+#: includes/views/settings-stats.php:83
+msgid "大小变化"
+msgstr ""
+
+#: includes/views/settings-stats.php:88
+msgid "暂无记录。"
+msgstr ""
+
+#: includes/views/settings-stats.php:96
+msgid "每页显示条数"
+msgstr ""
+
+#: includes/views/settings-stats.php:104
+msgid "上一页"
+msgstr ""
+
+#: includes/views/settings-stats.php:106
+msgid "下一页"
+msgstr ""
+
+#: includes/views/thumb-settings.php:25
+msgid "自动（按测试结果切换）"
+msgstr ""
+
+#: includes/views/thumb-settings.php:26
+msgid "命名样式（仅缤纷云）"
+msgstr ""
+
+#: includes/views/thumb-settings.php:27
+msgid "宽高参数（?w=&h=）"
+msgstr ""
+
+#: includes/views/thumb-settings.php:28
+msgid "WordPress 自带尺寸"
+msgstr ""
+
+#: includes/views/thumb-settings.php:29
+#: includes/views/thumb-settings.php:43
+#: src/Thumbnail/Provider_Status.php:119
+msgid "不处理"
+msgstr ""
+
+#: includes/views/thumb-settings.php:32
+msgid "改写图片地址（推荐）"
+msgstr ""
+
+#: includes/views/thumb-settings.php:33
+msgid "整页替换（旧版方式，较慢）"
+msgstr ""
+
+#: includes/views/thumb-settings.php:34
+#: includes/views/userfiles-space-panel.php:84
+#: includes/views/userfiles-tab.php:213
+#: src/UserFiles/Frontend/Tab.php:424
+msgid "关闭"
+msgstr ""
+
+#: includes/views/thumb-settings.php:37
+msgid "测试通过"
+msgstr ""
+
+#: includes/views/thumb-settings.php:37
+msgid "待测试"
+msgstr ""
+
+#: includes/views/thumb-settings.php:40
+#: includes/views/thumb-settings.php:295
+#: src/Thumbnail/Provider_Status.php:117
+msgid "命名样式"
+msgstr ""
+
+#: includes/views/thumb-settings.php:41
+msgid "宽高参数"
+msgstr ""
+
+#: includes/views/thumb-settings.php:42
+msgid "自带尺寸"
+msgstr ""
+
+#: includes/views/thumb-settings.php:47
+msgid "尚未测试"
+msgstr ""
+
+#: includes/views/thumb-settings.php:50
+msgid "尚未清理"
+msgstr ""
+
+#: includes/views/thumb-settings.php:52
+msgid "已重置"
+msgstr ""
+
+#: includes/views/thumb-settings.php:53
+msgid "重置失败"
+msgstr ""
+
+#: includes/views/thumb-settings.php:55
+msgid "已跳过（默认不重置）"
+msgstr ""
+
+#: includes/views/thumb-settings.php:56
+msgid "命令行下跳过"
+msgstr ""
+
+#: includes/views/thumb-settings.php:59
+#: src/Thumbnail/Settings.php:738
+msgid "对象缓存"
+msgstr ""
+
+#: includes/views/thumb-settings.php:62
+msgid "已清理"
+msgstr ""
+
+#: includes/views/thumb-settings.php:63
+msgid "部分清理"
+msgstr ""
+
+#: includes/views/thumb-settings.php:64
+msgid "清理失败"
+msgstr ""
+
+#: includes/views/thumb-settings.php:65
+msgid "不支持分组清理"
+msgstr ""
+
+#: includes/views/thumb-settings.php:66
+msgid "无需清理"
+msgstr ""
+
+#: includes/views/thumb-settings.php:70
+#, php-format
+msgid "已清理 %1$d / %2$d 组相关缓存"
+msgstr ""
+
+#: includes/views/thumb-settings.php:71
+msgid "未清空"
+msgstr ""
+
+#: includes/views/thumb-settings.php:73
+msgid "只清理本插件用到的缩略图地址缓存和主题的社区列表图缓存，不会清空整站缓存。"
+msgstr ""
+
+#: includes/views/thumb-settings.php:75
+msgid "当前没有启用对象缓存，无需清理。"
+msgstr ""
+
+#: includes/views/thumb-settings.php:76
+msgid "当前的对象缓存不支持按组清理；插件不会清空整站缓存，请手动清理，或换用支持分组清理的缓存服务。"
+msgstr ""
+
+#: includes/views/thumb-settings.php:99
+msgid "把 WordPress 的图片尺寸换成云存储能识别的命名样式；只按显示位置决定是否启用，不依赖主题的样式名，也不再缓冲整个页面。"
+msgstr ""
+
+#: includes/views/thumb-settings.php:101
+msgid "当前主题不是子比（Zibll）主题；命名样式仍可使用，但请自己检查前台效果。"
+msgstr ""
+
+#: includes/views/thumb-settings.php:106
+#: includes/views/thumb-settings.php:378
+#: src/S3/S3_Storage_Page.php:205
+msgid "连接测试"
+msgstr ""
+
+#: includes/views/thumb-settings.php:107
+msgid "地址改写 · 不缓冲整页 · 保存后清理缓存"
+msgstr ""
+
+#: includes/views/thumb-settings.php:112
+msgid "等待测试"
+msgstr ""
+
+#: includes/views/thumb-settings.php:116
+msgid "未找到图片域名"
+msgstr ""
+
+#: includes/views/thumb-settings.php:119
+#: includes/views/thumb-settings.php:395
+#, php-format
+msgid "最近探测：%s（站点时间）"
+msgstr ""
+
+#: includes/views/thumb-settings.php:121
+msgid "保存设置会清理主题缩略图地址缓存；PHP 缓存（OPcache）默认不重置。"
+msgstr ""
+
+#: includes/views/thumb-settings.php:127
+msgid "连接测试成功，结果已保存。"
+msgstr ""
+
+#: includes/views/thumb-settings.php:129
+msgid "连接测试未通过，地址改写会保持「不处理」。请查看下面的测试结果。"
+msgstr ""
+
+#: includes/views/thumb-settings.php:132
+msgid "已启用地址改写，但当前实际没有生效：请先完成连接测试，或把方式改为「命名样式」/「宽高参数」。"
+msgstr ""
+
+#: includes/views/thumb-settings.php:144
+msgid "总开关与处理方式"
+msgstr ""
+
+#: includes/views/thumb-settings.php:145
+msgid "「改写图片地址」性能更好，是推荐方式；「整页替换」只用于临时回滚。"
+msgstr ""
+
+#: includes/views/thumb-settings.php:154
+msgid "启用缩略图 URL 改写"
+msgstr ""
+
+#: includes/views/thumb-settings.php:158
+msgid "处理方式"
+msgstr ""
+
+#: includes/views/thumb-settings.php:165
+msgid "「整页替换」会缓冲整个页面，只用于确认新版效果前的临时回滚。"
+msgstr ""
+
+#: includes/views/thumb-settings.php:169
+msgid "地址改写方式"
+msgstr ""
+
+#: includes/views/thumb-settings.php:176
+msgid "自动模式只会使用测试通过的方式，不会假装成功。"
+msgstr ""
+
+#: includes/views/thumb-settings.php:180
+msgid "高分屏倍率上限"
+msgstr ""
+
+#: includes/views/thumb-settings.php:183
+msgid "只用于 WordPress 没有登记的尺寸：输出宽度 = 请求宽度 × 倍率，且不超过原图宽度。"
+msgstr ""
+
+#: includes/views/thumb-settings.php:194
+msgid "生效位置"
+msgstr ""
+
+#: includes/views/thumb-settings.php:195
+msgid "这里只控制「在哪些位置生效」；具体尺寸在下面的「按位置指定尺寸」里设置。"
+msgstr ""
+
+#: includes/views/thumb-settings.php:202
+msgid "归档 / 首页 / 搜索列表"
+msgstr ""
+
+#: includes/views/thumb-settings.php:204
+msgid "单篇 / 页面正文（含正文图）"
+msgstr ""
+
+#: includes/views/thumb-settings.php:205
+msgid "其它位置"
+msgstr ""
+
+#: includes/views/thumb-settings.php:216
+msgid "正文图片和单篇文章共用这个开关；正文尺寸可以单独在「按位置指定尺寸」里指定。"
+msgstr ""
+
+#: includes/views/thumb-settings.php:224
+msgid "按位置指定尺寸"
+msgstr ""
+
+#: includes/views/thumb-settings.php:225
+msgid "不同主题、不同区域请求的尺寸并不一样。这里让文章缩略图、侧边栏和正文各用一个尺寸；留空则跟随主题请求。"
+msgstr ""
+
+#: includes/views/thumb-settings.php:232
+msgid "文章缩略图"
+msgstr ""
+
+#: includes/views/thumb-settings.php:233
+msgid "列表、卡片、相关文章等位置。子比主题这里请求的是 thumbnail。"
+msgstr ""
+
+#: includes/views/thumb-settings.php:236
+msgid "侧边栏"
+msgstr ""
+
+#: includes/views/thumb-settings.php:237
+msgid "热榜、作者卡等小工具。子比主题这里请求的是 large，常被放大到 800px。"
+msgstr ""
+
+#: includes/views/thumb-settings.php:240
+msgid "正文图片"
+msgstr ""
+
+#: includes/views/thumb-settings.php:241
+msgid "文章正文里的大图。留空时大图用 large、小图用 medium。"
+msgstr ""
+
+#: includes/views/thumb-settings.php:252
+msgid "跟随主题请求（不覆盖）"
+msgstr ""
+
+#: includes/views/thumb-settings.php:258
+#, php-format
+msgid "宽 %1$d × 高 %2$d"
+msgstr ""
+
+#: includes/views/thumb-settings.php:259
+#, php-format
+msgid "宽 %d"
+msgstr ""
+
+#: includes/views/thumb-settings.php:272
+msgid "只有「生效位置」里对应的开关打开时才会生效；命名样式模式下，所选尺寸要先在下方「尺寸规格」里填好命名样式。缩略图和侧边栏会重写主题的缩略图缓存，保存后刷新前台即可看到变化。"
+msgstr ""
+
+#: includes/views/thumb-settings.php:280
+msgid "尺寸规格"
+msgstr ""
+
+#: includes/views/thumb-settings.php:281
+msgid "「命名样式」只使用最后一列；「宽高参数」只使用宽度、高度、模式、位置和质量。"
+msgstr ""
+
+#: includes/views/thumb-settings.php:289
+msgid "尺寸"
+msgstr ""
+
+#: includes/views/thumb-settings.php:292
+msgid "模式"
+msgstr ""
+
+#: includes/views/thumb-settings.php:293
+msgid "位置"
+msgstr ""
+
+#: includes/views/thumb-settings.php:294
+msgid "质量"
+msgstr ""
+
+#: includes/views/thumb-settings.php:309
+msgid "等比缩放 fit"
+msgstr ""
+
+#: includes/views/thumb-settings.php:309
+msgid "裁剪 crop"
+msgstr ""
+
+#: includes/views/thumb-settings.php:309
+msgid "留白 pad"
+msgstr ""
+
+#: includes/views/thumb-settings.php:328
+msgid "只能填 1 到 36 个字母或数字；留空表示这个尺寸不使用命名样式，命名样式模式下会被跳过。填写的名称要和缤纷云后台的尺寸名称一致。"
+msgstr ""
+
+#: includes/views/thumb-settings.php:336
+msgid "高级"
+msgstr ""
+
+#: includes/views/thumb-settings.php:337
+msgid "兼容开关默认关闭；开启后会改变前台输出，请保存后刷新页面核对。"
+msgstr ""
+
+#: includes/views/thumb-settings.php:344
+msgid "样式缺失时回退到 WordPress 自带尺寸"
+msgstr ""
+
+#: includes/views/thumb-settings.php:345
+msgid "限制完整尺寸原图（默认关闭，风险较大）"
+msgstr ""
+
+#: includes/views/thumb-settings.php:346
+msgid "改写正文中的图片"
+msgstr ""
+
+#: includes/views/thumb-settings.php:347
+msgid "子比主题备用图联动（读取主题设置，不用改主题文件）"
+msgstr ""
+
+#: includes/views/thumb-settings.php:348
+msgid "改写接口返回的图片地址"
+msgstr ""
+
+#: includes/views/thumb-settings.php:349
+msgid "允许处理 GIF（可能变成静态图）"
+msgstr ""
+
+#: includes/views/thumb-settings.php:350
+msgid "未登记的尺寸按「请求宽 × 倍率」处理"
+msgstr ""
+
+#: includes/views/thumb-settings.php:351
+msgid "记录改写与跳过的数量"
+msgstr ""
+
+#: includes/views/thumb-settings.php:364
+msgid "自定义地址模板"
+msgstr ""
+
+#: includes/views/thumb-settings.php:366
+msgid "使用其他服务商时填写。可用占位符：{url} 图片地址、{w} 宽、{h} 高、{mode} 模式、{pos} 位置、{q} 质量、{style} 命名样式。含 {url} 时按完整地址模板处理，否则作为后缀追加。"
+msgstr ""
+
+#: includes/views/thumb-settings.php:367
+msgid "「子比主题备用图联动」会在读取主题设置时改写备用图地址，不修改主题文件，主题升级也不会丢。"
+msgstr ""
+
+#: includes/views/thumb-settings.php:379
+msgid "用一张真实图片检查云存储是否接受当前的地址写法。"
+msgstr ""
+
+#: includes/views/thumb-settings.php:386
+msgid "图片域名"
+msgstr ""
+
+#: includes/views/thumb-settings.php:387
+msgid "未解析"
+msgstr ""
+
+#: includes/views/thumb-settings.php:390
+msgid "当前生效"
+msgstr ""
+
+#: includes/views/thumb-settings.php:394
+msgid "尚未测试。点击下面的按钮，用真实图片检查能否访问、文件大小和宽度是否符合预期。"
+msgstr ""
+
+#: includes/views/thumb-settings.php:399
+msgid "立即测试"
+msgstr ""
+
+#: includes/views/thumb-settings.php:408
+msgid "近 14 天统计"
+msgstr ""
+
+#: includes/views/thumb-settings.php:409
+msgid "只记录前台实际发生的改写与跳过。"
+msgstr ""
+
+#: includes/views/thumb-settings.php:415
+msgid "改写"
+msgstr ""
+
+#: includes/views/thumb-settings.php:423
+msgid "有数据天数"
+msgstr ""
+
+#: includes/views/thumb-settings.php:434
+msgid "前台还没有产生记录。"
+msgstr ""
+
+#: includes/views/thumb-settings.php:443
+msgid "回滚"
+msgstr ""
+
+#: includes/views/thumb-settings.php:447
+msgid "把处理方式切到「整页替换」就回到旧版做法；旧设置会保留，不会被新版覆盖。"
+msgstr ""
+
+#: includes/views/thumb-settings.php:448
+msgid "保存设置会清理主题缩略图地址相关的缓存，不会清空整站缓存；PHP 缓存（OPcache）默认不重置。"
+msgstr ""
+
+#: includes/views/thumb-settings.php:456
+msgid "缓存清理"
+msgstr ""
+
+#: includes/views/thumb-settings.php:457
+msgid "每次保存设置自动执行，无需手动操作。"
+msgstr ""
+
+#: includes/views/thumb-settings.php:463
+msgid "相关缓存"
+msgstr ""
+
+#: includes/views/thumb-settings.php:464
+msgid "PHP 缓存（OPcache）"
+msgstr ""
+
+#: includes/views/thumb-settings.php:467
+#, php-format
+msgid "最近清理：%s（站点时间）"
+msgstr ""
+
+#: includes/views/thumb-settings.php:468
+msgid "如果开启了重置又显示「重置失败」，通常是主机禁用了 opcache_reset；可让运维在 PHP 层面重载。"
+msgstr ""
+
+#: includes/views/thumb-settings.php:473
+#: src/S3/S3_Storage_Page.php:347
+msgid "整页设置"
+msgstr ""
+
+#: includes/views/userfiles-admin.php:29
+msgid "容量与数量"
+msgstr ""
+
+#: includes/views/userfiles-admin.php:30
+msgid "决定每个用户能存多少、能建多少。"
+msgstr ""
+
+#: includes/views/userfiles-admin.php:32
+msgid "默认单人容量（MB）"
+msgstr ""
+
+#: includes/views/userfiles-admin.php:32
+msgid "默认 512，用户可在下方单独调整。"
+msgstr ""
+
+#: includes/views/userfiles-admin.php:33
+msgid "单文件上限（MB）"
+msgstr ""
+
+#: includes/views/userfiles-admin.php:33
+msgid "默认 50。"
+msgstr ""
+
+#: includes/views/userfiles-admin.php:34
+msgid "每人文件数"
+msgstr ""
+
+#: includes/views/userfiles-admin.php:34
+msgid "超过后不能再上传。"
+msgstr ""
+
+#: includes/views/userfiles-admin.php:35
+msgid "每人文件夹数"
+msgstr ""
+
+#: includes/views/userfiles-admin.php:36
+msgid "目录层级"
+msgstr ""
+
+#: includes/views/userfiles-admin.php:36
+msgid "根目录为第 1 层。"
+msgstr ""
+
+#: includes/views/userfiles-admin.php:40
+msgid "上传频率与全站预算"
+msgstr ""
+
+#: includes/views/userfiles-admin.php:41
+msgid "防止集中占用带宽与服务端资源。"
+msgstr ""
+
+#: includes/views/userfiles-admin.php:43
+msgid "每日上传文件数"
+msgstr ""
+
+#: includes/views/userfiles-admin.php:44
+msgid "每日上传量（MB）"
+msgstr ""
+
+#: includes/views/userfiles-admin.php:44
+msgid "按 UTC 自然日累计。"
+msgstr ""
+
+#: includes/views/userfiles-admin.php:45
+msgid "并发上传数"
+msgstr ""
+
+#: includes/views/userfiles-admin.php:45
+msgid "前端同时上传的通道数。"
+msgstr ""
+
+#: includes/views/userfiles-admin.php:46
+msgid "每分钟上传请求"
+msgstr ""
+
+#: includes/views/userfiles-admin.php:47
+msgid "全站容量预算（MB）"
+msgstr ""
+
+#: includes/views/userfiles-admin.php:47
+msgid "0 表示不启用全站预算。"
+msgstr ""
+
+#: includes/views/userfiles-admin.php:48
+msgid "预算告警阈值"
+msgstr ""
+
+#: includes/views/userfiles-admin.php:48
+msgid "百分比，达到后提示管理员。"
+msgstr ""
+
+#: includes/views/userfiles-admin.php:52
+#: includes/views/userfiles-tab.php:109
+#: src/UserFiles/Frontend/Tab.php:356
+msgid "删除申请"
+msgstr ""
+
+#: includes/views/userfiles-admin.php:53
+msgid "限制用户提交的审核单数量与体量。"
+msgstr ""
+
+#: includes/views/userfiles-admin.php:55
+msgid "待处理申请上限"
+msgstr ""
+
+#: includes/views/userfiles-admin.php:55
+msgid "每人最多同时存在的待审核申请。"
+msgstr ""
+
+#: includes/views/userfiles-admin.php:56
+msgid "单个申请对象上限"
+msgstr ""
+
+#: includes/views/userfiles-admin.php:56
+msgid "一个申请最多包含的文件和文件夹数量。"
+msgstr ""
+
+#: includes/views/userfiles-admin.php:67
+msgid "用户提交删除申请后，管理员在这里审核；批准不等于删除，需要在下方勾选范围并确认后才会真正执行。"
+msgstr ""
+
+#: includes/views/userfiles-admin.php:68
+msgid "逐个用户查看空间占用、文件数与单独容量；留空表示使用默认容量。"
+msgstr ""
+
+#: includes/views/userfiles-admin.php:69
+msgid "文件夹树的外观与上传配额策略；关闭总开关后前台入口、REST 接口与后台任务都会停止工作。"
+msgstr ""
+
+#: includes/views/userfiles-admin.php:70
+#: includes/views/userfiles-admin.php:562
+msgid "只记录动作与结果，不记录文件路径、对象键或凭证。"
+msgstr ""
+
+#: includes/views/userfiles-admin.php:83
+msgid "正在读取队列"
+msgstr ""
+
+#: includes/views/userfiles-admin.php:83
+msgid "功能未启用"
+msgstr ""
+
+#: includes/views/userfiles-admin.php:91
+msgid "USER FILE SPACE"
+msgstr ""
+
+#: includes/views/userfiles-admin.php:92
+#: includes/views/userfiles-tab.php:68
+#: includes/views/userfiles-tab.php:95
+#: includes/views/userfiles-tab.php:98
+#: src/UserFiles/Frontend/Tab.php:61
+#: src/UserFiles/Frontend/Tab.php:93
+msgid "文件管理"
+msgstr ""
+
+#: includes/views/userfiles-admin.php:97
+msgid "打开媒体库"
+msgstr ""
+
+#: includes/views/userfiles-admin.php:98
+msgid "返回插件首页"
+msgstr ""
+
+#: includes/views/userfiles-admin.php:104
+msgid "审核队列"
+msgstr ""
+
+#: includes/views/userfiles-admin.php:106
+msgid "份待审核申请"
+msgstr ""
+
+#: includes/views/userfiles-admin.php:109
+msgid "已批准待执行"
+msgstr ""
+
+#: includes/views/userfiles-admin.php:110
+#: src/UserFiles/Frontend/Tab.php:476
+#: src/UserFiles/Media/Media_Hooks.php:1983
+msgid "执行中"
+msgstr ""
+
+#: includes/views/userfiles-admin.php:115
+#: src/Admin/Environment_Report.php:62
+#: src/Admin/Environment_Report.php:295
+msgid "已启用"
+msgstr ""
+
+#: includes/views/userfiles-admin.php:118
+#, php-format
+msgid "入口：%s"
+msgstr ""
+
+#: includes/views/userfiles-admin.php:123
+#: src/Admin/Environment_Report.php:62
+#: src/Admin/Environment_Report.php:295
+msgid "未启用"
+msgstr ""
+
+#: includes/views/userfiles-admin.php:124
+msgid "启用后开始接收申请"
+msgstr ""
+
+#: includes/views/userfiles-admin.php:137
+msgid "GET STARTED"
+msgstr ""
+
+#: includes/views/userfiles-admin.php:138
+#: includes/views/userfiles-admin.php:420
+msgid "启用用户文件空间"
+msgstr ""
+
+#: includes/views/userfiles-admin.php:139
+msgid "这个功能默认关闭，避免在非子比主题的站点上加载不适配的前台入口。"
+msgstr ""
+
+#: includes/views/userfiles-admin.php:142
+msgid "前往开关"
+msgstr ""
+
+#: includes/views/userfiles-admin.php:148
+#: includes/views/userfiles-space-admin.php:110
+#: src/Admin/Menu.php:157
+msgid "当前主题"
+msgstr ""
+
+#: includes/views/userfiles-admin.php:152
+msgid "检测到的入口"
+msgstr ""
+
+#: includes/views/userfiles-admin.php:156
+msgid "前台位置"
+msgstr ""
+
+#: includes/views/userfiles-admin.php:159
+msgid "新建一个页面并插入短代码 [sufm_files]"
+msgstr ""
+
+#: includes/views/userfiles-admin.php:161
+msgid "用户中心 → 文件管理"
+msgstr ""
+
+#: includes/views/userfiles-admin.php:166
+msgid "在下方「上传与配额策略」勾选“启用用户文件空间”并保存后，前台入口、REST 接口、媒体库列与后台任务才会开始工作。"
+msgstr ""
+
+#: includes/views/userfiles-admin.php:180
+msgid "REVIEW"
+msgstr ""
+
+#: includes/views/userfiles-admin.php:181
+msgid "删除申请队列"
+msgstr ""
+
+#: includes/views/userfiles-admin.php:182
+msgid "批准只会改变申请状态；驳回或撤销会立即解除对象锁。"
+msgstr ""
+
+#: includes/views/userfiles-admin.php:185
+msgid "按状态筛选"
+msgstr ""
+
+#: includes/views/userfiles-admin.php:186
+msgid "全部状态"
+msgstr ""
+
+#: includes/views/userfiles-admin.php:187
+#: src/UserFiles/Frontend/Tab.php:469
+#: src/UserFiles/Media/Media_Hooks.php:1422
+#: src/UserFiles/Media/Media_Hooks.php:1969
+msgid "待审核"
+msgstr ""
+
+#: includes/views/userfiles-admin.php:188
+#: src/UserFiles/Media/Media_Hooks.php:1423
+msgid "已批准"
+msgstr ""
+
+#: includes/views/userfiles-admin.php:189
+msgid "需进一步核实"
+msgstr ""
+
+#: includes/views/userfiles-admin.php:191
+#: src/UserFiles/Frontend/Tab.php:471
+#: src/UserFiles/Media/Media_Hooks.php:1973
+msgid "已驳回"
+msgstr ""
+
+#: includes/views/userfiles-admin.php:193
+#: includes/views/userfiles-admin.php:288
+#: src/UserFiles/Media/Media_Hooks.php:1243
+msgid "搜索用户"
+msgstr ""
+
+#: includes/views/userfiles-admin.php:202
+msgid "编号"
+msgstr ""
+
+#: includes/views/userfiles-admin.php:203
+#: includes/views/userfiles-admin.php:297
+msgid "用户"
+msgstr ""
+
+#: includes/views/userfiles-admin.php:204
+msgid "对象"
+msgstr ""
+
+#: includes/views/userfiles-admin.php:206
+msgid "提交时间"
+msgstr ""
+
+#: includes/views/userfiles-admin.php:212
+#: includes/views/userfiles-admin.php:304
+#: includes/views/userfiles-admin.php:567
+msgid "正在读取…"
+msgstr ""
+
+#: includes/views/userfiles-admin.php:223
+msgid "EXECUTE"
+msgstr ""
+
+#: includes/views/userfiles-admin.php:224
+msgid "执行删除"
+msgstr ""
+
+#: includes/views/userfiles-admin.php:225
+msgid "只能选择已批准的申请；确认前会再次核对范围哈希。"
+msgstr ""
+
+#: includes/views/userfiles-admin.php:233
+msgid "选择已批准的申请"
+msgstr ""
+
+#: includes/views/userfiles-admin.php:234
+msgid "批准只代表可以进入执行；勾选后才算进入下一步。"
+msgstr ""
+
+#: includes/views/userfiles-admin.php:236
+msgid "未选择"
+msgstr ""
+
+#: includes/views/userfiles-admin.php:245
+msgid "核对删除范围"
+msgstr ""
+
+#: includes/views/userfiles-admin.php:246
+msgid "预览会生成范围哈希；下一步确认时会再比对一次。"
+msgstr ""
+
+#: includes/views/userfiles-admin.php:248
+#: src/UserFiles/Admin/Page.php:215
+msgid "预览删除范围"
+msgstr ""
+
+#: includes/views/userfiles-admin.php:250
+msgid "先在上一步勾选已批准的申请，再核对范围。"
+msgstr ""
+
+#: includes/views/userfiles-admin.php:259
+#: src/UserFiles/Admin/Page.php:214
+msgid "确认执行"
+msgstr ""
+
+#: includes/views/userfiles-admin.php:260
+msgid "输入「删除」两个字，批次建立后由后台任务逐项清理。"
+msgstr ""
+
+#: includes/views/userfiles-admin.php:265
+msgid "输入“删除”以确认"
+msgstr ""
+
+#: includes/views/userfiles-admin.php:266
+msgid "输入“删除”"
+msgstr ""
+
+#: includes/views/userfiles-admin.php:268
+msgid "建立删除批次"
+msgstr ""
+
+#: includes/views/userfiles-admin.php:270
+msgid "执行中可以停止，但已经开始的对象无法撤回。"
+msgstr ""
+
+#: includes/views/userfiles-admin.php:281
+msgid "QUOTA"
+msgstr ""
+
+#: includes/views/userfiles-admin.php:282
+#: src/Admin/Registry.php:77
+msgid "用户容量"
+msgstr ""
+
+#: includes/views/userfiles-admin.php:283
+msgid "留空表示使用默认容量；已用容量包含文件空间上传与已纳入账本的媒体库文件。"
+msgstr ""
+
+#: includes/views/userfiles-admin.php:286
+msgid "重置容量"
+msgstr ""
+
+#: includes/views/userfiles-admin.php:287
+msgid "同步容量"
+msgstr ""
+
+#: includes/views/userfiles-admin.php:298
+msgid "容量使用"
+msgstr ""
+
+#: includes/views/userfiles-admin.php:300
+msgid "单独容量（MB）"
+msgstr ""
+
+#: includes/views/userfiles-admin.php:321
+msgid "APPEARANCE"
+msgstr ""
+
+#: includes/views/userfiles-admin.php:322
+msgid "文件夹样式"
+msgstr ""
+
+#: includes/views/userfiles-admin.php:323
+msgid "决定媒体库左侧文件夹树的观感，保存后立即生效。"
+msgstr ""
+
+#: includes/views/userfiles-admin.php:334
+msgid "Windows 11"
+msgstr ""
+
+#: includes/views/userfiles-admin.php:335
+msgid "圆角实心文件夹、深浅两级配色，接近资源管理器的观感。"
+msgstr ""
+
+#: includes/views/userfiles-admin.php:338
+msgid "macOS Finder"
+msgstr ""
+
+#: includes/views/userfiles-admin.php:339
+msgid "描边文件夹、更轻的层次和字重，接近访达的观感。"
+msgstr ""
+
+#: includes/views/userfiles-admin.php:346
+msgid "选择样式"
+msgstr ""
+
+#: includes/views/userfiles-admin.php:378
+msgid "同时作用于媒体库左侧文件夹树和前台用户中心的文件管理，两侧图形与配色保持一致。"
+msgstr ""
+
+#: includes/views/userfiles-admin.php:382
+msgid "文件夹图标颜色"
+msgstr ""
+
+#: includes/views/userfiles-admin.php:397
+msgid "只给文件夹图标上色，标题文字保持中性灰，避免整棵树的花色压过内容。"
+msgstr ""
+
+#: includes/views/userfiles-admin.php:400
+msgid "保存样式"
+msgstr ""
+
+#: includes/views/userfiles-admin.php:408
+msgid "POLICY"
+msgstr ""
+
+#: includes/views/userfiles-admin.php:409
+msgid "上传与配额策略"
+msgstr ""
+
+#: includes/views/userfiles-admin.php:410
+msgid "这里是唯一默认值来源；保存后立即对新请求生效。"
+msgstr ""
+
+#: includes/views/userfiles-admin.php:425
+#, php-format
+msgid "已启用 · 入口：%s"
+msgstr ""
+
+#: includes/views/userfiles-admin.php:426
+msgid "关闭时不会加载前台入口、REST 接口与媒体库列。"
+msgstr ""
+
+#: includes/views/userfiles-admin.php:476
+msgid "主题上传限制"
+msgstr ""
+
+#: includes/views/userfiles-admin.php:477
+msgid "同步写入主题"
+msgstr ""
+
+#. translators: %s: theme label
+#: includes/views/userfiles-admin.php:483
+#, php-format
+msgid "读取自 %s。保存本页时会把下面两个值写回主题设置，避免主题先于插件拦截上传。"
+msgstr ""
+
+#. translators: %s: UTC timestamp
+#: includes/views/userfiles-admin.php:492
+#, php-format
+msgid "最近同步：%s"
+msgstr ""
+
+#: includes/views/userfiles-admin.php:501
+msgid "每 10 分钟上传文件数"
+msgstr ""
+
+#: includes/views/userfiles-admin.php:509
+msgid "与主题「10 分钟」上限一致；0 表示不限制。"
+msgstr ""
+
+#: includes/views/userfiles-admin.php:512
+msgid "每天上传文件数"
+msgstr ""
+
+#: includes/views/userfiles-admin.php:520
+msgid "与主题「每天」上限一致；0 表示不限制。"
+msgstr ""
+
+#: includes/views/userfiles-admin.php:529
+msgid "允许的文件类型"
+msgstr ""
+
+#: includes/views/userfiles-admin.php:541
+msgid "SVG、HTML、脚本和可执行文件始终不会被接受，即使在这里勾选也不会生效。"
+msgstr ""
+
+#: includes/views/userfiles-admin.php:548
+msgid "保存策略"
+msgstr ""
+
+#: includes/views/userfiles-admin.php:560
+msgid "AUDIT"
+msgstr ""
+
+#: includes/views/userfiles-admin.php:561
+#: src/Admin/Registry.php:79
+msgid "最近操作"
+msgstr ""
+
+#: includes/views/userfiles-space-admin.php:24
+msgid "主题识别（zibll）"
+msgstr ""
+
+#: includes/views/userfiles-space-admin.php:25
+msgid "等级读取 zib_get_user_level"
+msgstr ""
+
+#: includes/views/userfiles-space-admin.php:26
+msgid "VIP 读取 zib_get_user_vip_level"
+msgstr ""
+
+#: includes/views/userfiles-space-admin.php:27
+msgid "积分函数 zibpay_update_user_points"
+msgstr ""
+
+#: includes/views/userfiles-space-admin.php:28
+msgid "支付方式 zibpay_get_payment_methods"
+msgstr ""
+
+#: includes/views/userfiles-space-admin.php:29
+msgid "发起支付 zibpay_initiate_pay"
+msgstr ""
+
+#: includes/views/userfiles-space-admin.php:30
+msgid "订单类 ZibPay"
+msgstr ""
+
+#: includes/views/userfiles-space-admin.php:31
+msgid "用户中心 zib_get_user_center_url"
+msgstr ""
+
+#: includes/views/userfiles-space-admin.php:91
+msgid "扩容未启用"
+msgstr ""
+
+#: includes/views/userfiles-space-admin.php:92
+msgid "前台不会出现任何入口；已存在的等级 / VIP 加成也不会影响容量。"
+msgstr ""
+
+#: includes/views/userfiles-space-admin.php:102
+msgid "DIAGNOSE"
+msgstr ""
+
+#: includes/views/userfiles-space-admin.php:103
+msgid "主题诊断"
+msgstr ""
+
+#: includes/views/userfiles-space-admin.php:104
+msgid "本页所有数值都在运行时读取主题，不写死任何主题侧的名称或价格。"
+msgstr ""
+
+#: includes/views/userfiles-space-admin.php:112
+#: includes/views/userfiles-space-admin.php:375
+#: includes/views/userfiles-space-admin.php:442
+msgid "名称"
+msgstr ""
+
+#: includes/views/userfiles-space-admin.php:113
+#: includes/views/userfiles-space-admin.php:115
+#: includes/views/userfiles-space-admin.php:391
+#: src/Admin/Menu.php:158
+#: src/Admin/Menu.php:160
+msgid "未取到"
+msgstr ""
+
+#: includes/views/userfiles-space-admin.php:114
+msgid "版本"
+msgstr ""
+
+#: includes/views/userfiles-space-admin.php:116
+msgid "样式目录"
+msgstr ""
+
+#: includes/views/userfiles-space-admin.php:118
+msgid "模板目录"
+msgstr ""
+
+#: includes/views/userfiles-space-admin.php:120
+msgid "子主题"
+msgstr ""
+
+#: includes/views/userfiles-space-admin.php:121
+msgid "否"
+msgstr ""
+
+#: includes/views/userfiles-space-admin.php:121
+msgid "是"
+msgstr ""
+
+#: includes/views/userfiles-space-admin.php:126
+msgid "能力矩阵"
+msgstr ""
+
+#: includes/views/userfiles-space-admin.php:134
+msgid "缺失，该通道已自动关闭"
+msgstr ""
+
+#: includes/views/userfiles-space-admin.php:142
+msgid "可用支付方式"
+msgstr ""
+
+#: includes/views/userfiles-space-admin.php:144
+msgid "未取到支付方式。若在无登录上下文（CLI / 定时任务）中查看，这是正常现象。"
+msgstr ""
+
+#: includes/views/userfiles-space-admin.php:156
+msgid "需登录上下文才会出现「余额」通道。"
+msgstr ""
+
+#: includes/views/userfiles-space-admin.php:161
+msgid "我的派生容量"
+msgstr ""
+
+#: includes/views/userfiles-space-admin.php:163
+#: src/UserFiles/Space_Panel.php:140
+msgid "基础"
+msgstr ""
+
+#: includes/views/userfiles-space-admin.php:165
+#: includes/views/userfiles-space-admin.php:299
+msgid "等级加成"
+msgstr ""
+
+#. translators: 1: level number, 2: formatted size.
+#: includes/views/userfiles-space-admin.php:171
+#, php-format
+msgid "LV%1$s · %2$s"
+msgstr ""
+
+#: includes/views/userfiles-space-admin.php:178
+msgid "VIP 加成"
+msgstr ""
+
+#. translators: 1: vip level number, 2: formatted size.
+#: includes/views/userfiles-space-admin.php:184
+#, php-format
+msgid "vip_level=%1$s · %2$s"
+msgstr ""
+
+#: includes/views/userfiles-space-admin.php:191
+#: src/UserFiles/Space_Panel.php:156
+msgid "已购"
+msgstr ""
+
+#: includes/views/userfiles-space-admin.php:193
+msgid "计算值"
+msgstr ""
+
+#: includes/views/userfiles-space-admin.php:195
+msgid "单独设定"
+msgstr ""
+
+#: includes/views/userfiles-space-admin.php:199
+msgid "未设定"
+msgstr ""
+
+#: includes/views/userfiles-space-admin.php:203
+msgid "最终生效"
+msgstr ""
+
+#. translators: %s: mode name, either cap or replace.
+#: includes/views/userfiles-space-admin.php:211
+#, php-format
+msgid "封顶语义：%s"
+msgstr ""
+
+#: includes/views/userfiles-space-admin.php:212
+msgid "封顶（cap）"
+msgstr ""
+
+#: includes/views/userfiles-space-admin.php:212
+msgid "替换（replace）"
+msgstr ""
+
+#: includes/views/userfiles-space-admin.php:225
+msgid "GATE"
+msgstr ""
+
+#: includes/views/userfiles-space-admin.php:226
+msgid "门禁与开关"
+msgstr ""
+
+#: includes/views/userfiles-space-admin.php:227
+msgid "总开关默认关闭；「计算加成」是紧急止血阀：关闭后已购容量立即停止生效（等级 / VIP 加成仍按主题计算）。"
+msgstr ""
+
+#: includes/views/userfiles-space-admin.php:243
+msgid "启用扩容售卖"
+msgstr ""
+
+#: includes/views/userfiles-space-admin.php:246
+msgid "当前：未启用（前台零入口）"
+msgstr ""
+
+#: includes/views/userfiles-space-admin.php:246
+msgid "当前：已启用"
+msgstr ""
+
+#: includes/views/userfiles-space-admin.php:258
+msgid "计算加成（已购授权）"
+msgstr ""
+
+#: includes/views/userfiles-space-admin.php:260
+msgid "关闭后，所有已购容量立即停止生效（不删任何文件）。"
+msgstr ""
+
+#: includes/views/userfiles-space-admin.php:264
+msgid "单独设定的封顶语义"
+msgstr ""
+
+#: includes/views/userfiles-space-admin.php:270
+msgid "封顶（cap）：实际容量 = min(单独设定, 计算值)"
+msgstr ""
+
+#: includes/views/userfiles-space-admin.php:277
+msgid "替换（replace）：单独设定直接覆盖计算值"
+msgstr ""
+
+#: includes/views/userfiles-space-admin.php:284
+msgid "保存开关"
+msgstr ""
+
+#: includes/views/userfiles-space-admin.php:298
+#: includes/views/userfiles-space-admin.php:362
+msgid "BONUS"
+msgstr ""
+
+#: includes/views/userfiles-space-admin.php:300
+msgid "单位 MB。门槛积分读自主题，取不到则留空。"
+msgstr ""
+
+#: includes/views/userfiles-space-admin.php:310
+#: includes/views/userfiles-space-admin.php:374
+msgid "等级"
+msgstr ""
+
+#: includes/views/userfiles-space-admin.php:311
+msgid "主题门槛积分"
+msgstr ""
+
+#: includes/views/userfiles-space-admin.php:312
+#: includes/views/userfiles-space-admin.php:376
+msgid "加成（MB）"
+msgstr ""
+
+#. translators: %s: level number.
+#: includes/views/userfiles-space-admin.php:321
+#, php-format
+msgid "LV%s 加成（MB）"
+msgstr ""
+
+#: includes/views/userfiles-space-admin.php:342
+#: includes/views/userfiles-space-admin.php:406
+#: src/UserFiles/Admin/Space_Page.php:163
+msgid "加成合计："
+msgstr ""
+
+#: includes/views/userfiles-space-admin.php:342
+#: includes/views/userfiles-space-admin.php:406
+msgid "0 MB"
+msgstr ""
+
+#: includes/views/userfiles-space-admin.php:348
+msgid "保存等级加成"
+msgstr ""
+
+#: includes/views/userfiles-space-admin.php:363
+msgid "VIP / SVIP 加成"
+msgstr ""
+
+#: includes/views/userfiles-space-admin.php:364
+msgid "名称在运行时解析：过滤器 → 主题选项 → 降级标签。"
+msgstr ""
+
+#. translators: %s: vip level number.
+#: includes/views/userfiles-space-admin.php:385
+#, php-format
+msgid "vip_level=%s 加成（MB）"
+msgstr ""
+
+#: includes/views/userfiles-space-admin.php:412
+msgid "保存 VIP 加成"
+msgstr ""
+
+#: includes/views/userfiles-space-admin.php:426
+msgid "PACKAGES"
+msgstr ""
+
+#: includes/views/userfiles-space-admin.php:427
+msgid "套餐表"
+msgstr ""
+
+#: includes/views/userfiles-space-admin.php:428
+msgid "前台弹窗按这里的顺序展示。下架或删除只影响新订单，已售出的授权仍按购买时的套餐快照生效。"
+msgstr ""
+
+#: includes/views/userfiles-space-admin.php:441
+msgid "套餐 ID"
+msgstr ""
+
+#: includes/views/userfiles-space-admin.php:443
+msgid "容量(MB)"
+msgstr ""
+
+#: includes/views/userfiles-space-admin.php:444
+msgid "价格(元)"
+msgstr ""
+
+#: includes/views/userfiles-space-admin.php:445
+msgid "时长(天)"
+msgstr ""
+
+#: includes/views/userfiles-space-admin.php:446
+msgid "上架 / 删除"
+msgstr ""
+
+#: includes/views/userfiles-space-admin.php:497
+#: includes/views/userfiles-space-admin.php:502
+#: includes/views/userfiles-space-admin.php:550
+msgid "上架"
+msgstr ""
+
+#: includes/views/userfiles-space-admin.php:504
+msgid "删除该套餐"
+msgstr ""
+
+#: includes/views/userfiles-space-admin.php:506
+#: src/UserFiles/Media/Media_Hooks.php:1241
+#: src/UserFiles/Services/Executor.php:154
+msgid "删除"
+msgstr ""
+
+#: includes/views/userfiles-space-admin.php:519
+msgid "如 p10"
+msgstr ""
+
+#: includes/views/userfiles-space-admin.php:527
+msgid "如 10GB 扩容包"
+msgstr ""
+
+#: includes/views/userfiles-space-admin.php:557
+msgid "套餐 ID 只能用小写字母、数字、下划线，且不可重复；时长填 0 表示永久。"
+msgstr ""
+
+#: includes/views/userfiles-space-admin.php:563
+msgid "保存套餐"
+msgstr ""
+
+#: includes/views/userfiles-space-admin.php:577
+msgid "POINTS"
+msgstr ""
+
+#: includes/views/userfiles-space-admin.php:578
+msgid "积分汇率"
+msgstr ""
+
+#: includes/views/userfiles-space-admin.php:579
+msgid "积分兑换按「每 GB 所需积分」折算；等价现金用主题积分汇率（pay_points_rate）反算。"
+msgstr ""
+
+#: includes/views/userfiles-space-admin.php:624
+msgid "项目"
+msgstr ""
+
+#: includes/views/userfiles-space-admin.php:625
+msgid "设置"
+msgstr ""
+
+#: includes/views/userfiles-space-admin.php:626
+msgid "说明"
+msgstr ""
+
+#: includes/views/userfiles-space-admin.php:629
+msgid "每 GB 积分"
+msgstr ""
+
+#: includes/views/userfiles-space-admin.php:638
+msgid "未取到主题积分汇率（pay_points_rate）"
+msgstr ""
+
+#. translators: 1: money per GB, 2: theme points rate.
+#: includes/views/userfiles-space-admin.php:642
+#, php-format
+msgid "约 %1$s 元/GB（主题汇率 %2$s 积分 = 1 元）"
+msgstr ""
+
+#: includes/views/userfiles-space-admin.php:651
+msgid "单笔上限(GB)"
+msgstr ""
+
+#: includes/views/userfiles-space-admin.php:657
+msgid "保存时会被强制压到「每日上限」以内。"
+msgstr ""
+
+#: includes/views/userfiles-space-admin.php:660
+msgid "每日上限(GB)"
+msgstr ""
+
+#: includes/views/userfiles-space-admin.php:666
+msgid "同一用户一天内可兑换的总量上限。"
+msgstr ""
+
+#: includes/views/userfiles-space-admin.php:673
+msgid "暂无可用现金套餐，无法比较。"
+msgstr ""
+
+#. translators: %s: cheapest cash price per GB.
+#: includes/views/userfiles-space-admin.php:677
+#, php-format
+msgid "最便宜现金套餐：%s 元/GB"
+msgstr ""
+
+#: includes/views/userfiles-space-admin.php:683
+msgid "积分定价明显偏离现金价（超过 2 倍）。"
+msgstr ""
+
+#: includes/views/userfiles-space-admin.php:690
+msgid "保存积分设置"
+msgstr ""
+
+#: includes/views/userfiles-space-admin.php:704
+msgid "GRANTS"
+msgstr ""
+
+#: includes/views/userfiles-space-admin.php:705
+msgid "授权流水"
+msgstr ""
+
+#: includes/views/userfiles-space-admin.php:706
+msgid "最近 20 条授权记录，时间已按站点时区显示。到期时间留空表示永久。"
+msgstr ""
+
+#: includes/views/userfiles-space-admin.php:716
+msgid "用户 / 套餐"
+msgstr ""
+
+#: includes/views/userfiles-space-admin.php:717
+#: src/UserFiles/Media/Media_Hooks.php:196
+#: src/UserFiles/Media/Media_Hooks.php:1915
+msgid "容量"
+msgstr ""
+
+#: includes/views/userfiles-space-admin.php:718
+msgid "到期"
+msgstr ""
+
+#: includes/views/userfiles-space-admin.php:724
+#: src/UserFiles/Admin/Space_Page.php:170
+msgid "暂无授权记录"
+msgstr ""
+
+#: includes/views/userfiles-space-admin.php:732
+msgid "RECONCILE"
+msgstr ""
+
+#: includes/views/userfiles-space-admin.php:733
+msgid "对账与重试"
+msgstr ""
+
+#: includes/views/userfiles-space-admin.php:734
+msgid "「检查差异」只读，找出已付款但没有授权的子比订单；「修复差异」按订单快照补发，幂等（同一订单不会重复授予）。"
+msgstr ""
+
+#: includes/views/userfiles-space-admin.php:737
+msgid "检查差异"
+msgstr ""
+
+#: includes/views/userfiles-space-admin.php:738
+msgid "修复差异"
+msgstr ""
+
+#. translators: %s: current quota, e.g. 21 GB.
+#: includes/views/userfiles-space-panel.php:53
+#, php-format
+msgid "当前 %s"
+msgstr ""
+
+#: includes/views/userfiles-space-panel.php:83
+msgid "空间扩容"
+msgstr ""
+
+#: includes/views/userfiles-space-panel.php:92
+msgid "选择扩容套餐"
+msgstr ""
+
+#: includes/views/userfiles-space-panel.php:112
+msgid "选择支付方式"
+msgstr ""
+
+#: includes/views/userfiles-space-panel.php:126
+msgid "购买后容量立即生效，到期后自动收回，不会删除任何已有文件。"
+msgstr ""
+
+#: includes/views/userfiles-space-panel.php:132
+msgid "支付宝二维码"
+msgstr ""
+
+#: includes/views/userfiles-space-panel.php:136
+msgid "请用支付宝扫描二维码完成支付"
+msgstr ""
+
+#: includes/views/userfiles-space-panel.php:137
+msgid "在支付宝中打开"
+msgstr ""
+
+#: includes/views/userfiles-space-panel.php:143
+#: src/UserFiles/Space_Panel.php:177
+msgid "确认支付"
+msgstr ""
+
+#: includes/views/userfiles-tab.php:35
+#: src/UserFiles/Frontend/Tab.php:30
+msgid "删除后文章、商品、头像等位置的链接可能失效，请自行确认后再提交"
+msgstr ""
+
+#: includes/views/userfiles-tab.php:69
+msgid "整理你的文件，让每一份灵感井井有条"
+msgstr ""
+
+#: includes/views/userfiles-tab.php:72
+msgid "我的空间"
+msgstr ""
+
+#: includes/views/userfiles-tab.php:77
+#: src/UserFiles/Frontend/Tab.php:366
+msgid "剩余"
+msgstr ""
+
+#: includes/views/userfiles-tab.php:80
+#: includes/views/userfiles-tab.php:118
+#: src/UserFiles/Frontend/Tab.php:367
+msgid "空间已使用"
+msgstr ""
+
+#: includes/views/userfiles-tab.php:85
+#: src/UserFiles/Frontend/Tab.php:364
+msgid "正在加载空间…"
+msgstr ""
+
+#: includes/views/userfiles-tab.php:86
+#: src/UserFiles/Frontend/Tab.php:363
+msgid "待处理申请仍占用空间"
+msgstr ""
+
+#: includes/views/userfiles-tab.php:101
+#: includes/views/userfiles-tab.php:152
+#: src/UserFiles/Frontend/Tab.php:350
+#: src/UserFiles/Frontend/Tab.php:438
+msgid "全部文件"
+msgstr ""
+
+#: includes/views/userfiles-tab.php:103
+#: src/UserFiles/Frontend/Tab.php:352
+#: src/UserFiles/Frontend/Tab.php:483
+msgid "文档"
+msgstr ""
+
+#: includes/views/userfiles-tab.php:106
+#: src/UserFiles/Frontend/Tab.php:355
+#: src/UserFiles/Frontend/Tab.php:486
+msgid "音频"
+msgstr ""
+
+#: includes/views/userfiles-tab.php:121
+msgid "扩容"
+msgstr ""
+
+#: includes/views/userfiles-tab.php:125
+#: src/UserFiles/Frontend/Tab.php:345
+#: src/UserFiles/Frontend/Tab.php:488
+msgid "上传文件"
+msgstr ""
+
+#: includes/views/userfiles-tab.php:129
+#: src/UserFiles/Frontend/Tab.php:346
+#: src/UserFiles/Frontend/Tab.php:428
+#: src/UserFiles/Media/Media_Hooks.php:1165
+#: src/UserFiles/Media/Media_Hooks.php:1237
+msgid "新建文件夹"
+msgstr ""
+
+#: includes/views/userfiles-tab.php:139
+msgid "视图切换"
+msgstr ""
+
+#: includes/views/userfiles-tab.php:151
+msgid "当前位置"
+msgstr ""
+
+#: includes/views/userfiles-tab.php:159
+#: src/S3/Sync_Center_Module.php:193
+#: src/UserFiles/Frontend/Tab.php:493
+#: src/UserFiles/Frontend/Tab.php:506
+msgid "重试"
+msgstr ""
+
+#: includes/views/userfiles-tab.php:165
+#: src/UserFiles/Frontend/Tab.php:384
+#: src/UserFiles/Frontend/Tab.php:421
+#: src/UserFiles/Frontend/Tab.php:435
+#: src/UserFiles/Media/Media_Hooks.php:1152
+msgid "移动到"
+msgstr ""
+
+#: includes/views/userfiles-tab.php:166
+#: src/UserFiles/Frontend/Tab.php:385
+#: src/UserFiles/Frontend/Tab.php:422
+#: src/UserFiles/Frontend/Tab.php:447
+msgid "申请删除"
+msgstr ""
+
+#: includes/views/userfiles-tab.php:167
+#: src/UserFiles/Frontend/Tab.php:386
+#: src/UserFiles/Media/Media_Hooks.php:1153
+msgid "取消选择"
+msgstr ""
+
+#: includes/views/userfiles-tab.php:185
+msgid "拖拽文件到这里，或"
+msgstr ""
+
+#: includes/views/userfiles-tab.php:185
+msgid "选择文件"
+msgstr ""
+
+#: includes/views/userfiles-tab.php:186
+msgid "单个文件最大"
+msgstr ""
+
+#: includes/views/userfiles-tab.php:186
+msgid "，支持图片、文档、压缩包及音视频"
+msgstr ""
+
+#: includes/views/userfiles-tab.php:192
+#: src/UserFiles/Frontend/Tab.php:514
+msgid "媒体文件可通过链接访问，请勿上传敏感资料"
+msgstr ""
+
+#: includes/views/userfiles-tab.php:198
+msgid "文件按账号独立管理，管理员可在网站媒体库中维护。"
+msgstr ""
+
+#: includes/views/userfiles-tab.php:205
+msgid "上传队列"
+msgstr ""
+
+#: includes/views/userfiles-tab.php:220
+#: src/UserFiles/Frontend/Tab.php:426
+msgid "确定"
+msgstr ""
+
+#: src/Admin/Assets.php:176
+msgid "布局"
+msgstr ""
+
+#: src/Admin/Assets.php:177
+msgid "布局修改"
+msgstr ""
+
+#: src/Admin/Assets.php:178
+msgid "布局保存"
+msgstr ""
+
+#: src/Admin/Assets.php:179
+msgid "按住标题拖动，调整卡片顺序"
+msgstr ""
+
+#: src/Admin/Assets.php:180
+msgid "左右拖动调整宽度"
+msgstr ""
+
+#: src/Admin/Assets.php:181
+msgid "上下拖动调整高度"
+msgstr ""
+
+#: src/Admin/Assets.php:182
+msgid "恢复默认布局"
+msgstr ""
+
+#: src/Admin/Assets.php:183
+msgid "显示网格"
+msgstr ""
+
+#: src/Admin/Assets.php:184
+msgid "拖动卡片标题可排序；拖动卡片右侧、底部或右下角可调整宽高。"
+msgstr ""
+
+#: src/Admin/Environment_Report.php:38
+msgid "Imagick"
+msgstr ""
+
+#: src/Admin/Environment_Report.php:38
+msgid "GD"
+msgstr ""
+
+#: src/Admin/Environment_Report.php:38
+msgid "未检测到"
+msgstr ""
+
+#: src/Admin/Environment_Report.php:54
+msgid "插件要求 PHP 8.2 或更高。"
+msgstr ""
+
+#: src/Admin/Environment_Report.php:55
+msgid "插件要求 WordPress 6.4 或更高。"
+msgstr ""
+
+#: src/Admin/Environment_Report.php:56
+msgid "建议 256M 或更高，处理大图更稳。"
+msgstr ""
+
+#: src/Admin/Environment_Report.php:57
+#: src/UserFiles/Services/Uploader.php:226
+msgid "上传上限"
+msgstr ""
+
+#: src/Admin/Environment_Report.php:57
+msgid "建议 32M 或更高，避免大图上传失败。"
+msgstr ""
+
+#: src/Admin/Environment_Report.php:58
+msgid "需要 Imagick 或 GD 扩展。"
+msgstr ""
+
+#: src/Admin/Environment_Report.php:59
+msgid "WebP 支持"
+msgstr ""
+
+#: src/Admin/Environment_Report.php:59
+msgid "启用后可输出更小的 WebP 图片。"
+msgstr ""
+
+#: src/Admin/Environment_Report.php:60
+msgid "AVIF 支持"
+msgstr ""
+
+#: src/Admin/Environment_Report.php:60
+msgid "缺少 AVIF 时会回退到 WebP 或原格式。"
+msgstr ""
+
+#: src/Admin/Environment_Report.php:61
+msgid "开启后 PHP 不必每次请求都重新编译。"
+msgstr ""
+
+#: src/Admin/Environment_Report.php:62
+msgid "cURL"
+msgstr ""
+
+#: src/Admin/Environment_Report.php:62
+msgid "S3 上传和远程检测会用到这里。"
+msgstr ""
+
+#: src/Admin/Environment_Report.php:70
+msgid "OPcache 未启用。PHP 每次请求都会重新编译，建议在宝塔面板的 PHP 设置里开启。"
+msgstr ""
+
+#: src/Admin/Environment_Report.php:73
+msgid "内存上限低于 256M，处理大图或批量优化时可能失败。"
+msgstr ""
+
+#: src/Admin/Environment_Report.php:76
+msgid "上传上限低于 32M，大图可能无法上传；可在 PHP 设置里提高 upload_max_filesize 和 post_max_size。"
+msgstr ""
+
+#: src/Admin/Environment_Report.php:79
+msgid "未检测到 Imagick，WordPress 会使用 GD；AVIF 和部分 WebP 能力可能受限。"
+msgstr ""
+
+#: src/Admin/Environment_Report.php:82
+msgid "WebP 不可用，格式转换会回退到原格式。"
+msgstr ""
+
+#: src/Admin/Environment_Report.php:85
+msgid "AVIF 不可用，插件会自动回退到 WebP 或原格式。"
+msgstr ""
+
+#: src/Admin/Environment_Report.php:88
+msgid "当前是 CLI 环境；Web 服务器（PHP-FPM）可能使用不同的 php.ini，请以后台页面显示为准。"
+msgstr ""
+
+#: src/Admin/Environment_Report.php:209
+msgid "PHP-FPM"
+msgstr ""
+
+#: src/Admin/Environment_Report.php:210
+msgid "Apache 模块"
+msgstr ""
+
+#: src/Admin/Environment_Report.php:211
+msgid "CGI / FastCGI"
+msgstr ""
+
+#: src/Admin/Environment_Report.php:212
+msgid "LiteSpeed"
+msgstr ""
+
+#: src/Admin/Environment_Report.php:213
+msgid "PHP 内置服务器"
+msgstr ""
+
+#: src/Admin/Environment_Report.php:214
+msgid "CLI"
+msgstr ""
+
+#: src/Admin/Environment_Report.php:287
+msgid "不可读"
+msgstr ""
+
+#: src/Admin/Layout.php:447
+msgid "未知页面。"
+msgstr ""
+
+#: src/Admin/Layout.php:453
+msgid "布局数据无法解析。"
+msgstr ""
+
+#: src/Admin/Layout.php:461
+msgid "布局数据无效。"
+msgstr ""
+
+#: src/Admin/Menu.php:101
+#: src/Admin/Menu.php:108
+#: src/UserFiles/Admin/Space_Page.php:187
+msgid "你没有权限访问这个页面。"
+msgstr ""
+
+#: src/Admin/Menu.php:151
+#: src/Admin/Registry.php:81
+#: src/UserFiles/Admin/Space_Page.php:239
+msgid "子比专属"
+msgstr ""
+
+#: src/Admin/Menu.php:152
+#: src/UserFiles/Admin/Space_Page.php:240
+msgid "子比专属功能不可用"
+msgstr ""
+
+#: src/Admin/Menu.php:159
+msgid "主题版本"
+msgstr ""
+
+#: src/Admin/Menu.php:164
+#: src/UserFiles/Admin/Space_Page.php:258
+msgid "返回样式与策略"
+msgstr ""
+
+#: src/Admin/Registry.php:44
+msgid "系统"
+msgstr ""
+
+#: src/Admin/Registry.php:48
+msgid "环境自检"
+msgstr ""
+
+#: src/Admin/Registry.php:52
+msgid "图片优化"
+msgstr ""
+
+#: src/Admin/Registry.php:56
+msgid "优化规则"
+msgstr ""
+
+#: src/Admin/Registry.php:57
+#: src/Image/Size_Catalog.php:35
+msgid "缩略图"
+msgstr ""
+
+#: src/Admin/Registry.php:58
+msgid "备份还原"
+msgstr ""
+
+#: src/Admin/Registry.php:59
+msgid "统计"
+msgstr ""
+
+#: src/Admin/Registry.php:63
+msgid "对象存储"
+msgstr ""
+
+#: src/Admin/Registry.php:67
+msgid "连接配置"
+msgstr ""
+
+#: src/Admin/Registry.php:68
+msgid "同步中心"
+msgstr ""
+
+#: src/Admin/Registry.php:72
+msgid "文件空间"
+msgstr ""
+
+#: src/Admin/Registry.php:76
+msgid "样式与策略"
+msgstr ""
+
+#: src/Admin/Registry.php:78
+msgid "审核与执行"
+msgstr ""
+
+#: src/Admin/Shell.php:68
+msgid "功能模块"
+msgstr ""
+
+#: src/Admin/Shell.php:90
+msgid "模块页面"
+msgstr ""
+
+#: src/Admin/Shell.php:131
+msgid "这个页面还没有注册渲染器。"
+msgstr ""
+
+#: src/Backup/Exposure_Probe.php:60
+msgid "备份目录尚未创建（当前没有原图备份），无需检查。"
+msgstr ""
+
+#. translators: %s: upload directory error message.
+#: src/Backup/Exposure_Probe.php:68
+#, php-format
+msgid "无法取得上传目录地址：%s"
+msgstr ""
+
+#: src/Backup/Exposure_Probe.php:81
+msgid "备份目录存在但没有可读取的文件，且无法写入探测文件，请检查目录权限。"
+msgstr ""
+
+#. translators: 1: HTTP status code, 2: server label.
+#: src/Backup/Exposure_Probe.php:321
+#, php-format
+msgid "警告：备份目录可被公网直接下载（HTTP %1$d，服务器：%2$s）。任何人拿到链接就能下走原图，请立即在站点配置中拒绝该目录。"
+msgstr ""
+
+#. translators: 1: HTTP status code, 2: server label.
+#: src/Backup/Exposure_Probe.php:330
+#, php-format
+msgid "已保护：服务器拒绝访问备份目录（HTTP %1$d，服务器：%2$s），原图备份无法被直接下载。"
+msgstr ""
+
+#: src/Backup/Exposure_Probe.php:337
+msgid "服务器返回了 HTML 页面（常见于主题 404 页），无法据此判断。"
+msgstr ""
+
+#: src/Backup/Exposure_Probe.php:339
+msgid "服务器返回 200，但内容与探测文件不一致（可能被缓存或改写）。"
+msgstr ""
+
+#. translators: %s: transport error message.
+#: src/Backup/Exposure_Probe.php:343
+#, php-format
+msgid "请求失败：%s"
+msgstr ""
+
+#. translators: 1: server label, 2: detail.
+#: src/Backup/Exposure_Probe.php:350
+#, php-format
+msgid "无法判定（服务器：%1$s）。%2$s 请手动访问备份目录里的任意文件确认：返回 403/404 即已保护，返回图片内容则需要补拒绝规则。"
+msgstr ""
+
+#: src/Image/Crop_Config_Scanner.php:87
+msgid "图像编辑（含手工裁剪/旋转）是否覆盖原图；true 时编辑结果直接替换原文件。"
+msgstr ""
+
+#: src/Image/Crop_Config_Scanner.php:88
+msgid "PHP 内存上限；批量生成缩略图时受该值约束。"
+msgstr ""
+
+#: src/Image/Crop_Config_Scanner.php:89
+msgid "后台高内存上限；图片处理会优先抬升到该值。"
+msgstr ""
+
+#: src/Image/Crop_Config_Scanner.php:102
+msgid "已被移除"
+msgstr ""
+
+#: src/Image/Crop_Config_Scanner.php:103
+msgid "可能被过滤器移除"
+msgstr ""
+
+#: src/Image/Crop_Config_Scanner.php:104
+msgid "仅静态发现"
+msgstr ""
+
+#: src/Image/Crop_Config_Scanner.php:105
+msgid "待核实"
+msgstr ""
+
+#: src/Image/Crop_Config_Scanner.php:173
+msgid "当前为多站点网络：本次仅扫描当前站点的 wp-config.php、主题与已启用插件；其他子站的独立裁剪配置不在本次判定范围。"
+msgstr ""
+
+#: src/Image/Crop_Config_Scanner.php:174
+msgid "网络"
+msgstr ""
+
+#: src/Image/Crop_Config_Scanner.php:205
+msgid "WordPress 核心（big_image_size_threshold）"
+msgstr ""
+
+#: src/Image/Crop_Config_Scanner.php:209
+msgid "已在本插件「禁止 WordPress 裁剪」中勾选；上传超大图时不会生成 2560px 缩放版。"
+msgstr ""
+
+#: src/Image/Crop_Config_Scanner.php:210
+msgid "未在本插件中禁止；上传超大图时会按 big_image_size_threshold 生成 2560px 缩放版。"
+msgstr ""
+
+#: src/Image/Crop_Config_Scanner.php:246
+msgid "未定义"
+msgstr ""
+
+#: src/Image/Crop_Config_Scanner.php:255
+msgid "wp-config.php 不存在或不可读，跳过常量扫描；尺寸状态仍按 WordPress 默认值与运行时注册判定。"
+msgstr ""
+
+#: src/Image/Crop_Config_Scanner.php:269
+msgid "wp-config.php 读取失败（权限不足或文件被锁定），已跳过常量扫描。"
+msgstr ""
+
+#: src/Image/Crop_Config_Scanner.php:331
+msgid "无法定位当前主题目录，已跳过主题裁剪配置扫描。"
+msgstr ""
+
+#: src/Image/Crop_Config_Scanner.php:332
+#: src/Image/Crop_Config_Scanner.php:357
+msgid "主题"
+msgstr ""
+
+#. translators: 1: theme name, 2: theme slug.
+#: src/Image/Crop_Config_Scanner.php:344
+#, php-format
+msgid "主题：%1$s（%2$s）"
+msgstr ""
+
+#: src/Image/Crop_Config_Scanner.php:397
+msgid "主题扫描超过时间预算，部分文件未检查；结果可能缺少主题注册的尺寸。"
+msgstr ""
+
+#. translators: %s: plugin path.
+#: src/Image/Crop_Config_Scanner.php:447
+#, php-format
+msgid "已启用插件 %1$s 的目录不存在，已跳过。"
+msgstr ""
+
+#: src/Image/Crop_Config_Scanner.php:462
+msgid "插件扫描超过时间预算，其余已启用插件未检查。"
+msgstr ""
+
+#: src/Image/Crop_Config_Scanner.php:463
+msgid "插件"
+msgstr ""
+
+#. translators: 1: plugin name, 2: plugin path.
+#: src/Image/Crop_Config_Scanner.php:469
+#, php-format
+msgid "插件：%1$s（%2$s）"
+msgstr ""
+
+#. translators: 1: file path, 2: size in KB.
+#: src/Image/Crop_Config_Scanner.php:546
+#, php-format
+msgid "%1$s 超过 %2$d KB，已跳过扫描。"
+msgstr ""
+
+#. translators: %s: file path.
+#: src/Image/Crop_Config_Scanner.php:556
+#, php-format
+msgid "%1$s 不可读，已跳过。"
+msgstr ""
+
+#. translators: 1: file, 2: line, 3: function.
+#: src/Image/Crop_Config_Scanner.php:577
+#, php-format
+msgid "%1$s 第 %2$d 行的 %3$s() 使用了动态尺寸名，静态扫描无法判定具体尺寸，需人工核实。"
+msgstr ""
+
+#: src/Image/Crop_Config_Scanner.php:723
+msgid "WordPress 核心"
+msgstr ""
+
+#. translators: 1: file, 2: line.
+#: src/Image/Crop_Config_Scanner.php:768
+#, php-format
+msgid "%1$s 第 %2$d 行 add_image_size()"
+msgstr ""
+
+#. translators: %s: hook labels.
+#: src/Image/Crop_Config_Scanner.php:812
+#, php-format
+msgid "%s 挂载了 intermediate_image_sizes 相关过滤器；静态扫描无法判定回调增删了哪些尺寸，相关行按「源码注册」与「运行时注册」对比标注。"
+msgstr ""
+
+#. translators: %s: hook labels.
+#: src/Image/Crop_Config_Scanner.php:813
+msgid "过滤器"
+msgstr ""
+
+#: src/Image/Crop_Config_Scanner.php:935
+msgid "已在本插件「禁止 WordPress 裁剪」中勾选，WordPress 不会生成该尺寸。"
+msgstr ""
+
+#: src/Image/Crop_Config_Scanner.php:939
+msgid "当前请求已注册该尺寸（可能由过滤器或运行时逻辑注册），源码中未找到静态注册调用。"
+msgstr ""
+
+#: src/Image/Crop_Config_Scanner.php:940
+msgid "当前请求已注册该尺寸，WordPress 会按上述宽高生成。"
+msgstr ""
+
+#: src/Image/Crop_Config_Scanner.php:942
+msgid " 源码中存在移除调用，但运行时仍注册，以运行时注册为准。"
+msgstr ""
+
+#: src/Image/Crop_Config_Scanner.php:945
+msgid " 多个来源以不同宽高注册，运行时值已覆盖静态顺序（核心 < 主题 < 插件）。"
+msgstr ""
+
+#. translators: %s: source names.
+#: src/Image/Crop_Config_Scanner.php:949
+#, php-format
+msgid "运行中未注册，源码 %1$s 调用 remove_image_size() 移除了该尺寸。"
+msgstr ""
+
+#. translators: %s: hook sources.
+#: src/Image/Crop_Config_Scanner.php:952
+#, php-format
+msgid "源码中存在 add_image_size() 调用，但运行中未注册，且 %s 挂载了 intermediate_image_sizes 过滤器；可能被过滤器按名称移除，需人工核实。"
+msgstr ""
+
+#: src/Image/Crop_Config_Scanner.php:955
+msgid "仅在源码中找到注册调用，当前后台请求未注册（可能条件加载或调用时机不同），当前不会生成。"
+msgstr ""
+
+#: src/Image/Crop_Config_Scanner.php:958
+msgid "运行中未注册，也未在源码中定位到注册或移除调用。"
+msgstr ""
+
+#: src/Image/Crop_Config_Scanner.php:1012
+msgid "该名称仍在本插件「禁止 WordPress 裁剪」中勾选，但当前扫描未发现任何注册来源，可安全取消勾选。"
+msgstr ""
+
+#: src/Image/Crop_Config_Scanner.php:1213
+msgid "（表达式，未求值）"
+msgstr ""
+
+#. translators: 1: source label, 2: max files.
+#: src/Image/Crop_Config_Scanner.php:1328
+#, php-format
+msgid "%1$s 的 PHP 文件超过 %2$d 个，仅扫描前 %2$d 个。"
+msgstr ""
+
+#: src/Image/Engine_Manager.php:72
+msgid "无可用图片处理引擎"
+msgstr ""
+
+#: src/Image/File_Processor.php:246
+msgid "检测到动图（GIF/APNG/动态 WebP），已跳过处理以保留全部帧。"
+msgstr ""
+
+#. translators: 1: current size in MB, 2: configured limit in MB.
+#: src/Image/File_Processor.php:255
+#, php-format
+msgid "文件体积 %1$s MB 超过上限 %2$d MB，已直接放行（不备份、不压缩、不转换）。"
+msgstr ""
+
+#. translators: 1: width, 2: height, 3: max width, 4: max height.
+#: src/Image/File_Processor.php:270
+#, php-format
+msgid "分辨率 %1$d×%2$d 超过上限 %3$d×%4$d，已直接放行（不备份、不压缩、不转换）。"
+msgstr ""
+
+#: src/Image/File_Processor.php:282
+msgid "文件格式不在允许处理的列表中，已跳过。"
+msgstr ""
+
+#. translators: %d: number of sub-sizes skipped.
+#: src/Image/Metadata_Processor.php:205
+#, php-format
+msgid "子尺寸处理超出时间预算，跳过 %d 个尺寸。"
+msgstr ""
+
+#. translators: 1: original size in bytes, 2: candidate size in bytes.
+#: src/Image/No_Gain_Guard.php:75
+#, php-format
+msgid "处理后体积未减小（%1$d → %2$d 字节），已保留原图。"
+msgstr ""
+
+#: src/Image/Restore_Service.php:90
+msgid "该附件没有可还原的原图备份"
+msgstr ""
+
+#: src/Image/Restore_Service.php:99
+msgid "备份路径元数据无效，无法还原"
+msgstr ""
+
+#: src/Image/Restore_Service.php:110
+msgid "备份文件已丢失或还原路径不可用，无法还原"
+msgstr ""
+
+#: src/Image/Restore_Service.php:120
+msgid "无法创建原图目录"
+msgstr ""
+
+#: src/Image/Restore_Service.php:128
+msgid "原图写回失败（磁盘权限？）"
+msgstr ""
+
+#: src/Image/Restore_Service.php:164
+msgid "已还原为原图"
+msgstr ""
+
+#: src/Image/Size_Catalog.php:44
+msgid "中等尺寸"
+msgstr ""
+
+#: src/Image/Size_Catalog.php:53
+msgid "中等大尺寸"
+msgstr ""
+
+#: src/Image/Size_Catalog.php:62
+msgid "大尺寸"
+msgstr ""
+
+#: src/Image/Size_Catalog.php:71
+msgid "2 倍中等大（WP 5.3+）"
+msgstr ""
+
+#: src/Image/Size_Catalog.php:80
+msgid "2 倍大（WP 5.3+）"
+msgstr ""
+
+#: src/Image/Size_Catalog.php:117
+msgid "WordPress 核心内置"
+msgstr ""
+
+#. translators: %s: option name.
+#: src/Image/Size_Catalog.php:117
+#, php-format
+msgid "设置 → 媒体（%s）"
+msgstr ""
+
+#: src/Image/Size_Catalog.php:148
+msgid "add_image_size() 注册"
+msgstr ""
+
+#: src/Image/Upload_Handler.php:143
+msgid "原图备份失败，已中止本次上传与优化。请检查 uploads/sakura-imgopt-backup 目录的写入权限后重试。"
+msgstr ""
+
+#. translators: %d: dead jobs.
+#: src/S3/Alerting.php:193
+#, php-format
+msgid "死信 %d 条"
+msgstr ""
+
+#. translators: 1: failure rate, 2: attempts.
+#: src/S3/Alerting.php:201
+#, php-format
+msgid "近 14 天失败率 %1$s（%2$d 次尝试）"
+msgstr ""
+
+#: src/S3/Alerting.php:208
+msgid "上传队列状态正常。"
+msgstr ""
+
+#. translators: %s: comma separated metrics.
+#: src/S3/Alerting.php:213
+#, php-format
+msgid "S3 上传队列异常：%s。"
+msgstr ""
+
+#: src/S3/Alerting.php:350
+msgid "请先填写有效的 Webhook 地址。"
+msgstr ""
+
+#: src/S3/Alerting.php:357
+msgid "[测试] "
+msgstr ""
+
+#: src/S3/Alerting.php:364
+msgid "测试告警已发送，请检查接收端。"
+msgstr ""
+
+#: src/S3/Alerting.php:365
+msgid "测试告警发送失败，请检查地址、DNS、防火墙或接收端状态。"
+msgstr ""
+
+#: src/S3/Alerting.php:378
+msgid "Sakura：每 15 分钟"
+msgstr ""
+
+#: src/S3/Client_Factory.php:58
+msgid "S3 配置不完整：Bucket、Key、Secret 与 Endpoint 必须齐备。"
+msgstr ""
+
+#: src/S3/Client_Factory.php:68
+msgid "S3 SDK 不完整，请重新安装插件。"
+msgstr ""
+
+#: src/S3/Client_Factory.php:79
+msgid "无法获取多吉云临时凭据。"
+msgstr ""
+
+#: src/S3/Connection_Tester.php:28
+msgid "请先保存存储桶、Key 和 Secret。"
+msgstr ""
+
+#: src/S3/Connection_Tester.php:37
+msgid "连接测试失败："
+msgstr ""
+
+#: src/S3/Connection_Tester.php:41
+msgid "连接失败，请检查服务商、地域、Endpoint、存储桶和凭据。详细错误仅在 WP_DEBUG 日志中记录。"
+msgstr ""
+
+#: src/S3/Delete_Jobs.php:105
+msgid "删除队列表升级未完成：缺少租约或令牌字段，已保留旧版本标记。"
+msgstr ""
+
+#: src/S3/Delete_Worker.php:95
+msgid "每分钟（Sakura S3 删除补偿）"
+msgstr ""
+
+#: src/S3/Delete_Worker.php:178
+msgid "该任务创建时的存储配置已不存在或不可用，已停止删除以避免操作错误的存储桶。"
+msgstr ""
+
+#: src/S3/Delete_Worker.php:203
+msgid "远端对象删除失败（未返回具体原因）。"
+msgstr ""
+
+#: src/S3/Error_Mapper.php:59
+msgid "远端存储请求失败"
+msgstr ""
+
+#: src/S3/Error_Mapper.php:63
+msgid "无权访问存储桶，请检查桶策略与对象 ACL"
+msgstr ""
+
+#: src/S3/Error_Mapper.php:69
+msgid "签名或临时凭据无效，请检查 Access Key/Secret"
+msgstr ""
+
+#: src/S3/Error_Mapper.php:72
+msgid "存储桶不存在，请检查桶名与端点"
+msgstr ""
+
+#: src/S3/Error_Mapper.php:75
+msgid "对象不存在"
+msgstr ""
+
+#: src/S3/Error_Mapper.php:80
+msgid "请求被限流，请稍后重试或降低并发"
+msgstr ""
+
+#: src/S3/Error_Mapper.php:84
+msgid "请求超时或服务器时间偏差过大"
+msgstr ""
+
+#: src/S3/Error_Mapper.php:87
+msgid "对象超过服务端大小限制"
+msgstr ""
+
+#. translators: 1: operation, 2: reason, 3: AWS error code.
+#: src/S3/Error_Mapper.php:91
+#, php-format
+msgid "%1$s：%2$s（%3$s）"
+msgstr ""
+
+#: src/S3/History_Migrator.php:132
+#: src/S3/History_Migrator.php:162
+msgid "S3 存储未启用，已拒绝同步历史附件。"
+msgstr ""
+
+#: src/S3/History_Migrator.php:135
+msgid "S3 配置不完整，已拒绝同步历史附件；请补全 Bucket、Key、Secret 与 Endpoint。"
+msgstr ""
+
+#: src/S3/History_Migrator.php:165
+msgid "S3 配置不完整，无法同步历史附件。"
+msgstr ""
+
+#: src/S3/History_Migrator.php:173
+msgid "另一个迁移批次正在运行，请稍后重试。"
+msgstr ""
+
+#. translators: %d: attachment ID.
+#: src/S3/History_Migrator.php:221
+#, php-format
+msgid "附件 #%d 的文件无法映射或入队失败。"
+msgstr ""
+
+#. translators: 1: processed attachments, 2: queued attachments, 3: skipped, 4: failed.
+#: src/S3/History_Migrator.php:380
+#, php-format
+msgid "扫描完成：%1$d 个附件，已上传 %2$d，跳过 %3$d，失败 %4$d。本地文件已保留。"
+msgstr ""
+
+#. translators: 1: processed attachments, 2: total attachments.
+#: src/S3/History_Migrator.php:388
+#, php-format
+msgid "已扫描 %1$d / %2$d 个附件…"
+msgstr ""
+
+#: src/S3/Migration_Service.php:118
+msgid "文件路径无法映射。"
+msgstr ""
+
+#. translators: %d: Attachment ID.
+#: src/S3/Migration_Service.php:121
+#, php-format
+msgid "附件 #%d 的文件路径无法映射。"
+msgstr ""
+
+#. translators: 1: Attachment ID. 2: Upload error message.
+#: src/S3/Migration_Service.php:132
+#, php-format
+msgid "附件 #%1$d：%2$s"
+msgstr ""
+
+#: src/S3/Monitoring_Panel.php:39
+msgid "监控与告警"
+msgstr ""
+
+#: src/S3/Monitoring_Panel.php:40
+msgid "Prometheus 只读端点供监控系统抓取；Webhook 在死信或失败率超阈值时推送 JSON，可直接接 Slack、飞书、钉钉或自建网关。"
+msgstr ""
+
+#: src/S3/Monitoring_Panel.php:50
+msgid "Prometheus 抓取端点"
+msgstr ""
+
+#: src/S3/Monitoring_Panel.php:51
+msgid "地址含只读令牌，请按密钥管理；令牌泄露后可立即轮换。也支持 Authorization: Bearer <token>。"
+msgstr ""
+
+#: src/S3/Monitoring_Panel.php:52
+msgid "Prometheus 抓取地址"
+msgstr ""
+
+#: src/S3/Monitoring_Panel.php:57
+msgid "轮换令牌"
+msgstr ""
+
+#: src/S3/Monitoring_Panel.php:62
+msgid "Webhook 告警"
+msgstr ""
+
+#: src/S3/Monitoring_Panel.php:70
+msgid "启用 Webhook 告警"
+msgstr ""
+
+#: src/S3/Monitoring_Panel.php:75
+msgid "Webhook 地址"
+msgstr ""
+
+#: src/S3/Monitoring_Panel.php:81
+msgid "失败率阈值（%）"
+msgstr ""
+
+#: src/S3/Monitoring_Panel.php:85
+msgid "最少尝试次数"
+msgstr ""
+
+#: src/S3/Monitoring_Panel.php:89
+msgid "死信阈值（0 关闭）"
+msgstr ""
+
+#: src/S3/Monitoring_Panel.php:93
+msgid "冷却时间（分钟）"
+msgstr ""
+
+#: src/S3/Monitoring_Panel.php:99
+msgid "保存告警设置"
+msgstr ""
+
+#: src/S3/Monitoring_Panel.php:106
+msgid "发送测试告警"
+msgstr ""
+
+#: src/S3/Monitoring_Panel.php:131
+msgid "告警设置已保存。"
+msgstr ""
+
+#: src/S3/Monitoring_Panel.php:153
+msgid "Prometheus 令牌已轮换，请更新抓取配置。"
+msgstr ""
+
+#: src/S3/Object_Store.php:76
+#: src/S3/Object_Store.php:269
+#: src/S3/Storage_Adapter.php:105
+msgid "文件不存在、不可读或对象 Key 无效。"
+msgstr ""
+
+#: src/S3/Object_Store.php:84
+msgid "无法读取本地文件大小。"
+msgstr ""
+
+#: src/S3/Object_Store.php:116
+#: src/S3/Object_Store.php:278
+msgid "无法计算本地文件 MD5，已取消上传。"
+msgstr ""
+
+#: src/S3/Object_Store.php:128
+#: src/S3/Object_Store.php:303
+msgid "无法读取本地文件。"
+msgstr ""
+
+#. translators: 1: object key, 2: verification error.
+#: src/S3/Object_Store.php:168
+#, php-format
+msgid "上传后校验失败，已保留对象 [%1$s]：%2$s"
+msgstr ""
+
+#. translators: %s: local file path.
+#: src/S3/Object_Store.php:186
+#, php-format
+msgid "远端上传成功，但本地文件删除失败：%s"
+msgstr ""
+
+#: src/S3/Object_Store.php:333
+msgid "上传后校验"
+msgstr ""
+
+#. translators: %s: error message.
+#: src/S3/Object_Store.php:493
+#, php-format
+msgid "上传后无法 HEAD 校验对象：%s"
+msgstr ""
+
+#: src/S3/Object_Store.php:565
+msgid "列举对象"
+msgstr ""
+
+#: src/S3/Object_Store.php:608
+#: src/S3/Storage_Adapter.php:279
+#: src/S3/Sync_Actions.php:102
+msgid "对象 Key 无效。"
+msgstr ""
+
+#: src/S3/Object_Store.php:613
+msgid "无法创建本地目录。"
+msgstr ""
+
+#: src/S3/Object_Store.php:616
+#: src/S3/Sync_Actions.php:76
+msgid "本地文件已存在，已取消下载以免覆盖。"
+msgstr ""
+
+#: src/S3/Object_Store.php:711
+msgid "云端返回部分删除失败，已停止后续删除并等待核对。"
+msgstr ""
+
+#: src/S3/Object_Store.php:716
+msgid "远端删除结果未确认，停止自动回退："
+msgstr ""
+
+#: src/S3/Providers.php:24
+msgid "多吉云"
+msgstr ""
+
+#: src/S3/Providers.php:25
+msgid "阿里云 OSS"
+msgstr ""
+
+#: src/S3/Providers.php:26
+msgid "腾讯云 COS"
+msgstr ""
+
+#: src/S3/Providers.php:27
+msgid "七牛云 KODO"
+msgstr ""
+
+#: src/S3/Providers.php:28
+msgid "又拍云 USS"
+msgstr ""
+
+#: src/S3/Providers.php:29
+msgid "百度云 BOS"
+msgstr ""
+
+#: src/S3/Providers.php:31
+msgid "缤纷云"
+msgstr ""
+
+#: src/S3/Remote_Operation_Guard.php:85
+msgid "任务租约已失效，未发送远程操作。"
+msgstr ""
+
+#: src/S3/Remote_Operation_Guard.php:101
+msgid "远程操作未取得可确认的结果。"
+msgstr ""
+
+#: src/S3/Remote_Operation_Guard.php:103
+msgid "该对象的远程操作结果待核对，已暂停后续写入；确认旧请求停止后由管理员解除。"
+msgstr ""
+
+#: src/S3/Remote_Operation_Guard.php:117
+msgid "该对象有未结束或待核对的远程操作，未发送新的写入。"
+msgstr ""
+
+#: src/S3/S3_Storage_Page.php:50
+msgid "同步已启用"
+msgstr ""
+
+#: src/S3/S3_Storage_Page.php:51
+msgid "同步已停用"
+msgstr ""
+
+#: src/S3/S3_Storage_Page.php:58
+msgid "S3 存储"
+msgstr ""
+
+#: src/S3/S3_Storage_Page.php:59
+msgid "把优化后的图片安全地同步到云存储。支持常见的 S3 兼容服务，并沿用原来的文件路径和图片地址前缀。"
+msgstr ""
+
+#: src/S3/S3_Storage_Page.php:61
+#: src/S3/S3_Storage_Page.php:348
+msgid "保存 S3 配置"
+msgstr ""
+
+#: src/S3/S3_Storage_Page.php:62
+#: src/S3/Sync_Center_Module.php:489
+msgid "打开同步中心"
+msgstr ""
+
+#: src/S3/S3_Storage_Page.php:66
+msgid "等待配置"
+msgstr ""
+
+#: src/S3/S3_Storage_Page.php:67
+#: src/Thumbnail/Probe.php:60
+msgid "未配置"
+msgstr ""
+
+#: src/S3/S3_Storage_Page.php:68
+msgid "已启用 · 上传后自动同步"
+msgstr ""
+
+#: src/S3/S3_Storage_Page.php:68
+msgid "已停用"
+msgstr ""
+
+#. translators: %s: missing fields.
+#: src/S3/S3_Storage_Page.php:74
+#, php-format
+msgid "云存储已启用，但配置还不完整（%s）。在补全之前，插件会暂停图片上传、地址接管和同步；补全后自动恢复。"
+msgstr ""
+
+#: src/S3/S3_Storage_Page.php:77
+msgid "已保存的访问密钥无法解密（可能更换了固定密钥或站点安全密钥）。请重新填写 Access Key 和 Secret；旧密钥不会显示出来。"
+msgstr ""
+
+#: src/S3/S3_Storage_Page.php:81
+msgid "站点配置文件里写死了云存储参数，非空的常量会覆盖这里填写的连接信息。"
+msgstr ""
+
+#: src/S3/S3_Storage_Page.php:87
+msgid "已保存的配置"
+msgstr ""
+
+#: src/S3/S3_Storage_Page.php:88
+msgid "点击已保存的配置就能切换，不用重新填写密钥。同一服务商可保存多个账户：填好新的 Access Key 和 Secret，勾选「另存为新配置」后保存。"
+msgstr ""
+
+#: src/S3/S3_Storage_Page.php:90
+msgid "新增账户配置"
+msgstr ""
+
+#: src/S3/S3_Storage_Page.php:93
+msgid "还没有保存的配置。填写并保存后，它会出现在这里。"
+msgstr ""
+
+#: src/S3/S3_Storage_Page.php:108
+msgid "使用中"
+msgstr ""
+
+#: src/S3/S3_Storage_Page.php:108
+#: src/UserFiles/Admin/Page.php:219
+msgid "已保存"
+msgstr ""
+
+#: src/S3/S3_Storage_Page.php:111
+msgid "未填写存储桶"
+msgstr ""
+
+#: src/S3/S3_Storage_Page.php:112
+msgid "默认服务地址"
+msgstr ""
+
+#: src/S3/S3_Storage_Page.php:114
+msgid "配置不完整，补全后可切换"
+msgstr ""
+
+#: src/S3/S3_Storage_Page.php:118
+msgid "确定删除这个已保存的配置吗？删除后不可恢复，但不会影响当前活动配置。"
+msgstr ""
+
+#: src/S3/S3_Storage_Page.php:122
+msgid "使用中的配置不能删除，请先切换到其他配置"
+msgstr ""
+
+#: src/S3/S3_Storage_Page.php:122
+msgid "删除此配置"
+msgstr ""
+
+#: src/S3/S3_Storage_Page.php:122
+msgid "使用中不可删除"
+msgstr ""
+
+#: src/S3/S3_Storage_Page.php:136
+msgid "上传行为"
+msgstr ""
+
+#: src/S3/S3_Storage_Page.php:136
+msgid "同样对所有存储配置生效。"
+msgstr ""
+
+#: src/S3/S3_Storage_Page.php:139
+msgid "不上传 WordPress 生成的缩略图"
+msgstr ""
+
+#: src/S3/S3_Storage_Page.php:139
+msgid "一般不建议开启，否则部分自适应图片可能无法从云端读取。"
+msgstr ""
+
+#: src/S3/S3_Storage_Page.php:140
+msgid "上传成功后删除本地文件（高风险）"
+msgstr ""
+
+#: src/S3/S3_Storage_Page.php:140
+msgid "勾选后，只有新上传的图片及其缩略图都成功传到云端，才会删除本地文件；不勾选就一直保留。手动同步历史附件时始终保留本地文件。"
+msgstr ""
+
+#: src/S3/S3_Storage_Page.php:142
+msgid "高级设置"
+msgstr ""
+
+#: src/S3/S3_Storage_Page.php:144
+msgid "云端传输并发数"
+msgstr ""
+
+#: src/S3/S3_Storage_Page.php:150
+msgid "同一次上传里同时向云端传输的文件数，默认 1。调高会缩短多尺寸图片的等待时间，但更占 PHP 工作进程和带宽；服务器或 HTTP 传输环境不支持并行时会自动降级。"
+msgstr ""
+
+#. translators: %d: effective concurrency.
+#: src/S3/S3_Storage_Page.php:152
+#, php-format
+msgid "当前 HTTP 传输环境不支持并行，实际使用 %d。"
+msgstr ""
+
+#: src/S3/S3_Storage_Page.php:161
+msgid "配置保存在网站数据库里，密钥会加密保存，页面上不会显示。"
+msgstr ""
+
+#: src/S3/S3_Storage_Page.php:164
+msgid "下面这些设置会跟着每份配置单独保存；切换配置时，访问权限、云端路径和图片地址前缀也会一起切换。"
+msgstr ""
+
+#: src/S3/S3_Storage_Page.php:166
+msgid "启用 S3 存储"
+msgstr ""
+
+#: src/S3/S3_Storage_Page.php:166
+msgid "新上传的图片自动同步到云存储"
+msgstr ""
+
+#. translators: %d: number of saved profiles for this provider.
+#: src/S3/S3_Storage_Page.php:173
+#, php-format
+msgid "（已保存 %d 个）"
+msgstr ""
+
+#: src/S3/S3_Storage_Page.php:174
+msgid "（未保存）"
+msgstr ""
+
+#: src/S3/S3_Storage_Page.php:177
+msgid "配置名称"
+msgstr ""
+
+#: src/S3/S3_Storage_Page.php:177
+msgid "例如：主站图床、备份桶"
+msgstr ""
+
+#: src/S3/S3_Storage_Page.php:177
+msgid "用于区分同一服务商下的多个存储桶；留空会自动按服务商和存储桶命名。"
+msgstr ""
+
+#: src/S3/S3_Storage_Page.php:178
+msgid "保存方式"
+msgstr ""
+
+#: src/S3/S3_Storage_Page.php:178
+msgid "另存为新配置（保留当前配置）"
+msgstr ""
+
+#: src/S3/S3_Storage_Page.php:178
+msgid "切换配置不会顺手开启或关闭同步，也不会改动缩略图和「删除本地文件」这类全局设置；文章里已有的图片地址不会被批量替换。"
+msgstr ""
+
+#: src/S3/S3_Storage_Page.php:179
+msgid "存储桶名称"
+msgstr ""
+
+#: src/S3/S3_Storage_Page.php:180
+msgid "地域"
+msgstr ""
+
+#: src/S3/S3_Storage_Page.php:181
+msgid "服务地址"
+msgstr ""
+
+#: src/S3/S3_Storage_Page.php:181
+msgid "只支持 http:// 或 https://。使用 AWS 官方服务时可以留空。"
+msgstr ""
+
+#: src/S3/S3_Storage_Page.php:182
+#: src/S3/S3_Storage_Page.php:183
+msgid "已保存，留空保持不变"
+msgstr ""
+
+#: src/S3/S3_Storage_Page.php:182
+msgid "请输入访问密钥"
+msgstr ""
+
+#: src/S3/S3_Storage_Page.php:182
+msgid "密钥会加密保存在数据库里，页面上不会显示。建议在站点配置文件里设置一个固定的加密密钥；更换后需要重新填写。"
+msgstr ""
+
+#: src/S3/S3_Storage_Page.php:183
+msgid "请输入密钥"
+msgstr ""
+
+#: src/S3/S3_Storage_Page.php:183
+msgid "密钥会加密保存在数据库里，页面上不会显示。更换加密密钥或站点安全密钥后，旧密钥会失效，需要重新填写。"
+msgstr ""
+
+#: src/S3/S3_Storage_Page.php:184
+msgid "文件访问权限"
+msgstr ""
+
+#: src/S3/S3_Storage_Page.php:184
+msgid "公开读取"
+msgstr ""
+
+#: src/S3/S3_Storage_Page.php:184
+msgid "私有"
+msgstr ""
+
+#: src/S3/S3_Storage_Page.php:184
+msgid "只在上传时作为权限参数提交，能否生效由云存储服务商决定：Cloudflare R2、MinIO 会忽略；缤纷云等由存储桶策略或 CDN 决定。只影响之后上传的文件，不会改变已有文件。"
+msgstr ""
+
+#: src/S3/S3_Storage_Page.php:185
+msgid "云端路径前缀"
+msgstr ""
+
+#. translators: %s: uploads path.
+#: src/S3/S3_Storage_Page.php:189
+#, php-format
+msgid "站点自己修改过上传目录（WordPress 的 upload_path 设置）：%s。云端路径会沿用这个值；本插件不会再改它，如需更换请先调整站点设置。"
+msgstr ""
+
+#. translators: %s: uploads path.
+#: src/S3/S3_Storage_Page.php:192
+#, php-format
+msgid "当前使用已保存的前缀：%s。修改后，已上传的文件和新路径会对不上，只有确认文件已经迁移时才改。"
+msgstr ""
+
+#. translators: %s: uploads path.
+#: src/S3/S3_Storage_Page.php:195
+#, php-format
+msgid "默认跟随 WordPress 的上传目录（当前：%s）；想放在根目录就填「.」。修改后，已上传的文件和新路径会对不上。"
+msgstr ""
+
+#: src/S3/S3_Storage_Page.php:198
+msgid "图片地址前缀"
+msgstr ""
+
+#: src/S3/S3_Storage_Page.php:198
+msgid "保存后会写入 WordPress 的图片地址设置。不会自动替换文章里已经写好的旧地址。"
+msgstr ""
+
+#: src/S3/S3_Storage_Page.php:208
+msgid "只检查能不能访问存储桶，不会上传测试文件。"
+msgstr ""
+
+#: src/S3/S3_Storage_Page.php:217
+msgid "继续迁移"
+msgstr ""
+
+#. translators: 1: processed attachments, 2: total attachments.
+#: src/S3/S3_Storage_Page.php:219
+#, php-format
+msgid "上次迁移已扫描 %1$d / %2$d 个附件，点击继续。"
+msgstr ""
+
+#: src/S3/S3_Storage_Page.php:221
+#: src/S3/S3_Storage_Page.php:278
+msgid "重新同步历史附件"
+msgstr ""
+
+#. translators: 1: processed attachments, 2: queued attachments, 3: failed attachments.
+#: src/S3/S3_Storage_Page.php:223
+#, php-format
+msgid "上次迁移完成：扫描 %1$d 个附件，上传 %2$d，失败 %3$d。"
+msgstr ""
+
+#: src/S3/S3_Storage_Page.php:225
+msgid "同步历史附件"
+msgstr ""
+
+#: src/S3/S3_Storage_Page.php:232
+msgid "历史附件迁移"
+msgstr ""
+
+#: src/S3/S3_Storage_Page.php:235
+msgid "分批扫描媒体库，逐批上传并校验：每批最多 500 个附件、20 秒，可随时中断再继续。迁移始终保留本地文件，失败项可在同步中心重试。"
+msgstr ""
+
+#: src/S3/S3_Storage_Page.php:242
+msgid "查看命令行高级用法（WP-CLI）"
+msgstr ""
+
+#: src/S3/S3_Storage_Page.php:242
+msgid "先空跑确认路径正确，再去掉 --dry-run；中断后重跑可以加 --skip-existing。"
+msgstr ""
+
+#: src/S3/S3_Storage_Page.php:242
+msgid "媒体库很大时建议用命令行：可以持续扫描并上传，关掉浏览器也能继续；--reset 表示从头重扫。"
+msgstr ""
+
+#: src/S3/S3_Storage_Page.php:265
+#, php-format
+msgid "已扫描 %1$d / %2$d 个附件：入队 %3$d，跳过 %4$d，失败 %5$d。"
+msgstr ""
+
+#: src/S3/S3_Storage_Page.php:293
+msgid "同步请求失败。"
+msgstr ""
+
+#: src/S3/S3_Storage_Page.php:311
+msgid "网络或服务器错误，扫描已停止；已处理的附件不会丢失，可再次点击继续。"
+msgstr ""
+
+#: src/S3/S3_Storage_Page.php:318
+msgid "确定扫描媒体库并逐批上传历史附件吗？本地文件会保留。"
+msgstr ""
+
+#: src/S3/S3_Storage_Page.php:321
+msgid "正在读取历史附件…"
+msgstr ""
+
+#: src/S3/S3_Storage_Page.php:357
+msgid "已删除保存的配置。"
+msgstr ""
+
+#: src/S3/S3_Storage_Page.php:360
+msgid "已切换配置；是否启用和上传策略保持不变。"
+msgstr ""
+
+#: src/S3/S3_Storage_Page.php:365
+msgid "云存储设置已保存。"
+msgstr ""
+
+#: src/S3/S3_Storage_Page.php:368
+msgid "「服务地址」必须是有效的 http:// 或 https:// 地址。"
+msgstr ""
+
+#: src/S3/S3_Storage_Page.php:369
+msgid "「图片地址前缀」必须是有效的 http:// 或 https:// 地址。"
+msgstr ""
+
+#: src/S3/S3_Storage_Page.php:370
+msgid "「云端路径前缀」不能包含「..」这类上级目录写法。"
+msgstr ""
+
+#: src/S3/S3_Storage_Page.php:371
+msgid "启用前必须填写存储桶名称、Access Key、Secret 和服务地址（使用 AWS 官方服务时地址可留空）。"
+msgstr ""
+
+#: src/S3/S3_Storage_Page.php:372
+msgid "服务器缺少加密组件，无法安全保存密钥，请联系主机商开启。"
+msgstr ""
+
+#: src/S3/S3_Storage_Page.php:373
+msgid "无法切换：配置不存在或还不完整，请补全后保存。"
+msgstr ""
+
+#: src/S3/S3_Storage_Page.php:374
+msgid "无法切换：该配置的云端路径和站点当前上传目录不一致，切换后已上传的文件会找不到。请先统一路径，或调整站点的上传目录设置。"
+msgstr ""
+
+#: src/S3/S3_Storage_Page.php:375
+msgid "无法删除该配置，请刷新页面后重试。"
+msgstr ""
+
+#: src/S3/S3_Storage_Page.php:376
+msgid "当前使用中的配置不能删除，请先切换到其他配置。"
+msgstr ""
+
+#: src/S3/S3_Storage_Page.php:380
+msgid "设置未保存。"
+msgstr ""
+
+#: src/S3/S3_Storage_Page.php:385
+msgid "连接成功，存储桶可以访问。"
+msgstr ""
+
+#: src/S3/S3_Storage_Page.php:388
+msgid "连接失败。"
+msgstr ""
+
+#: src/S3/Storage.php:472
+msgid "旧版本遗留的后台上传任务，已停止自动执行。"
+msgstr ""
+
+#: src/S3/Storage.php:479
+msgid "存在旧版本遗留的上传任务，请人工补传。"
+msgstr ""
+
+#. translators: %s: comma-separated missing configuration fields.
+#: src/S3/Storage.php:512
+#, php-format
+msgid "S3 已启用但配置不完整（%s）。已阻止上传；请先在 S3 存储页补全配置。"
+msgstr ""
+
+#. translators: %s: comma-separated missing configuration fields.
+#: src/S3/Storage.php:531
+#, php-format
+msgid "樱花工具箱：S3 已启用但配置不完整（%s），已暂停媒体 URL 接管、图片上传与手动同步。"
+msgstr ""
+
+#: src/S3/Storage.php:556
+msgid "樱花工具箱：有附件未完成 S3 同步。"
+msgstr ""
+
+#. translators: %d: number of remote objects.
+#: src/S3/Storage.php:561
+#, php-format
+msgid "有 %d 个远端对象删除失败，可能继续产生存储费用，后台会按退避自动重试。"
+msgstr ""
+
+#. translators: %d: number of remote objects.
+#: src/S3/Storage.php:568
+#, php-format
+msgid "有 %d 个远端对象补删任务超过 10 分钟未完成，请检查 WP-Cron 或系统定时任务。"
+msgstr ""
+
+#: src/S3/Storage.php:577
+msgid "查看并重试"
+msgstr ""
+
+#: src/S3/Storage_Adapter.php:109
+msgid "文件不存在或不可读。"
+msgstr ""
+
+#: src/S3/Storage_Adapter.php:338
+#: src/S3/Storage_Adapter.php:353
+msgid "对象前缀无效。"
+msgstr ""
+
+#: src/S3/Synchronous_Uploader.php:176
+msgid "附件 ID 无效。"
+msgstr ""
+
+#: src/S3/Synchronous_Uploader.php:185
+msgid "未找到可上传的附件文件。"
+msgstr ""
+
+#: src/S3/Synchronous_Uploader.php:196
+msgid "附件已同步且版本一致。"
+msgstr ""
+
+#: src/S3/Synchronous_Uploader.php:232
+msgid "上传结果缺失。"
+msgstr ""
+
+#. translators: 1: failed file count, 2: first error.
+#: src/S3/Synchronous_Uploader.php:249
+#, php-format
+msgid "%1$d 个文件上传失败：%2$s"
+msgstr ""
+
+#: src/S3/Synchronous_Uploader.php:276
+msgid "上传期间附件文件发生变化，已保留本地文件，请重试。"
+msgstr ""
+
+#: src/S3/Synchronous_Uploader.php:302
+msgid "同步状态写入失败，已保留本地文件。"
+msgstr ""
+
+#: src/S3/Synchronous_Uploader.php:308
+msgid "附件已上传并校验。"
+msgstr ""
+
+#: src/S3/Sync_Actions.php:108
+msgid "上传目录不存在或不可读。"
+msgstr ""
+
+#: src/S3/Sync_Actions.php:114
+#: src/S3/Sync_Actions.php:132
+#: src/S3/Sync_Actions.php:136
+msgid "该对象不在 WordPress 上传目录内，已拒绝操作。"
+msgstr ""
+
+#: src/S3/Sync_Actions.php:120
+msgid "本地文件不存在或不可读。"
+msgstr ""
+
+#: src/S3/Sync_Center_Module.php:151
+msgid "操作失败，请稍后重试。"
+msgstr ""
+
+#: src/S3/Sync_Center_Module.php:152
+msgid "正在对账…"
+msgstr ""
+
+#: src/S3/Sync_Center_Module.php:153
+msgid "正在停止对账…"
+msgstr ""
+
+#: src/S3/Sync_Center_Module.php:154
+msgid "对账已停止，可随时继续。"
+msgstr ""
+
+#: src/S3/Sync_Center_Module.php:155
+msgid "正在继续对账…"
+msgstr ""
+
+#: src/S3/Sync_Center_Module.php:156
+msgid "继续对账"
+msgstr ""
+
+#: src/S3/Sync_Center_Module.php:157
+#: src/Sync/Index_Repository.php:202
+msgid "没有可继续的对账任务，请重新开始。"
+msgstr ""
+
+#: src/S3/Sync_Center_Module.php:158
+msgid "停止对账失败，请稍后重试。"
+msgstr ""
+
+#: src/S3/Sync_Center_Module.php:159
+msgid "正在重算差异…"
+msgstr ""
+
+#: src/S3/Sync_Center_Module.php:160
+msgid "差异已按现有索引重算（未列举云端）。"
+msgstr ""
+
+#: src/S3/Sync_Center_Module.php:161
+msgid "正在切换索引状态…"
+msgstr ""
+
+#: src/S3/Sync_Center_Module.php:162
+msgid "正在重试…"
+msgstr ""
+
+#: src/S3/Sync_Center_Module.php:163
+#: src/Sync/Scan_Service.php:717
+msgid "对账完成。"
+msgstr ""
+
+#: src/S3/Sync_Center_Module.php:164
+msgid "重试完成。"
+msgstr ""
+
+#: src/S3/Sync_Center_Module.php:165
+msgid "正在上传…"
+msgstr ""
+
+#: src/S3/Sync_Center_Module.php:166
+msgid "正在下载…"
+msgstr ""
+
+#: src/S3/Sync_Center_Module.php:167
+msgid "正在删除…"
+msgstr ""
+
+#: src/S3/Sync_Center_Module.php:168
+msgid "操作完成。"
+msgstr ""
+
+#: src/S3/Sync_Center_Module.php:169
+#: src/UserFiles/Media/Media_Hooks.php:1151
+#, php-format
+msgid "已选 %d 项"
+msgstr ""
+
+#: src/S3/Sync_Center_Module.php:170
+msgid "最多选择 10 项"
+msgstr ""
+
+#: src/S3/Sync_Center_Module.php:175
+msgid "所选对象没有符合该操作的状态。"
+msgstr ""
+
+#: src/S3/Sync_Center_Module.php:176
+#, php-format
+msgid "选中项中有 %d 个云端已存在，继续会覆盖远端文件。确认批量覆盖？"
+msgstr ""
+
+#: src/S3/Sync_Center_Module.php:177
+#, php-format
+msgid "从云端永久删除这 %d 个对象？"
+msgstr ""
+
+#: src/S3/Sync_Center_Module.php:178
+msgid "将删除所选的全部云端对象，不可撤销；本地文件不会删除，但使用 CDN 的页面可能出现 404。"
+msgstr ""
+
+#: src/S3/Sync_Center_Module.php:179
+#, php-format
+msgid "永久删除 %d 个对象"
+msgstr ""
+
+#: src/S3/Sync_Center_Module.php:182
+msgid "测试中…"
+msgstr ""
+
+#: src/S3/Sync_Center_Module.php:183
+msgid "连接正常。"
+msgstr ""
+
+#: src/S3/Sync_Center_Module.php:185
+#, php-format
+msgid "显示 %1$s–%2$s 项，筛选自 %3$s 项"
+msgstr ""
+
+#: src/S3/Sync_Center_Module.php:186
+msgid " · 按最近修改排序"
+msgstr ""
+
+#: src/S3/Sync_Center_Module.php:187
+msgid "加载文件列表失败。"
+msgstr ""
+
+#: src/S3/Sync_Center_Module.php:195
+msgid "—"
+msgstr ""
+
+#: src/S3/Sync_Center_Module.php:205
+msgid "校验差异"
+msgstr ""
+
+#: src/S3/Sync_Center_Module.php:372
+msgid "该任务已结束，无需停止。"
+msgstr ""
+
+#: src/S3/Sync_Center_Module.php:380
+msgid "已请求停止，当前批次结束后生效。"
+msgstr ""
+
+#: src/S3/Sync_Center_Module.php:423
+msgid "索引已停用，无法刷新差异。"
+msgstr ""
+
+#: src/S3/Sync_Center_Module.php:431
+msgid "已按现有索引重算差异（未列举云端）。"
+msgstr ""
+
+#: src/S3/Sync_Center_Module.php:453
+msgid "已启用持久索引。"
+msgstr ""
+
+#: src/S3/Sync_Center_Module.php:453
+msgid "已停用持久索引，页面切换到兼容快照。"
+msgstr ""
+
+#. translators: %s: configuration error.
+#: src/S3/Sync_Center_Module.php:469
+#, php-format
+msgid "S3 配置不可用：%s"
+msgstr ""
+
+#. translators: %s: error message.
+#: src/S3/Sync_Center_Module.php:475
+#, php-format
+msgid "最近一次对账失败：%s"
+msgstr ""
+
+#. translators: %d: dead jobs.
+#: src/S3/Sync_Center_Module.php:480
+#, php-format
+msgid "动作队列有 %d 个任务已标记 dead，请在任务中心处理。"
+msgstr ""
+
+#: src/S3/Sync_Center_Module.php:505
+#: src/S3/Sync_Center_Module.php:592
+#: src/S3/Sync_Center_Module.php:748
+#: src/Sync/CLI.php:216
+#: src/Sync/CLI.php:355
+#: src/Sync/CLI.php:410
+#: src/Sync/Scan_Service.php:135
+msgid "尚未选择 S3 配置。"
+msgstr ""
+
+#: src/S3/Sync_Center_Module.php:538
+msgid "请先保存完整的 S3 连接配置。"
+msgstr ""
+
+#. translators: %d: milliseconds.
+#: src/S3/Sync_Center_Module.php:548
+#, php-format
+msgid "连接正常，headBucket 耗时 %d ms。"
+msgstr ""
+
+#: src/S3/Sync_Center_Module.php:552
+msgid "同步中心连接测试失败："
+msgstr ""
+
+#: src/S3/Sync_Center_Module.php:553
+msgid "连接失败，请检查服务商、Endpoint、存储桶和凭据。"
+msgstr ""
+
+#: src/S3/Sync_Center_Module.php:566
+msgid "S3 配置不完整，无法执行操作。"
+msgstr ""
+
+#: src/S3/Sync_Center_Module.php:569
+msgid "持久索引已停用，无法执行行内动作。"
+msgstr ""
+
+#: src/S3/Sync_Center_Module.php:587
+msgid "操作参数不完整。"
+msgstr ""
+
+#: src/S3/Sync_Center_Module.php:597
+msgid "批量删除需要输入 DELETE 二次确认。"
+msgstr ""
+
+#: src/S3/Sync_Center_Module.php:631
+msgid "选中项中有云端已存在的对象；批量覆盖需要再次确认。"
+msgstr ""
+
+#: src/S3/Sync_Center_Module.php:642
+msgid "没有可入队的对象。"
+msgstr ""
+
+#. translators: 1: queued jobs, 2: action name.
+#: src/S3/Sync_Center_Module.php:652
+#, php-format
+msgid "批量%2$s：%1$d 个对象已入队。"
+msgstr ""
+
+#. translators: 1: queued, 2: skipped.
+#: src/S3/Sync_Center_Module.php:663
+#, php-format
+msgid "已将 %1$d 个对象加入后台队列，%2$d 个不符合条件已跳过。"
+msgstr ""
+
+#. translators: %d: jobs queued.
+#: src/S3/Sync_Center_Module.php:664
+#, php-format
+msgid "已将 %d 个对象加入后台队列。"
+msgstr ""
+
+#: src/S3/Sync_Center_Module.php:671
+msgid "该对象不在当前对账索引中，请重新对账后再操作。"
+msgstr ""
+
+#: src/S3/Sync_Center_Module.php:684
+msgid "大文件已加入后台上传队列。"
+msgstr ""
+
+#: src/S3/Sync_Center_Module.php:688
+msgid "文件超过 50 MB，已加入后台队列，完成后刷新即可看到结果。"
+msgstr ""
+
+#: src/S3/Sync_Center_Module.php:697
+msgid "本地没有该文件，无法上传。"
+msgstr ""
+
+#: src/S3/Sync_Center_Module.php:700
+msgid "云端已存在该对象。重新上传会覆盖远端文件，请确认后再试。"
+msgstr ""
+
+#: src/S3/Sync_Center_Module.php:703
+msgid "对象已上传到云端。"
+msgstr ""
+
+#: src/S3/Sync_Center_Module.php:706
+msgid "该对象不是“仅云端”状态，无需下载。"
+msgstr ""
+
+#: src/S3/Sync_Center_Module.php:709
+msgid "对象已下载到本地。"
+msgstr ""
+
+#: src/S3/Sync_Center_Module.php:712
+msgid "云端没有该对象，无法删除。"
+msgstr ""
+
+#: src/S3/Sync_Center_Module.php:715
+msgid "删除远端对象需要二次确认。"
+msgstr ""
+
+#: src/S3/Sync_Center_Module.php:718
+msgid "云端对象已删除。"
+msgstr ""
+
+#: src/S3/Sync_Center_Module.php:722
+msgid "已确认删除远端对象。"
+msgstr ""
+
+#: src/S3/Sync_Center_Module.php:917
+msgid "索引为空：点击“开始对账”扫描本地目录与对象存储。"
+msgstr ""
+
+#. translators: %d: pending files.
+#: src/S3/Sync_Center_Module.php:927
+#, php-format
+msgid "发现 %d 个本地文件尚未上传到对象存储。"
+msgstr ""
+
+#. translators: %d: remote objects.
+#: src/S3/Sync_Center_Module.php:934
+#, php-format
+msgid "发现 %d 个云端对象在本地没有对应文件；不会自动删除。"
+msgstr ""
+
+#. translators: 1: attachment title, 2: error.
+#: src/S3/Sync_Center_Module.php:944
+#, php-format
+msgid "同步失败：%1$s — %2$s"
+msgstr ""
+
+#: src/S3/Sync_Center_Module.php:946
+msgid "未知错误"
+msgstr ""
+
+#. translators: %d: failed count.
+#: src/S3/Sync_Center_Module.php:956
+#, php-format
+msgid "另有 %d 个附件等待处理，可在任务中心查看。"
+msgstr ""
+
+#: src/S3/Sync_Center_Panel.php:35
+msgid "上传吞吐"
+msgstr ""
+
+#: src/S3/Sync_Center_Panel.php:36
+msgid "上传完成时实时记录成功量、失败率与字节数，页面每 30 秒自动刷新。"
+msgstr ""
+
+#. translators: %s: relative time.
+#: src/S3/Sync_Center_Panel.php:40
+#, php-format
+msgid "更新于 %s"
+msgstr ""
+
+#. translators: %s: relative time.
+#: src/S3/Sync_Center_Panel.php:40
+msgid "尚未记录"
+msgstr ""
+
+#. translators: %s: relative time.
+#: src/S3/Sync_Center_Panel.php:41
+msgid "刷新指标"
+msgstr ""
+
+#: src/S3/Sync_Center_Panel.php:46
+msgid "今日成功"
+msgstr ""
+
+#. translators: 1: failed attempts, 2: failure rate.
+#: src/S3/Sync_Center_Panel.php:48
+#, php-format
+msgid "失败 %1$d · 失败率 %2$s"
+msgstr ""
+
+#: src/S3/Sync_Center_Panel.php:51
+msgid "平均耗时"
+msgstr ""
+
+#. translators: %s: slowest duration.
+#: src/S3/Sync_Center_Panel.php:53
+#, php-format
+msgid "最慢 %s"
+msgstr ""
+
+#: src/S3/Sync_Center_Panel.php:56
+msgid "今日上传量"
+msgstr ""
+
+#. translators: %s: week failure rate.
+#: src/S3/Sync_Center_Panel.php:58
+#, php-format
+msgid "近 14 天失败率 %s"
+msgstr ""
+
+#: src/S3/Sync_Center_Panel.php:61
+msgid "最后错误"
+msgstr ""
+
+#: src/S3/Sync_Center_Panel.php:62
+msgid "暂无错误记录"
+msgstr ""
+
+#. translators: 1: number of unsynced attachments, 2: sync center link.
+#: src/S3/Sync_Center_Panel.php:74
+#, php-format
+msgid "有 %1$d 个附件尚未同步，前往 %2$s 处理。"
+msgstr ""
+
+#: src/S3/Sync_Status.php:215
+msgid "云端对象已删除，附件需要重新同步。"
+msgstr ""
+
+#: src/S3/Sync_Status.php:375
+msgid "远程同步连续失败，已停止自动重试，请手动重试或检查配置。"
+msgstr ""
+
+#: src/S3/Sync_Status.php:476
+msgid "等待同步"
+msgstr ""
+
+#: src/S3/Sync_Status.php:480
+msgid "已停止重试"
+msgstr ""
+
+#: src/S3/Sync_Status.php:482
+msgid "未同步"
+msgstr ""
+
+#: src/S3/Upload_Capabilities.php:84
+msgid "当前 HTTP 传输环境不支持并行，实际使用 1。"
+msgstr ""
+
+#. translators: %s: human time diff.
+#: src/S3/Upload_Metrics.php:330
+#, php-format
+msgid "%s前"
+msgstr ""
+
+#. translators: 1: local bytes, 2: remote bytes.
+#: src/S3/Upload_Verify.php:70
+#, php-format
+msgid "上传后校验失败：本地 %1$d 字节，远端 Content-Length 为 %2$d 字节。"
+msgstr ""
+
+#: src/S3/Upload_Verify.php:80
+msgid "上传后校验失败：HEAD 未返回 ETag。"
+msgstr ""
+
+#. translators: 1: expected ETag, 2: remote ETag.
+#: src/S3/Upload_Verify.php:86
+#, php-format
+msgid "上传后校验失败：ETag 不一致（期望 %1$s，远端 %2$s），可能存在截断或代理改写。"
+msgstr ""
+
+#: src/Sync/Action_Worker.php:103
+msgid "排队后存储目标已变更，已停止该动作，请重新发起。"
+msgstr ""
+
+#. translators: 1: action, 2: object key, 3: error.
+#: src/Sync/Action_Worker.php:129
+#, php-format
+msgid "队列动作 %1$s 失败：%2$s — %3$s"
+msgstr ""
+
+#. translators: 1: action, 2: object key.
+#: src/Sync/Action_Worker.php:149
+#, php-format
+msgid "队列动作 %1$s 完成：%2$s"
+msgstr ""
+
+#: src/Sync/Action_Worker.php:174
+msgid "未知的队列动作。"
+msgstr ""
+
+#: src/Sync/Action_Worker.php:189
+msgid "该任务创建时的存储配置已不存在或不可用，已停止动作。"
+msgstr ""
+
+#. translators: 1: scan id, 2: profile id or "active", 3: pages per tick.
+#: src/Sync/CLI.php:102
+#, php-format
+msgid "扫描 #%1$d 已启动（profile=%2$s，每 tick %3$d 页）。"
+msgstr ""
+
+#: src/Sync/CLI.php:112
+msgid "另一个 tick 正在运行，等待…"
+msgstr ""
+
+#: src/Sync/CLI.php:128
+msgid "扫描失败。"
+msgstr ""
+
+#. translators: %d: number of rows.
+#: src/Sync/CLI.php:292
+#, php-format
+msgid "已重置 %d 行的校验状态。"
+msgstr ""
+
+#: src/Sync/CLI.php:304
+msgid "另一个校验进程正在运行，等待 2 秒…"
+msgstr ""
+
+#: src/Sync/CLI.php:316
+msgid "校验批次"
+msgstr ""
+
+#: src/Sync/CLI.php:333
+msgid "校验完成"
+msgstr ""
+
+#: src/Sync/CLI.php:378
+msgid "计数表已重建。"
+msgstr ""
+
+#: src/Sync/CLI.php:390
+msgid "清理完成（事件 30 天、扫描记录 90 天、死任务 30 天）。"
+msgstr ""
+
+#. translators: %s: S3 profile id.
+#: src/Sync/CLI.php:413
+#, php-format
+msgid "将删除 profile %s 的全部索引、计数与任务，继续？"
+msgstr ""
+
+#: src/Sync/CLI.php:415
+msgid "索引已清空。"
+msgstr ""
+
+#. translators: 1: indexed rows, 2: indexed size in MB, 3: local files, 4: local size in MB, 5: cloud objects, 6: cloud size in MB.
+#: src/Sync/CLI.php:443
+#, php-format
+msgid "索引 %1$d 项 / %2$.2f MB · 本地 %3$d 项 / %4$.2f MB · 云端 %5$d 项 / %6$.2f MB"
+msgstr ""
+
+#: src/Sync/Index_Repository.php:149
+#: src/Sync/Index_Repository.php:190
+msgid "已有对账任务在运行，请稍后再试。"
+msgstr ""
+
+#: src/Sync/Index_Repository.php:174
+msgid "无法创建对账任务。"
+msgstr ""
+
+#: src/Sync/Index_Repository.php:252
+msgid "上一次对账已超时，已自动终止。"
+msgstr ""
+
+#: src/Sync/Index_Repository.php:263
+msgid "已有一个对账任务在运行。"
+msgstr ""
+
+#: src/Sync/Index_Repository.php:642
+msgid "内容不一致：ETag 与本地 MD5 不同。"
+msgstr ""
+
+#: src/Sync/Index_Repository.php:753
+#: src/Sync/Index_Repository.php:757
+msgid "对账索引写入失败。"
+msgstr ""
+
+#. translators: 1: attempt number, 2: error message.
+#: src/Sync/Index_Repository.php:892
+#, php-format
+msgid "对账第 %1$d 次失败：%2$s"
+msgstr ""
+
+#: src/Sync/Index_Repository.php:955
+msgid "不支持的队列动作。"
+msgstr ""
+
+#: src/Sync/Index_Repository.php:986
+msgid "无法写入动作队列。"
+msgstr ""
+
+#: src/Sync/Scan_Service.php:131
+msgid "指定的 S3 配置不存在。"
+msgstr ""
+
+#: src/Sync/Scan_Service.php:139
+msgid "S3 配置不完整，无法对账。"
+msgstr ""
+
+#: src/Sync/Scan_Service.php:161
+msgid "已按现有索引重算差异。"
+msgstr ""
+
+#: src/Sync/Scan_Service.php:209
+msgid "对账任务不存在。"
+msgstr ""
+
+#: src/Sync/Scan_Service.php:212
+msgid "对账已完成。"
+msgstr ""
+
+#: src/Sync/Scan_Service.php:215
+#: src/Sync/Scan_Service.php:750
+msgid "对账已取消。"
+msgstr ""
+
+#: src/Sync/Scan_Service.php:227
+msgid "对账正在另一个请求中推进…"
+msgstr ""
+
+#: src/Sync/Scan_Service.php:266
+msgid "开始全量对账。"
+msgstr ""
+
+#: src/Sync/Scan_Service.php:282
+msgid "正在扫描本地文件…"
+msgstr ""
+
+#: src/Sync/Scan_Service.php:312
+msgid "正在列举云端对象…"
+msgstr ""
+
+#: src/Sync/Scan_Service.php:342
+msgid "本地游标失效，无法继续对账。"
+msgstr ""
+
+#. translators: %d: file limit.
+#: src/Sync/Scan_Service.php:395
+#, php-format
+msgid "本地文件超过 %d 个，已停止本次对账；请使用 WP-CLI 分批扫描。"
+msgstr ""
+
+#: src/Sync/Scan_Service.php:547
+msgid "本地目录不存在。"
+msgstr ""
+
+#: src/Sync/Scan_Service.php:554
+msgid "上传目录不可用。"
+msgstr ""
+
+#. translators: 1: local files, 2: cloud objects, 3: differences.
+#: src/Sync/Scan_Service.php:705
+#, php-format
+msgid "全量对账完成：本地 %1$d 个、云端 %2$d 个、差异 %3$d 个。"
+msgstr ""
+
+#: src/Sync/Scan_Service.php:754
+msgid "对账已取消，可稍后继续。"
+msgstr ""
+
+#. translators: 1: attempts, 2: error message.
+#: src/Sync/Scan_Worker.php:164
+#, php-format
+msgid "%1$d 次尝试后失败：%2$s"
+msgstr ""
+
+#: src/Sync/Verify_Worker.php:89
+msgid "Sakura S3 每五分钟"
+msgstr ""
+
+#: src/Thumbnail/CLI.php:34
+msgid "模式："
+msgstr ""
+
+#: src/Thumbnail/CLI.php:35
+msgid "证据："
+msgstr ""
+
+#: src/Thumbnail/CLI.php:37
+msgid "样本："
+msgstr ""
+
+#: src/Thumbnail/CLI.php:39
+msgid "有效模式："
+msgstr ""
+
+#: src/Thumbnail/CLI.php:42
+msgid "探测完成。"
+msgstr ""
+
+#: src/Thumbnail/CLI.php:46
+msgid "探测未成功，URL 引擎不会改写图片。"
+msgstr ""
+
+#: src/Thumbnail/CLI.php:60
+msgid "(未配置)"
+msgstr ""
+
+#: src/Thumbnail/CLI.php:61
+msgid "(空)"
+msgstr ""
+
+#: src/Thumbnail/CLI.php:94
+msgid "engine 必须是 url、html 或 off。"
+msgstr ""
+
+#. translators: %s: image engine name.
+#: src/Thumbnail/CLI.php:105
+#, php-format
+msgid "engine 已切换为 %s。"
+msgstr ""
+
+#: src/Thumbnail/CLI.php:122
+msgid "state 必须是 on 或 off。"
+msgstr ""
+
+#: src/Thumbnail/CLI.php:132
+msgid "停用"
+msgstr ""
+
+#. translators: %s: on/off label.
+#: src/Thumbnail/CLI.php:134
+#, php-format
+msgid "缩略图优化已%s。"
+msgstr ""
+
+#: src/Thumbnail/CLI.php:142
+msgid "统计已清空。"
+msgstr ""
+
+#: src/Thumbnail/Probe.php:60
+msgid "当前对象存储不是缤纷云（"
+msgstr ""
+
+#: src/Thumbnail/Probe.php:60
+msgid "），命名样式不可用。"
+msgstr ""
+
+#: src/Thumbnail/Probe.php:73
+msgid "没有可用于测试的图片，请先上传一张图片。"
+msgstr ""
+
+#: src/Thumbnail/Probe.php:151
+msgid "云存储不支持地址改写，但本地有 WordPress 生成的尺寸可用。"
+msgstr ""
+
+#. translators: 1: original image width, 2: original image height.
+#: src/Thumbnail/Probe.php:160
+#, php-format
+msgid "无法生成测试地址（原图 %1$d×%2$d）。"
+msgstr ""
+
+#. translators: %d: HTTP status code.
+#: src/Thumbnail/Probe.php:199
+#, php-format
+msgid "服务器返回 %d，请求被拒绝。"
+msgstr ""
+
+#: src/Thumbnail/Probe.php:211
+msgid "请求失败（网络不通或服务器不支持）。"
+msgstr ""
+
+#. translators: %d: HTTP status code.
+#: src/Thumbnail/Probe.php:214
+#, php-format
+msgid "服务器返回 %d。"
+msgstr ""
+
+#. translators: %1$d: returned width in px, %2$d: expected width in px, %3$s: mode hint.
+#: src/Thumbnail/Probe.php:230
+#, php-format
+msgid "返回宽度 %1$dpx，预期 %2$dpx（%3$s）。"
+msgstr ""
+
+#: src/Thumbnail/Probe.php:240
+msgid "云存储设置了默认样式，覆盖了地址里的宽高参数。"
+msgstr ""
+
+#. translators: 1: returned file size, 2: original file size.
+#: src/Thumbnail/Probe.php:250
+#, php-format
+msgid "返回的文件 %1$s，和原图 %2$s 差不多大，看起来没有真正缩小。"
+msgstr ""
+
+#. translators: 1: returned width, 2: returned file size, 3: original file size.
+#: src/Thumbnail/Probe.php:259
+#, php-format
+msgid "访问正常（200）：宽度 %1$s，文件 %2$s，原图 %3$s。"
+msgstr ""
+
+#. translators: 1: returned width, 2: returned file size, 3: original file size.
+#: src/Thumbnail/Probe.php:259
+msgid "目标宽度头缺失"
+msgstr ""
+
+#: src/Thumbnail/Probe.php:274
+msgid "命名样式 "
+msgstr ""
+
+#: src/Thumbnail/Provider_Status.php:111
+msgid "被拦截"
+msgstr ""
+
+#: src/Thumbnail/Provider_Status.php:116
+msgid "URL 参数"
+msgstr ""
+
+#: src/Thumbnail/Provider_Status.php:118
+msgid "WordPress 衍生尺寸"
+msgstr ""
+
+#: src/Thumbnail/Settings.php:569
+msgid "WordPress 内置缓存（非持久）"
+msgstr ""
+
+#: src/Thumbnail/Settings.php:578
+msgid "Redis"
+msgstr ""
+
+#: src/Thumbnail/Settings.php:587
+msgid "Memcached"
+msgstr ""
+
+#: src/Thumbnail/Settings.php:595
+msgid "其他持久对象缓存"
+msgstr ""
+
+#: src/Thumbnail/Settings.php:950
+msgid "缩略图地址改写已开启，但 S3 对象权限是“私有”。改写后的地址不带签名，访客会收到 403；如已配置签名 CDN，可忽略。"
+msgstr ""
+
+#: src/Thumbnail/Settings.php:958
+msgid "缩略图地址改写已开启，但 S3 设置为“不上传缩略图”。页面会指向未上传的子尺寸，可能出现 404；请关闭改写或允许上传缩略图。"
+msgstr ""
+
+#: src/Thumbnail/Size_Catalog.php:26
+msgid "缩略图 (thumbnail)"
+msgstr ""
+
+#: src/Thumbnail/Size_Catalog.php:27
+msgid "中等 (medium)"
+msgstr ""
+
+#: src/Thumbnail/Size_Catalog.php:28
+msgid "中等大 (medium_large)"
+msgstr ""
+
+#: src/Thumbnail/Size_Catalog.php:29
+msgid "大图 (large)"
+msgstr ""
+
+#: src/UserFiles/Admin/Page.php:209
+#: src/UserFiles/Frontend/Tab.php:508
+msgid "加载中…"
+msgstr ""
+
+#: src/UserFiles/Admin/Page.php:210
+msgid "暂无待处理申请。"
+msgstr ""
+
+#: src/UserFiles/Admin/Page.php:211
+msgid "批准"
+msgstr ""
+
+#: src/UserFiles/Admin/Page.php:212
+msgid "驳回"
+msgstr ""
+
+#: src/UserFiles/Admin/Page.php:213
+msgid "撤销批准"
+msgstr ""
+
+#: src/UserFiles/Admin/Page.php:217
+msgid "操作失败，请重试。"
+msgstr ""
+
+#: src/UserFiles/Admin/Page.php:218
+msgid "请输入“删除”两个字"
+msgstr ""
+
+#: src/UserFiles/Admin/Page.php:220
+msgid "容量（字节）"
+msgstr ""
+
+#: src/UserFiles/Admin/Page.php:234
+msgid "你没有权限管理文件空间。"
+msgstr ""
+
+#: src/UserFiles/Admin/Space_Page.php:164
+msgid "启用后将开启扩容售卖入口，用户可付费购买容量。确认继续？"
+msgstr ""
+
+#: src/UserFiles/Admin/Space_Page.php:165
+msgid "关闭后前台扩容入口会立即消失，已售出的授权仍然有效。确认继续？"
+msgstr ""
+
+#: src/UserFiles/Admin/Space_Page.php:166
+msgid "关闭「计算加成」会让所有已购容量立即停止生效（不删任何文件）。确认继续？"
+msgstr ""
+
+#: src/UserFiles/Admin/Space_Page.php:168
+msgid "GB"
+msgstr ""
+
+#: src/UserFiles/Admin/Space_Page.php:169
+msgid "请确认"
+msgstr ""
+
+#: src/UserFiles/Admin/Space_Page.php:171
+msgid "加载失败，请刷新重试"
+msgstr ""
+
+#. translators: 1: theme name, 2: theme version.
+#: src/UserFiles/Admin/Space_Page.php:249
+#, php-format
+msgid "当前主题：%1$s（版本 %2$s）"
+msgstr ""
+
+#: src/UserFiles/Admin/Space_Page.php:250
+#: src/UserFiles/Services/Zibll_Bridge.php:137
+msgid "未知主题"
+msgstr ""
+
+#: src/UserFiles/Capabilities.php:70
+msgid "整理媒体目录"
+msgstr ""
+
+#: src/UserFiles/Capabilities.php:71
+msgid "转交及纳管媒体"
+msgstr ""
+
+#: src/UserFiles/Capabilities.php:72
+msgid "管理自己的文件空间"
+msgstr ""
+
+#: src/UserFiles/Capabilities.php:73
+msgid "申请删除自己的文件"
+msgstr ""
+
+#: src/UserFiles/Capabilities.php:74
+msgid "审核文件删除申请"
+msgstr ""
+
+#: src/UserFiles/Capabilities.php:75
+msgid "执行已批准的删除批次"
+msgstr ""
+
+#: src/UserFiles/CLI.php:173
+msgid "没有找到 FileBird 数据表（fbv）。"
+msgstr ""
+
+#. translators: 1: folder name, 2: error message
+#: src/UserFiles/CLI.php:222
+#, php-format
+msgid "文件夹 %s 创建失败：%s"
+msgstr ""
+
+#. translators: 1: created, 2: reused, 3: assigned, 4: adopted, 5: skipped
+#: src/UserFiles/CLI.php:328
+#, php-format
+msgid "文件夹：新建 %d，复用 %d；附件：归类 %d，新纳入 %d，跳过 %d。"
+msgstr ""
+
+#: src/UserFiles/CLI.php:350
+msgid "FileBird 数据导入完成。"
+msgstr ""
+
+#: src/UserFiles/Frontend/Providers/Generic.php:63
+msgid "通用入口 · 短代码 [sufm_files]"
+msgstr ""
+
+#: src/UserFiles/Frontend/Providers/Zibll.php:50
+msgid "子比主题 · 用户中心标签"
+msgstr ""
+
+#: src/UserFiles/Frontend/Tab.php:347
+msgid "搜索我的文件"
+msgstr ""
+
+#: src/UserFiles/Frontend/Tab.php:348
+msgid "列表视图"
+msgstr ""
+
+#: src/UserFiles/Frontend/Tab.php:349
+msgid "网格视图"
+msgstr ""
+
+#: src/UserFiles/Frontend/Tab.php:358
+msgid "个文件夹"
+msgstr ""
+
+#: src/UserFiles/Frontend/Tab.php:360
+#: src/UserFiles/Frontend/Tab.php:515
+#, php-format
+msgid "%s 个文件"
+msgstr ""
+
+#: src/UserFiles/Frontend/Tab.php:361
+#, php-format
+msgid "%s 个文件夹"
+msgstr ""
+
+#: src/UserFiles/Frontend/Tab.php:362
+#, php-format
+msgid "共 %s 项"
+msgstr ""
+
+#: src/UserFiles/Frontend/Tab.php:365
+msgid "空间信息暂不可用"
+msgstr ""
+
+#: src/UserFiles/Frontend/Tab.php:368
+msgid "已超额，请申请管理员清理"
+msgstr ""
+
+#: src/UserFiles/Frontend/Tab.php:369
+#: src/UserFiles/Services/Uploader.php:118
+msgid "已使用容量超过上限，请联系网站管理员扩容或删除多余文件！"
+msgstr ""
+
+#: src/UserFiles/Frontend/Tab.php:370
+msgid "空间已满，请申请管理员清理"
+msgstr ""
+
+#: src/UserFiles/Frontend/Tab.php:371
+msgid "有待处理申请 · 修改已锁定"
+msgstr ""
+
+#: src/UserFiles/Frontend/Tab.php:372
+#, php-format
+msgid "%s 个文件 · %s"
+msgstr ""
+
+#: src/UserFiles/Frontend/Tab.php:373
+msgid "空文件夹"
+msgstr ""
+
+#: src/UserFiles/Frontend/Tab.php:374
+#, php-format
+msgid "打开文件夹 %s"
+msgstr ""
+
+#: src/UserFiles/Frontend/Tab.php:375
+#: src/UserFiles/Frontend/Tab.php:376
+#, php-format
+msgid "%s的操作"
+msgstr ""
+
+#: src/UserFiles/Frontend/Tab.php:377
+msgid "全选当前文件"
+msgstr ""
+
+#: src/UserFiles/Frontend/Tab.php:379
+msgid "文件名"
+msgstr ""
+
+#: src/UserFiles/Frontend/Tab.php:380
+#: src/UserFiles/Frontend/Tab.php:462
+msgid "文件大小"
+msgstr ""
+
+#: src/UserFiles/Frontend/Tab.php:381
+#: src/UserFiles/Frontend/Tab.php:463
+msgid "上传时间"
+msgstr ""
+
+#: src/UserFiles/Frontend/Tab.php:383
+#, php-format
+msgid "已选择 %s 项"
+msgstr ""
+
+#: src/UserFiles/Frontend/Tab.php:387
+msgid "这里还没有文件"
+msgstr ""
+
+#: src/UserFiles/Frontend/Tab.php:388
+msgid "此文件夹还是空的"
+msgstr ""
+
+#: src/UserFiles/Frontend/Tab.php:389
+msgid "没有找到相关文件"
+msgstr ""
+
+#: src/UserFiles/Frontend/Tab.php:390
+msgid "上传文件或新建文件夹，开始整理你的空间"
+msgstr ""
+
+#: src/UserFiles/Frontend/Tab.php:391
+msgid "上传文件或新建子文件夹，开始整理这个文件夹"
+msgstr ""
+
+#: src/UserFiles/Frontend/Tab.php:392
+msgid "试试其他关键词或切换分类"
+msgstr ""
+
+#: src/UserFiles/Frontend/Tab.php:393
+msgid "上传第一个文件"
+msgstr ""
+
+#: src/UserFiles/Frontend/Tab.php:394
+msgid "这个分类下还没有文件"
+msgstr ""
+
+#: src/UserFiles/Frontend/Tab.php:395
+msgid "上传文件后会自动出现在对应分类中"
+msgstr ""
+
+#: src/UserFiles/Frontend/Tab.php:396
+msgid "还没有删除申请"
+msgstr ""
+
+#: src/UserFiles/Frontend/Tab.php:397
+msgid "在文件或文件夹菜单中选择“申请删除”，填写原因后提交管理员。"
+msgstr ""
+
+#: src/UserFiles/Frontend/Tab.php:398
+msgid "删除须经管理员审核并在后台统一执行。申请、批准均不返还空间；文件仍可通过原链接访问。"
+msgstr ""
+
+#: src/UserFiles/Frontend/Tab.php:399
+#: src/UserFiles/Frontend/Tab.php:410
+#, php-format
+msgid "删除申请 #%s"
+msgstr ""
+
+#: src/UserFiles/Frontend/Tab.php:400
+#, php-format
+msgid "%s 项 · %s"
+msgstr ""
+
+#: src/UserFiles/Frontend/Tab.php:401
+#, php-format
+msgid "申请原因：%s"
+msgstr ""
+
+#: src/UserFiles/Frontend/Tab.php:402
+#, php-format
+msgid "申请时间：%s"
+msgstr ""
+
+#: src/UserFiles/Frontend/Tab.php:403
+#, php-format
+msgid "处理时间：%s"
+msgstr ""
+
+#: src/UserFiles/Frontend/Tab.php:404
+msgid "查看内容"
+msgstr ""
+
+#: src/UserFiles/Frontend/Tab.php:405
+msgid "撤回申请"
+msgstr ""
+
+#: src/UserFiles/Frontend/Tab.php:406
+msgid "撤回删除申请"
+msgstr ""
+
+#: src/UserFiles/Frontend/Tab.php:407
+msgid "撤回后恢复相关文件的修改权限，不影响文件内容和空间。"
+msgstr ""
+
+#: src/UserFiles/Frontend/Tab.php:408
+#: src/UserFiles/Services/Notifier.php:55
+msgid "删除申请已撤回"
+msgstr ""
+
+#: src/UserFiles/Frontend/Tab.php:409
+msgid "撤回中…"
+msgstr ""
+
+#: src/UserFiles/Frontend/Tab.php:411
+msgid "申请内容"
+msgstr ""
+
+#: src/UserFiles/Frontend/Tab.php:412
+msgid "暂无内容"
+msgstr ""
+
+#: src/UserFiles/Frontend/Tab.php:413
+#, php-format
+msgid "%s · %s"
+msgstr ""
+
+#: src/UserFiles/Frontend/Tab.php:414
+#, php-format
+msgid "处理说明：%s"
+msgstr ""
+
+#: src/UserFiles/Frontend/Tab.php:416
+#: src/UserFiles/Media/Media_Hooks.php:1233
+msgid "文件夹"
+msgstr ""
+
+#: src/UserFiles/Frontend/Tab.php:417
+msgid "预览文件"
+msgstr ""
+
+#: src/UserFiles/Frontend/Tab.php:418
+#, php-format
+msgid "预览 %s"
+msgstr ""
+
+#: src/UserFiles/Frontend/Tab.php:419
+msgid "下载文件"
+msgstr ""
+
+#: src/UserFiles/Frontend/Tab.php:420
+#: src/UserFiles/Media/Media_Hooks.php:1173
+#: src/UserFiles/Media/Media_Hooks.php:1240
+msgid "重命名"
+msgstr ""
+
+#: src/UserFiles/Frontend/Tab.php:423
+msgid "查看删除申请"
+msgstr ""
+
+#: src/UserFiles/Frontend/Tab.php:427
+#: src/UserFiles/Space_Panel.php:178
+msgid "处理中…"
+msgstr ""
+
+#: src/UserFiles/Frontend/Tab.php:429
+msgid "文件夹名称"
+msgstr ""
+
+#: src/UserFiles/Frontend/Tab.php:430
+msgid "创建"
+msgstr ""
+
+#: src/UserFiles/Frontend/Tab.php:431
+msgid "重命名文件"
+msgstr ""
+
+#: src/UserFiles/Frontend/Tab.php:432
+msgid "重命名文件夹"
+msgstr ""
+
+#: src/UserFiles/Frontend/Tab.php:433
+msgid "新名称"
+msgstr ""
+
+#: src/UserFiles/Frontend/Tab.php:434
+msgid "保存"
+msgstr ""
+
+#: src/UserFiles/Frontend/Tab.php:436
+msgid "移动不改变文件链接；审批中的相关目录暂不可选。"
+msgstr ""
+
+#: src/UserFiles/Frontend/Tab.php:437
+msgid "移动到这里"
+msgstr ""
+
+#: src/UserFiles/Frontend/Tab.php:439
+msgid "进入"
+msgstr ""
+
+#: src/UserFiles/Frontend/Tab.php:440
+msgid "这里没有子文件夹"
+msgstr ""
+
+#: src/UserFiles/Frontend/Tab.php:441
+msgid "请输入 1–80 个字符的名称"
+msgstr ""
+
+#: src/UserFiles/Frontend/Tab.php:442
+msgid "名称不能含有路径分隔符或控制字符"
+msgstr ""
+
+#: src/UserFiles/Frontend/Tab.php:443
+msgid "请保留原文件扩展名"
+msgstr ""
+
+#: src/UserFiles/Frontend/Tab.php:444
+msgid "文件夹已创建"
+msgstr ""
+
+#: src/UserFiles/Frontend/Tab.php:445
+msgid "名称已更新"
+msgstr ""
+
+#: src/UserFiles/Frontend/Tab.php:446
+msgid "已移动"
+msgstr ""
+
+#: src/UserFiles/Frontend/Tab.php:448
+#, php-format
+msgid "“%s”将提交管理员审核。"
+msgstr ""
+
+#: src/UserFiles/Frontend/Tab.php:449
+#, php-format
+msgid "选中的 %s 个文件将提交管理员审核。"
+msgstr ""
+
+#: src/UserFiles/Frontend/Tab.php:450
+#, php-format
+msgid "文件夹“%s”及当前全部子内容将提交管理员审核。"
+msgstr ""
+
+#: src/UserFiles/Frontend/Tab.php:451
+msgid "此时不会删除文件或释放空间；待审核时可撤回。审批中的对象暂时锁定修改。"
+msgstr ""
+
+#: src/UserFiles/Frontend/Tab.php:452
+msgid "删除原因"
+msgstr ""
+
+#: src/UserFiles/Frontend/Tab.php:453
+msgid "说明不再需要这些文件的原因"
+msgstr ""
+
+#: src/UserFiles/Frontend/Tab.php:454
+msgid "2–300 字，提交后管理员可见。"
+msgstr ""
+
+#: src/UserFiles/Frontend/Tab.php:455
+msgid "我已自行确认引用影响，申请删除所选内容"
+msgstr ""
+
+#: src/UserFiles/Frontend/Tab.php:456
+msgid "请先勾选确认项"
+msgstr ""
+
+#: src/UserFiles/Frontend/Tab.php:457
+msgid "请填写 2–300 字的删除原因"
+msgstr ""
+
+#: src/UserFiles/Frontend/Tab.php:458
+msgid "提交申请"
+msgstr ""
+
+#: src/UserFiles/Frontend/Tab.php:459
+msgid "提交中…"
+msgstr ""
+
+#: src/UserFiles/Frontend/Tab.php:460
+msgid "删除申请已提交，等待管理员审核"
+msgstr ""
+
+#: src/UserFiles/Frontend/Tab.php:461
+msgid "文件信息"
+msgstr ""
+
+#: src/UserFiles/Frontend/Tab.php:464
+msgid "管理状态"
+msgstr ""
+
+#: src/UserFiles/Frontend/Tab.php:465
+msgid "访问方式"
+msgstr ""
+
+#: src/UserFiles/Frontend/Tab.php:466
+msgid "媒体链接访问"
+msgstr ""
+
+#: src/UserFiles/Frontend/Tab.php:467
+msgid "仍占用空间"
+msgstr ""
+
+#: src/UserFiles/Frontend/Tab.php:468
+msgid "文件链接暂不可用，请稍后重试"
+msgstr ""
+
+#: src/UserFiles/Frontend/Tab.php:470
+#: src/UserFiles/Media/Media_Hooks.php:1971
+msgid "已撤回"
+msgstr ""
+
+#: src/UserFiles/Frontend/Tab.php:472
+msgid "已批准 · 待执行"
+msgstr ""
+
+#: src/UserFiles/Frontend/Tab.php:473
+msgid "需要重新审核"
+msgstr ""
+
+#: src/UserFiles/Frontend/Tab.php:474
+msgid "已撤销批准"
+msgstr ""
+
+#: src/UserFiles/Frontend/Tab.php:478
+#: src/UserFiles/Media/Media_Hooks.php:1987
+msgid "部分失败"
+msgstr ""
+
+#: src/UserFiles/Frontend/Tab.php:481
+msgid "处理中"
+msgstr ""
+
+#: src/UserFiles/Frontend/Tab.php:489
+msgid "上传中"
+msgstr ""
+
+#: src/UserFiles/Frontend/Tab.php:490
+msgid "等待上传"
+msgstr ""
+
+#: src/UserFiles/Frontend/Tab.php:491
+#: src/UserFiles/Media/Media_Hooks.php:1123
+#: src/UserFiles/Media/Media_Hooks.php:1201
+msgid "上传完成"
+msgstr ""
+
+#: src/UserFiles/Frontend/Tab.php:492
+#: src/UserFiles/Media/Media_Hooks.php:1124
+#: src/UserFiles/Media/Media_Hooks.php:1202
+msgid "上传失败"
+msgstr ""
+
+#: src/UserFiles/Frontend/Tab.php:494
+msgid "移除"
+msgstr ""
+
+#: src/UserFiles/Frontend/Tab.php:495
+msgid "清除已完成"
+msgstr ""
+
+#: src/UserFiles/Frontend/Tab.php:496
+msgid "文件类型不支持"
+msgstr ""
+
+#: src/UserFiles/Frontend/Tab.php:497
+msgid "超过单文件大小限制"
+msgstr ""
+
+#: src/UserFiles/Frontend/Tab.php:498
+msgid "不能上传空文件"
+msgstr ""
+
+#: src/UserFiles/Frontend/Tab.php:499
+msgid "剩余空间不足"
+msgstr ""
+
+#: src/UserFiles/Frontend/Tab.php:500
+#, php-format
+msgid "%s 个文件上传完成"
+msgstr ""
+
+#: src/UserFiles/Frontend/Tab.php:501
+#, php-format
+msgid "%s 个文件上传完成，%s 个未上传"
+msgstr ""
+
+#: src/UserFiles/Frontend/Tab.php:502
+#: src/UserFiles/Media/Media_Hooks.php:1121
+#: src/UserFiles/Media/Media_Hooks.php:1199
+#, php-format
+msgid "上传失败：%s"
+msgstr ""
+
+#: src/UserFiles/Frontend/Tab.php:503
+msgid "请等待当前上传完成"
+msgstr ""
+
+#: src/UserFiles/Frontend/Tab.php:504
+msgid "请先选择可上传的目录"
+msgstr ""
+
+#: src/UserFiles/Frontend/Tab.php:505
+msgid "加载失败"
+msgstr ""
+
+#: src/UserFiles/Frontend/Tab.php:507
+msgid "加载更多"
+msgstr ""
+
+#: src/UserFiles/Frontend/Tab.php:509
+msgid "已全部加载"
+msgstr ""
+
+#: src/UserFiles/Frontend/Tab.php:510
+msgid "网络异常，请检查网络后重试"
+msgstr ""
+
+#: src/UserFiles/Frontend/Tab.php:511
+msgid "登录状态已失效，请刷新页面后重试"
+msgstr ""
+
+#: src/UserFiles/Frontend/Tab.php:512
+msgid "操作失败，请重试"
+msgstr ""
+
+#: src/UserFiles/Frontend/Tab.php:513
+#, php-format
+msgid "搜索“%s”的结果"
+msgstr ""
+
+#: src/UserFiles/Frontend/Tab.php:516
+msgid "管理员执行后更新空间"
+msgstr ""
+
+#: src/UserFiles/Media/Media_Hooks.php:193
+msgid "文件来源"
+msgstr ""
+
+#: src/UserFiles/Media/Media_Hooks.php:194
+#: src/UserFiles/Media/Media_Hooks.php:1913
+msgid "所有者"
+msgstr ""
+
+#: src/UserFiles/Media/Media_Hooks.php:195
+#: src/UserFiles/Media/Media_Hooks.php:1914
+msgid "虚拟目录"
+msgstr ""
+
+#: src/UserFiles/Media/Media_Hooks.php:242
+#: src/UserFiles/Media/Media_Hooks.php:1393
+#: src/UserFiles/Media/Media_Hooks.php:1899
+msgid "WordPress 原库"
+msgstr ""
+
+#: src/UserFiles/Media/Media_Hooks.php:244
+#: src/UserFiles/Media/Media_Hooks.php:1392
+msgid "媒体库导入"
+msgstr ""
+
+#: src/UserFiles/Media/Media_Hooks.php:246
+#: src/UserFiles/Media/Media_Hooks.php:546
+#: src/UserFiles/Media/Media_Hooks.php:1391
+#: src/UserFiles/Media/Media_Hooks.php:1899
+msgid "用户文件空间"
+msgstr ""
+
+#: src/UserFiles/Media/Media_Hooks.php:311
+msgid "按删除申请筛选"
+msgstr ""
+
+#: src/UserFiles/Media/Media_Hooks.php:317
+msgid "所有申请"
+msgstr ""
+
+#. translators: 1: request id, 2: owner id, 3: status
+#: src/UserFiles/Media/Media_Hooks.php:325
+#, php-format
+msgid "申请 #%1$d · 用户 %2$d · %3$s"
+msgstr ""
+
+#: src/UserFiles/Media/Media_Hooks.php:549
+msgid "只读摘要：删除必须由用户提交申请并经管理员批准。"
+msgstr ""
+
+#: src/UserFiles/Media/Media_Hooks.php:743
+msgid "提交删除申请（用户文件空间）"
+msgstr ""
+
+#: src/UserFiles/Media/Media_Hooks.php:901
+msgid "这个文件类型不在允许列表里，请换一种格式上传。"
+msgstr ""
+
+#. translators: %s: human readable size
+#: src/UserFiles/Media/Media_Hooks.php:911
+#: src/UserFiles/Services/Uploader.php:160
+#, php-format
+msgid "单个文件不能超过 %s。"
+msgstr ""
+
+#: src/UserFiles/Media/Media_Hooks.php:926
+msgid "文件空间已用满，请先删除部分文件或联系管理员扩容。"
+msgstr ""
+
+#. translators: %s: human readable size
+#: src/UserFiles/Media/Media_Hooks.php:934
+#, php-format
+msgid "剩余空间不足，这个文件还需要 %s。"
+msgstr ""
+
+#: src/UserFiles/Media/Media_Hooks.php:1087
+#: src/UserFiles/Media/Media_Hooks.php:1114
+msgid "上传到文件夹"
+msgstr ""
+
+#: src/UserFiles/Media/Media_Hooks.php:1088
+#: src/UserFiles/Media/Media_Hooks.php:1089
+#: src/UserFiles/Media/Media_Hooks.php:1115
+#: src/UserFiles/Media/Media_Hooks.php:1116
+#: src/UserFiles/Media/Media_Hooks.php:1158
+msgid "我的文件（根目录）"
+msgstr ""
+
+#: src/UserFiles/Media/Media_Hooks.php:1090
+#: src/UserFiles/Media/Media_Hooks.php:1118
+#: src/UserFiles/Media/Media_Hooks.php:1149
+msgid "请求失败，请重试。"
+msgstr ""
+
+#: src/UserFiles/Media/Media_Hooks.php:1117
+msgid "还没有文件夹，上传后可在前台文件管理中新建。"
+msgstr ""
+
+#: src/UserFiles/Media/Media_Hooks.php:1119
+#: src/UserFiles/Media/Media_Hooks.php:1197
+#, php-format
+msgid "正在上传 %d 个文件…"
+msgstr ""
+
+#: src/UserFiles/Media/Media_Hooks.php:1120
+#: src/UserFiles/Media/Media_Hooks.php:1198
+#, php-format
+msgid "%d 个文件已上传完成。"
+msgstr ""
+
+#: src/UserFiles/Media/Media_Hooks.php:1122
+#: src/UserFiles/Media/Media_Hooks.php:1200
+msgid "正在上传"
+msgstr ""
+
+#: src/UserFiles/Media/Media_Hooks.php:1150
+msgid "列表刷新失败，请刷新页面查看最新结果。"
+msgstr ""
+
+#: src/UserFiles/Media/Media_Hooks.php:1154
+msgid "指定归属"
+msgstr ""
+
+#: src/UserFiles/Media/Media_Hooks.php:1155
+msgid "勾选下方媒体，再点「指定归属」把它们分给某个账号"
+msgstr ""
+
+#: src/UserFiles/Media/Media_Hooks.php:1156
+msgid "这里列出还没有归属账号的媒体。勾选要分配的文件，点上方「指定归属」，选择目标账号即可。"
+msgstr ""
+
+#: src/UserFiles/Media/Media_Hooks.php:1157
+msgid "未归类"
+msgstr ""
+
+#: src/UserFiles/Media/Media_Hooks.php:1159
+msgid "全部媒体"
+msgstr ""
+
+#: src/UserFiles/Media/Media_Hooks.php:1160
+msgid "未分配媒体"
+msgstr ""
+
+#: src/UserFiles/Media/Media_Hooks.php:1161
+msgid "收起"
+msgstr ""
+
+#: src/UserFiles/Media/Media_Hooks.php:1162
+msgid "展开"
+msgstr ""
+
+#: src/UserFiles/Media/Media_Hooks.php:1163
+msgid "更多操作"
+msgstr ""
+
+#: src/UserFiles/Media/Media_Hooks.php:1164
+msgid "整个文件夹只能在同一用户下整理。"
+msgstr ""
+
+#: src/UserFiles/Media/Media_Hooks.php:1166
+msgid "只看未归类"
+msgstr ""
+
+#: src/UserFiles/Media/Media_Hooks.php:1167
+msgid "正在加载…"
+msgstr ""
+
+#: src/UserFiles/Media/Media_Hooks.php:1168
+msgid "没有匹配的用户。"
+msgstr ""
+
+#: src/UserFiles/Media/Media_Hooks.php:1169
+msgid "加载更多用户"
+msgstr ""
+
+#: src/UserFiles/Media/Media_Hooks.php:1170
+msgid "含子文件夹"
+msgstr ""
+
+#: src/UserFiles/Media/Media_Hooks.php:1171
+msgid "打开"
+msgstr ""
+
+#: src/UserFiles/Media/Media_Hooks.php:1172
+msgid "新建子文件夹"
+msgstr ""
+
+#: src/UserFiles/Media/Media_Hooks.php:1174
+msgid "移到用户根"
+msgstr ""
+
+#: src/UserFiles/Media/Media_Hooks.php:1175
+msgid "删除文件夹"
+msgstr ""
+
+#: src/UserFiles/Media/Media_Hooks.php:1176
+#, php-format
+msgid "删除「%s」？文件与子目录移到上一层，不删除媒体。"
+msgstr ""
+
+#: src/UserFiles/Media/Media_Hooks.php:1177
+msgid "文件夹已更新。"
+msgstr ""
+
+#: src/UserFiles/Media/Media_Hooks.php:1178
+msgid "新建文件夹名称"
+msgstr ""
+
+#: src/UserFiles/Media/Media_Hooks.php:1180
+msgid "继续"
+msgstr ""
+
+#: src/UserFiles/Media/Media_Hooks.php:1181
+#: src/UserFiles/Media/Media_Hooks.php:1243
+msgid "搜索用户昵称、登录名或 ID"
+msgstr ""
+
+#: src/UserFiles/Media/Media_Hooks.php:1182
+msgid "展开该用户文件夹"
+msgstr ""
+
+#: src/UserFiles/Media/Media_Hooks.php:1183
+msgid "转交或纳入用户文件空间"
+msgstr ""
+
+#: src/UserFiles/Media/Media_Hooks.php:1184
+#, php-format
+msgid "将 %d 项媒体归属到以下用户及目录，请确认容量结算。"
+msgstr ""
+
+#: src/UserFiles/Media/Media_Hooks.php:1185
+#, php-format
+msgid "来源用户 #%d 释放"
+msgstr ""
+
+#: src/UserFiles/Media/Media_Hooks.php:1186
+msgid "本次计入"
+msgstr ""
+
+#: src/UserFiles/Media/Media_Hooks.php:1187
+msgid "目标已用"
+msgstr ""
+
+#: src/UserFiles/Media/Media_Hooks.php:1188
+msgid "上传预留"
+msgstr ""
+
+#: src/UserFiles/Media/Media_Hooks.php:1189
+msgid "目标额度"
+msgstr ""
+
+#: src/UserFiles/Media/Media_Hooks.php:1190
+msgid "转交后已用"
+msgstr ""
+
+#: src/UserFiles/Media/Media_Hooks.php:1191
+msgid "改变文件空间归属与附件作者，保留原上传者记录；文件链接及存储对象保持不变。确认时重新校验冻结状态、版本与额度。"
+msgstr ""
+
+#: src/UserFiles/Media/Media_Hooks.php:1192
+msgid "确认转交"
+msgstr ""
+
+#: src/UserFiles/Media/Media_Hooks.php:1193
+#, php-format
+msgid "已移动 %m 项；已在目标 %u 项；跳过 %s 项。"
+msgstr ""
+
+#: src/UserFiles/Media/Media_Hooks.php:1194
+#, php-format
+msgid "移动 %d 项"
+msgstr ""
+
+#: src/UserFiles/Media/Media_Hooks.php:1195
+msgid "请先打开一个用户或文件夹，再新建目录。"
+msgstr ""
+
+#: src/UserFiles/Media/Media_Hooks.php:1196
+msgid "上传目标文件夹"
+msgstr ""
+
+#: src/UserFiles/Media/Media_Hooks.php:1203
+msgid "正在刷新媒体库…"
+msgstr ""
+
+#: src/UserFiles/Media/Media_Hooks.php:1204
+#, php-format
+msgid "已删除 %d 个文件。"
+msgstr ""
+
+#: src/UserFiles/Media/Media_Hooks.php:1205
+#, php-format
+msgid "已删除 %d 个文件，%s 个未能删除（可能是用户中心上传的文件）。"
+msgstr ""
+
+#: src/UserFiles/Media/Media_Hooks.php:1234
+#: src/UserFiles/Media/Media_Hooks.php:1238
+msgid "关闭文件夹"
+msgstr ""
+
+#: src/UserFiles/Media/Media_Hooks.php:1235
+#: src/UserFiles/Media/Media_Hooks.php:1236
+msgid "用户文件夹"
+msgstr ""
+
+#: src/UserFiles/Media/Media_Hooks.php:1237
+msgid "新文件夹"
+msgstr ""
+
+#: src/UserFiles/Media/Media_Hooks.php:1242
+msgid "子文件夹"
+msgstr ""
+
+#: src/UserFiles/Media/Media_Hooks.php:1245
+msgid "用户与文件夹"
+msgstr ""
+
+#: src/UserFiles/Media/Media_Hooks.php:1247
+msgid "收起 / 展开文件夹"
+msgstr ""
+
+#. translators: %d: number of managed attachments.
+#: src/UserFiles/Media/Media_Hooks.php:1330
+#, php-format
+msgid "有 %d 个文件属于“用户文件空间”，不能从媒体库直接删除。请让文件所有者到用户中心提交删除申请，管理员在“樱花工具箱 → 文件管理”批准并执行。"
+msgstr ""
+
+#: src/UserFiles/Media/Media_Hooks.php:1343
+msgid "未跳转：只能选择你本人名下、未在删除申请中的“用户文件空间”文件。本次操作未修改任何数据。"
+msgstr ""
+
+#: src/UserFiles/Media/Media_Hooks.php:1362
+msgid "按所有者筛选"
+msgstr ""
+
+#: src/UserFiles/Media/Media_Hooks.php:1365
+msgid "所有所有者"
+msgstr ""
+
+#: src/UserFiles/Media/Media_Hooks.php:1390
+msgid "所有来源"
+msgstr ""
+
+#: src/UserFiles/Media/Media_Hooks.php:1397
+msgid "按来源筛选"
+msgstr ""
+
+#: src/UserFiles/Media/Media_Hooks.php:1420
+msgid "所有申请状态"
+msgstr ""
+
+#: src/UserFiles/Media/Media_Hooks.php:1421
+msgid "无申请"
+msgstr ""
+
+#: src/UserFiles/Media/Media_Hooks.php:1424
+#: src/UserFiles/Media/Media_Hooks.php:1977
+#: src/UserFiles/Services/Space_Store.php:1037
+msgid "已撤销"
+msgstr ""
+
+#: src/UserFiles/Media/Media_Hooks.php:1428
+msgid "按删除申请状态筛选"
+msgstr ""
+
+#: src/UserFiles/Media/Media_Hooks.php:1799
+msgid "根目录"
+msgstr ""
+
+#: src/UserFiles/Media/Media_Hooks.php:1895
+msgid "暂无摘要。"
+msgstr ""
+
+#: src/UserFiles/Media/Media_Hooks.php:1916
+msgid "最近删除申请"
+msgstr ""
+
+#: src/UserFiles/Media/Media_Hooks.php:1975
+msgid "已批准（待执行）"
+msgstr ""
+
+#: src/UserFiles/Media/Media_Hooks.php:1979
+msgid "需重新审核"
+msgstr ""
+
+#: src/UserFiles/Media/Media_Hooks.php:2166
+msgid "该文件由“用户文件空间”管理，需由用户提交删除申请并经管理员批准执行。"
+msgstr ""
+
+#: src/UserFiles/Module.php:264
+msgid "每分钟（文件空间任务）"
+msgstr ""
+
+#: src/UserFiles/Repositories/Files.php:145
+msgid "记录上传文件失败，请重试。"
+msgstr ""
+
+#: src/UserFiles/Repositories/Files.php:164
+#: src/UserFiles/Repositories/Files.php:214
+msgid "文件不存在。"
+msgstr ""
+
+#: src/UserFiles/Repositories/Files.php:168
+msgid "该文件正在删除申请中，暂不能修改。"
+msgstr ""
+
+#: src/UserFiles/Repositories/Files.php:174
+msgid "请输入文件显示名。"
+msgstr ""
+
+#: src/UserFiles/Repositories/Files.php:192
+#: src/UserFiles/Repositories/Files.php:247
+#: src/UserFiles/Repositories/Files.php:249
+msgid "文件状态已变化，请刷新后重试。"
+msgstr ""
+
+#: src/UserFiles/Repositories/Files.php:218
+msgid "该文件正在删除申请中，暂不能移动。"
+msgstr ""
+
+#: src/UserFiles/Repositories/Files.php:222
+#: src/UserFiles/Repositories/Files.php:226
+#: src/UserFiles/Repositories/Folders.php:466
+#: src/UserFiles/Repositories/Folders.php:542
+#: src/UserFiles/Services/Uploader.php:122
+msgid "目标文件夹不存在。"
+msgstr ""
+
+#: src/UserFiles/Repositories/Files.php:228
+msgid "目录层级已变化，请刷新后重试。"
+msgstr ""
+
+#: src/UserFiles/Repositories/Files.php:230
+msgid "来源或目标目录正在删除申请中，暂不能移动。"
+msgstr ""
+
+#: src/UserFiles/Repositories/Folders.php:182
+msgid "上级文件夹不存在或已删除。"
+msgstr ""
+
+#: src/UserFiles/Repositories/Folders.php:186
+msgid "上级文件夹正在删除申请中。"
+msgstr ""
+
+#: src/UserFiles/Repositories/Folders.php:190
+msgid "已达到允许的最大文件夹层级。"
+msgstr ""
+
+#: src/UserFiles/Repositories/Folders.php:194
+msgid "文件夹数量已达到上限。"
+msgstr ""
+
+#: src/UserFiles/Repositories/Folders.php:199
+#: src/UserFiles/Repositories/Folders.php:266
+msgid "同级目录下已有同名文件夹。"
+msgstr ""
+
+#: src/UserFiles/Repositories/Folders.php:230
+msgid "创建文件夹失败，请重试。"
+msgstr ""
+
+#: src/UserFiles/Repositories/Folders.php:249
+#: src/UserFiles/Repositories/Folders.php:452
+#: src/UserFiles/Repositories/Folders.php:533
+#: src/UserFiles/Repositories/Folders.php:615
+#: src/UserFiles/Rest/Controller.php:684
+#: src/UserFiles/Rest/Controller.php:1210
+msgid "文件夹不存在。"
+msgstr ""
+
+#: src/UserFiles/Repositories/Folders.php:253
+msgid "该文件夹正在删除申请中，暂不能改名。"
+msgstr ""
+
+#: src/UserFiles/Repositories/Folders.php:353
+#, php-format
+msgid "已删除或退出本站用户 #%d"
+msgstr ""
+
+#: src/UserFiles/Repositories/Folders.php:400
+msgid "请输入文件夹名称。"
+msgstr ""
+
+#: src/UserFiles/Repositories/Folders.php:404
+msgid "文件夹名称不能包含 \\ / : * ? \" < > | 等字符。"
+msgstr ""
+
+#: src/UserFiles/Repositories/Folders.php:408
+msgid "文件夹名称过长（最多 100 个字符）。"
+msgstr ""
+
+#: src/UserFiles/Repositories/Folders.php:456
+msgid "不能把文件夹移动到自身。"
+msgstr ""
+
+#: src/UserFiles/Repositories/Folders.php:460
+msgid "该文件夹正在删除申请中，不能移动。"
+msgstr ""
+
+#: src/UserFiles/Repositories/Folders.php:479
+msgid "不能把文件夹移动到它自己的子目录。"
+msgstr ""
+
+#: src/UserFiles/Repositories/Folders.php:489
+msgid "移动后超过允许的最大文件夹层级。"
+msgstr ""
+
+#: src/UserFiles/Repositories/Folders.php:494
+msgid "目标目录下已有同名文件夹。"
+msgstr ""
+
+#: src/UserFiles/Repositories/Folders.php:511
+msgid "移动文件夹失败，请重试。"
+msgstr ""
+
+#: src/UserFiles/Repositories/Folders.php:537
+msgid "该文件夹正在删除申请中，不能删除。"
+msgstr ""
+
+#: src/UserFiles/Repositories/Folders.php:547
+msgid "不能将内容提升到被移除的目录或它的子目录。"
+msgstr ""
+
+#: src/UserFiles/Repositories/Folders.php:595
+msgid "删除文件夹失败，请重试。"
+msgstr ""
+
+#: src/UserFiles/Repositories/Folders.php:619
+msgid "同级目录正在删除申请中，暂不能排序。"
+msgstr ""
+
+#: src/UserFiles/Repositories/Folders.php:706
+#: src/UserFiles/Repositories/Folders.php:712
+#: src/UserFiles/Repositories/Folders.php:719
+msgid "目录整理不能嵌套到另一项数据库事务。"
+msgstr ""
+
+#: src/UserFiles/Repositories/Folders.php:717
+msgid "目录整理需要InnoDB事务表。"
+msgstr ""
+
+#: src/UserFiles/Repositories/Folders.php:732
+msgid "目录状态已变化或写入失败，本次整理未提交，请刷新后重试。"
+msgstr ""
+
+#: src/UserFiles/Repositories/Folders.php:738
+#: src/UserFiles/Repositories/Folders.php:751
+#: src/UserFiles/Services/Media_Mover.php:245
+msgid "目录层级无效。"
+msgstr ""
+
+#: src/UserFiles/Repositories/Folders.php:741
+msgid "目录或上级目录不存在或正在删除申请中。"
+msgstr ""
+
+#: src/UserFiles/Repositories/Folders.php:759
+msgid "目录内有正在删除申请中的文件，暂不能整理。"
+msgstr ""
+
+#: src/UserFiles/Repositories/Requests.php:202
+msgid "请先确认已了解删除后的引用影响。"
+msgstr ""
+
+#: src/UserFiles/Repositories/Requests.php:206
+msgid "删除提示已更新，请刷新页面重新确认。"
+msgstr ""
+
+#: src/UserFiles/Repositories/Requests.php:210
+msgid "缺少申请幂等键，请刷新页面重试。"
+msgstr ""
+
+#: src/UserFiles/Repositories/Requests.php:214
+msgid "待处理申请过多，请等待管理员审核后再提交。"
+msgstr ""
+
+#: src/UserFiles/Repositories/Requests.php:221
+msgid "幂等键已被其他申请占用，请刷新页面后重试。"
+msgstr ""
+
+#: src/UserFiles/Repositories/Requests.php:315
+msgid "提交申请失败，请稍后重试。"
+msgstr ""
+
+#: src/UserFiles/Repositories/Requests.php:368
+msgid "部分文件已不存在，请刷新后重试。"
+msgstr ""
+
+#: src/UserFiles/Repositories/Requests.php:372
+msgid "部分文件已在删除申请中，不能重复申请。"
+msgstr ""
+
+#: src/UserFiles/Repositories/Requests.php:384
+msgid "部分文件夹已不存在，请刷新后重试。"
+msgstr ""
+
+#: src/UserFiles/Repositories/Requests.php:388
+msgid "部分文件夹已在删除申请中，不能重复申请。"
+msgstr ""
+
+#: src/UserFiles/Repositories/Requests.php:396
+msgid "文件夹内已有文件在删除申请中，请先处理该申请。"
+msgstr ""
+
+#: src/UserFiles/Repositories/Requests.php:413
+msgid "请选择要申请删除的文件或文件夹。"
+msgstr ""
+
+#. translators: %d: maximum item count
+#: src/UserFiles/Repositories/Requests.php:421
+#, php-format
+msgid "本次申请涉及的对象超过 %d 个，请分批提交。"
+msgstr ""
+
+#: src/UserFiles/Repositories/Requests.php:560
+#: src/UserFiles/Repositories/Requests.php:568
+msgid "部分对象已变化，请驳回后让用户重新提交。"
+msgstr ""
+
+#: src/UserFiles/Repositories/Requests.php:646
+msgid "只有待审核的申请可以撤回。"
+msgstr ""
+
+#: src/UserFiles/Repositories/Requests.php:650
+#: src/UserFiles/Repositories/Requests.php:705
+#: src/UserFiles/Repositories/Requests.php:751
+#: src/UserFiles/Repositories/Requests.php:798
+#: src/UserFiles/Repositories/Requests.php:846
+msgid "申请状态已变化，请刷新后重试。"
+msgstr ""
+
+#: src/UserFiles/Repositories/Requests.php:680
+msgid "当前状态不能批准。"
+msgstr ""
+
+#: src/UserFiles/Repositories/Requests.php:735
+msgid "当前状态不能驳回。"
+msgstr ""
+
+#: src/UserFiles/Repositories/Requests.php:780
+msgid "只有已批准的申请可以撤销。"
+msgstr ""
+
+#: src/UserFiles/Repositories/Requests.php:829
+msgid "当前状态不能停止。"
+msgstr ""
+
+#: src/UserFiles/Rest/Controller.php:305
+#: src/UserFiles/Services/Space_Store.php:1567
+msgid "请指定有效的用户。"
+msgstr ""
+
+#: src/UserFiles/Rest/Controller.php:309
+msgid "容量必须在 0 到 1024 GB 之间。"
+msgstr ""
+
+#: src/UserFiles/Rest/Controller.php:340
+#: src/UserFiles/Services/Space_Store.php:1671
+#: src/UserFiles/Services/Space_Store.php:1689
+msgid "授权记录不存在。"
+msgstr ""
+
+#: src/UserFiles/Rest/Controller.php:346
+msgid "撤销失败：该授权当前不可撤销。"
+msgstr ""
+
+#: src/UserFiles/Rest/Controller.php:369
+msgid "延长天数必须在 1 到 3650 之间。"
+msgstr ""
+
+#: src/UserFiles/Rest/Controller.php:761
+msgid "你没有管理文件的权限。"
+msgstr ""
+
+#: src/UserFiles/Rest/Controller.php:808
+#: src/UserFiles/Services/Uploader.php:152
+msgid "没有收到上传文件。"
+msgstr ""
+
+#: src/UserFiles/Rest/Controller.php:941
+#: src/UserFiles/Rest/Controller.php:1021
+msgid "当前账号没有提交删除申请的权限。"
+msgstr ""
+
+#: src/UserFiles/Rest/Controller.php:975
+#: src/UserFiles/Rest/Controller.php:992
+#: src/UserFiles/Rest/Controller.php:1337
+#: src/UserFiles/Rest/Controller.php:1393
+#: src/UserFiles/Services/Executor.php:109
+msgid "申请不存在。"
+msgstr ""
+
+#: src/UserFiles/Rest/Controller.php:1017
+msgid "不支持的批量操作。"
+msgstr ""
+
+#: src/UserFiles/Rest/Controller.php:1049
+msgid "请选择要操作的文件。"
+msgstr ""
+
+#: src/UserFiles/Rest/Controller.php:1102
+#: src/UserFiles/Rest/Controller.php:1106
+#: src/UserFiles/Rest/Controller.php:1274
+msgid "操作不存在。"
+msgstr ""
+
+#: src/UserFiles/Rest/Controller.php:1180
+msgid "请选择文件夹所属用户。"
+msgstr ""
+
+#: src/UserFiles/Rest/Controller.php:1276
+msgid "操作尚未完成。"
+msgstr ""
+
+#: src/UserFiles/Rest/Controller.php:1286
+msgid "请选择有效用户与目录。"
+msgstr ""
+
+#: src/UserFiles/Rest/Controller.php:1347
+msgid "未知的审核操作。"
+msgstr ""
+
+#: src/UserFiles/Rest/Controller.php:1355
+msgid "申请状态已经变化，请刷新后重试。"
+msgstr ""
+
+#: src/UserFiles/Rest/Controller.php:1466
+#: src/UserFiles/Services/Executor.php:275
+msgid "删除批次不存在。"
+msgstr ""
+
+#: src/UserFiles/Rest/Controller.php:1559
+#: src/UserFiles/Rest/Controller.php:1579
+msgid "同步服务未初始化。"
+msgstr ""
+
+#: src/UserFiles/Rest/Controller.php:1657
+msgid "用户不存在。"
+msgstr ""
+
+#: src/UserFiles/Rest/Controller.php:1745
+#: src/UserFiles/Rest/Controller.php:1765
+msgid "请选择要申请删除的内容。"
+msgstr ""
+
+#: src/UserFiles/Rest/Controller.php:1815
+msgid "删除后文章、商品、头像等位置的链接可能失效，请自行确认这些文件是否仍被使用。通过审核只代表申请被批准，管理员确认执行后才会真正删除。"
+msgstr ""
+
+#: src/UserFiles/Services/Adoption_Manifest.php:88
+msgid "无法完整核验该附件的文件、插件元数据及制品清单，未修改原附件。请先修复缺失文件或使用对应清单适配器。"
+msgstr ""
+
+#: src/UserFiles/Services/Executor.php:97
+msgid "请选择已批准的申请。"
+msgstr ""
+
+#: src/UserFiles/Services/Executor.php:113
+msgid "只有已批准且未执行的申请可以生成删除批次。"
+msgstr ""
+
+#: src/UserFiles/Services/Executor.php:117
+msgid "部分申请已经生成过删除批次。"
+msgstr ""
+
+#: src/UserFiles/Services/Executor.php:157
+msgid "请输入“删除”两个字以确认执行。"
+msgstr ""
+
+#: src/UserFiles/Services/Executor.php:167
+msgid "预览范围已变化，请重新勾选并确认。"
+msgstr ""
+
+#: src/UserFiles/Services/Executor.php:194
+msgid "创建删除批次失败，请重试。"
+msgstr ""
+
+#: src/UserFiles/Services/Executor.php:220
+msgid "申请状态已变化，请刷新后重新选择。"
+msgstr ""
+
+#: src/UserFiles/Services/Executor.php:279
+msgid "该批次已经结束。"
+msgstr ""
+
+#: src/UserFiles/Services/Media_Mover.php:18
+msgid "每次请选择1至100个附件。"
+msgstr ""
+
+#: src/UserFiles/Services/Media_Mover.php:23
+msgid "附件编号无效。"
+msgstr ""
+
+#: src/UserFiles/Services/Media_Mover.php:36
+#: src/UserFiles/Services/Media_Mover.php:53
+msgid "没有整理媒体的权限。"
+msgstr ""
+
+#: src/UserFiles/Services/Media_Mover.php:55
+msgid "请先预览并提供有效的操作号。"
+msgstr ""
+
+#: src/UserFiles/Services/Media_Mover.php:69
+msgid "此操作号已用于另一批文件，请重新预览。"
+msgstr ""
+
+#: src/UserFiles/Services/Media_Mover.php:73
+msgid "没有修改该附件的权限。"
+msgstr ""
+
+#: src/UserFiles/Services/Media_Mover.php:74
+msgid "没有转交媒体的权限。"
+msgstr ""
+
+#: src/UserFiles/Services/Media_Mover.php:101
+msgid "目标用户已不存在，请重新预览。"
+msgstr ""
+
+#: src/UserFiles/Services/Media_Mover.php:103
+msgid "目标用户已退出本站，请重新预览。"
+msgstr ""
+
+#: src/UserFiles/Services/Media_Mover.php:106
+msgid "文件归属已变化，请重新预览。"
+msgstr ""
+
+#: src/UserFiles/Services/Media_Mover.php:107
+msgid "所选附件需要转交或首次纳管，请预览并确认。"
+msgstr ""
+
+#: src/UserFiles/Services/Media_Mover.php:108
+msgid "文件或目标目录已变化，请重新预览。"
+msgstr ""
+
+#: src/UserFiles/Services/Media_Mover.php:109
+msgid "转交或首次纳管需要独立权限及确认。"
+msgstr ""
+
+#: src/UserFiles/Services/Media_Mover.php:114
+msgid "来源空间账本与文件不一致，请先核对空间。"
+msgstr ""
+
+#: src/UserFiles/Services/Media_Mover.php:118
+#: src/UserFiles/Services/Media_Mover.php:229
+msgid "目标用户的剩余空间不足。"
+msgstr ""
+
+#: src/UserFiles/Services/Media_Mover.php:132
+msgid "文件状态已变化，请重新预览。"
+msgstr ""
+
+#: src/UserFiles/Services/Media_Mover.php:160
+msgid "整理失败，未提交本次批量变更，请重试。"
+msgstr ""
+
+#: src/UserFiles/Services/Media_Mover.php:167
+msgid "目标必须是本站有效用户。"
+msgstr ""
+
+#: src/UserFiles/Services/Media_Mover.php:173
+msgid "没有修改所选附件的权限。"
+msgstr ""
+
+#: src/UserFiles/Services/Media_Mover.php:175
+msgid "附件权限上下文已变化，请重新预览。"
+msgstr ""
+
+#: src/UserFiles/Services/Media_Mover.php:176
+msgid "所选附件不存在或尚未完成上传。"
+msgstr ""
+
+#: src/UserFiles/Services/Media_Mover.php:180
+msgid "所选文件尚未完成上传或正在删除申请中。"
+msgstr ""
+
+#: src/UserFiles/Services/Media_Mover.php:181
+msgid "附件作者与文件归属不一致，请先核对。"
+msgstr ""
+
+#: src/UserFiles/Services/Media_Mover.php:197
+msgid "该文件制品状态不完整，请先核对再转交。"
+msgstr ""
+
+#: src/UserFiles/Services/Media_Mover.php:203
+#: src/UserFiles/Services/Media_Mover.php:213
+msgid "该文件尚无完整空间与制品清单，请先核对文件空间再转交。"
+msgstr ""
+
+#: src/UserFiles/Services/Media_Mover.php:233
+msgid "目标用户的文件数量（含在途上传）超过上限。"
+msgstr ""
+
+#: src/UserFiles/Services/Media_Mover.php:248
+msgid "来源或目标目录不存在或正在删除申请中。"
+msgstr ""
+
+#: src/UserFiles/Services/Media_Mover.php:264
+msgid "媒体整理需要InnoDB事务表，请先完成数据库升级。"
+msgstr ""
+
+#: src/UserFiles/Services/Media_Mover.php:267
+msgid "写入失败，未提交本次批量变更。"
+msgstr ""
+
+#: src/UserFiles/Services/Media_Mover.php:268
+msgid "数据库操作失败，未提交本次批量变更。"
+msgstr ""
+
+#: src/UserFiles/Services/Media_Mover.php:269
+#: src/UserFiles/Services/Media_Mover.php:270
+#: src/UserFiles/Services/Media_Mover.php:271
+msgid "读取文件状态失败。"
+msgstr ""
+
+#: src/UserFiles/Services/Media_Notifications.php:34
+msgid "文件空间整理完成"
+msgstr ""
+
+#: src/UserFiles/Services/Media_Notifications.php:35
+#, php-format
+msgid "管理员已完成一批文件转交或纳管，共%1$d个文件。目标用户：#%2$d；整理时间：%3$s；操作编号：%4$d。文件地址保持不变。"
+msgstr ""
+
+#: src/UserFiles/Services/Notifier.php:47
+msgid "删除申请已提交"
+msgstr ""
+
+#: src/UserFiles/Services/Notifier.php:49
+msgid "删除申请已通过审核"
+msgstr ""
+
+#: src/UserFiles/Services/Notifier.php:51
+msgid "删除申请未通过"
+msgstr ""
+
+#: src/UserFiles/Services/Notifier.php:53
+msgid "删除申请已撤销批准"
+msgstr ""
+
+#: src/UserFiles/Services/Notifier.php:57
+msgid "删除已完成"
+msgstr ""
+
+#: src/UserFiles/Services/Notifier.php:59
+msgid "删除部分完成"
+msgstr ""
+
+#: src/UserFiles/Services/Notifier.php:61
+msgid "删除失败"
+msgstr ""
+
+#: src/UserFiles/Services/Notifier.php:63
+msgid "删除已停止"
+msgstr ""
+
+#: src/UserFiles/Services/Notifier.php:65
+msgid "删除已排队"
+msgstr ""
+
+#: src/UserFiles/Services/Notifier.php:67
+msgid "删除执行中"
+msgstr ""
+
+#: src/UserFiles/Services/Notifier.php:69
+msgid "文件管理通知"
+msgstr ""
+
+#. translators: %s: review reason
+#: src/UserFiles/Services/Notifier.php:85
+#, php-format
+msgid "原因：%s"
+msgstr ""
+
+#. translators: %d: number of items
+#: src/UserFiles/Services/Notifier.php:93
+#, php-format
+msgid "您的删除申请包含 %d 个对象，管理员审核通过后将在后台统一执行。"
+msgstr ""
+
+#: src/UserFiles/Services/Notifier.php:97
+msgid "管理员已通过您的删除申请。通过审核不会立即删除文件，后台确认执行后才会处理。"
+msgstr ""
+
+#: src/UserFiles/Services/Notifier.php:99
+msgid "管理员未通过您的删除申请，文件保持不变。"
+msgstr ""
+
+#: src/UserFiles/Services/Notifier.php:101
+msgid "您申请删除的内容已执行完成。"
+msgstr ""
+
+#: src/UserFiles/Services/Notifier.php:103
+msgid "部分内容删除失败，管理员可在后台查看明细。"
+msgstr ""
+
+#: src/UserFiles/Services/Notifier.php:105
+msgid "管理员已撤销先前的批准，文件保持不变。"
+msgstr ""
+
+#: src/UserFiles/Services/Notifier.php:107
+msgid "您的文件空间有新的状态更新。"
+msgstr ""
+
+#: src/UserFiles/Services/Quota.php:114
+msgid "缺少上传幂等键，请刷新页面重试。"
+msgstr ""
+
+#: src/UserFiles/Services/Quota.php:118
+msgid "文件超过单人容量上限。"
+msgstr ""
+
+#: src/UserFiles/Services/Quota.php:146
+msgid "容量账本不可用，请稍后重试。"
+msgstr ""
+
+#: src/UserFiles/Services/Quota.php:160
+#: src/UserFiles/Services/Quota.php:204
+msgid "幂等键已被占用，请刷新页面后重试。"
+msgstr ""
+
+#: src/UserFiles/Services/Quota.php:173
+msgid "该上传已经处理过，请勿重复提交。"
+msgstr ""
+
+#: src/UserFiles/Services/Quota.php:181
+msgid "可用空间不足，请先删除文件释放空间。"
+msgstr ""
+
+#: src/UserFiles/Services/Quota.php:219
+#: src/UserFiles/Services/Quota.php:232
+msgid "预留容量失败，请稍后重试。"
+msgstr ""
+
+#: src/UserFiles/Services/Space_Rules.php:220
+msgid "普通用户"
+msgstr ""
+
+#: src/UserFiles/Services/Space_Rules.php:239
+msgid "VIP（黄金会员）"
+msgstr ""
+
+#: src/UserFiles/Services/Space_Rules.php:240
+msgid "SVIP（钻石会员）"
+msgstr ""
+
+#: src/UserFiles/Services/Space_Store.php:233
+msgid "扩容功能尚未开启。"
+msgstr ""
+
+#: src/UserFiles/Services/Space_Store.php:241
+msgid "扩容数据表尚未就绪，请管理员先在后台打开一次「子比专属」页。"
+msgstr ""
+
+#: src/UserFiles/Services/Space_Store.php:249
+msgid "请先登录。"
+msgstr ""
+
+#: src/UserFiles/Services/Space_Store.php:259
+msgid "该套餐不存在或已下架。"
+msgstr ""
+
+#: src/UserFiles/Services/Space_Store.php:270
+msgid "该支付方式当前不可用。"
+msgstr ""
+
+#: src/UserFiles/Services/Space_Store.php:278
+msgid "主题支付组件不可用。"
+msgstr ""
+
+#: src/UserFiles/Services/Space_Store.php:321
+#: src/UserFiles/Services/Space_Store.php:342
+msgid "创建订单失败，请稍后重试。"
+msgstr ""
+
+#: src/UserFiles/Services/Space_Store.php:372
+#: src/UserFiles/Services/Space_Store.php:386
+msgid "发起支付失败，请稍后重试。"
+msgstr ""
+
+#: src/UserFiles/Services/Space_Store.php:455
+#: src/UserFiles/Services/Space_Store.php:461
+#: src/UserFiles/Services/Space_Store.php:477
+msgid "订单不存在。"
+msgstr ""
+
+#: src/UserFiles/Services/Space_Store.php:537
+msgid "已支付"
+msgstr ""
+
+#: src/UserFiles/Services/Space_Store.php:539
+msgid "已关闭"
+msgstr ""
+
+#: src/UserFiles/Services/Space_Store.php:541
+#: src/UserFiles/Services/Space_Store.php:1035
+msgid "已退款"
+msgstr ""
+
+#: src/UserFiles/Services/Space_Store.php:543
+msgid "待支付"
+msgstr ""
+
+#: src/UserFiles/Services/Space_Store.php:1012
+#: src/UserFiles/Space_Panel.php:179
+msgid "永久"
+msgstr ""
+
+#. translators: %s: number of days.
+#: src/UserFiles/Services/Space_Store.php:1017
+#, php-format
+msgid "%s 天"
+msgstr ""
+
+#: src/UserFiles/Services/Space_Store.php:1031
+msgid "生效中"
+msgstr ""
+
+#: src/UserFiles/Services/Space_Store.php:1033
+msgid "已过期"
+msgstr ""
+
+#: src/UserFiles/Services/Space_Store.php:1039
+msgid "待重试"
+msgstr ""
+
+#: src/UserFiles/Services/Space_Store.php:1571
+#: src/UserFiles/Services/Space_Store.php:1597
+#: src/UserFiles/Services/Space_Store.php:1679
+msgid "扩容数据表尚未就绪。"
+msgstr ""
+
+#: src/UserFiles/Services/Space_Store.php:1580
+msgid "管理员补发"
+msgstr ""
+
+#: src/UserFiles/Services/Space_Store.php:1631
+msgid "写入授权失败，请重试。"
+msgstr ""
+
+#: src/UserFiles/Services/Space_Store.php:1693
+msgid "只有生效中的授权可以延长。"
+msgstr ""
+
+#: src/UserFiles/Services/Space_Store.php:1697
+msgid "永久授权无需延长。"
+msgstr ""
+
+#: src/UserFiles/Services/Space_Store.php:1715
+msgid "延长失败，请重试。"
+msgstr ""
+
+#. translators: 1: attachments scanned, 2: newly counted media files, 3: files updated, 4: ledgers corrected
+#: src/UserFiles/Services/Sync_Service.php:247
+#, php-format
+msgid "扫描 %1$d 个附件，纳入 %2$d 个媒体库文件，更新 %3$d 个文件，修正 %4$d 个账本"
+msgstr ""
+
+#: src/UserFiles/Services/Theme_Limits.php:74
+msgid "子比主题 · 上传限制"
+msgstr ""
+
+#: src/UserFiles/Services/Uploader.php:113
+msgid "当前账号未分配文件空间，暂时不能上传。"
+msgstr ""
+
+#: src/UserFiles/Services/Uploader.php:128
+msgid "该文件夹正在删除申请中，暂不能上传。"
+msgstr ""
+
+#: src/UserFiles/Services/Uploader.php:134
+msgid "文件数量已达到上限，请先删除部分文件。"
+msgstr ""
+
+#: src/UserFiles/Services/Uploader.php:139
+msgid "今日上传文件数量已达上限，请明天再试。"
+msgstr ""
+
+#: src/UserFiles/Services/Uploader.php:144
+msgid "上传过于频繁，请稍后再试。"
+msgstr ""
+
+#: src/UserFiles/Services/Uploader.php:168
+msgid "今日上传总量已达上限。"
+msgstr ""
+
+#: src/UserFiles/Services/Uploader.php:176
+msgid "不支持该文件类型。允许：JPEG/PNG/WebP/GIF/PDF/TXT/ZIP/MP4/MP3。"
+msgstr ""
+
+#: src/UserFiles/Services/Uploader.php:219
+msgid "上传失败。"
+msgstr ""
+
+#: src/UserFiles/Services/Uploader.php:224
+msgid "过于频繁"
+msgstr ""
+
+#: src/UserFiles/Services/Uploader.php:225
+msgid "已达今日上限"
+msgstr ""
+
+#: src/UserFiles/Services/Uploader.php:239
+msgid "今日上限"
+msgstr ""
+
+#: src/UserFiles/Services/Uploader.php:244
+msgid "主题的每日上传上限已触发，请明日再试或在插件设置里提高主题限制。"
+msgstr ""
+
+#: src/UserFiles/Services/Uploader.php:245
+msgid "主题上传频率限制已触发，请稍后再试。若经常出现，请在插件设置里对齐主题限制。"
+msgstr ""
+
+#: src/UserFiles/Services/Uploader.php:277
+msgid "写入媒体库失败，请重试。"
+msgstr ""
+
+#: src/UserFiles/Services/Uploader.php:343
+msgid "上传过于频繁或超出每日额度，请稍后再试。"
+msgstr ""
+
+#: src/UserFiles/Services/Uploader.php:361
+msgid "容量不足，文件未保存。请先删除部分文件释放空间。"
+msgstr ""
+
+#. translators: 1: theme name, 2: comma separated list of missing Zibll functions.
+#: src/UserFiles/Services/Zibll_Bridge.php:144
+#, php-format
+msgid "当前主题「%1$s」缺少必需的主题函数：%2$s"
+msgstr ""
+
+#. translators: %s: theme name.
+#: src/UserFiles/Services/Zibll_Bridge.php:153
+#, php-format
+msgid "探测主题时发生异常，已按「不可用」关闭本页（当前主题「%s」）。"
+msgstr ""
+
+#. translators: %s: theme name.
+#: src/UserFiles/Services/Zibll_Bridge.php:160
+#, php-format
+msgid "当前主题「%s」不是子比主题，本页不可用。"
+msgstr ""
+
+#: src/UserFiles/Settings.php:124
+msgid "JPEG 图片"
+msgstr ""
+
+#: src/UserFiles/Settings.php:125
+msgid "PNG 图片"
+msgstr ""
+
+#: src/UserFiles/Settings.php:126
+msgid "WebP 图片"
+msgstr ""
+
+#: src/UserFiles/Settings.php:127
+msgid "GIF 图片"
+msgstr ""
+
+#: src/UserFiles/Settings.php:128
+msgid "PDF 文档"
+msgstr ""
+
+#: src/UserFiles/Settings.php:129
+msgid "纯文本"
+msgstr ""
+
+#: src/UserFiles/Settings.php:130
+msgid "ZIP 压缩包"
+msgstr ""
+
+#: src/UserFiles/Settings.php:131
+msgid "MP4 视频"
+msgstr ""
+
+#: src/UserFiles/Settings.php:132
+msgid "MP3 音频"
+msgstr ""
+
+#: src/UserFiles/Settings.php:311
+msgid "跟随样式"
+msgstr ""
+
+#: src/UserFiles/Settings.php:312
+msgid "琥珀"
+msgstr ""
+
+#: src/UserFiles/Settings.php:313
+msgid "湖蓝"
+msgstr ""
+
+#: src/UserFiles/Settings.php:314
+msgid "青竹"
+msgstr ""
+
+#: src/UserFiles/Settings.php:315
+msgid "紫藤"
+msgstr ""
+
+#: src/UserFiles/Settings.php:316
+msgid "海棠"
+msgstr ""
+
+#: src/UserFiles/Settings.php:317
+msgid "石墨"
+msgstr ""
+
+#. translators: %s: level number.
+#: src/UserFiles/Space_Panel.php:146
+#, php-format
+msgid "等级 LV%s"
+msgstr ""
+
+#: src/UserFiles/Space_Panel.php:151
+msgid "会员"
+msgstr ""
+
+#: src/UserFiles/Space_Panel.php:180
+msgid "请先选择套餐。"
+msgstr ""
+
+#. translators: %s: granted size, e.g. 10 GB.
+#: src/UserFiles/Space_Panel.php:182
+#, php-format
+msgid "已到账：%s"
+msgstr ""
+
+#: src/UserFiles/Space_Panel.php:183
+msgid "订单已创建，但尚未完成支付，请稍后到「授权流水」核对。"
+msgstr ""
+
+#: src/UserFiles/Space_Panel.php:184
+msgid "网络异常，请稍后重试。"
+msgstr ""
+
+#: src/UserFiles/Space_Settings.php:89
+msgid "10GB 扩容包"
+msgstr ""
+
+#: src/UserFiles/Space_Settings.php:97
+msgid "30GB 扩容包"
+msgstr ""
+
+#: src/UserFiles/Space_Settings.php:105
+msgid "100GB 永久扩容包"
+msgstr ""

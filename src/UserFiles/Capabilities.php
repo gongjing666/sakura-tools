@@ -1,0 +1,154 @@
+<?php
+/**
+ * Capability definitions for the user file space module.
+ *
+ * @package Sakura_Image_Optimizer
+ */
+
+declare( strict_types=1 );
+
+namespace Nboke\UserFiles;
+
+defined( 'ABSPATH' ) || exit;
+
+/**
+ * Owns the four capabilities from SECURITY-DELETE.md §1.
+ *
+ * `sufm_admin_delete_files` is necessary but never sufficient: the executor
+ * additionally needs `delete_post` on every attachment it touches.
+ */
+final class Capabilities {
+
+	/**
+	 * Upload, read/download, rename or move unlocked files, create folders.
+	 */
+	public const MANAGE_OWN = 'sufm_manage_own_files';
+
+	/**
+	 * Request deletion of own targets, list own requests, withdraw while pending.
+	 */
+	public const REQUEST_DELETE = 'sufm_request_delete_own_files';
+
+	/**
+	 * Review (approve/reject/revoke) delete requests.
+	 */
+	public const REVIEW = 'sufm_admin_review_deletions';
+
+	/**
+	 * Execute approved batches after an independent confirmation.
+	 */
+	public const MANAGE_MEDIA = 'sufm_manage_media_folders';
+	public const TRANSFER = 'sufm_transfer_media_files';
+
+	public const DELETE_FILES = 'sufm_admin_delete_files';
+
+	/**
+	 * The two user-facing capabilities granted to every role.
+	 *
+	 * @return array<int, string>
+	 */
+	public static function user_caps(): array {
+		return array( self::MANAGE_OWN, self::REQUEST_DELETE );
+	}
+
+	/**
+	 * The two administrator capabilities.
+	 *
+	 * @return array<int, string>
+	 */
+	public static function admin_caps(): array {
+		return array( self::REVIEW, self::DELETE_FILES, self::MANAGE_MEDIA, self::TRANSFER );
+	}
+
+	/**
+	 * Grant capabilities. Called from activation; idempotent.
+	 */
+	public static function grant(): void {
+		$user_roles = array( 'subscriber', 'contributor', 'author', 'editor', 'administrator' );
+
+		foreach ( $user_roles as $role_name ) {
+			$role = get_role( $role_name );
+			if ( ! $role ) {
+				continue;
+			}
+
+			foreach ( self::user_caps() as $cap ) {
+				if ( ! $role->has_cap( $cap ) ) {
+					$role->add_cap( $cap );
+				}
+			}
+		}
+
+		$admin = get_role( 'administrator' );
+		if ( $admin ) {
+			foreach ( self::admin_caps() as $cap ) {
+				if ( ! $admin->has_cap( $cap ) ) {
+					$admin->add_cap( $cap );
+				}
+			}
+		}
+	}
+
+	/**
+	 * Remove every capability this plugin granted, from every role.
+	 *
+	 * Called on deactivation and uninstall. Removing all six (not just the two
+	 * media ones) keeps the role table honest: a site that deactivates the
+	 * plugin should not keep advertising capabilities that nothing checks.
+	 */
+	public static function revoke(): void {
+		$all = array_merge( self::user_caps(), self::admin_caps() );
+
+		foreach ( wp_roles()->roles as $role_name => $role_data ) {
+			$role = get_role( $role_name );
+			if ( ! $role ) {
+				continue;
+			}
+
+			foreach ( $all as $cap ) {
+				if ( $role->has_cap( $cap ) ) {
+					$role->remove_cap( $cap );
+				}
+			}
+		}
+
+		delete_option( 'sufm_media_caps_version' );
+	}
+
+	/** Grant only the newly introduced caps once during upgrade, not on each request. */
+	public static function upgrade_media_caps(): void {
+		if ( '1' === (string) get_option( 'sufm_media_caps_version', '' ) ) { return; }
+		$role = get_role( 'administrator' );
+		if ( ! $role ) { return; }
+		$role->add_cap( self::MANAGE_MEDIA ); $role->add_cap( self::TRANSFER );
+		update_option( 'sufm_media_caps_version', '1', false );
+	}
+
+	/**
+	 * Current user may read and manage their own space.
+	 *
+	 * @param int $user_id User id.
+	 * @return bool
+	 */
+	public static function can_manage_own( int $user_id ): bool {
+		return $user_id > 0 && user_can( $user_id, self::MANAGE_OWN );
+	}
+
+	/**
+	 * Reviewer capability.
+	 *
+	 * @return bool
+	 */
+	public static function can_review(): bool {
+		return current_user_can( self::REVIEW );
+	}
+
+	/**
+	 * Executor capability; every attachment still needs `delete_post`.
+	 *
+	 * @return bool
+	 */
+	public static function can_execute(): bool {
+		return current_user_can( self::DELETE_FILES );
+	}
+}

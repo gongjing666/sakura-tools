@@ -1,0 +1,1074 @@
+/**
+ * Sakura Tools - admin styles for the "Zibll only" tab (P0).
+ *
+ * Scope: only .sufm-space-* elements plus one page level notice. Existing
+ * selectors from admin.css / admin-shell.css are reused through their variables,
+ * never redefined.
+ */
+
+/** Status colours have no theme equivalent: keep them in one place so the
+ *  dark theme can flip them, instead of scattering literals through the file. */
+.sakura-sync-app {
+	--sufm-state-ok: #1a9c62;
+	--sufm-state-bad: #d14343;
+}
+
+body.dark-theme .sakura-sync-app {
+	--sufm-state-ok: #4ade80;
+	--sufm-state-bad: #f87171;
+}
+
+/* ---- page level notice (expansion switched off) ---- */
+
+.sakura-sync-app .sakura-space-notice {
+	border-left: 3px solid var(--blue);
+	background: var(--surface-soft);
+	margin-bottom: 16px;
+}
+
+.sakura-sync-app .sakura-space-notice .card-body {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 4px 10px;
+	align-items: baseline;
+}
+
+/* ---- diagnostics grid ---- */
+
+.sakura-sync-app .sufm-space-diag {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+	gap: 18px 24px;
+}
+
+.sakura-sync-app .sufm-space-subtitle {
+	margin: 0 0 8px;
+	font-size: 13px;
+	font-weight: 600;
+	letter-spacing: 0.02em;
+	color: var(--muted);
+	text-transform: uppercase;
+}
+
+/* ---- key / value list ---- */
+
+.sakura-sync-app .sufm-space-kv {
+	display: grid;
+	grid-template-columns: minmax(88px, auto) 1fr;
+	gap: 4px 12px;
+	margin: 0;
+}
+
+.sakura-sync-app .sufm-space-kv dt {
+	color: var(--muted);
+	font-size: 12px;
+	line-height: 20px;
+}
+
+.sakura-sync-app .sufm-space-kv dd {
+	margin: 0;
+	font-size: 13px;
+	line-height: 20px;
+	word-break: break-all;
+}
+
+.sakura-sync-app .sufm-space-kv--num dt,
+.sakura-sync-app .sufm-space-kv--num dd {
+	font-variant-numeric: tabular-nums;
+}
+
+/* ---- capability matrix ---- */
+
+.sakura-sync-app .sufm-space-caps {
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.sakura-sync-app .sufm-space-caps__row {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 3px 0;
+	font-size: 12px;
+	border-bottom: 1px dashed var(--line);
+}
+
+.sakura-sync-app .sufm-space-caps__row:last-child { border-bottom: 0; }
+
+.sakura-sync-app .sufm-space-caps__mark {
+	width: 16px;
+	flex: 0 0 16px;
+	text-align: center;
+	font-weight: 700;
+}
+
+.sakura-sync-app .sufm-space-caps__row.is-ok .sufm-space-caps__mark { color: var(--sufm-state-ok); }
+
+.sakura-sync-app .sufm-space-caps__row.is-missing .sufm-space-caps__mark,
+.sakura-sync-app .sufm-space-caps__row.is-missing .sufm-space-caps__label { color: var(--sufm-state-bad); }
+
+.sakura-sync-app .sufm-space-caps__label {
+	line-height: 18px;
+	word-break: break-all;
+}
+
+/* ---- payment method list ---- */
+
+.sakura-sync-app .sufm-space-methods {
+	margin: 0;
+	padding: 0;
+	list-style: none;
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+}
+
+.sakura-sync-app .sufm-space-methods li {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	padding: 2px 8px;
+	border: 1px solid var(--line);
+	border-radius: 999px;
+	font-size: 12px;
+	background: var(--surface-soft);
+}
+
+/* ---- switches ---- */
+
+.sakura-sync-app .sufm-space-switch-row {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: baseline;
+	gap: 8px 14px;
+	padding: 6px 0;
+	border-bottom: 1px dashed var(--line);
+}
+
+.sakura-sync-app .sufm-space-switch-row em,
+.sakura-sync-app .sufm-space-muted {
+	color: var(--muted);
+	font-size: 12px;
+	font-style: normal;
+	line-height: 18px;
+}
+
+.sakura-sync-app .sufm-space-mode {
+	margin: 14px 0 10px;
+	padding: 0;
+	border: 0;
+}
+
+.sakura-sync-app .sufm-space-mode legend {
+	padding: 0 0 6px;
+	font-size: 12px;
+	font-weight: 600;
+	color: var(--muted);
+}
+
+.sakura-sync-app .sufm-space-mode label {
+	display: flex;
+	align-items: flex-start;
+	gap: 8px;
+	padding: 3px 0;
+	font-size: 13px;
+}
+
+/* ---- bonus rows ---- */
+
+.sakura-sync-app .sufm-space-input {
+	width: 100%;
+	max-width: 120px;
+	padding: 3px 6px;
+	border: 1px solid var(--line);
+	border-radius: 6px;
+	font-variant-numeric: tabular-nums;
+	text-align: right;
+}
+
+.sakura-sync-app .sufm-space-input:focus {
+	border-color: var(--blue);
+	outline: 2px solid var(--focus-color);
+	outline-offset: 0;
+}
+
+/* ---- running total ---- */
+
+.sakura-sync-app .sufm-space-total {
+	margin: 10px 0 6px;
+	font-size: 12px;
+	color: var(--muted);
+}
+
+.sakura-sync-app .sufm-space-total strong {
+	color: inherit;
+	font-weight: 600;
+	font-variant-numeric: tabular-nums;
+}
+
+/* ---- bonus rows (div grid; table auto-layout collapsed the input column) ---- */
+
+.sakura-sync-app .sufm-space-rows {
+	margin: 0;
+	padding: 0;
+	font-variant-numeric: tabular-nums;
+}
+
+.sakura-sync-app .sufm-space-row {
+	display: grid;
+	grid-template-columns: 96px minmax(0, 1fr) 120px;
+	gap: 10px;
+	align-items: center;
+	padding: 5px 0;
+	border-bottom: 1px solid var(--line);
+}
+
+.sakura-sync-app .sufm-space-row.is-head {
+	font-size: 11px;
+	font-weight: 600;
+	letter-spacing: 0.02em;
+	color: var(--muted);
+	text-transform: uppercase;
+}
+
+.sakura-sync-app .sufm-space-row.is-head span:last-child {
+	text-align: right;
+}
+
+.sakura-sync-app .sufm-space-row-key {
+	font-size: 12px;
+	font-weight: 600;
+	white-space: nowrap;
+}
+
+.sakura-sync-app .sufm-space-row-meta {
+	min-width: 0;
+	font-size: 12px;
+	line-height: 18px;
+	color: var(--muted);
+	overflow-wrap: anywhere;
+}
+
+.sakura-sync-app .sufm-space-row .sufm-space-input {
+	width: 120px;
+	max-width: 100%;
+	justify-self: end;
+}
+
+/* ---- grants ledger (5 columns, scoped so the bonus rows stay 3 columns) ---- */
+
+.sakura-sync-app .sufm-space-grants .sufm-space-row {
+	grid-template-columns: 96px minmax(0, 1fr) 120px 120px 90px;
+}
+
+.sakura-sync-app .sufm-space-grants .sufm-space-row span {
+	min-width: 0;
+	overflow-wrap: anywhere;
+	font-size: 12px;
+	line-height: 18px;
+}
+
+.sakura-sync-app .sufm-space-grants .sufm-space-row span:nth-child(3),
+.sakura-sync-app .sufm-space-grants .sufm-space-row span:nth-child(5) {
+	font-variant-numeric: tabular-nums;
+}
+
+.sakura-sync-app #sufm-space-grants .sufm-space-row {
+	display: grid;
+	grid-template-columns: 96px minmax(0, 1fr) 120px 120px 90px;
+	gap: 10px;
+	align-items: center;
+	padding: 5px 0;
+	border-bottom: 1px solid var(--line);
+	font-size: 12px;
+	line-height: 18px;
+}
+
+.sakura-sync-app #sufm-space-grants .sufm-space-row.is-pending {
+	background: var(--surface-soft);
+}
+
+.sakura-sync-app #sufm-space-grants .is-state-active {
+	color: var(--sufm-state-ok);
+}
+
+.sakura-sync-app #sufm-space-grants .is-state-muted {
+	color: var(--muted);
+}
+
+.sakura-sync-app #sufm-space-grants .sufm-space-grants-error {
+	color: var(--sufm-state-bad);
+}
+
+/* ---- packages table (6 tracks, per the T8 spec) ---- */
+
+.sakura-sync-app .sufm-space-packages .sufm-space-row {
+	grid-template-columns: 84px minmax(0, 1fr) 96px 80px 72px 56px;
+}
+
+.sakura-sync-app .sufm-space-packages .sufm-space-input {
+	width: 100%;
+	max-width: 100%;
+	justify-self: stretch;
+}
+
+.sakura-sync-app .sufm-space-packages .sufm-space-input--id {
+	font-family: monospace;
+	font-size: 11px;
+}
+
+.sakura-sync-app .sufm-space-packages .sufm-space-row.is-new {
+	background: var(--surface-soft);
+}
+
+.sakura-sync-app .sufm-space-packages .sufm-space-row.is-removed {
+	opacity: 0.4;
+}
+
+.sakura-sync-app .sufm-space-pkg-flags {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	font-size: 11px;
+	line-height: 16px;
+}
+
+.sakura-sync-app .sufm-space-pkg-flags label {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	cursor: pointer;
+}
+
+/* ---- points ---- */
+
+.sakura-sync-app .sufm-space-points .sufm-space-row {
+	grid-template-columns: 96px 120px minmax(0, 1fr);
+}
+
+.sakura-sync-app .sufm-space-muted.is-warn {
+	color: var(--sufm-state-bad);
+}
+
+/* ---- ledger actions ---- */
+
+.sakura-sync-app #sufm-space-grants .sufm-space-row {
+	grid-template-columns: 96px minmax(0, 1fr) 110px 110px 76px 120px;
+}
+
+.sakura-sync-app .sufm-space-grant-actions {
+	display: flex;
+	gap: 4px;
+	justify-content: flex-end;
+}
+
+.sakura-sync-app .sufm-space-grant-actions .btn {
+	padding: 0 8px;
+	height: 24px;
+	line-height: 22px;
+	font-size: 12px;
+}
+
+/* ---- reconcile ---- */
+
+.sakura-sync-app .sufm-space-reconcile-summary {
+	margin: 0 0 10px;
+	font-size: 12px;
+	color: var(--muted);
+}
+
+.sakura-sync-app .sufm-space-reconcile-summary.is-error {
+	color: var(--sufm-state-bad);
+}
+
+.sakura-sync-app #sufm-space-reconcile-list .sufm-space-row {
+	grid-template-columns: 140px 80px 90px minmax(0, 1fr);
+	font-size: 12px;
+}
+
+/* ---- points packages table (5 tracks) ---- */
+
+.sakura-sync-app .sufm-space-ppkgs .sufm-space-row {
+	grid-template-columns: 72px minmax(0, 1fr) 82px 68px 58px 76px;
+}
+
+.sakura-sync-app .sufm-space-ppkgs .sufm-space-pkg-flags {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	font-size: 11px;
+	line-height: 16px;
+}
+
+/* ---- V2 density pass ---------------------------------------------------
+ * The dashboard runs on the 12 column layout engine, so a card is roughly
+ * half as wide as before. Everything below tightens the rhythm that was
+ * tuned for a 1232px card: a labelled head, 30px inputs and rows that keep
+ * their text and their field on speaking terms.
+ */
+
+/* Head: three text lines get their own rhythm, and a hairline separates them
+ * from the first control (the description used to touch it). */
+.sakura-sync-app .card-head {
+	padding: 18px 20px 13px;
+	border-bottom: 1px solid var(--line);
+}
+
+.sakura-sync-app .card-head h2 {
+	font-size: 18px;
+	line-height: 1.3;
+}
+
+.sakura-sync-app .card-head p {
+	margin-top: 5px;
+	font-size: 12.5px;
+	line-height: 1.6;
+}
+
+.sakura-sync-app .card-head .section-kicker {
+	margin: 0 0 6px;
+	font-size: 11px;
+	line-height: 1.2;
+	letter-spacing: 0.12em;
+}
+
+.sakura-sync-app .card-body {
+	padding: 16px 20px 18px;
+}
+
+/* Rows: 6px padding + a 30px field keeps a row at 43px, so the text is not
+ * lost in a 51px row and the numbers are not 950px away from their label. */
+.sakura-sync-app .sufm-space-row {
+	grid-template-columns: 64px minmax(0, 1fr) 96px;
+	column-gap: 12px;
+	padding: 6px 0;
+	font-size: 13px;
+}
+
+.sakura-sync-app .sufm-space-row.is-head {
+	padding: 4px 0 8px;
+	font-size: 11.5px;
+	letter-spacing: 0.06em;
+}
+
+.sakura-sync-app .sufm-space-row-key {
+	font-size: 12.5px;
+}
+
+.sakura-sync-app .sufm-space-row-meta {
+	font-size: 12.5px;
+	line-height: 1.55;
+}
+
+/* Fields: the admin default min-height of 40px is what made every numeric
+ * row 51px tall. Reset both height and min-height. */
+.sakura-sync-app .sufm-space-row .sufm-space-input {
+	height: 30px;
+	min-height: 30px;
+	padding: 0 10px;
+	font-size: 12.5px;
+	line-height: 28px;
+	border-radius: 7px;
+}
+
+.sakura-sync-app .sufm-space-rows:not(.sufm-space-packages):not(.sufm-space-ppkgs) .sufm-space-row .sufm-space-input {
+	width: 96px;
+}
+
+/* The level and VIP ladders are short lists, not spreadsheets: cap the row
+ * block so the value column stops travelling across the whole card. */
+.sakura-sync-app [data-sakura-card="space_level"] .sufm-space-rows,
+.sakura-sync-app [data-sakura-card="space_vip"] .sufm-space-rows {
+	max-width: 640px;
+}
+
+/* Packages: the name field used to be a 752px box with right aligned text. */
+.sakura-sync-app .sufm-space-packages .sufm-space-row {
+	grid-template-columns: 72px minmax(0, 1fr) 82px 68px 58px 76px;
+}
+
+.sakura-sync-app .sufm-space-icon-global {
+	display: flex;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: 10px;
+	margin: 0 0 16px;
+	padding: 10px 12px;
+	border: 1px solid var(--line, #e5e7eb);
+	border-radius: 10px;
+	background: var(--surface-soft, #f8fafc);
+}
+
+.sakura-sync-app .sufm-space-icon-global-label {
+	font-weight: 600;
+	font-size: 12.5px;
+}
+
+.sakura-sync-app .sufm-space-icon-global .sufm-space-icon-cell {
+	flex: 0 1 520px;
+}
+
+.sakura-sync-app .sufm-space-icon-global .sufm-space-hint {
+	flex: 1 1 320px;
+	margin: 0;
+}
+
+.sakura-sync-app .sufm-space-icon-cell {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	min-width: 0;
+}
+
+.sakura-sync-app .sufm-space-icon-pick {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	height: 34px;
+	padding: 0 8px;
+	border: 1px dashed #cbd5e1;
+	border-radius: 8px;
+	background: #fff;
+	cursor: pointer;
+	overflow: hidden;
+	flex: 0 0 auto;
+	padding: 0 8px;
+	gap: 4px;
+	font-size: 12px;
+	color: #374151;
+	white-space: nowrap;
+}
+
+.sakura-sync-app .sufm-space-icon-pick img {
+	width: 20px;
+	height: 20px;
+	object-fit: contain;
+	display: block;
+}
+
+.sakura-sync-app .sufm-space-icon-pick:hover {
+	border-color: #3b6ef6;
+}
+
+.sakura-sync-app .sufm-space-icon-cell .sufm-space-input--icon {
+	min-width: 0;
+	flex: 1 1 auto;
+	font-size: 11px;
+}
+
+.sakura-sync-app .sufm-space-icon-clear {
+	border: 0;
+	background: transparent;
+	color: #9ca3af;
+	cursor: pointer;
+	font-size: 16px;
+	line-height: 1;
+	padding: 0 2px;
+	flex: 0 0 auto;
+}
+
+.sakura-sync-app .sufm-space-icon-clear:hover {
+	color: #ef4444;
+}
+
+.sakura-sync-app .sufm-space-icon-clear[hidden] {
+	display: none;
+}
+
+.sakura-sync-app .sufm-space-packages .sufm-space-row .sufm-space-input--icon {
+	font-size: 12px;
+}
+
+.sakura-sync-app .sufm-space-hint {
+	margin: 8px 0 0;
+	font-size: 12px;
+	line-height: 1.6;
+	color: #6b7280;
+}
+
+@media screen and (max-width: 1100px) {
+	.sakura-sync-app .sufm-space-packages .sufm-space-row,
+	.sakura-sync-app .sufm-space-ppkgs .sufm-space-row {
+		grid-template-columns: 64px minmax(0,1fr) 74px 62px 52px 68px;
+	}
+}
+
+.sakura-sync-app .sufm-space-packages .sufm-space-row.is-head span {
+	white-space: nowrap;
+}
+
+.sakura-sync-app .sufm-space-packages .sufm-space-row .sufm-space-input {
+	width: 100%;
+	max-width: 100%;
+}
+
+.sakura-sync-app .sufm-space-packages .sufm-space-row > span:nth-child(2) .sufm-space-input {
+	max-width: 100%;
+	text-align: left;
+	justify-self: stretch;
+}
+
+/* Ledger: the header row had five tracks while the data rows had six, so
+ * “操作” wrapped under “时间”. Both rows now share six tracks sized for the
+ * narrowest card a drag can produce (a 6 column card is ~600px wide here,
+ * which leaves 564px of content). */
+.sakura-sync-app [data-sakura-card="space_grants"] .card-body {
+	overflow-x: auto;
+}
+
+.sakura-sync-app .sufm-space-grants .sufm-space-row,
+.sakura-sync-app .sufm-space-grants .sufm-space-row.is-head,
+.sakura-sync-app #sufm-space-grants .sufm-space-row {
+	grid-template-columns: minmax(88px, 100px) minmax(104px, 1fr) 60px minmax(88px, 96px) 56px 88px;
+	column-gap: 10px;
+	min-width: 558px;
+}
+
+.sakura-sync-app #sufm-space-grants .sufm-space-row {
+	min-height: 44px;
+}
+
+/* Points packages keep five tracks but with room for the two-digit numbers. */
+.sakura-sync-app .sufm-space-ppkgs .sufm-space-row {
+	grid-template-columns: 68px minmax(0, 1fr) 84px 72px 56px;
+}
+
+.sakura-sync-app .sufm-space-ppkgs .sufm-space-row .sufm-space-input {
+	width: 100%;
+	max-width: 100%;
+}
+
+/* Switches and diagnostics share the tighter rhythm. */
+.sakura-sync-app .sufm-space-switch-row {
+	padding: 4px 0 10px;
+	gap: 6px 12px;
+}
+
+.sakura-sync-app .sufm-space-diag {
+	grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+	gap: 20px 28px;
+}
+
+.sakura-sync-app .sufm-space-total {
+	margin: 12px 0 8px;
+}
+
+/* ---- Card footer --------------------------------------------------------
+ * Every card save action is a .card-savebar (assets/admin.css); the markup
+ * carries the class instead of relying on a fragile p:last-of-type match.
+ */
+
+/* ---- VIP tiles -----------------------------------------------------------
+ * Three rows in a 1190px card left a 550px hole on the right. As tiles they
+ * share the width, and the whole tile is a label so a click focuses the field.
+ */
+
+.sakura-sync-app .sufm-space-tiles {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+	gap: 12px;
+}
+
+.sakura-sync-app .sufm-space-tile {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) auto;
+	align-items: center;
+	gap: 2px 14px;
+	margin: 0;
+	padding: 13px 16px;
+	border: 1px solid var(--line);
+	border-radius: 12px;
+	background: var(--surface-soft);
+	cursor: text;
+}
+
+.sakura-sync-app .sufm-space-tile:focus-within {
+	border-color: var(--blue);
+}
+
+.sakura-sync-app .sufm-space-tile__key {
+	font-size: 11.5px;
+	color: var(--muted);
+}
+
+.sakura-sync-app .sufm-space-tile__key code {
+	padding: 0;
+	background: none;
+	font-size: inherit;
+	color: inherit;
+}
+
+.sakura-sync-app .sufm-space-tile__name {
+	grid-column: 1;
+	font-size: 13px;
+	font-weight: 600;
+}
+
+.sakura-sync-app .sufm-space-tile__field {
+	grid-column: 2;
+	grid-row: 1 / span 2;
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+}
+
+.sakura-sync-app .sufm-space-tile__field .sufm-space-input {
+	width: 92px;
+}
+
+.sakura-sync-app .sufm-space-tile__unit {
+	font-size: 11px;
+	color: var(--muted);
+}
+
+/* ---- Wide-card layouts ---------------------------------------------------
+ * Every table above is width agnostic, but three cards are made of short
+ * rows rather than a table: at full width their content stopped halfway and
+ * left a hole on the right. Each one gets its own wide arrangement, switched
+ * by the card width (container query), never by the viewport.
+ */
+
+.sakura-sync-app [data-sakura-card="space_gate"] .card-body,
+.sakura-sync-app [data-sakura-card="space_level"] .card-body {
+	container-type: inline-size;
+}
+
+/* Gate: switches on the left, cap semantics + save on the right. */
+@container (min-width: 900px) {
+	[data-sakura-card="space_gate"] .card-body > form {
+		display: grid;
+		grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr);
+		column-gap: 48px;
+		align-items: start;
+	}
+
+	[data-sakura-card="space_gate"] .sufm-space-switch-row {
+		border-bottom: 0;
+		padding-bottom: 18px;
+	}
+
+	[data-sakura-card="space_gate"] .sufm-space-switch-row:nth-of-type(1) {
+		grid-column: 1;
+		grid-row: 1;
+	}
+
+	[data-sakura-card="space_gate"] .sufm-space-switch-row:nth-of-type(2) {
+		grid-column: 1;
+		grid-row: 2;
+	}
+
+	[data-sakura-card="space_gate"] .sufm-space-mode {
+		grid-column: 2;
+		grid-row: 1 / span 2;
+		margin: 0 0 14px;
+	}
+
+	[data-sakura-card="space_gate"] .card-body > form > p:last-of-type {
+		grid-column: 1 / -1;
+		grid-row: 3;
+	}
+}
+
+/* Level ladder: ten rows read as two labelled lists; stacked when the card is
+ * narrow, side by side with their own header when it is wide. */
+.sakura-sync-app .sufm-space-ladder {
+	display: grid;
+	gap: 0;
+}
+
+.sakura-sync-app .sufm-space-ladder > .sufm-space-rows + .sufm-space-rows .is-head {
+	display: none;
+}
+
+@container (min-width: 860px) {
+	.sakura-sync-app .sufm-space-ladder {
+		grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+		column-gap: 56px;
+	}
+
+	.sakura-sync-app .sufm-space-ladder > .sufm-space-rows {
+		max-width: none;
+	}
+
+	.sakura-sync-app .sufm-space-ladder > .sufm-space-rows + .sufm-space-rows .is-head {
+		display: grid;
+	}
+}
+
+/* ---- Column alignment contract ------------------------------------------
+ * A header label must sit exactly where its column content sits:
+ * text columns read left on both rows, numeric columns read right on both,
+ * and the action column follows its buttons.
+ *
+ * The old blanket rule `span:last-child { text-align: right }` broke this in
+ * three tables: “说明”, “上架 / 删除” and the points ladder headings were
+ * pushed to the far edge while their content stayed on the left.
+ */
+
+.sakura-sync-app .sufm-space-row.is-head span {
+	text-align: left;
+}
+
+/* Same weight as the legacy `span:last-child` rule so it actually wins. */
+.sakura-sync-app .sufm-space-row.is-head span:last-child {
+	text-align: left;
+}
+
+/* Numeric columns: the header ends where the value inside the field ends
+ * (the field has a 10px inner padding, so the header gets the same). */
+.sakura-sync-app .sufm-space-points .sufm-space-row.is-head span:nth-child(2),
+.sakura-sync-app .sufm-space-packages .sufm-space-row.is-head span:nth-child(3),
+.sakura-sync-app .sufm-space-packages .sufm-space-row.is-head span:nth-child(4),
+.sakura-sync-app .sufm-space-packages .sufm-space-row.is-head span:nth-child(5),
+.sakura-sync-app .sufm-space-ppkgs .sufm-space-row.is-head span:nth-child(2),
+.sakura-sync-app .sufm-space-ppkgs .sufm-space-row.is-head span:nth-child(3),
+.sakura-sync-app .sufm-space-ppkgs .sufm-space-row.is-head span:nth-child(4),
+.sakura-sync-app [data-sakura-card="space_level"] .sufm-space-row.is-head span:nth-child(3),
+.sakura-sync-app [data-sakura-card="space_vip"] .sufm-space-row.is-head span:nth-child(3) {
+	text-align: right;
+	padding-right: 10px;
+}
+
+/* The ledger only right aligns its action column, because the amount and the
+ * expiry are plain text cells that start on the left. */
+.sakura-sync-app .sufm-space-grants .sufm-space-row.is-head span:last-child {
+	text-align: right;
+	padding-right: 0;
+}
+
+/* Order IDs are text, not numbers: left aligned like their heading. */
+.sakura-sync-app .sufm-space-input--id {
+	text-align: left;
+}
+
+/* Points packages: the five columns share the full card width instead of
+ * leaving one wide empty strip after the radios. The order id takes a little
+ * more of the slack because it holds text, the numbers stay proportionate. */
+.sakura-sync-app .sufm-space-ppkgs {
+	overflow-x: auto;
+}
+
+.sakura-sync-app .sufm-space-ppkgs .sufm-space-row {
+	grid-template-columns: 72px minmax(0, 1fr) 82px 68px 58px 76px;
+}
+
+/* ---- merged plan card (cash + points in one card) ---- */
+
+.sakura-sync-app .sufm-space-block {
+	margin-top: 16px;
+	padding-top: 14px;
+	border-top: 1px dashed var(--line);
+}
+
+.sakura-sync-app .sufm-space-block:first-of-type {
+	margin-top: 4px;
+	padding-top: 0;
+	border-top: 0;
+}
+
+.sakura-sync-app .sufm-space-block-head {
+	margin-bottom: 10px;
+}
+
+.sakura-sync-app .sufm-space-block-head h3 {
+	margin: 0;
+	font-size: 13px;
+	font-weight: 600;
+	letter-spacing: 0.02em;
+}
+
+.sakura-sync-app .sufm-space-block-head p {
+	margin: 4px 0 0;
+	font-size: 12px;
+	line-height: 1.55;
+	color: var(--muted);
+}
+
+.sakura-sync-app .sufm-space-add {
+	margin: 10px 0 2px;
+}
+
+.sakura-sync-app .sufm-space-rules {
+	display: grid;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	gap: 10px 16px;
+	margin: 0 0 14px;
+}
+
+.sakura-sync-app .sufm-space-rule {
+	display: block;
+	font-size: 12px;
+}
+
+.sakura-sync-app .sufm-space-rule > span {
+	display: block;
+	margin-bottom: 5px;
+	color: var(--muted);
+}
+
+.sakura-sync-app .sufm-space-rule .sufm-space-input {
+	width: 100%;
+	max-width: 100%;
+}
+
+.sakura-sync-app .sufm-space-rule em {
+	display: block;
+	margin-top: 4px;
+	font-size: 11px;
+	font-style: normal;
+	line-height: 1.5;
+	color: var(--muted);
+}
+
+/* ---- auto rule bar (level card) ----------------------------------------
+ * The card ships a one-line rule: “启用规则 · 每满 [1000] 积分 · 增加 [100] MB”.
+ * It used to reuse .sufm-space-rule, which is the stacked field block of the
+ * points card (label above, 100% wide input) — that is why the sentence broke
+ * into four rows with two full width boxes. Own namespace, sentence layout.
+ */
+
+.sakura-sync-app .sufm-space-rulebar {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 8px 20px;
+	margin: 0 0 18px;
+	padding: 12px 14px;
+	border: 1px solid var(--line);
+	border-radius: 12px;
+	background: var(--surface-soft);
+	font-size: 13px;
+	line-height: 20px;
+}
+
+.sakura-sync-app .sufm-space-rulebar__item {
+	display: inline-flex;
+	align-items: center;
+	gap: 7px;
+	margin: 0;
+	font-size: 13px;
+	line-height: 20px;
+}
+
+.sakura-sync-app .sufm-space-rulebar__item:first-child {
+	font-weight: 600;
+}
+
+/* Compact fields: the value is a number, not a sentence. */
+.sakura-sync-app .sufm-space-rulebar__item .sufm-space-input {
+	width: 92px;
+	max-width: 92px;
+	height: 32px;
+	min-height: 32px;
+	padding: 0 10px;
+	font-size: 12.5px;
+	line-height: 30px;
+	border-radius: 7px;
+	text-align: center;
+}
+
+/* “每满 1000 积分 · 增加 100 MB” is one clause: it wraps as a whole, so the
+ * second half never ends up alone on its own line. */
+.sakura-sync-app .sufm-space-rulebar__sentence {
+	display: inline-flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 8px 10px;
+}
+
+/* Deletion has to look the same on both product lines. */
+.sakura-sync-app [data-sakura-card="space_plans"] .sufm-space-row.is-removed {
+	opacity: 0.4;
+}
+
+@media (max-width: 782px) {
+	.sakura-sync-app .sufm-space-rules {
+		grid-template-columns: minmax(0, 1fr);
+	}
+}
+
+/* The points table now lives in a full width card: keep its numeric columns
+   compact and let the trailing column absorb the slack instead of stretching
+   every input to a third of the card. */
+.sakura-sync-app .sufm-space-ppkgs .sufm-space-row {
+	grid-template-columns: 84px 140px 120px 90px minmax(56px, 1fr);
+	column-gap: 10px;
+	min-width: 0;
+}
+
+.sakura-sync-app .sufm-space-ppkgs .sufm-space-row > .sufm-space-pkg-flags {
+	justify-self: end;
+}
+
+.sakura-sync-app .sufm-space-ppkgs .sufm-space-row.is-head span:last-child {
+	text-align: right;
+}
+
+/* The points table gained a preview column, so the six tracks mirror the cash
+   table: the preview text absorbs the slack and nothing stretches. */
+.sakura-sync-app .sufm-space-ppkgs .sufm-space-row {
+	grid-template-columns: 84px 120px 110px 90px minmax(0, 1fr) 56px;
+	column-gap: 10px;
+	min-width: 0;
+}
+
+.sakura-sync-app .sufm-space-plan-summary {
+	align-self: center;
+	color: var(--muted);
+	font-size: 12px;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+/* The action column needs room for the two stacked labels and its heading. */
+.sakura-sync-app .sufm-space-ppkgs .sufm-space-row {
+	grid-template-columns: 84px 120px 110px 90px minmax(0, 1fr) 76px;
+}
+
+.sakura-sync-app .sufm-space-ppkgs .sufm-space-row.is-head span:last-child {
+	white-space: nowrap;
+}
+
+/* build 1793847098 */
+
+/* build 1793847149 */
+
+/* build 1793847176 */
+
+/* build 1793847212 */
+
+/* ---- cash and points tables share one grid (final authority) ---- */
+.sakura-sync-app .sufm-space-packages .sufm-space-row,
+.sakura-sync-app .sufm-space-ppkgs .sufm-space-row {
+	grid-template-columns: 72px minmax(0, 1fr) 82px 68px 58px 76px;
+	column-gap: 8px;
+	min-width: 0;
+}
+
+@media screen and (max-width: 1100px) {
+	.sakura-sync-app .sufm-space-packages .sufm-space-row,
+	.sakura-sync-app .sufm-space-ppkgs .sufm-space-row {
+		grid-template-columns: 64px minmax(0,1fr) 74px 62px 52px 68px;
+	}
+}
+
+/* Names are text: left aligned in both tables, like the cash name field. */
+.sakura-sync-app .sufm-space-ppkgs .sufm-space-row [data-sufm-pkg-label],
+.sakura-sync-app .sufm-space-packages .sufm-space-row [data-sufm-pkg-label] {
+	text-align: left;
+}
+
+/* The action column must fill its track in both tables (the points table used
+ * to shrink it to its content, which shifted the whole row 30px left). */
+.sakura-sync-app .sufm-space-ppkgs .sufm-space-row > .sufm-space-pkg-flags {
+	justify-self: stretch;
+}
+
+/* Header "名称" is a text column: left aligned in both tables (the points table
+ * inherited the numeric right-align rule on child 2). */
+.sakura-sync-app .sufm-space-ppkgs .sufm-space-row.is-head span:nth-child(2) {
+	text-align: left;
+	padding-right: 0;
+}

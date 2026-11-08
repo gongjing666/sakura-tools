@@ -1,0 +1,104 @@
+/* Media-new upload destination picker */
+.sufm-upload-folder {
+	display: inline-flex;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: 9px;
+	margin: 0 0 18px;
+	padding: 7px 10px 7px 12px;
+	border: 1px solid rgba(29, 35, 39, .07);
+	border-radius: 12px;
+	background: #f8f9fb;
+	font-size: 12.5px;
+	line-height: 1.5;
+}
+
+.sufm-upload-folder label {
+	display: inline-flex;
+	align-items: center;
+	gap: 9px;
+	font-weight: 400;
+	color: #646970;
+}
+
+.sufm-upload-folder select {
+	min-width: 200px;
+	max-width: 100%;
+	height: 32px;
+	margin: 0;
+	padding: 0 30px 0 11px;
+	border: 1px solid #e3e6ea;
+	border-radius: 8px;
+	background-color: #fff;
+	background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23868a90' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+	background-repeat: no-repeat;
+	background-position: right 10px center;
+	background-size: 12px 12px;
+	box-shadow: none;
+	color: #3c434a;
+	font-size: 12.5px;
+	line-height: 30px;
+	appearance: none;
+	-webkit-appearance: none;
+	transition: border-color .15s ease, box-shadow .15s ease;
+}
+
+.sufm-upload-folder select:hover {
+	border-color: #d3d8de;
+}
+
+.sufm-upload-folder select:focus {
+	border-color: #f04494;
+	box-shadow: 0 0 0 3px rgba(240, 68, 148, .15);
+	outline: 2px solid transparent;
+}
+
+.sufm-upload-folder-hint {
+	color: #646970;
+	font-weight: 400;
+}
+
+.sufm-upload-toast {
+	position: fixed;
+	left: 50%;
+	bottom: 28px;
+	z-index: 160200;
+	transform: translateX(-50%);
+	max-width: min(560px, calc(100vw - 40px));
+	padding: 10px 18px;
+	border-radius: 6px;
+	background: #1d2327;
+	color: #fff;
+	font-size: 13px;
+	line-height: 1.5;
+	box-shadow: 0 8px 24px rgba(0, 0, 0, .22);
+}
+
+.sufm-upload-toast.is-error {
+	background: #8e232d;
+}
+
+.sufm-upload-toast[hidden] {
+	display: none;
+}
+
+/* Upload progress panel (1.18.37) */
+.sufm-upload-progress{position:fixed;right:24px;bottom:24px;z-index:160210;width:min(360px,calc(100vw - 32px));max-height:min(52vh,420px);display:flex;flex-direction:column;border:1px solid #dcdcde;border-radius:12px;background:#fff;box-shadow:0 16px 44px #1d232726;overflow:hidden;font-size:12px;color:#1d2327}
+.sufm-upload-progress[hidden]{display:none}
+.sufm-upload-progress-head{display:flex;align-items:center;gap:8px;padding:11px 13px;border-bottom:1px solid #f0f0f1;background:#f6f7f7}
+.sufm-upload-progress-title{flex:1 1 auto;font-weight:600;font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sufm-upload-progress-count{flex:0 0 auto;font-variant-numeric:tabular-nums;color:#646970}
+.sufm-upload-progress.is-error .sufm-upload-progress-title{color:#b32d2e}
+.sufm-upload-progress-close{flex:0 0 auto;width:22px;height:22px;padding:0;border:0;border-radius:50%;background:transparent;color:#646970;font-size:15px;line-height:1;cursor:pointer}
+.sufm-upload-progress-close:hover{background:#e0e0e0;color:#1d2327}
+.sufm-upload-progress-list{padding:4px 0;overflow:auto}
+.sufm-upload-item{display:grid;grid-template-columns:minmax(0,1fr) 38px;grid-template-areas:"name pct" "bar bar";gap:3px 8px;padding:7px 13px}
+.sufm-upload-item-name{grid-area:name;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#3c434a}
+.sufm-upload-item-pct{grid-area:pct;text-align:right;font-variant-numeric:tabular-nums;color:#646970;font-size:11px}
+.sufm-upload-item-bar{grid-area:bar;display:block;height:3px;border-radius:999px;background:#e6e8eb;overflow:hidden}
+.sufm-upload-item-bar i{display:block;width:0;height:100%;border-radius:inherit;background:#f04494;transition:width .18s ease}
+.sufm-upload-item.is-done .sufm-upload-item-bar i{background:#00a32a}
+.sufm-upload-item.is-done .sufm-upload-item-pct{color:#00a32a}
+.sufm-upload-item.is-error .sufm-upload-item-bar i{background:#d63638}
+.sufm-upload-item.is-error .sufm-upload-item-pct{color:#d63638}
+@media(max-width:782px){.sufm-upload-progress{bottom:100px;right:12px;left:12px;width:auto}}

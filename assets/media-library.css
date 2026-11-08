@@ -1,0 +1,48 @@
+/*
+ * Four added columns (source / owner / virtual folder / size) on top of
+ * WordPress' own set and whatever FileBird adds must not squeeze the file
+ * name into one character per line. Let the table size to its content and
+ * give the name column a floor; wide screens scroll sideways instead.
+ */
+.upload-php .wp-list-table.media {
+	table-layout: auto;
+}
+
+.upload-php .wp-list-table .column-title {
+	min-width: 240px;
+}
+
+.upload-php .wp-list-table .column-sufm_source,
+.upload-php .wp-list-table .column-sufm_owner {
+	width: 84px;
+}
+
+.upload-php .wp-list-table .column-sufm_size {
+	width: 76px;
+}
+
+.upload-php .wp-list-table .column-sufm_folder {
+	width: 150px;
+	white-space: normal;
+}
+
+.upload-php .attachments .filename {
+	overflow-wrap: anywhere;
+	word-break: normal;
+}
+
+/* Give the whole list a floor instead of letting every column shrink until
+ * its header stacks vertically; the admin content area scrolls sideways. */
+.upload-php .wp-list-table.media {
+	min-width: 1180px;
+}
+
+.upload-php #wpbody-content .wrap {
+	overflow-x: auto;
+}
+
+/* A four-character Chinese header must stay on one line; without this the
+ * auto layout squeezes 所有者 / 虚拟目录 into one glyph per row. */
+.upload-php .wp-list-table th[class*="column-sufm_"] {
+	white-space: nowrap;
+}

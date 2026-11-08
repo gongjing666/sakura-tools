@@ -1,0 +1,108 @@
+/**
+ * Upload destination picker inside the WordPress media modal.
+ *
+ * The media modal can be opened from any admin screen (the space order icon,
+ * the editor, a widget…), where neither body.upload-php nor media-folders.css
+ * exists. Everything here is therefore scoped to .media-modal and styled with
+ * WordPress' own greys so the control reads as a native part of the frame.
+ */
+
+.media-modal .sufm-modal-folder {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	width: max-content;
+	max-width: min(100%, 460px);
+	margin: 0 auto 18px;
+	padding: 6px 6px 6px 11px;
+	border: 1px solid #e9ebef;
+	border-radius: 10px;
+	background: #f7f8fa;
+	box-shadow: none;
+	color: #50575e;
+	font-size: 12.5px;
+	line-height: 1.5;
+	text-align: left;
+}
+
+.media-modal .sufm-modal-folder[hidden] {
+	display: none !important;
+}
+
+.media-modal .sufm-modal-folder-ico {
+	display: inline-flex;
+	flex: 0 0 auto;
+	color: #8c8f94;
+}
+
+.media-modal .sufm-modal-folder-ico svg {
+	display: block;
+	width: 17px;
+	height: 17px;
+}
+
+.media-modal .sufm-modal-folder-label {
+	flex: 0 0 auto;
+	white-space: nowrap;
+	color: #646970;
+	font-weight: 500;
+}
+
+.media-modal .sufm-modal-folder select.sufm-modal-folder-select {
+	flex: 0 1 auto;
+	min-width: 168px;
+	max-width: 260px;
+	height: 30px;
+	min-height: 30px;
+	max-height: 30px;
+	margin: 0;
+	padding: 0 28px 0 10px;
+	border: 1px solid #e3e6ea;
+	border-radius: 7px;
+	background-color: #fff;
+	background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23868a90' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+	background-repeat: no-repeat;
+	background-position: right 9px center;
+	background-size: 12px 12px;
+	box-shadow: none;
+	color: #1d2327;
+	font-size: 12.5px;
+	font-weight: 500;
+	line-height: 28px;
+	appearance: none;
+	-webkit-appearance: none;
+	transition: border-color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.media-modal .sufm-modal-folder select.sufm-modal-folder-select:hover {
+	border-color: #c9cdd3;
+	background-color: #fff;
+}
+
+.media-modal .sufm-modal-folder select.sufm-modal-folder-select:focus {
+	border-color: #2271b1;
+	background-color: #fff;
+	box-shadow: 0 0 0 1px #2271b1;
+	outline: 2px solid transparent;
+}
+
+.media-modal .sufm-modal-folder select.sufm-modal-folder-select:disabled {
+	color: #a7aaad;
+	opacity: 1;
+}
+
+@media (max-width: 600px) {
+	/* One row that fills the frame: the select takes whatever is left and
+	   truncates a long folder name instead of pushing the chip wider. */
+	.media-modal .sufm-modal-folder {
+		width: auto;
+		max-width: 100%;
+		padding: 6px 8px 6px 10px;
+	}
+
+	.media-modal .sufm-modal-folder select.sufm-modal-folder-select {
+		flex: 1 1 auto;
+		min-width: 0;
+		max-width: none;
+	}
+}

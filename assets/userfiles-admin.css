@@ -1,0 +1,1166 @@
+/* User file space — admin review & execution screen.
+ * Everything is scoped under .sakura-sync-app so the other modules' cards,
+ * buttons and layout grid keep their own styling.
+ */
+
+.sakura-sync-app .sufm-table {
+	width: 100%;
+	border-collapse: collapse;
+	font-size: 12.5px;
+}
+
+.sakura-sync-app .sufm-table thead th {
+	position: sticky;
+	top: 0;
+	z-index: 1;
+	padding: 8px 10px;
+	border-bottom: 1px solid var(--line);
+	background: #f7fbfe;
+	color: var(--muted);
+	font-weight: 650;
+	text-align: left;
+	white-space: nowrap;
+}
+
+.sakura-sync-app .sufm-table tbody td {
+	padding: 9px 10px;
+	border-bottom: 1px solid var(--line-soft);
+	vertical-align: middle;
+}
+
+.sakura-sync-app .sufm-table tbody tr:hover {
+	background: #fbfdff;
+}
+
+.sakura-sync-app .sufm-table tbody td strong {
+	display: block;
+	color: #1a3e57;
+	font-weight: 650;
+}
+
+.sakura-sync-app .sufm-table .sufm-muted {
+	display: block;
+	margin-top: 1px;
+	font-size: 11.5px;
+}
+
+.sakura-sync-app .sufm-mono {
+	color: var(--muted);
+	font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+	font-size: 11.5px;
+}
+
+.sakura-sync-app .sufm-col-actions {
+	width: 1%;
+	white-space: nowrap;
+}
+
+.sakura-sync-app .sufm-row-actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+}
+
+.sakura-sync-app .sufm-muted {
+	color: var(--muted);
+	font-size: 12px;
+}
+
+.sakura-sync-app .sufm-hint {
+	margin: 6px 0 0;
+	color: var(--muted);
+	font-size: 11.5px;
+	line-height: 1.5;
+}
+
+.sakura-sync-app .sufm-empty {
+	margin: 0;
+	padding: 22px 10px;
+	color: var(--muted);
+	font-size: 12.5px;
+	text-align: center;
+}
+
+.sakura-sync-app .sufm-status {
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+	padding: 2px 8px;
+	border-radius: 99px;
+	font-size: 11.5px;
+	font-weight: 650;
+	line-height: 1.6;
+	white-space: nowrap;
+}
+
+.sakura-sync-app .sufm-status::before {
+	content: "";
+	width: 5px;
+	height: 5px;
+	border-radius: 50%;
+	background: currentColor;
+}
+
+.sakura-sync-app .sufm-status--pending_review,
+.sakura-sync-app .sufm-status--needs_review {
+	color: var(--warn);
+	background: var(--warn-bg);
+}
+
+.sakura-sync-app .sufm-status--approved,
+.sakura-sync-app .sufm-status--queued,
+.sakura-sync-app .sufm-status--executing {
+	color: var(--blue);
+	background: var(--blue-soft);
+}
+
+.sakura-sync-app .sufm-status--completed,
+.sakura-sync-app .sufm-status--purged {
+	color: var(--ok);
+	background: var(--ok-bg);
+}
+
+.sakura-sync-app .sufm-status--rejected,
+.sakura-sync-app .sufm-status--failed,
+.sakura-sync-app .sufm-status--partial_failed {
+	color: var(--bad);
+	background: var(--bad-bg);
+}
+
+.sakura-sync-app .sufm-status--withdrawn,
+.sakura-sync-app .sufm-status--revoked,
+.sakura-sync-app .sufm-status--stopped {
+	color: var(--muted);
+	background: #eef4f8;
+}
+
+.sakura-sync-app .sufm-toolbar {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 8px;
+	margin-bottom: 12px;
+}
+
+.sakura-sync-app .sufm-toolbar input[type="search"],
+.sakura-sync-app .sufm-toolbar input[type="text"],
+.sakura-sync-app .sufm-toolbar select {
+	min-height: 32px;
+	padding: 4px 10px;
+	border: 1px solid var(--line);
+	border-radius: 10px;
+	background: #fff;
+	color: var(--ink);
+}
+
+.sakura-sync-app .sufm-toolbar input[type="search"] {
+	flex: 1 1 200px;
+	min-width: 160px;
+}
+
+.sakura-sync-app .sufm-pager {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	flex-wrap: wrap;
+	margin-top: 12px;
+	padding-top: 10px;
+	border-top: 1px solid var(--sufm-line-soft, #eef4f9);
+}
+
+.sakura-sync-app .sufm-pager:empty {
+	display: none;
+}
+
+.sakura-sync-app .sufm-page-size {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	color: var(--sufm-muted, #7b8794);
+	font-size: 12px;
+}
+
+.sakura-sync-app .sufm-size-btn {
+	height: 28px;
+	min-height: 28px;
+	padding: 0 10px;
+	border: 1px solid #d7e7f2;
+	border-radius: 8px;
+	background: #fff;
+	color: #194d72;
+	font-size: 12px;
+	font-weight: 650;
+	cursor: pointer;
+}
+
+.sakura-sync-app .sufm-size-btn.is-active {
+	background: #2b8ac6;
+	border-color: #2b8ac6;
+	color: #fff;
+}
+
+.sakura-sync-app .sufm-page-summary {
+	color: #7b8794;
+	font-size: 12px;
+	margin-left: auto;
+}
+
+.sakura-sync-app .sufm-page-nav {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	color: #7b8794;
+	font-size: 12px;
+}
+
+.sakura-sync-app .sufm-page-btn {
+	width: 28px;
+	height: 28px;
+	padding: 0;
+	border: 1px solid #d7e7f2;
+	border-radius: 8px;
+	background: #fff;
+	color: #194d72;
+	font-size: 16px;
+	line-height: 1;
+	cursor: pointer;
+}
+
+.sakura-sync-app .sufm-page-btn:disabled {
+	opacity: .35;
+	cursor: default;
+}
+
+.sakura-sync-app .sufm-usage {
+	display: grid;
+	gap: 6px;
+	min-width: 180px;
+}
+
+.sakura-sync-app .sufm-usage-line {
+	display: flex;
+	align-items: baseline;
+	gap: 4px;
+	font-size: 12.5px;
+}
+
+.sakura-sync-app .sufm-usage-track {
+	height: 6px;
+	border-radius: 999px;
+	background: #eef4f9;
+	overflow: hidden;
+}
+
+.sakura-sync-app .sufm-usage-fill {
+	display: block;
+	height: 100%;
+	border-radius: 999px;
+	background: #2b8ac6;
+	transition: width .2s ease;
+}
+
+.sakura-sync-app .sufm-usage-fill.is-high {
+	background: #f0a63a;
+}
+
+.sakura-sync-app .sufm-cardfoot {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	flex-wrap: wrap;
+	margin-top: 10px;
+}
+
+.sakura-sync-app #sufm-user-search {
+	width: 132px;
+}
+
+.sakura-sync-app [data-sakura-card="users"] .card-head-actions {
+	gap: 6px;
+	flex-wrap: nowrap;
+}
+
+.sakura-sync-app [data-sakura-card="users"] .card-head-actions .btn {
+	padding: 0 9px;
+	font-size: 12px;
+}
+
+@media (max-width: 1100px) {
+	.sakura-sync-app .sufm-table--users .sufm-col-files {
+		display: none;
+	}
+	.sakura-sync-app #sufm-user-search {
+		width: 150px;
+	}
+}
+
+.sakura-sync-app .sufm-check {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: baseline;
+	gap: 6px 8px;
+	padding: 8px 10px;
+	border: 1px solid var(--line-soft);
+	border-radius: 12px;
+	background: #fbfdff;
+}
+
+.sakura-sync-app .sufm-check + .sufm-check {
+	margin-top: 6px;
+}
+
+.sakura-sync-app .sufm-check input {
+	margin: 0;
+}
+
+.sakura-sync-app .sufm-check strong {
+	color: #1a3e57;
+	font-size: 12.5px;
+	font-weight: 650;
+}
+
+.sakura-sync-app .sufm-preview {
+	margin-top: 12px;
+	padding: 12px 14px;
+	border: 1px dashed #c7ddea;
+	border-radius: 12px;
+	background: #f7fcff;
+}
+
+.sakura-sync-app .sufm-preview p {
+	margin: 0 0 4px;
+}
+
+.sakura-sync-app .sufm-preview p:last-child {
+	margin-bottom: 0;
+}
+
+.sakura-sync-app .sufm-preview-head {
+	display: flex;
+	align-items: baseline;
+	gap: 6px;
+	color: #1a3e57;
+}
+
+.sakura-sync-app .sufm-preview-head strong {
+	font-size: 15px;
+	letter-spacing: -.01em;
+}
+
+.sakura-sync-app .sufm-batch {
+	margin-top: 12px;
+	padding: 12px 14px;
+	border: 1px solid var(--line);
+	border-radius: 12px;
+	background: var(--surface-soft);
+}
+
+.sakura-sync-app .sufm-batch p {
+	margin: 0 0 6px;
+	font-size: 12.5px;
+}
+
+.sakura-sync-app .sufm-form {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 8px;
+	margin-top: 12px;
+}
+
+.sakura-sync-app .sufm-form input[type="text"] {
+	flex: 1 1 180px;
+	min-height: 34px;
+	padding: 4px 10px;
+	border: 1px solid var(--line);
+	border-radius: 10px;
+	background: #fff;
+}
+
+.sakura-sync-app .sufm-form input:focus,
+.sakura-sync-app .sufm-toolbar input:focus,
+.sakura-sync-app .sufm-toolbar select:focus {
+	outline: 2px solid rgba(43, 111, 159, .35);
+	outline-offset: 1px;
+}
+
+.sakura-sync-app .sufm-quota-cell {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	white-space: nowrap;
+}
+
+.sakura-sync-app .sufm-quota-input {
+	width: 84px;
+	flex: 0 0 84px;
+	min-height: 30px;
+	padding: 3px 8px;
+	border: 1px solid var(--line);
+	border-radius: 8px;
+	background: #fff;
+	font-size: 12px;
+	text-align: right;
+}
+
+.sakura-sync-app .sufm-group + .sufm-group {
+	margin-top: 22px;
+	padding-top: 20px;
+	border-top: 1px dashed var(--line);
+}
+
+.sakura-sync-app .sufm-group-head {
+	margin-bottom: 12px;
+}
+
+.sakura-sync-app .sufm-group-head h3 {
+	margin: 0;
+	font-size: 13px;
+	font-weight: 600;
+	color: #1a3e57;
+}
+
+.sakura-sync-app .sufm-group-head p {
+	margin: 3px 0 0;
+	font-size: 12px;
+	color: var(--muted);
+}
+
+.sakura-sync-app .sufm-form-grid {
+	display: grid;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	gap: 14px 18px;
+}
+
+@media (max-width: 1280px) {
+	.sakura-sync-app .sufm-form-grid {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+}
+
+@media (max-width: 782px) {
+	.sakura-sync-app .sufm-form-grid {
+		grid-template-columns: minmax(0, 1fr);
+	}
+}
+
+.sakura-sync-app .sufm-field {
+	display: flex;
+	flex-direction: column;
+	gap: 5px;
+}
+
+.sakura-sync-app .sufm-field > label {
+	color: #1a3e57;
+	font-size: 12.5px;
+	font-weight: 600;
+}
+
+.sakura-sync-app .sufm-field > input {
+	min-height: 34px;
+	padding: 4px 10px;
+	border: 1px solid var(--line);
+	border-radius: 10px;
+	background: #fff;
+}
+
+.sakura-sync-app .sufm-field small {
+	color: var(--muted);
+	font-size: 11.5px;
+	line-height: 1.45;
+}
+
+.sakura-sync-app .sufm-theme-limits {
+	margin: 18px 0 6px;
+	padding: 14px 16px;
+	border: 1px solid #e3eefa;
+	border-radius: 12px;
+	background: #fafdff;
+}
+
+.sakura-sync-app .sufm-theme-limits legend {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 0 6px;
+	color: var(--text);
+	font-size: 13px;
+	font-weight: 650;
+}
+
+.sakura-sync-app .sufm-badge {
+	padding: 2px 8px;
+	border-radius: 999px;
+	background: #e8f3ff;
+	color: #2b7fc4;
+	font-size: 11px;
+	font-weight: 500;
+}
+
+.sakura-sync-app .sufm-theme-limits .sufm-hint {
+	margin: 0 0 12px;
+}
+
+.sakura-sync-app .sufm-types {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(128px, 1fr));
+	gap: 6px 12px;
+	margin: 6px 0 0;
+	padding: 0;
+	list-style: none;
+}
+
+.sakura-sync-app .sufm-types li {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	font-size: 12px;
+	color: var(--muted);
+}
+
+.sakura-sync-app .sufm-events {
+	margin: 0;
+	padding: 0;
+	list-style: none;
+	display: grid;
+	gap: 6px;
+}
+
+.sakura-sync-app .sufm-events li {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: baseline;
+	gap: 8px;
+	padding: 7px 10px;
+	border-radius: 10px;
+	background: #fbfdff;
+	font-size: 12px;
+	color: var(--muted);
+}
+
+.sakura-sync-app .sufm-events .sufm-event-action {
+	color: #1a3e57;
+	font-weight: 650;
+	font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+	font-size: 11.5px;
+}
+
+.sakura-sync-app .sufm-events time {
+	margin-left: auto;
+	font-size: 11px;
+	color: #8aa3b4;
+}
+
+.sakura-sync-app .conn-pill.is-error .dot {
+	background: var(--bad);
+}
+
+.sakura-sync-app .sufm-card-note {
+	margin: 0 0 12px;
+	color: var(--muted);
+	font-size: 12px;
+	line-height: 1.55;
+}
+
+.sakura-sync-app .sufm-divider {
+	height: 1px;
+	margin: 18px 0 14px;
+	background: var(--line-soft);
+}
+
+@media (max-width: 782px) {
+	.sakura-sync-app .sufm-table thead {
+		display: none;
+	}
+
+	.sakura-sync-app .sufm-table tbody tr {
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+		gap: 2px 10px;
+		padding: 10px 0;
+		border-bottom: 1px solid var(--line-soft);
+	}
+
+	.sakura-sync-app .sufm-table tbody td {
+		padding: 3px 0;
+		border: 0;
+	}
+
+	.sakura-sync-app .sufm-table tbody td:first-child {
+		grid-column: 1 / -1;
+	}
+
+	.sakura-sync-app .sufm-col-actions {
+		grid-column: 1 / -1;
+		width: auto;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.sakura-sync-app .sufm-status,
+	.sakura-sync-app .sufm-table tbody tr {
+		transition: none;
+	}
+}
+
+/* Fixed column rhythm: six columns in the review queue and five in the
+ * per-user list would otherwise auto-size around whatever the first row
+ * happens to contain, and the action buttons ended up stacked in a 78px
+ * column. */
+.sufm-table--queue th:nth-child(1) { width: 62px; }
+.sufm-table--queue th:nth-child(2) { width: 190px; }
+.sufm-table--queue th:nth-child(3) { width: 150px; }
+.sufm-table--queue th:nth-child(4) { width: 120px; }
+.sufm-table--queue th:nth-child(5) { width: 180px; }
+.sufm-table--queue .sufm-col-actions { width: 200px; }
+
+.sufm-row-actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+}
+
+.sufm-table--users th:nth-child(1) { width: 28%; }
+.sufm-table--users th:nth-child(2) { width: 34%; }
+.sufm-table--users th:nth-child(3) { width: 48px; }
+.sufm-table--users th:nth-child(4) { width: 150px; }
+
+.sakura-sync-app .sufm-table--users { table-layout: fixed; min-width: 0; }
+.sufm-table--users th, .sufm-table--users td { overflow: hidden; }
+.sufm-table--users td:nth-child(1) strong,
+.sufm-table--users td:nth-child(1) .sufm-muted { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sufm-table--users .sufm-usage { min-width: 0; }
+.sufm-table--users .sufm-quota-cell { gap: 6px; }
+.sufm-table--users .sufm-quota-input { width: 64px; flex: 0 0 64px; }
+.sakura-sync-app .sufm-table--users thead th.sufm-col-quota { text-align: right; }
+.sufm-table--users td.sufm-quota-cell { justify-content: flex-end; }
+.sufm-table--users .sufm-quota-cell .btn { padding: 0 9px; }
+.sufm-table--users td { vertical-align: middle; }
+
+.sufm-usage { display: grid; gap: 6px; min-width: 170px; }
+.sufm-usage-line { display: flex; align-items: baseline; gap: 4px; font-size: 12.5px; }
+.sufm-usage-track { height: 6px; border-radius: 999px; background: #eef4f9; overflow: hidden; }
+.sufm-usage-fill { display: block; height: 100%; border-radius: 999px; background: #2b8ac6; transition: width .2s ease; }
+.sufm-usage-fill.is-high { background: #f0a63a; }
+
+.sufm-page-size { display: inline-flex; align-items: center; gap: 6px; color: #7b8794; font-size: 12px; }
+.sufm-size-btn { height: 28px; min-height: 28px; padding: 0 10px; border: 1px solid #d7e7f2; border-radius: 8px; background: #fff; color: #194d72; font-size: 12px; font-weight: 650; cursor: pointer; }
+.sufm-size-btn.is-active { background: #2b8ac6; border-color: #2b8ac6; color: #fff; }
+.sufm-page-summary { color: #7b8794; font-size: 12px; margin-left: auto; }
+.sufm-page-nav { display: inline-flex; align-items: center; gap: 8px; color: #7b8794; font-size: 12px; }
+.sufm-page-btn { width: 28px; height: 28px; padding: 0; border: 1px solid #d7e7f2; border-radius: 8px; background: #fff; color: #194d72; font-size: 16px; line-height: 1; cursor: pointer; }
+.sufm-page-btn:disabled { opacity: .35; cursor: default; }
+.sufm-pager:empty { display: none; }
+.sufm-cardfoot { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 10px; }
+.sufm-events .sufm-event-result { padding: 1px 8px; border-radius: 999px; background: #eaf6ee; color: #2f7d4f; font-size: 11.5px; font-weight: 600; }
+.sufm-events .sufm-event-detail { flex: 1 1 200px; min-width: 0; overflow-wrap: anywhere; color: #7b8794; }
+.sufm-events .sufm-event-time { margin-left: auto; color: #8aa3b4; font-size: 11.5px; white-space: nowrap; }
+.sufm-events .sufm-empty { display: block; }
+
+/* --------------------------------------------------------------------------
+ * One control language for the whole screen.
+ *
+ * The settings grid had its own input styling while the queue filters and the
+ * phrase field inherited WordPress' 40px / 2px-radius defaults, so the same
+ * page showed two different input shapes. Normalising every text-like control
+ * here is what keeps the cards visually one family.
+ * ----------------------------------------------------------------------- */
+.sakura-sync-app input[type="text"],
+.sakura-sync-app input[type="search"],
+.sakura-sync-app input[type="number"],
+.sakura-sync-app input[type="url"],
+.sakura-sync-app input[type="email"],
+.sakura-sync-app input[type="password"],
+.sakura-sync-app select,
+.sakura-sync-app textarea {
+	height: 36px;
+	padding: 0 12px;
+	border: 1px solid #d7e7f2;
+	border-radius: 10px;
+	background: #fff;
+	box-shadow: none;
+	color: #1a3e57;
+	font-size: 13px;
+	line-height: 34px;
+	transition: border-color .15s ease, box-shadow .15s ease;
+}
+
+.sakura-sync-app select {
+	padding-right: 30px;
+	line-height: 1;
+}
+
+.sakura-sync-app textarea {
+	height: auto;
+	min-height: 72px;
+	padding: 10px 12px;
+	line-height: 1.55;
+}
+
+.sakura-sync-app input[type="text"]:focus,
+.sakura-sync-app input[type="search"]:focus,
+.sakura-sync-app input[type="number"]:focus,
+.sakura-sync-app select:focus,
+.sakura-sync-app textarea:focus {
+	border-color: #4ea3d9;
+	box-shadow: 0 0 0 3px rgba(78, 163, 217, .14);
+	outline: none;
+}
+
+.sakura-sync-app input[type="number"] {
+	appearance: textfield;
+	-moz-appearance: textfield;
+}
+
+.sakura-sync-app input[type="number"]::-webkit-outer-spin-button,
+.sakura-sync-app input[type="number"]::-webkit-inner-spin-button {
+	-webkit-appearance: none;
+	margin: 0;
+}
+
+/* The three-step confirm flow ------------------------------------------------- */
+.sufm-exec {
+	display: grid;
+	gap: 14px;
+}
+
+.sufm-step {
+	padding: 14px 16px;
+	border: 1px solid #e6f0f7;
+	border-radius: 12px;
+	background: #fbfdff;
+}
+
+.sufm-step--confirm {
+	background: #fffafb;
+	border-color: #f7e2e8;
+}
+
+.sufm-step-head {
+	display: flex;
+	align-items: flex-start;
+	gap: 10px;
+}
+
+.sufm-step-head h3 {
+	margin: 0 0 2px;
+	font-size: 13.5px;
+	line-height: 1.35;
+	color: #1a3e57;
+}
+
+.sufm-step-head p {
+	margin: 0;
+	font-size: 12px;
+	line-height: 1.55;
+	color: #7b8ea0;
+}
+
+.sufm-step-head > .btn {
+	margin-left: auto;
+	flex: 0 0 auto;
+}
+
+.sufm-step-no {
+	flex: 0 0 24px;
+	width: 24px;
+	height: 24px;
+	border-radius: 50%;
+	display: grid;
+	place-items: center;
+	background: #e8f2fa;
+	color: #2f6f96;
+	font-size: 12px;
+	font-weight: 700;
+}
+
+.sufm-step--confirm .sufm-step-no {
+	background: #fbe9ee;
+	color: #b23a5b;
+}
+
+.sufm-step-meta {
+	margin-left: auto;
+	font-size: 12px;
+	color: #7b8ea0;
+}
+
+.sufm-checklist {
+	display: grid;
+	gap: 8px;
+	margin-top: 12px;
+}
+
+.sufm-checklist .sufm-check {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	margin: 0;
+	padding: 9px 12px;
+	border: 1px solid #e4eef6;
+	border-radius: 10px;
+	background: #fff;
+}
+
+.sufm-checklist .sufm-check:hover {
+	border-color: #cfe3f2;
+}
+
+.sufm-checklist .sufm-check input {
+	margin: 0;
+}
+
+.sufm-checklist .sufm-muted {
+	margin-left: auto;
+}
+
+.sufm-confirm-row {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	margin-top: 12px;
+}
+
+.sufm-confirm-row .sufm-phrase {
+	flex: 1 1 auto;
+	min-width: 0;
+}
+
+.sufm-phrase {
+	display: block;
+}
+
+.sufm-phrase input {
+	width: 100%;
+}
+
+.sufm-confirm-row .btn {
+	flex: 0 0 auto;
+}
+
+.sufm-step--confirm.is-locked .sufm-confirm-row {
+	opacity: .55;
+}
+
+.sufm-preview-hash:empty {
+	display: none;
+}
+
+.sufm-sr-only {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	padding: 0;
+	margin: -1px;
+	overflow: hidden;
+	clip: rect(0, 0, 0, 0);
+	white-space: nowrap;
+	border: 0;
+}
+
+/* Module gate ---------------------------------------------------------------- */
+.sufm-gate-list {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+	gap: 10px 16px;
+	margin: 0 0 12px;
+	padding: 0;
+	list-style: none;
+}
+
+.sufm-gate-list li {
+	display: flex;
+	flex-direction: column;
+	gap: 3px;
+	padding: 12px 14px;
+	border: 1px solid #e6f0f7;
+	border-radius: 10px;
+	background: #fbfdff;
+}
+
+.sufm-gate-list span {
+	font-size: 11px;
+	color: #7b8ea0;
+}
+
+.sufm-gate-list strong {
+	font-size: 13px;
+	color: #1a3e57;
+}
+
+.sufm-switch {
+	display: flex;
+	align-items: flex-start;
+	gap: 12px;
+	margin: 0 0 18px;
+	padding: 13px 15px;
+	border: 1px solid #d7e7f2;
+	border-radius: 12px;
+	background: #f7fbfe;
+	cursor: pointer;
+}
+
+.sufm-switch input {
+	margin: 2px 0 0;
+}
+
+.sufm-switch > span {
+	display: flex;
+	flex-direction: column;
+	gap: 3px;
+}
+
+.sufm-switch strong {
+	font-size: 13px;
+	color: #1a3e57;
+}
+
+.sufm-switch em {
+	font-style: normal;
+	font-size: 12px;
+	color: #7b8ea0;
+}
+
+/* Gate card sits outside the draggable grid so it is always visible while the
+ * feature is off, whatever layout the user saved. */
+.sakura-sync-app .sufm-gate-card {
+	margin: 0 0 18px;
+}
+
+.sakura-sync-app .sufm-preview-hint { margin: 0 0 10px; }
+.sakura-sync-app .sufm-preview-hint[hidden] { display: none; }
+
+.sakura-sync-app #sufm-preview:disabled { opacity: .45 !important; cursor: not-allowed; box-shadow: none; filter: saturate(.4); }
+
+/* ── 文件夹样式卡片（1.18.47） ───────────────────────────────
+ * Two style choices and an accent row. The previews are drawn with the same
+ * variables the media-library tree uses, so what is picked here is what shows
+ * up there — a swatch that lies is worse than no preview.
+ */
+.sakura-sync-app .sufm-styles,
+.sakura-sync-app .sufm-accents {
+	margin: 0 0 18px;
+	padding: 14px 16px 16px;
+	border: 1px solid #d7e7f2;
+	border-radius: 12px;
+	background: #fbfdff;
+}
+
+.sakura-sync-app .sufm-styles legend,
+.sakura-sync-app .sufm-accents legend {
+	padding: 0 6px;
+	font-size: 12.5px;
+	font-weight: 600;
+	color: #1a3e57;
+}
+
+.sakura-sync-app .sufm-style-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+	gap: 12px;
+	margin: 4px 0 10px;
+}
+
+.sakura-sync-app .sufm-style {
+	position: relative;
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	padding: 12px;
+	border: 1px solid #dde6ef;
+	border-radius: 12px;
+	background: #fff;
+	cursor: pointer;
+	transition: border-color .15s ease, box-shadow .15s ease;
+}
+
+.sakura-sync-app .sufm-style:hover {
+	border-color: #b9cee2;
+}
+
+.sakura-sync-app .sufm-style:has(input:checked) {
+	border-color: #3858e9;
+	box-shadow: 0 0 0 1px #3858e9 inset;
+}
+
+.sakura-sync-app .sufm-style:focus-within {
+	outline: 2px solid #3858e9;
+	outline-offset: 2px;
+}
+
+.sakura-sync-app .sufm-style > input {
+	position: absolute;
+	top: 12px;
+	right: 12px;
+	margin: 0;
+}
+
+.sakura-sync-app .sufm-style-preview {
+	display: block;
+	padding: 10px 12px;
+	border-radius: 8px;
+	background: #f6f8fb;
+}
+
+.sakura-sync-app .sufm-style-demo {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+
+.sakura-sync-app .sufm-style-demo-row {
+	display: flex;
+	align-items: center;
+	gap: 7px;
+}
+
+.sakura-sync-app .sufm-style-demo-row i {
+	display: flex;
+	width: 15px;
+	height: 15px;
+	flex: 0 0 15px;
+}
+
+.sakura-sync-app .sufm-style-demo-row i svg {
+	width: 15px;
+	height: 15px;
+	stroke: #c8932b;
+	stroke-width: 1.6;
+	fill: #f7dc9a;
+	stroke-linejoin: round;
+}
+
+.sakura-sync-app .sufm-style-demo-row b {
+	flex: 1;
+	height: 7px;
+	border-radius: 4px;
+	background: #dfe4ea;
+}
+
+.sakura-sync-app .sufm-style-demo-row em {
+	width: 16px;
+	height: 7px;
+	border-radius: 4px;
+	background: #e9edf2;
+}
+
+.sakura-sync-app .sufm-style[data-style="mac"] .sufm-style-demo-row i svg {
+	stroke: #8a8f98;
+	fill: none;
+	stroke-width: 1.4;
+}
+
+/* The selected row in each preview shows what an active folder looks like, so
+ * the accent change reads immediately. */
+.sakura-sync-app .sufm-style[data-style="windows"] .sufm-style-demo-row.is-open {
+	background: #e8f0fe;
+	border-radius: 4px;
+}
+
+.sakura-sync-app .sufm-style[data-style="windows"] .sufm-style-demo-row.is-open i svg {
+	stroke: #1f6feb;
+}
+
+.sakura-sync-app .sufm-style[data-style="mac"] .sufm-style-demo-row.is-open {
+	background: #e8ecf2;
+	border-radius: 4px;
+}
+
+.sakura-sync-app .sufm-style-demo-row {
+	padding: 2px 4px;
+}
+
+.sakura-sync-app .sufm-style-demo-row.is-open b {
+	background: #b9c6d6;
+}
+
+.sakura-sync-app .sufm-style-copy {
+	display: flex;
+	flex-direction: column;
+	gap: 3px;
+}
+
+.sakura-sync-app .sufm-style-copy strong {
+	font-size: 13px;
+	color: #1a3e57;
+}
+
+.sakura-sync-app .sufm-style-copy em {
+	font-style: normal;
+	font-size: 11.5px;
+	line-height: 1.45;
+	color: #7b8ea0;
+}
+
+.sakura-sync-app .sufm-swatches {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	margin: 4px 0 10px;
+}
+
+.sakura-sync-app .sufm-swatch {
+	display: inline-flex;
+	align-items: center;
+	gap: 7px;
+	padding: 6px 11px 6px 8px;
+	border: 1px solid #dde6ef;
+	border-radius: 999px;
+	background: #fff;
+	font-size: 12px;
+	cursor: pointer;
+}
+
+.sakura-sync-app .sufm-swatch:has(input:checked) {
+	border-color: #3858e9;
+	box-shadow: 0 0 0 1px #3858e9 inset;
+	color: #1a3e57;
+}
+
+.sakura-sync-app .sufm-swatch:focus-within {
+	outline: 2px solid #3858e9;
+	outline-offset: 2px;
+}
+
+.sakura-sync-app .sufm-swatch input {
+	position: absolute;
+	opacity: 0;
+	width: 1px;
+	height: 1px;
+}
+
+.sakura-sync-app .sufm-swatch-dot {
+	width: 14px;
+	height: 14px;
+	border-radius: 50%;
+	background: var(--swatch, #c8932b);
+	box-shadow: 0 0 0 1px rgba(0, 0, 0, .08) inset;
+}
+
+.sakura-sync-app .sufm-swatch[data-accent="auto"] .sufm-swatch-dot {
+	background: linear-gradient(135deg, #c8932b 50%, #8a8f98 50%);
+}
+
+.sakura-sync-app .sufm-swatch[data-accent="amber"]  { --swatch: #c8932b; }
+.sakura-sync-app .sufm-swatch[data-accent="blue"]   { --swatch: #3b7dd8; }
+.sakura-sync-app .sufm-swatch[data-accent="green"]  { --swatch: #3f9b6d; }
+.sakura-sync-app .sufm-swatch[data-accent="violet"] { --swatch: #7a5bd0; }
+.sakura-sync-app .sufm-swatch[data-accent="rose"]   { --swatch: #d4547f; }
+.sakura-sync-app .sufm-swatch[data-accent="slate"]  { --swatch: #5c6675; }
+
+@media (max-width: 782px) {
+	.sakura-sync-app .sufm-swatch {
+		min-height: 44px;
+	}
+}
+
+/* The master switch moved to the Zibll tab: keep the pointer visually apart
+   from the first policy group that follows it. */
+.sakura-sync-app .sufm-hint.sufm-hint--moved {
+	margin: 8px 0 14px;
+	padding: 6px 12px;
+	border-left: 3px solid var(--focus-color, #f04494);
+	background: var(--surface-soft, rgba(0, 0, 0, 0.025));
+	border-radius: 0 6px 6px 0;
+	line-height: 1.6;
+}

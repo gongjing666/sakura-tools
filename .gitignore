@@ -1,0 +1,12 @@
+# Development tooling (PHPStan / WordPress stubs); not shipped with the plugin.
+/vendor/
+
+# PHPUnit cache
+/.phpunit.cache/
+.phpunit.result.cache
+
+# Local editor / OS noise
+.DS_Store
+.idea/
+.vscode/
+*.log

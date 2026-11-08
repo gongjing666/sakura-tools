@@ -1,0 +1,276 @@
+/* Scoped to the WordPress media library; native media dialogs keep their layout. */
+body.upload-php.sufm-tree-active{--sufm-tree-width:264px;--sufm-tree-left:180px;--sufm-ink:#242a34;--sufm-muted:#646970;--sufm-line:#e2e4e8;--sufm-blue:#3858e9;--sufm-pink:#e84c95}
+body.upload-php.sufm-tree-active #wpbody-content>.wrap{margin-left:calc(var(--sufm-tree-width) + 20px);min-width:0;clear:both}
+body.upload-php.sufm-tree-active #wp-media-grid,body.upload-php.sufm-tree-active #wp-media-grid .media-frame,body.upload-php.sufm-tree-active #wp-media-grid .media-frame-content,body.upload-php.sufm-tree-active #wp-media-grid .attachments-browser{min-width:0;max-width:none;width:auto}
+body.upload-php.sufm-tree-active #sufm-tree{box-sizing:border-box;position:fixed;top:48px;bottom:20px;left:var(--sufm-tree-left);width:var(--sufm-tree-width);display:flex;flex-direction:column;gap:12px;padding:18px 12px 12px;background:#fff;border:1px solid var(--sufm-line);border-radius:12px;color:var(--sufm-ink);z-index:60;font:13px/1.5 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI","Microsoft YaHei",sans-serif}
+body.upload-php.sufm-tree-active.folded{--sufm-tree-left:56px}
+body.upload-php.sufm-tree-active #sufm-tree *{box-sizing:border-box}
+body.upload-php.sufm-tree-active .sufm-tree-head{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:0 4px}
+body.upload-php.sufm-tree-active .sufm-tree-title{font-size:15px;font-weight:650}
+body.upload-php.sufm-tree-active .sufm-tree-sub,body.upload-php.sufm-tree-active .sufm-tree-hint{margin:0;padding:0 4px;color:var(--sufm-muted);font-size:12px}
+body.upload-php.sufm-tree-active .sufm-tree-search{display:block}
+body.upload-php.sufm-tree-active .sufm-tree-search input{width:100%;min-width:0;margin:0;border:1px solid var(--sufm-line);border-radius:8px;background:#f8f9fb;min-height:36px;padding:5px 10px}
+body.upload-php.sufm-tree-active .sufm-tree-path{font-size:12px;color:var(--sufm-muted);white-space:nowrap;text-overflow:ellipsis;overflow:hidden;padding:0 4px}
+body.upload-php.sufm-tree-active .sufm-tree-list{list-style:none;margin:0;padding:0;flex:1;min-height:0;overflow:auto;overscroll-behavior:contain;scrollbar-width:thin}
+body.upload-php.sufm-tree-active .sufm-tree-list ul{list-style:none;margin:0 0 0 12px;padding:0 0 0 4px;border-left:1px solid #edf0f3}
+body.upload-php.sufm-tree-active .sufm-node{display:flex;align-items:center;gap:7px;min-height:38px;padding:4px 7px;margin:2px 0;border-radius:8px;cursor:pointer;user-select:none;position:relative}
+body.upload-php.sufm-tree-active .sufm-node:hover{background:#f4f6f9}
+body.upload-php.sufm-tree-active .sufm-node.is-active{background:#fdf0f6;color:#b72c70}
+body.upload-php.sufm-tree-active .sufm-node-ico{width:20px;height:20px;display:flex;flex:0 0 20px;color:#b58b35}
+body.upload-php.sufm-tree-active .sufm-node-ico svg{width:20px;height:20px}
+body.upload-php.sufm-tree-active .sufm-node.is-owner .sufm-node-ico{color:#6877b9}
+body.upload-php.sufm-tree-active .sufm-node-name{flex:1;min-width:0;text-overflow:ellipsis;overflow:hidden;white-space:nowrap}
+body.upload-php.sufm-tree-active .sufm-node-count{color:var(--sufm-muted);font-size:11px;font-variant-numeric:tabular-nums}
+body.upload-php.sufm-tree-active .sufm-node-caret,body.upload-php.sufm-tree-active .sufm-node-more{border:0;background:transparent;cursor:pointer;color:var(--sufm-muted);padding:0;min-width:20px;min-height:28px;flex:0 0 20px}
+body.upload-php.sufm-tree-active .sufm-node-caret[hidden]{display:block;visibility:hidden}
+body.upload-php.sufm-tree-active .sufm-node-more{opacity:0}
+/* The menu floats at the cursor, so the row it belongs to has to stay marked
+   (and keep its ⋯ button visible) or the target is lost (1.18.46). */
+body.upload-php.sufm-tree-active .sufm-node.is-menu-open{background:#eef1f7}
+body.upload-php.sufm-tree-active .sufm-node.is-menu-open .sufm-node-more{opacity:1}
+body.upload-php.sufm-tree-active .sufm-node:hover .sufm-node-more,body.upload-php.sufm-tree-active .sufm-node:focus-within .sufm-node-more{opacity:1}
+body.upload-php.sufm-tree-active .sufm-node.is-drop{outline:2px dashed var(--sufm-blue);outline-offset:-2px;background:#eef1ff}
+body.upload-php.sufm-tree-active .sufm-node.is-drop-before:before,body.upload-php.sufm-tree-active .sufm-node.is-drop-after:after{content:"";position:absolute;left:0;right:0;height:3px;background:var(--sufm-blue)}
+body.upload-php.sufm-tree-active .sufm-node.is-drop-before:before{top:0}body.upload-php.sufm-tree-active .sufm-node.is-drop-after:after{bottom:0}
+body.upload-php.sufm-tree-active .sufm-node.is-dragging{opacity:.45}
+body.upload-php.sufm-tree-active .sufm-tree-empty{padding:12px;color:var(--sufm-muted)}
+body.upload-php.sufm-tree-active .sufm-load-more{margin:10px;width:calc(100% - 20px)}
+body.upload-php.sufm-tree-active .sufm-selection-toolbar{display:flex;gap:10px;align-items:center;min-height:48px;padding:8px 12px;margin:14px 0;background:#fff;border:1px solid var(--sufm-line);border-left:3px solid var(--sufm-pink);border-radius:8px}
+body.upload-php.sufm-tree-active .sufm-selection-count{margin-right:auto;font-weight:600}
+body.upload-php.sufm-tree-active .sufm-selection-toolbar[hidden],body.upload-php.sufm-tree-active .sufm-feedback[hidden]{display:none}
+body.upload-php.sufm-tree-active .sufm-tree-menu{position:fixed;z-index:160100;min-width:156px;padding:5px;background:#fff;border:1px solid var(--sufm-line);border-radius:10px;box-shadow:0 10px 30px #242a3426}
+body.upload-php.sufm-tree-active .sufm-tree-menu button{display:block;width:100%;border:0;background:none;text-align:left;padding:9px 10px;border-radius:6px;cursor:pointer;color:var(--sufm-ink)}
+/* A menu is a list of labels, not a stack of WordPress buttons: 30px rows read
+   as one list instead of five chips with 26px of padding around each (1.18.46). */
+body.upload-php.sufm-tree-active .sufm-tree-menu .sufm-menu-item{display:flex;align-items:center;width:100%;min-height:30px;padding:5px 9px;font-size:13px;line-height:20px;font-weight:400;text-align:left;color:var(--sufm-ink);background:none;border:0;box-shadow:none;border-radius:6px;cursor:pointer}
+body.upload-php.sufm-tree-active .sufm-tree-menu .sufm-menu-item:hover,body.upload-php.sufm-tree-active .sufm-tree-menu .sufm-menu-item:focus-visible{background:#f0f2f8}
+body.upload-php.sufm-tree-active .sufm-tree-menu .sufm-menu-item.is-danger{color:#b32d2e}
+body.upload-php.sufm-tree-active .sufm-tree-menu .sufm-menu-item.is-danger:hover,body.upload-php.sufm-tree-active .sufm-tree-menu .sufm-menu-item.is-danger:focus-visible{background:#fdf0f0}
+body.upload-php.sufm-tree-active .sufm-tree-menu button:hover{background:#f0f2f8}body.upload-php.sufm-tree-active .sufm-tree-menu button.is-danger{color:#b32d2e}
+body.upload-php.sufm-tree-active .sufm-dialog{box-sizing:border-box;width:min(520px,calc(100vw - 24px));max-height:calc(100dvh - 32px);padding:22px;border:1px solid var(--sufm-line);border-radius:14px;box-shadow:0 16px 60px #0003;color:var(--sufm-ink);overflow:auto}
+body.upload-php.sufm-tree-active .sufm-dialog::backdrop{background:#1d232766}
+body.upload-php.sufm-tree-active .sufm-dialog h2{font-size:18px;line-height:1.4;margin:0 0 16px}
+body.upload-php.sufm-tree-active .sufm-dialog-body input{box-sizing:border-box;width:100%;margin-bottom:12px}
+body.upload-php.sufm-tree-active .sufm-dialog-footer{display:flex;justify-content:flex-end;gap:10px;margin-top:20px;position:sticky;bottom:-22px;background:white;padding:12px 0}
+body.upload-php.sufm-tree-active .sufm-targets{max-height:42dvh;min-height:120px;overflow:auto;overscroll-behavior:contain}
+body.upload-php.sufm-tree-active .sufm-target-owner{padding:6px 0;border-bottom:1px solid var(--sufm-line)}
+body.upload-php.sufm-tree-active .sufm-target,body.upload-php.sufm-tree-active .sufm-target-expand{display:block;text-align:left;width:100%;padding:10px;border:0;border-radius:6px;background:transparent;cursor:pointer;overflow-wrap:anywhere}
+body.upload-php.sufm-tree-active .sufm-target:hover,body.upload-php.sufm-tree-active .sufm-target.is-chosen{background:#edf0ff;color:var(--sufm-blue)}
+body.upload-php.sufm-tree-active .sufm-target:disabled{opacity:.5;cursor:not-allowed}
+body.upload-php.sufm-tree-active .sufm-target-expand{color:var(--sufm-muted);font-size:12px}
+body.upload-php.sufm-tree-active .sufm-transfer-summary{display:grid;grid-template-columns:1fr auto;gap:8px 16px;padding:14px;background:#f6f7fb;border-radius:8px}
+body.upload-php.sufm-tree-active .sufm-transfer-summary dd{margin:0;font-variant-numeric:tabular-nums}
+body.upload-php.sufm-tree-active .sufm-target-path{font-weight:600;overflow-wrap:anywhere}
+body.upload-php.sufm-tree-active .sufm-transfer-note{color:var(--sufm-muted)}
+body.upload-php.sufm-tree-active .sufm-feedback{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);z-index:160200;max-width:min(560px,calc(100vw - 32px));padding:12px 18px;border-radius:10px;background:#242a34;color:#fff;box-shadow:0 8px 30px #0002;white-space:normal;overflow-wrap:anywhere}
+body.upload-php.sufm-tree-active .sufm-feedback.is-error{background:#8e232d}
+body.upload-php.sufm-tree-active .sufm-drag-ghost{position:fixed;left:-9999px;padding:12px 18px;border-radius:8px;background:#3858e9;color:#fff}
+body.upload-php.sufm-tree-active #sufm-tree-toggle,body.upload-php.sufm-tree-active #sufm-tree-close,body.upload-php.sufm-tree-active #sufm-tree-shade{display:none}
+body.upload-php.sufm-tree-active :is(.sufm-node,.sufm-tree-menu button,.sufm-target,.sufm-target-expand):focus-visible{outline:2px solid var(--sufm-blue);outline-offset:2px}
+body.upload-php.sufm-tree-active #filebird-root,body.upload-php.sufm-tree-active .fbv-filter,body.upload-php.sufm-tree-active #filebird-folder-tree{display:none!important}
+body.upload-php.sufm-tree-active .sufm-modal-folder[hidden]{display:none}
+/* --sufm-tree-width stays 300px at every desktop width (the 232px override used
+   to sit here but was dead: the density block below re-declares 300px later). */
+@media(min-width:783px) and (max-width:1199px){body.upload-php.sufm-tree-active #wpbody-content>.wrap{margin-right:12px}}
+@media(min-width:783px) and (max-width:960px){body.upload-php.sufm-tree-active{--sufm-tree-left:56px}}
+@media(max-width:782px){
+body.upload-php.sufm-tree-active #wpbody-content>.wrap{margin-left:0;margin-right:12px;padding-bottom:100px}
+body.upload-php.sufm-tree-active #wp-media-grid .media-frame{position:relative;left:0;right:0;max-width:none;width:auto}
+body.upload-php.sufm-tree-active #wp-media-grid .media-frame-content{left:0;right:0}
+body.upload-php.sufm-tree-active #wp-media-grid .attachments{padding:6px;left:0;right:0}
+body.upload-php.sufm-tree-active #wp-media-grid .attachments .attachment{width:50%;padding:6px}
+body.upload-php.sufm-tree-active #wp-media-grid .media-toolbar{min-width:0;height:auto;min-height:72px}
+body.upload-php.sufm-tree-active #wp-media-grid .media-toolbar-primary{max-width:100%;float:none}
+body.upload-php.sufm-tree-active #wp-media-grid .media-toolbar-secondary{max-width:100%;float:none}
+body.upload-php.sufm-tree-active #wp-media-grid .media-toolbar input[type=search]{width:100%;font-size:16px;max-width:100%}
+body.upload-php.sufm-tree-active #sufm-tree{position:fixed;top:46px;bottom:0;left:0;width:min(320px,calc(100vw - 40px));border-radius:0 12px 12px 0;z-index:100102;transform:translateX(-105%);visibility:hidden;transition:transform .18s ease,visibility .18s}
+body.upload-php.sufm-tree-active.sufm-drawer-open{overflow:hidden}
+body.upload-php.sufm-tree-active.sufm-drawer-open #sufm-tree{transform:none;visibility:visible}
+body.upload-php.sufm-tree-active #sufm-tree-toggle{display:inline-flex;align-items:center;min-height:44px;margin:12px 0 0}
+body.upload-php.sufm-tree-active #sufm-tree-close{display:block;min-width:44px;min-height:44px}
+body.upload-php.sufm-tree-active #sufm-tree-shade{position:fixed;inset:0;background:#1d232755;z-index:100101;border:0;width:100%;height:100%}
+body.upload-php.sufm-tree-active.sufm-drawer-open #sufm-tree-shade{display:block}
+body.upload-php.sufm-tree-active .sufm-node{min-height:44px}
+body.upload-php.sufm-tree-active .sufm-node-caret,body.upload-php.sufm-tree-active .sufm-node-more{min-height:44px;min-width:32px;flex-basis:32px;opacity:1}
+body.upload-php.sufm-tree-active #sufm-tree input,body.upload-php.sufm-tree-active .sufm-dialog input{font-size:16px;min-height:44px}
+body.upload-php.sufm-tree-active .sufm-selection-toolbar{position:fixed;bottom:0;left:0;right:0;z-index:100001;margin:0;border-radius:10px 10px 0 0;padding:12px 12px calc(12px + env(safe-area-inset-bottom));box-shadow:0 -3px 20px #242a3414;gap:8px;flex-wrap:wrap}
+body.upload-php.sufm-tree-active .sufm-selection-toolbar .button,body.upload-php.sufm-tree-active .sufm-dialog .button{min-height:44px;display:inline-flex;align-items:center;justify-content:center}
+body.upload-php.sufm-tree-active .sufm-feedback{bottom:100px}
+body.upload-php.sufm-tree-active .sufm-dialog{padding:18px;max-height:calc(100dvh - 24px)}
+body.upload-php.sufm-tree-active .sufm-dialog-footer{bottom:-18px}
+body.upload-php.sufm-tree-active .sufm-target,body.upload-php.sufm-tree-active .sufm-target-expand,body.upload-php.sufm-tree-active .sufm-tree-menu button{min-height:44px}
+	body.upload-php.sufm-tree-active .sufm-tree-menu .sufm-menu-item{min-height:44px;padding:10px 9px;font-size:14px}
+}
+@media(prefers-reduced-motion:reduce){body.upload-php.sufm-tree-active #sufm-tree{transition:none}}
+
+/* Fill the column and allow collapsing it. */
+body.upload-php.sufm-tree-active #sufm-tree { max-height: none; }
+body.upload-php.sufm-tree-active .sufm-tree-list { flex: 1 1 auto; }
+body.upload-php.sufm-tree-active .sufm-tree-tools { display: inline-flex; gap: 4px; }
+body.upload-php.sufm-tree-active #sufm-tree-expand { display: none; position: fixed; bottom: 24px; left: var(--sufm-tree-left); z-index: 61; box-shadow: 0 6px 18px #242a3426; }
+body.upload-php.sufm-tree-active.sufm-tree-collapsed #sufm-tree { display: none; }
+body.upload-php.sufm-tree-active.sufm-tree-collapsed #wpbody-content > .wrap { margin-left: 20px; }
+body.upload-php.sufm-tree-active.sufm-tree-collapsed #sufm-tree-expand { display: inline-flex; }
+@media (max-width: 782px) {
+	body.upload-php.sufm-tree-active #sufm-tree-expand,
+	body.upload-php.sufm-tree-active .sufm-tree-tools .sufm-tree-collapse { display: none; }
+	body.upload-php.sufm-tree-active #sufm-tree::before { display: none; }
+}
+
+/* FileBird-style density. */
+body.upload-php.sufm-tree-active { --sufm-tree-width: 300px; }
+body.upload-php.sufm-tree-active .sufm-tree-head { align-items: center; padding: 0 6px; }
+body.upload-php.sufm-tree-active .sufm-tree-title { font-size: 16px; font-weight: 700; letter-spacing: .2px; }
+body.upload-php.sufm-tree-active .sufm-tree-tools { gap: 6px; }
+body.upload-php.sufm-tree-active #sufm-tree-new { height: 32px; padding: 0 12px; border-radius: 6px; border-color: #2563eb; background: #2563eb; color: #fff; font-weight: 600; font-size: 12.5px; }
+body.upload-php.sufm-tree-active #sufm-tree-new:hover { background: #1d4ed8; border-color: #1d4ed8; }
+body.upload-php.sufm-tree-active .sufm-tree-collapse { width: 30px; height: 32px; padding: 0; border-radius: 6px; }
+body.upload-php.sufm-tree-active .sufm-tree-actions { display: flex; gap: 6px; padding: 0 6px; }
+body.upload-php.sufm-tree-active .sufm-tree-actions .button { height: 30px; padding: 0 10px; border-radius: 6px; font-size: 12px; color: #3c434a; }
+body.upload-php.sufm-tree-active .sufm-tree-actions .button:disabled { color: #a7aaad; }
+body.upload-php.sufm-tree-active .sufm-tree-sub { padding: 0 8px; font-size: 12px; }
+body.upload-php.sufm-tree-active .sufm-tree-search { padding: 0 6px; }
+body.upload-php.sufm-tree-active .sufm-tree-search input { min-height: 34px; border-radius: 6px; }
+body.upload-php.sufm-tree-active .sufm-tree-list { padding: 0 4px; }
+body.upload-php.sufm-tree-active .sufm-tree-list ul { margin-left: 10px; border-left: 0; padding-left: 2px; }
+body.upload-php.sufm-tree-active .sufm-node { min-height: 38px; border-radius: 6px; font-size: 13px; color: #3c434a; }
+body.upload-php.sufm-tree-active .sufm-node:hover { background: #f0f0f1; }
+body.upload-php.sufm-tree-active .sufm-node.is-active { background: #e8f0fe; color: #1d4ed8; }
+body.upload-php.sufm-tree-active .sufm-node.is-active .sufm-node-ico,
+body.upload-php.sufm-tree-active .sufm-node.is-active .sufm-node-count { color: #1d4ed8; }
+body.upload-php.sufm-tree-active .sufm-node-ico { width: 18px; height: 18px; flex: 0 0 18px; color: #8c8f94; }
+body.upload-php.sufm-tree-active .sufm-node-ico svg { width: 18px; height: 18px; }
+body.upload-php.sufm-tree-active .sufm-node.is-owner .sufm-node-ico { color: #6b7280; }
+body.upload-php.sufm-tree-active .sufm-node-count { font-size: 12px; color: #8c8f94; }
+body.upload-php.sufm-tree-active #sufm-tree-collapse { font-size: 18px; line-height: 1; color: #50575e; }
+body.upload-php.sufm-tree-active .sufm-tree-path { min-height: 18px; line-height: 18px; padding: 0 8px; }
+
+/* Let the media table fit the freed width instead of clipping the last column. */
+body.upload-php.sufm-tree-active #wpbody-content > .wrap { overflow-x: auto; }
+body.upload-php.sufm-tree-active .wp-list-table th,
+body.upload-php.sufm-tree-active .wp-list-table td { white-space: normal; }
+body.upload-php.sufm-tree-active .wp-list-table .column-title { min-width: 240px; }
+body.upload-php.sufm-tree-active .wp-list-table .column-author { min-width: 80px; }
+body.upload-php.sufm-tree-active #wpbody-content > .wrap { overflow-x: hidden; }
+body.upload-php.sufm-tree-active .wp-list-table { table-layout: fixed; width: 100%; min-width: 0; }
+body.upload-php.sufm-tree-active .wp-list-table .column-title { width: 26%; }
+body.upload-php.sufm-tree-active .wp-list-table .column-sufm_source { width: 10%; }
+body.upload-php.sufm-tree-active .wp-list-table .column-sufm_owner { width: 9%; }
+body.upload-php.sufm-tree-active .wp-list-table .column-sufm_folder { width: 10%; }
+body.upload-php.sufm-tree-active .wp-list-table .column-sufm_size { width: 8%; }
+body.upload-php.sufm-tree-active .wp-list-table .column-author { width: 9%; }
+body.upload-php.sufm-tree-active .wp-list-table .column-parent { width: 12%; }
+body.upload-php.sufm-tree-active .wp-list-table .column-date { width: 10%; }
+body.upload-php.sufm-tree-active .wp-list-table .column-author,
+body.upload-php.sufm-tree-active .wp-list-table .column-date,
+body.upload-php.sufm-tree-active .wp-list-table .column-sufm_source,
+body.upload-php.sufm-tree-active .wp-list-table .column-sufm_size { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* FileBird-style divider + floating collapse handle. */
+/* One continuous column: the panel starts at the admin bar and paints the
+   gutter to its left, so the divider is the only line instead of a white card
+   floating on WordPress' grey page background (1.18.45). */
+body.upload-php.sufm-tree-active #sufm-tree { top: var(--wp-admin--admin-bar--height, 32px); bottom: 0; border: 0; border-right: 1px solid #dcdfe4; border-radius: 0; padding-top: 16px; }
+body.upload-php.sufm-tree-active #sufm-tree::before { content: ""; position: absolute; top: 0; bottom: 0; right: 100%; width: 20px; background: #fff; }
+body.upload-php.sufm-tree-active .sufm-tree-handle { position: fixed; top: 50%; left: calc(var(--sufm-tree-left) + var(--sufm-tree-width) - 13px); transform: translateY(-50%); width: 26px; height: 26px; border-radius: 50%; border: 1px solid #dcdfe4; background: #fff; box-shadow: 0 2px 8px #1d232415; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; z-index: 70; padding: 0; }
+body.upload-php.sufm-tree-active .sufm-tree-handle:hover { border-color: #b8bdc5; }
+body.upload-php.sufm-tree-active .sufm-tree-handle-ico { width: 8px; height: 8px; border-left: 1.6px solid #50575e; border-bottom: 1.6px solid #50575e; transform: rotate(45deg) translate(1px, -1px); }
+body.upload-php.sufm-tree-active .sufm-tree-handle.is-collapsed .sufm-tree-handle-ico { transform: rotate(-135deg) translate(0, 0); }
+body.upload-php.sufm-tree-active.sufm-tree-collapsed .sufm-tree-handle { left: calc(var(--sufm-tree-left) - 13px); }
+body.upload-php.sufm-tree-active #sufm-tree-collapse,
+body.upload-php.sufm-tree-active #sufm-tree-expand { display: none !important; }
+
+/* Upload destination picker: soft surface, rounded control (1.18.39) */
+body.upload-php.sufm-tree-active .uploader-inline .sufm-inline-folder-bar{
+	display:flex;justify-content:flex-start;width:100%;margin:0 0 14px;text-align:left;
+}
+body.upload-php.sufm-tree-active .uploader-inline .sufm-inline-folder-bar > .sufm-inline-folder{
+	margin:0;
+}
+body.upload-php.sufm-tree-active :is(.sufm-inline-folder,.sufm-modal-folder){
+	display:inline-flex;flex-wrap:wrap;align-items:center;gap:9px;
+	margin:0 0 16px;padding:7px 10px 7px 12px;
+	border:1px solid rgba(29,35,39,.07);border-radius:12px;
+	background:#f8f9fb;color:#646970;font-size:12.5px;line-height:1.5;
+}
+body.upload-php.sufm-tree-active .sufm-modal-folder{margin:6px 10px}
+body.upload-php.sufm-tree-active :is(.sufm-inline-folder-label,.sufm-modal-folder-label){
+	flex:0 0 auto;white-space:nowrap;color:#646970;font-weight:400;
+}
+body.upload-php.sufm-tree-active :is(.sufm-inline-folder,.sufm-modal-folder) select{
+	flex:0 0 auto;min-width:190px;max-width:100%;height:32px;margin:0;
+	padding:0 30px 0 11px;border:1px solid #e3e6ea;border-radius:8px;
+	background-color:#fff;
+	background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23868a90' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+	background-repeat:no-repeat;background-position:right 10px center;background-size:12px 12px;
+	box-shadow:none;color:#3c434a;font-size:12.5px;line-height:30px;
+	appearance:none;-webkit-appearance:none;
+	transition:border-color .15s ease,box-shadow .15s ease,background-color .15s ease;
+}
+body.upload-php.sufm-tree-active :is(.sufm-inline-folder,.sufm-modal-folder) select:hover{
+	border-color:#d3d8de;background-color:#fff;
+}
+body.upload-php.sufm-tree-active :is(.sufm-inline-folder,.sufm-modal-folder) select:focus{
+	border-color:#f04494;background-color:#fff;
+	box-shadow:0 0 0 3px rgba(240,68,148,.15);outline:2px solid transparent;outline-offset:0;
+}
+body.upload-php.sufm-tree-active :is(.sufm-inline-folder,.sufm-modal-folder) select:disabled{
+	color:#8c8f94;background-color:#f6f7f7;border-color:#e3e6ea;
+}
+
+/* Upload progress panel (1.18.37) */
+body.upload-php.sufm-tree-active .sufm-upload-progress{position:fixed;right:24px;bottom:24px;z-index:160210;width:min(360px,calc(100vw - 32px));max-height:min(52vh,420px);display:flex;flex-direction:column;border:1px solid var(--sufm-line);border-radius:12px;background:#fff;box-shadow:0 16px 44px #1d232726;overflow:hidden;font-size:12px;color:var(--sufm-ink)}
+body.upload-php.sufm-tree-active .sufm-upload-progress[hidden]{display:none}
+body.upload-php.sufm-tree-active .sufm-upload-progress-head{display:flex;align-items:center;gap:8px;padding:11px 13px;border-bottom:1px solid var(--sufm-line);background:#f6f7f7}
+body.upload-php.sufm-tree-active .sufm-upload-progress-title{flex:1 1 auto;font-weight:600;font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+body.upload-php.sufm-tree-active .sufm-upload-progress-count{flex:0 0 auto;font-variant-numeric:tabular-nums;color:#646970}
+body.upload-php.sufm-tree-active .sufm-upload-progress.is-error .sufm-upload-progress-title{color:#b32d2e}
+body.upload-php.sufm-tree-active .sufm-upload-progress-close{flex:0 0 auto;width:22px;height:22px;padding:0;border:0;border-radius:50%;background:transparent;color:#646970;font-size:15px;line-height:1;cursor:pointer}
+body.upload-php.sufm-tree-active .sufm-upload-progress-close:hover{background:#e0e0e0;color:#1d2327}
+body.upload-php.sufm-tree-active .sufm-upload-progress-list{padding:4px 0;overflow:auto}
+body.upload-php.sufm-tree-active .sufm-upload-item{display:grid;grid-template-columns:minmax(0,1fr) 38px;grid-template-areas:"name pct" "bar bar";gap:3px 8px;padding:7px 13px}
+body.upload-php.sufm-tree-active .sufm-upload-item-name{grid-area:name;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#3c434a}
+body.upload-php.sufm-tree-active .sufm-upload-item-pct{grid-area:pct;text-align:right;font-variant-numeric:tabular-nums;color:#646970;font-size:11px}
+body.upload-php.sufm-tree-active .sufm-upload-item-bar{grid-area:bar;display:block;height:3px;border-radius:999px;background:#e6e8eb;overflow:hidden}
+body.upload-php.sufm-tree-active .sufm-upload-item-bar i{display:block;width:0;height:100%;border-radius:inherit;background:#f04494;transition:width .18s ease}
+body.upload-php.sufm-tree-active .sufm-upload-item.is-done .sufm-upload-item-bar i{background:#00a32a}
+body.upload-php.sufm-tree-active .sufm-upload-item.is-done .sufm-upload-item-pct{color:#00a32a}
+body.upload-php.sufm-tree-active .sufm-upload-item.is-error .sufm-upload-item-bar i{background:#d63638}
+body.upload-php.sufm-tree-active .sufm-upload-item.is-error .sufm-upload-item-pct{color:#d63638}
+@media(max-width:782px){body.upload-php.sufm-tree-active .sufm-upload-progress{bottom:100px;right:12px;left:12px;width:auto}}
+
+/* ── 文件夹样式（1.18.47） ──────────────────────────────────
+ * One icon markup serves both looks: Windows paints the folder solid, Finder
+ * keeps it as a hairline outline. The accent only ever touches the icon, never
+ * the label, so a tinted tree still reads as text first.
+ */
+body.upload-php.sufm-tree-active{--sufm-folder-ink:#c8932b;--sufm-folder-fill:#f7dc9a}
+body.upload-php.sufm-tree-active .sufm-node-ico{color:var(--sufm-folder-ink)}
+body.upload-php.sufm-tree-active .sufm-node-ico svg path{fill:var(--sufm-folder-fill);stroke:var(--sufm-folder-ink)}
+body.upload-php.sufm-tree-active .sufm-node.is-owner .sufm-node-ico{color:var(--sufm-folder-ink)}
+body.upload-php.sufm-tree-active .sufm-node.is-owner .sufm-node-ico svg path{fill:none;stroke:var(--sufm-folder-ink)}
+
+body.upload-php.sufm-tree-active.sufm-tree-style-mac{--sufm-folder-ink:#8a8f98;--sufm-folder-fill:none}
+body.upload-php.sufm-tree-active.sufm-tree-style-mac .sufm-node{min-height:34px;border-radius:6px;gap:8px}
+body.upload-php.sufm-tree-active.sufm-tree-style-mac .sufm-node:hover{background:#f2f3f5}
+body.upload-php.sufm-tree-active.sufm-tree-style-mac .sufm-node.is-active{background:#e8ecf2;color:#1f2733}
+body.upload-php.sufm-tree-active.sufm-tree-style-mac .sufm-node-ico svg{stroke-width:1.4}
+body.upload-php.sufm-tree-active.sufm-tree-style-mac .sufm-tree-list ul{border-left-color:#eef0f2}
+
+body.upload-php.sufm-tree-active.sufm-tree-style-windows .sufm-node{border-radius:5px}
+/* The selected row tints its background only: in Explorer a selected folder
+ * keeps its own icon colour, and retinting it here would fight the accent. */
+body.upload-php.sufm-tree-active.sufm-tree-style-windows .sufm-node.is-active{background:#e8f0fe;color:#12457f}
+body.upload-php.sufm-tree-active.sufm-tree-style-windows .sufm-node:hover{background:#f3f6fb}
+
+/* Accents: icon only. "跟随样式" leaves the variables alone. */
+body.upload-php.sufm-tree-active.sufm-accent-amber{--sufm-folder-ink:#c8932b;--sufm-folder-fill:#f7dc9a}
+body.upload-php.sufm-tree-active.sufm-accent-blue{--sufm-folder-ink:#3b7dd8;--sufm-folder-fill:#cfe0f7}
+body.upload-php.sufm-tree-active.sufm-accent-green{--sufm-folder-ink:#3f9b6d;--sufm-folder-fill:#cfe9db}
+body.upload-php.sufm-tree-active.sufm-accent-violet{--sufm-folder-ink:#7a5bd0;--sufm-folder-fill:#ddd3f6}
+body.upload-php.sufm-tree-active.sufm-accent-rose{--sufm-folder-ink:#d4547f;--sufm-folder-fill:#f8d7e2}
+body.upload-php.sufm-tree-active.sufm-accent-slate{--sufm-folder-ink:#5c6675;--sufm-folder-fill:#dde1e7}
+
+/* Finder stays hollow even when an accent is picked — the accent only retints
+ * the outline. Declared last so it beats the accent fills above. */
+body.upload-php.sufm-tree-active.sufm-tree-style-mac{--sufm-folder-fill:none}

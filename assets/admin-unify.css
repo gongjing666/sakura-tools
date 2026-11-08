@@ -1,0 +1,656 @@
+/**
+ * Unified visual layer.
+ *
+ * 只做三件事：统一形状（圆角）、统一字号阶梯、统一边框色阶。
+ * 不改任何布局结构（grid / flex / padding / 位置），
+ * 因此不会影响卡片引擎、表格对齐契约与容器查询。
+ *
+ * 加载顺序：admin.css → admin-ext.css → admin-layout.css → admin-shell.css
+ * → userfiles-space-admin.css → 本文件（最后），因此同名同权重规则以本文件为准。
+ *
+ * @package Sakura_Image_Optimizer
+ */
+
+.sakura-sync-app {
+	/* ---- 圆角：4 档 + 药丸 ---- */
+	--r-xs: 6px;   /* 勾选/单选、行内 code */
+	--r-sm: 10px;  /* 所有控件：按钮、输入框、选择器 */
+	--r-md: 14px;  /* 卡片内嵌面板、提示条、磁贴 */
+	--r-lg: 18px;  /* 卡片外壳 */
+	--r-pill: 999px;
+
+	/* ---- 字号：6 档 ---- */
+	--fs-11: 11px;
+	--fs-12: 12px;
+	--fs-13: 13px;
+	--fs-16: 16px;
+	--fs-20: 20px;
+
+	/* ---- 控件高度 ---- */
+	--ctl-h: 34px;
+	--ctl-h-sm: 28px;
+
+	/* ---- 覆盖旧变量：卡片圆角与投影收敛 ---- */
+	--radius: var(--r-lg);
+	--radius-sm: var(--r-md);
+	--shadow: 0 8px 22px rgba(39, 92, 128, .07);
+	--shadow-soft: 0 4px 12px rgba(39, 92, 128, .05);
+}
+
+/* ============================================================
+ * 1. 字号阶梯
+ * ============================================================ */
+
+/* 卡片标题：原 17px 与 18px 两套 */
+.sakura-sync-app .card-head h2 {
+	font-size: var(--fs-16);
+	line-height: 1.35;
+	letter-spacing: -.015em;
+}
+
+/* 卡片描述 / 卡片内说明 */
+.sakura-sync-app .card-head p {
+	font-size: var(--fs-12);
+	line-height: 1.6;
+}
+
+/* 卡片小标签：原 10 / 10.5 / 11 三套，字距 .14 / .08 / .12，其中一套还取消了大小写 */
+.sakura-sync-app .section-kicker,
+.sakura-sync-app .kicker,
+.sakura-sync-app .card-head .section-kicker,
+.sakura-sync-app .compact-cards--settings .section-kicker {
+	margin: 0 0 6px;
+	color: var(--muted);
+	font-size: var(--fs-11);
+	font-weight: 700;
+	line-height: 1.2;
+	letter-spacing: .1em;
+	text-transform: uppercase;
+}
+
+/* 区块小标题：原 13 / 12.5 / 12 三套 */
+.sakura-sync-app .section-title {
+	margin: 20px 0 8px;
+	color: #1a3e57;
+	font-size: var(--fs-13);
+	font-weight: 700;
+}
+
+/* 字段标签：原 12 / 12.5 / 11 三套 */
+.sakura-sync-app .field > span {
+	color: #47657a;
+	font-size: var(--fs-12);
+	font-weight: 600;
+}
+
+.sakura-sync-app .form-table > tbody > tr > th {
+	color: #47657a;
+	font-size: var(--fs-12);
+	font-weight: 600;
+}
+
+.sakura-sync-app .form-table > tbody > tr > td {
+	font-size: var(--fs-13);
+}
+
+/* 说明文字：原 11.5 / 11 / 12 三套 */
+.sakura-sync-app .description,
+.sakura-sync-app .section-note,
+.sakura-sync-app .card-head .description {
+	font-size: var(--fs-12);
+	line-height: 1.65;
+}
+
+/* 表格 / 数据 */
+.sakura-sync-app .stat span {
+	font-size: var(--fs-11);
+}
+
+.sakura-sync-app .stat strong {
+	font-size: var(--fs-20);
+}
+
+.sakura-sync-app .batch-limit {
+	font-size: var(--fs-11);
+}
+
+.sakura-sync-app .batch-count {
+	font-size: var(--fs-12);
+}
+
+/* 品牌与导航 */
+.sakura-sync-app .brand strong {
+	font-size: var(--fs-13);
+	font-weight: 700;
+}
+
+.sakura-sync-app .brand span.path {
+	font-size: var(--fs-12);
+}
+
+.sakura-sync-app .sakura-mod {
+	font-size: var(--fs-12);
+}
+
+.sakura-sync-app .notice p {
+	font-size: var(--fs-12);
+}
+
+/* ============================================================
+ * 2. 边框色阶：只保留一条
+ * ============================================================ */
+
+/* 输入控件原来用 #d9e8f2，卡片用 #d7e7f2，提示条用 #cfe4f2 —— 统一到 --line */
+.sakura-sync-app .form-table input[type="text"],
+.sakura-sync-app .form-table input[type="number"],
+.sakura-sync-app .form-table input[type="url"],
+.sakura-sync-app .form-table input[type="password"],
+.sakura-sync-app .form-table select,
+.sakura-sync-app .form-table textarea,
+.sakura-sync-app .field input,
+.sakura-sync-app .field select,
+.sakura-sync-app .field textarea {
+	border-color: var(--line);
+}
+
+.sakura-sync-app .batch-bar {
+	border-color: var(--line);
+}
+
+.sakura-sync-app .sakura-monitor-card,
+.sakura-sync-app .stat {
+	border-color: var(--line-soft);
+}
+
+/* ============================================================
+ * 3. 圆角收敛
+ * ============================================================ */
+
+.sakura-sync-app .form-table input[type="text"],
+.sakura-sync-app .form-table input[type="number"],
+.sakura-sync-app .form-table input[type="url"],
+.sakura-sync-app .form-table input[type="password"],
+.sakura-sync-app .form-table select,
+.sakura-sync-app .form-table textarea,
+.sakura-sync-app .field input,
+.sakura-sync-app .field select,
+.sakura-sync-app .field textarea,
+.sakura-sync-app .sakura-modal__type input[type="text"] {
+	border-radius: var(--r-sm);
+}
+
+.sakura-sync-app .stat,
+.sakura-sync-app .sakura-monitor-card,
+.sakura-sync-app .notice,
+.sakura-sync-app .batch-bar,
+.sakura-sync-app .sakura-modal__type,
+.sakura-sync-app .sakura-progress-summary {
+	border-radius: var(--r-md);
+}
+
+.sakura-sync-app code,
+.sakura-sync-app .code {
+	border-radius: var(--r-xs);
+}
+
+/* 编辑态工具条的重置按钮也归入同一套 */
+.sakura-sync-app .sakura-layout-reset {
+	border-radius: var(--r-sm);
+	font-size: var(--fs-12);
+}
+
+/* ============================================================
+ * 4. 按钮：一套形状语言（方案 A · 软矩形）
+ * ============================================================ */
+
+.sakura-sync-app .btn,
+.sakura-sync-app .button,
+.sakura-sync-app .button-secondary {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 6px;
+	height: var(--ctl-h);
+	min-height: var(--ctl-h);
+	padding: 0 14px;
+	border: 1px solid var(--line);
+	border-radius: var(--r-sm);
+	background: #fff;
+	color: var(--blue-deep);
+	font-family: inherit;
+	font-size: var(--fs-13);
+	font-weight: 600;
+	line-height: 1;
+	text-decoration: none;
+	white-space: nowrap;
+	box-shadow: none;
+	transform: none;
+	transition: background-color .15s ease, border-color .15s ease, color .15s ease;
+}
+
+.sakura-sync-app .btn:hover,
+.sakura-sync-app .button:hover,
+.sakura-sync-app .button-secondary:hover {
+	border-color: var(--line-strong);
+	background: #f7fcff;
+	color: var(--blue-deep);
+	transform: none;
+	box-shadow: none;
+}
+
+.sakura-sync-app .btn:focus-visible,
+.sakura-sync-app .button:focus-visible,
+.sakura-sync-app .button-secondary:focus-visible {
+	outline: 2px solid var(--blue);
+	outline-offset: 2px;
+}
+
+/* 主操作：实色，不再用渐变与发光投影。
+ * !important 仅用于覆盖 admin.css 里既有的 !important 声明。 */
+.sakura-sync-app .btn--primary,
+.sakura-sync-app .button-primary,
+.sakura-sync-app input.button-primary,
+.sakura-sync-app .card-actions .button-primary {
+	background: var(--blue) !important;
+	border: 1px solid var(--blue) !important;
+	border-radius: var(--r-sm) !important;
+	color: #fff !important;
+	box-shadow: 0 1px 2px rgba(43, 111, 159, .18) !important;
+}
+
+.sakura-sync-app .btn--primary:hover,
+.sakura-sync-app .button-primary:hover,
+.sakura-sync-app input.button-primary:hover,
+.sakura-sync-app .card-actions .button-primary:hover {
+	background: var(--blue-deep) !important;
+	border-color: var(--blue-deep) !important;
+	box-shadow: 0 1px 2px rgba(43, 111, 159, .18) !important;
+}
+
+.sakura-sync-app .btn--ghost {
+	border-color: transparent;
+	background: transparent;
+	color: var(--muted);
+	box-shadow: none;
+}
+
+.sakura-sync-app .btn--ghost:hover {
+	border-color: var(--line);
+	background: var(--blue-soft);
+	color: var(--blue-deep);
+}
+
+.sakura-sync-app .btn--danger {
+	border-color: #f2c9d3;
+	background: #fff;
+	color: var(--bad);
+	box-shadow: none;
+}
+
+.sakura-sync-app .btn--danger:hover {
+	border-color: #e8a9b8;
+	background: #fff1f4;
+	color: var(--bad);
+}
+
+.sakura-sync-app .btn--small,
+.sakura-sync-app .btn--sm,
+.sakura-sync-app .batch-actions .btn--sm {
+	height: var(--ctl-h-sm);
+	min-height: var(--ctl-h-sm);
+	padding: 0 10px;
+	border-radius: var(--r-sm);
+	font-size: var(--fs-12);
+}
+
+.sakura-sync-app .btn[disabled],
+.sakura-sync-app .btn:disabled,
+.sakura-sync-app .button[disabled],
+.sakura-sync-app .button:disabled {
+	opacity: .5;
+	cursor: not-allowed;
+	transform: none;
+	box-shadow: none;
+}
+
+.sakura-sync-app .btn--danger:disabled,
+.sakura-sync-app .btn--danger[disabled] {
+	filter: none;
+}
+
+/* ============================================================
+ * 5. 表单控件：一张皮
+ * ============================================================ */
+
+.sakura-sync-app .form-table input[type="text"],
+.sakura-sync-app .form-table input[type="number"],
+.sakura-sync-app .form-table input[type="url"],
+.sakura-sync-app .form-table input[type="password"],
+.sakura-sync-app .form-table select,
+.sakura-sync-app .field input,
+.sakura-sync-app .field select {
+	height: var(--ctl-h);
+	min-height: var(--ctl-h);
+	padding: 0 10px;
+	font-size: var(--fs-13);
+}
+
+.sakura-sync-app .form-table textarea {
+	min-height: 80px;
+	padding: 8px 10px;
+	font-size: var(--fs-13);
+}
+
+/* 聚焦环：一律 outline:2px，不再混用 3px 半透明 box-shadow */
+.sakura-sync-app .form-table input[type="text"]:focus,
+.sakura-sync-app .form-table input[type="number"]:focus,
+.sakura-sync-app .form-table input[type="url"]:focus,
+.sakura-sync-app .form-table input[type="password"]:focus,
+.sakura-sync-app .form-table select:focus,
+.sakura-sync-app .form-table textarea:focus,
+.sakura-sync-app .field input:focus,
+.sakura-sync-app .field select:focus,
+.sakura-sync-app .sakura-modal__type input[type="text"]:focus {
+	border-color: var(--blue);
+	outline: 2px solid var(--blue);
+	outline-offset: 2px;
+	box-shadow: none;
+}
+
+/* 勾选框与单选框统一 18px；单选框原来走浏览器原生渲染，与勾选框不同源 */
+.sakura-sync-app input[type="checkbox"],
+.sakura-sync-app input[type="radio"],
+.sakura-sync-app .form-table input[type="checkbox"],
+.sakura-sync-app .form-table input[type="radio"] {
+	position: relative;
+	width: 18px;
+	height: 18px;
+	margin: 0 6px 0 0;
+	border: 1.5px solid #9fc4dc;
+	border-radius: var(--r-xs);
+	background: #fff;
+	box-shadow: none;
+	appearance: none;
+	-webkit-appearance: none;
+	vertical-align: -3px;
+	accent-color: var(--blue);
+	cursor: pointer;
+	transition: border-color .15s ease, background-color .15s ease;
+}
+
+.sakura-sync-app input[type="radio"] {
+	border-radius: 50%;
+}
+
+.sakura-sync-app input[type="checkbox"]:hover,
+.sakura-sync-app input[type="radio"]:hover {
+	border-color: #6ea6c4;
+}
+
+.sakura-sync-app input[type="checkbox"]:checked,
+.sakura-sync-app input[type="radio"]:checked {
+	border-color: var(--blue);
+	background: var(--blue);
+}
+
+.sakura-sync-app input[type="checkbox"]:checked::before {
+	content: "";
+	position: absolute;
+	top: 46%;
+	left: 50%;
+	display: block;
+	width: 9px;
+	height: 5px;
+	margin: 0;
+	border: 0;
+	border-left: 2px solid #fff;
+	border-bottom: 2px solid #fff;
+	border-radius: 0;
+	background: transparent;
+	transform: translate(-50%, -50%) rotate(-45deg);
+}
+
+.sakura-sync-app input[type="radio"]:checked::before {
+	content: "";
+	position: absolute;
+	top: 50%;
+	left: 50%;
+	width: 6px;
+	height: 6px;
+	border: 0;
+	border-radius: 50%;
+	background: #fff;
+	transform: translate(-50%, -50%);
+}
+
+.sakura-sync-app input[type="checkbox"]:focus-visible,
+.sakura-sync-app input[type="radio"]:focus-visible {
+	outline: 2px solid var(--blue);
+	outline-offset: 2px;
+}
+
+/* 批量选择列的小勾选框保持 16px，但形状与主勾选框同源 */
+.sakura-sync-app .col-select input[type="checkbox"] {
+	width: 16px;
+	height: 16px;
+}
+
+/* ============================================================
+ * 6. 组件自带的原生控件：只接管「皮肤」，不接管「位置」
+ *
+ * 上面那组 input[type] 规则与组件规则同为 (0,2,1)，而本文件最后加载，
+ * 因此会把组件用绝对定位 / opacity:0 隐藏原生控件的写法一并覆盖掉 ——
+ * 结果是磁贴的选中圆点从右上角掉回文档流左上角、颜色块的圆点被顶开。
+ * 这些组件必须在同一文件末尾把位置重新声明回去。
+ * ============================================================ */
+
+/* 样式磁贴：单选框是绝对定位在右上角的选中指示器 */
+.sakura-sync-app .sufm-style > input {
+	position: absolute;
+	top: 12px;
+	right: 12px;
+	left: auto;
+	margin: 0;
+}
+
+/* 颜色块：单选框是纯语义载体，不占位也不可见 */
+.sakura-sync-app .sufm-swatch input {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	margin: 0;
+	border: 0;
+	background: none;
+	opacity: 0;
+	appearance: none;
+	-webkit-appearance: none;
+}
+
+/* 开关行：勾选框与两行说明的首行对齐（原规则 2px，被统一层的 margin 覆盖了） */
+.sakura-sync-app .sufm-switch input {
+	margin: 2px 0 0;
+	vertical-align: baseline;
+}
+
+/* ============================================================
+ * 7. 带标题的分组框：让 legend 不再压在边框线上
+ *
+ * fieldset 的 legend 默认嵌在顶部边框里，配合 12px 圆角时文字会与线重叠。
+ * 用 float 把它降为普通块级标题，分组框的描边变成完整的一圈。
+ * ============================================================ */
+.sakura-sync-app .sufm-styles,
+.sakura-sync-app .sufm-accents {
+	padding-top: 16px;
+}
+
+.sakura-sync-app .sufm-styles legend,
+.sakura-sync-app .sufm-accents legend {
+	float: left;
+	width: 100%;
+	margin: 0 0 10px;
+	padding: 0;
+	font-size: var(--fs-12);
+	font-weight: 600;
+	line-height: 1.5;
+	color: #1a3e57;
+}
+
+.sakura-sync-app .sufm-style-grid,
+.sakura-sync-app .sufm-swatches {
+	clear: both;
+}
+
+/* ============================================================
+ * 8. 样式磁贴 / 颜色块：并入同一套边框与圆角
+ *
+ * 这两个组件原本自带 #3858e9（WordPress 后台蓝）与 #dde6ef（第三套近白色），
+ * 既不属于产品色橙，也不属于已有的 3 档边框色阶。
+ * ============================================================ */
+.sakura-sync-app .sufm-styles,
+.sakura-sync-app .sufm-accents {
+	border-color: var(--line);
+	border-radius: var(--r-md);
+}
+
+.sakura-sync-app .sufm-style {
+	border-color: var(--line);
+	border-radius: var(--r-md);
+}
+
+.sakura-sync-app .sufm-style:hover {
+	border-color: var(--line-strong);
+}
+
+.sakura-sync-app .sufm-style:has(input:checked) {
+	border-color: var(--blue);
+	box-shadow: 0 0 0 1px var(--blue) inset;
+}
+
+.sakura-sync-app .sufm-style:focus-within {
+	outline: 2px solid var(--blue);
+	outline-offset: 2px;
+}
+
+.sakura-sync-app .sufm-style-preview {
+	border-radius: var(--r-sm);
+}
+
+.sakura-sync-app .sufm-swatch {
+	border-color: var(--line);
+}
+
+.sakura-sync-app .sufm-swatch:has(input:checked) {
+	border-color: var(--blue);
+	box-shadow: 0 0 0 1px var(--blue) inset;
+}
+
+.sakura-sync-app .sufm-swatch:focus-within {
+	outline: 2px solid var(--blue);
+	outline-offset: 2px;
+}
+
+.sakura-sync-app .sufm-switch {
+	border-color: var(--line);
+	border-radius: var(--r-md);
+}
+
+/* ============================================================
+ * 9. 同步中心 · 忽略规则卡
+ *
+ * 原来是裸 textarea（还挂着 WP 的 large-text code，被渲染成行内代码块），
+ * 保存按钮与计数挤在一个无结构的 <p> 里，与同页其他卡片完全两个系统。
+ * 这里改成：字段标题行 + 正式文本域 + 提示 + 带分隔线的底部操作条。
+ * ============================================================ */
+.sakura-sync-app .sufm-ignore-form {
+	margin: 0;
+}
+
+.sakura-sync-app .sufm-ignore-field {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+
+.sakura-sync-app .sufm-ignore-fieldhead {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+}
+
+.sakura-sync-app .sufm-ignore-label {
+	margin: 0;
+	color: #47657a;
+	font-size: var(--fs-12);
+	font-weight: 600;
+	line-height: 1.5;
+}
+
+.sakura-sync-app .sufm-ignore-count {
+	padding: 2px 9px;
+	border: 1px solid var(--line);
+	border-radius: var(--r-pill);
+	background: var(--surface-soft);
+	color: var(--muted);
+	font-size: var(--fs-11);
+	font-weight: 600;
+	white-space: nowrap;
+}
+
+.sakura-sync-app .sufm-ignore-input {
+	display: block;
+	width: 100%;
+	min-height: 148px;
+	margin: 0;
+	padding: 12px 14px;
+	border: 1px solid var(--line);
+	border-radius: var(--r-sm);
+	background: #fbfdff;
+	color: #1f4157;
+	font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+	font-size: 12.5px;
+	line-height: 1.85;
+	tab-size: 2;
+	resize: vertical;
+	box-shadow: none;
+	transition: border-color .15s ease, background-color .15s ease;
+}
+
+.sakura-sync-app .sufm-ignore-input:hover {
+	border-color: var(--line-strong);
+}
+
+.sakura-sync-app .sufm-ignore-input::placeholder {
+	color: #a4b8c6;
+}
+
+.sakura-sync-app .sufm-ignore-input:focus {
+	border-color: var(--blue);
+	outline: 2px solid var(--blue);
+	outline-offset: 2px;
+	background: #fff;
+	box-shadow: none;
+}
+
+.sakura-sync-app .sufm-ignore-hint {
+	margin: 0;
+	color: var(--muted);
+	font-size: var(--fs-11);
+	line-height: 1.7;
+}
+
+/* 提示条只有警告色一套，“已保存”套用警告色是语义错位。 */
+.sakura-sync-app .alert-strip.is-ok {
+	border-color: #cfe9dc;
+	background: var(--ok-bg);
+	color: #1f6349;
+	box-shadow: 0 5px 14px rgba(35, 122, 87, .05);
+}
+
+.sakura-sync-app .alert-strip.is-ok .icon {
+	color: var(--ok);
+}
+
+.sakura-sync-app .alert-strip.is-ok strong {
+	color: #17553e;
+}

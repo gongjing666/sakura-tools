@@ -368,7 +368,6 @@ msgid "上传图片时按所选模式压缩或转换格式；转换结果会替�
 msgstr ""
 
 #: includes/class-image-optimizer-module.php:764
-#: includes/views/oss-settings.php:80
 #: includes/views/thumb-settings.php:151
 #: src/Thumbnail/CLI.php:132
 msgid "启用"
@@ -541,7 +540,6 @@ msgid "所有格式"
 msgstr ""
 
 #: includes/class-media-library-module.php:270
-#: includes/views/oss-settings.php:52
 #: includes/views/settings-main.php:48
 msgid "图像优化"
 msgstr ""
@@ -1066,237 +1064,33 @@ msgstr ""
 msgid "（动图、超过上限、格式不支持或体积没有变小）"
 msgstr ""
 
-#: includes/views/oss-settings.php:20
-#: includes/views/oss-settings.php:195
-msgid "小图 thumbnail"
-msgstr ""
-
-#: includes/views/oss-settings.php:21
-#: includes/views/oss-settings.php:199
-msgid "中图 medium"
-msgstr ""
-
-#: includes/views/oss-settings.php:22
-#: includes/views/oss-settings.php:203
-msgid "大图 large"
-msgstr ""
-
-#: includes/views/oss-settings.php:26
-msgid "文章列表模式"
-msgstr ""
-
-#: includes/views/oss-settings.php:27
-msgid "仅匹配主文章列表中 posts-item list 的缩略图区域。"
-msgstr ""
-
-#: includes/views/oss-settings.php:30
-msgid "文章卡片 / UI 模式"
-msgstr ""
-
-#: includes/views/oss-settings.php:31
-msgid "仅匹配主文章列表中 posts-item card 的缩略图区域。"
-msgstr ""
-
-#: includes/views/oss-settings.php:34
 #: includes/views/thumb-settings.php:203
 msgid "侧边栏小工具"
 msgstr ""
 
-#: includes/views/oss-settings.php:35
-msgid "仅匹配真实 .sidebar 容器及确认挂载在侧边栏位置的 Ajax 小工具。"
-msgstr ""
-
-#: includes/views/oss-settings.php:48
-#: includes/views/oss-settings.php:59
 #: includes/views/thumb-settings.php:97
 msgid "缩略图优化"
 msgstr ""
 
-#: includes/views/oss-settings.php:51
 #: includes/views/thumb-settings.php:88
 msgid "规则已开启"
 msgstr ""
 
-#: includes/views/oss-settings.php:51
 #: includes/views/thumb-settings.php:89
 msgid "规则未开启"
 msgstr ""
 
-#: includes/views/oss-settings.php:60
-msgid "只处理明确授权的列表、卡片与侧边栏缩略图区域；正文、封面、广告和页头页脚图片不会被接管。"
-msgstr ""
-
-#: includes/views/oss-settings.php:62
-#: includes/views/oss-settings.php:237
 #: includes/views/thumb-settings.php:105
 #: includes/views/thumb-settings.php:474
 msgid "保存设置"
 msgstr ""
 
-#: includes/views/oss-settings.php:66
-msgid "已开启"
-msgstr ""
-
-#: includes/views/oss-settings.php:66
-msgid "未开启"
-msgstr ""
-
-#: includes/views/oss-settings.php:67
-msgid "未填写域名"
-msgstr ""
-
-#: includes/views/oss-settings.php:68
-msgid "按 URL 主机名精确匹配"
-msgstr ""
-
-#: includes/views/oss-settings.php:76
-msgid "作用域与规则"
-msgstr ""
-
-#: includes/views/oss-settings.php:76
-msgid "只有位于授权容器内的图片才会被改写。"
-msgstr ""
-
-#: includes/views/oss-settings.php:84
-msgid "开启缩略图参数拼接"
-msgstr ""
-
-#: includes/views/oss-settings.php:89
-msgid "侧边栏小工具兜底"
-msgstr ""
-
-#: includes/views/oss-settings.php:89
-msgid "子比主题专用"
-msgstr ""
-
-#: includes/views/oss-settings.php:93
-msgid "允许处理真实侧边栏容器中的小工具图片"
-msgstr ""
-
-#: includes/views/oss-settings.php:95
-msgid "仅识别侧边栏位置，不处理顶部/底部全宽小工具、主内容区小工具或顶部多功能组件。"
-msgstr ""
-
-#: includes/views/oss-settings.php:97
-msgid "当前不是子比主题：侧边栏 Ajax 兜底停用；主内容区仍可按下方作用域 class 使用。"
-msgstr ""
-
-#: includes/views/oss-settings.php:102
-msgid "OSS 域名"
-msgstr ""
-
-#: includes/views/oss-settings.php:105
-msgid "必填。按 URL 的精确主机名匹配，不再使用模糊字符串匹配。"
-msgstr ""
-
-#: includes/views/oss-settings.php:109
-msgid "裁剪保留位置 (pos)"
-msgstr ""
-
-#: includes/views/oss-settings.php:114
-msgid "智能(auto)"
-msgstr ""
-
-#: includes/views/oss-settings.php:115
-msgid "居中"
-msgstr ""
-
-#: includes/views/oss-settings.php:116
-msgid "上"
-msgstr ""
-
-#: includes/views/oss-settings.php:117
-msgid "下"
-msgstr ""
-
-#: includes/views/oss-settings.php:118
-msgid "左"
-msgstr ""
-
-#: includes/views/oss-settings.php:119
-msgid "右"
-msgstr ""
-
-#: includes/views/oss-settings.php:131
-msgid "仅在宽和高都存在且启用裁剪时生效。"
-msgstr ""
-
-#: includes/views/oss-settings.php:135
-msgid "作用域 class（高级）"
-msgstr ""
-
-#: includes/views/oss-settings.php:139
-msgid "列表行容器"
-msgstr ""
-
-#: includes/views/oss-settings.php:140
-msgid "单条内容"
-msgstr ""
-
-#: includes/views/oss-settings.php:141
-msgid "缩略图区域"
-msgstr ""
-
-#: includes/views/oss-settings.php:142
-msgid "侧边栏容器"
-msgstr ""
-
-#: includes/views/oss-settings.php:151
-msgid "逗号分隔。默认适配子比主题；其它主题请填写包裹图片的列表/条目/缩略图容器 class。图片必须位于这些容器内才会被改写，避免误改头像、Logo 等站点图片。"
-msgstr ""
-
-#: includes/views/oss-settings.php:157
-msgid "按显示场景设置参数"
-msgstr ""
-
-#: includes/views/oss-settings.php:157
-msgid "每个场景可选基础预设或自定义参数，互不联动。"
-msgstr ""
-
-#: includes/views/oss-settings.php:169
-msgid "基础预设"
-msgstr ""
-
-#: includes/views/oss-settings.php:178
-msgid "场景自定义"
-msgstr ""
-
-#: includes/views/oss-settings.php:179
-msgid "例如 ?fmt=webp&amp;w=500&amp;mode=clip"
-msgstr ""
-
-#: includes/views/oss-settings.php:182
-msgid "支持 ?query=params 或 !style=name；留空时使用所选基础预设。"
-msgstr ""
-
-#: includes/views/oss-settings.php:189
-msgid "基础尺寸预设"
-msgstr ""
-
-#: includes/views/oss-settings.php:189
-msgid "宽/高为 0 表示不限制；自定义参数覆盖宽高裁剪。"
-msgstr ""
-
-#: includes/views/oss-settings.php:214
 #: includes/views/thumb-settings.php:290
 msgid "宽"
 msgstr ""
 
-#: includes/views/oss-settings.php:218
 #: includes/views/thumb-settings.php:291
 msgid "高"
-msgstr ""
-
-#: includes/views/oss-settings.php:223
-msgid "裁剪"
-msgstr ""
-
-#: includes/views/oss-settings.php:227
-msgid "预设自定义"
-msgstr ""
-
-#: includes/views/oss-settings.php:228
-msgid "填写后忽略该预设的宽高裁剪"
 msgstr ""
 
 #: includes/views/s3-sync-center.php:52

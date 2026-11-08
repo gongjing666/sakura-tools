@@ -478,9 +478,10 @@ location ^~ /wp-content/.sakura-s3-cache/ {
 
 ### 13.1 页面视图
 
-- 后台页面 HTML 已从类中拆到 `includes/views/`：`settings-main.php`、`settings-backup.php`、`settings-stats.php`、`oss-settings.php`、`media-progress.php`。
+- 后台页面 HTML 已从类中拆到 `includes/views/`：`settings-main.php`、`settings-backup.php`、`settings-stats.php`、`media-progress.php`。
 - 类方法只准备 view 所需的局部变量后 `require`；view 中调用插件类必须使用 `\Sakura\ImageOptimizer\...` 全限定名（view 不在类作用域内），私有属性通过局部变量传入。
-- 新增/修改视图后至少回归：设置页、备份页、统计页、OSS 页、批量进度页。
+- 新增/修改视图后至少回归：设置页、备份页、统计页、批量进度页。
+- 视图清单由 `tests/ViewManifestTest.php` 守护；新增或删除 `includes/views/*.php` 时必须同步更新 `ViewManifestTest::VIEWS`。
 
 ### 13.2 测试与静态分析
 

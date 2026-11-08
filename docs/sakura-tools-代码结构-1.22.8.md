@@ -138,7 +138,7 @@ sakura-tools/
 | src/Support | 2 | 178 | 2 | Hook_Loader（延迟注册）与 UTF-8 截断工具 |
 | src/Filesystem | 1 | 97 | 1 | 文件系统仓储适配器 |
 | src/Stats | 1 | 73 | 1 | 统计仓储适配器 |
-| 合计 | 178 | 59495 | 163 | 生产代码；另有 tests 71 文件/8671 行、stubs 2 文件另计 |
+| 合计 | 178 | 59495 | 163 | 生产代码；另有 tests 72 文件/8800 行、stubs 2 文件另计 |
 
 **怎么读这张表**：行数不等于复杂度——`src/UserFiles` 20k 行里有 40% 是 REST 控制器与视图模板（重复度高、改动风险低）；`src/Sync` 只有 5.8k 行却包含状态机与 SQL 层，是改动风险最高的模块。
 
@@ -571,7 +571,7 @@ register() 之后调用     → 直接 add_action/add_filter 到 WP（不再入�
 | `admin_post_sakura_s3_sync_export` / `_ignored_save` | action | `:112-113` |
 | `add_attachment` / `wp_update_attachment_metadata` / `delete_attachment` | action / filter | `src/S3/Storage.php:138` / `:140` / `:144` |
 | `sakura_imgopt_s3_uploaded` | action（供扩展点） | `src/S3/Upload_Observer.php:30`（`Object_Store.php:182` 触发） |
-| `sakura_imgopt_s3_delete_tick`（60 秒） / `sakura_imgopt_s3_alert_check`（15 分钟） | cron | `src/S3/Delete_Worker.php:46-51`、`src/S3/Alerting.php:396-401` |
+| `sakura_imgopt_s3_delete_tick`（60 秒） / `sakura_imgopt_s3_alert_check`（15 分钟） | cron | `src/S3/Delete_Worker.php:46-51`、`src/S3/Alerting.php:375-377` |
 | `sakura_imgopt_metrics` | init / query var | `src/S3/Prometheus.php:26-30`、`:73-77` |
 | `wp sakura-s3` | WP-CLI | `includes/class-s3-cli.php:501` |
 
@@ -602,7 +602,7 @@ register() 之后调用     → 直接 add_action/add_filter 到 WP（不再入�
           → 失败按 60 秒起步指数退避(Delete_Jobs.php:388/:73)
 ④ 观测    Upload_Metrics::snapshot 读 option(:143) → Prometheus::format 输出(:107/:135)
           → Alerting 每 15 分钟评估 14 天失败率(:152/:375)
-          （生产只记录成功样本，失败率告警的实际触发条件见 §6.8 ②、§12 第 5 项）
+          （生产只记录成功样本，失败率告警的实际触发条件见 §6.8 ②、§12 第 3 项）
 ```
 
 ### 6.7 设计取舍（为什么这样写）
@@ -626,9 +626,9 @@ register() 之后调用     → 直接 add_action/add_filter 到 WP（不再入�
 
 **② `Upload_Metrics::snapshot()` 的 `counts` / `backlog`：生产者已不存在，已移除。**
 
-- 事实：清理前的 `snapshot( ?array $counts = null )` 的 `$counts` 只用于合并 `queued/running/retrying/dead/due/backlog/oldest`（清理前 `src/S3/Upload_Metrics.php:162-175`），而生产调用方**全部无参**：`src/S3/Prometheus.php:124`、`src/S3/Alerting.php:254/:331`、`src/S3/Sync_Center_Panel.php:29`、`src/Sync/CLI.php:155`。
+- 事实：清理前的 `snapshot( ?array $counts = null )` 的 `$counts` 只用于合并 `queued/running/retrying/dead/due/backlog/oldest`（清理前 `src/S3/Upload_Metrics.php:162-175`），而生产调用方**全部无参**（清理前位置）：`src/S3/Prometheus.php:124`、`src/S3/Alerting.php:254/:331`、`src/S3/Sync_Center_Panel.php:29`、`src/Sync/CLI.php:155`。
 - 历史：`DEVELOPMENT.md` §14.35 说明该参数是 1.6.4 为 `Upload_Jobs::counts()` 预留的注入口；1.12.0 删除异步队列后 `Upload_Jobs` 已不存在，文档原话是「后台卡片的积压现在恒为 0，不再代表上传队列」。所以不是「忘记传参」，而是**生产者被删后接口没跟着收口**。
-- 处置：`snapshot()` 改为无参（`src/S3/Upload_Metrics.php:143`），删除 `$counts` 合并块与返回值里的 `backlog`；连带清掉下游恒零消费端——`Prometheus::format` 去掉 `queue_depth{state=…}`（6 个 state）与 `queue_oldest_seconds`（`src/S3/Prometheus.php:135`）；`Alerting` 去掉 `max_dead` 配置、`dead` 告警分支与 payload 里的队列字段（`src/S3/Alerting.php:152-215`）；`Monitoring_Panel` 去掉「死信阈值（0 关闭）」输入与 POST 处理（`src/S3/Monitoring_Panel.php:81-128`）；`Sync\CLI::stats` 去掉 Backlog 行（`src/Sync/CLI.php:154-184`）。相应测试改为 `snapshot()` 无参并断言不存在 `backlog` 键。
+- 处置：`snapshot()` 改为无参（`src/S3/Upload_Metrics.php:143`），删除 `$counts` 合并块与返回值里的 `backlog`；连带清掉下游恒零消费端——`Prometheus::format` 去掉 `queue_depth{state=…}`（6 个 state）与 `queue_oldest_seconds`（清理前 `src/S3/Prometheus.php:135`）；`Alerting` 去掉 `max_dead` 配置、`dead` 告警分支与 payload 里的队列字段（清理前 `src/S3/Alerting.php:152-215`，现 `evaluate()` 位于 `:152-169`）；`Monitoring_Panel` 去掉「死信阈值（0 关闭）」输入与 POST 处理（`src/S3/Monitoring_Panel.php:81-128`）；`Sync\CLI::stats` 去掉 Backlog 行（`src/Sync/CLI.php:154-184`）。相应测试改为 `snapshot()` 无参并断言不存在 `backlog` 键。
 - 结果：`vendor/bin/phpunit` 391 tests / 1120 assertions / 5 skipped 全绿（清理前基线 395/1124/5 skipped）；PHPStan `[OK] No errors`；phpcs 改动文件 exit 0。测试站 `wp sakura-sync stats --format=table` 已不再输出 Backlog 行（§10.8）。
 
 **③ 两套 `target_hash`：语义不同，不需要一致，已互相注明。**
@@ -733,7 +733,7 @@ register() 之后调用     → 直接 add_action/add_filter 到 WP（不再入�
 | `sio_sync_counts` | 按 profile/状态聚合，供后台"概览"直读 |
 | `sio_sync_jobs` | 动作队列：dedupe_key、lease、attempts、next_at |
 | `sio_sync_events` | 审计事件 |
-| `sio_sync_operations` | 远端操作准入记录，消费方在 `src/S3/Remote_Operation_Guard.php:39` |
+| `sio_sync_operations` | 远端变更准入账本；读写都在 `src/S3/Remote_Operation_Guard.php:39`，无自动清理（§7.7.1） |
 
 **option**：`sakura_imgopt_sync_schema`（`:31`，实测 `1.8.2`）、`sakura_imgopt_sync_recent_ready`（`:46`）、`sakura_imgopt_sync_dir_indexed`（`:224-233` 旧行回填判定）、`sakura_imgopt_sync_full_at`（`Scan_Service.php:835`）、`sakura_imgopt_sync_metrics`（`Metrics.php:25`）、`sakura_imgopt_sync_verify_cursor`（`Verify_Service.php:34`）、`sakura_imgopt_sync_index_enabled`（`Feature.php:25`）、`sakura_imgopt_sync_ignored`（`src/S3/Ignored_Paths.php:25`）；另有迁移时删除 `sakura_imgopt_s3_inventory`（`Schema.php:237`）。
 
@@ -754,11 +754,97 @@ register() 之后调用     → 直接 add_action/add_filter 到 WP（不再入�
           → Sync_Actions → job_success(:1182) / job_failure(:1202) 退避重试
 ```
 
-### 7.7 待确认
+### 7.7 三项核实（2026-11-08 关闭）
 
-1. `sio_sync_operations` 由 `src/S3/Remote_Operation_Guard.php:39` 消费，其写入/清理语义未细读。
-2. 后台前端是否仍按 REST 调用（Sync 侧无 REST），需核对 `assets/` 脚本。
-3. `scans.scan_cursor` 的**双重语义**（local 阶段 JSON 目录栈 / remote 阶段 S3 token，分别读于 `Scan_Service.php:362` 与 `:714`）由 `advance`（`:301-348`）重置保证，运行期未实测。
+旧版这里列了三条待确认；本轮已逐条落到代码位置或测试站运行记录（§10.9）。验证只在测试站 `/root/sio-e2e` 进行，临时 S3 profile、临时桶与探针均已清理，生产保持只读。
+
+#### 7.7.1 `sio_sync_operations`：远端写入的准入账本
+
+**结论**：它不是异步任务队列，而是「同一物理对象同一时刻只允许一个远端变更」的持久互斥记录。成功即删；结果不确定则永久保留并阻塞同一对象，直到操作员显式确认旧请求已停止后手工解除。
+
+| 观察点 | 结论 | 代码依据 |
+|---|---|---|
+| 作用域 | `scope_for()` 只取 `endpoint`（去空白、转小写、去尾部 `/`，空值记作 `aws-s3`）与 `bucket` 的 sha256；profile 别名不影响冲突判断 | `src/S3/Remote_Operation_Guard.php:45-49` |
+| 记录粒度 | 同一 `scope + object key` 一行，主键 `resource_hash = sha256(scope + "\n" + key)` | `:122-124`、`src/Sync/Schema.php:188-201` |
+| 写入 | 发送前 `INSERT IGNORE`，`state='inflight'`，token 为 32 字节随机数的 64 位 hex，附 `context_json`（target / expected） | `:109-120` |
+| 成功删除 | 每个 key 的 dispatch 返回**严格 `true` 且 release 成功**，才删除 `resource_hash + token + state='inflight'` | `:61-106`、`:126-131` |
+| 不确定保留 | dispatch 抛异常、返回 `WP_Error`、返回非 `true`，或 release 失败 → `state='uncertain'`，`last_error` 截 250 字符 | `:93-105`、`:133-138` |
+| 冲突语义 | 主键冲突即返回 `sio_remote_busy`；同一物理对象不会并发写入 | `:116-119` |
+| 清理入口 | `pending()` 只读列出最多 100 行（含崩溃遗留的 inflight）；`acknowledge_settled(resource,token)` 校验两个 64 位 hex 后无条件删除；**没有 TTL、没有自动回收** | `:141-158` |
+| 调用面 | `Storage_Adapter::upload_file` / `upload_many` / `delete_keys` 都经 `guard()->execute(...)` | `src/S3/Storage_Adapter.php:113`、`:145`、`:303` |
+| 消费面 | 没有后台页面、CLI 或 cron 调用 `pending()` / `acknowledge_settled`；除类自身外仅测试引用 | 全仓 grep + `tests/RemoteOperationGuardTest.php` |
+
+**执行顺序**（`:61-106`）：先对全部 key 逐个 `acquire`；随后才执行可选的 `check()`（队列所有权复核）。`check` 失败或抛异常时，所有已取得的 reservation 会被释放，**尚未发送任何远端写入**。只有 `check` 通过后才调用 `dispatch`。这保证了「先占位、再确认、最后发送」的顺序。
+
+**为什么没有 TTL**：类注释（`:9-13`）写明——死掉的 PHP 进程或过期的队列租约都**不能证明** S3 请求已经停止，HEAD 200/404 也不是静默证明。因此 `uncertain` 必须保留，靠操作员查 `{prefix}sio_sync_operations` 后手工解除。构造函数默认新建独立 `wpdb` 并强制 autocommit（`:20-42`），避免调用方事务回滚把「已经发出的请求」记录擦掉；检测到 `wp-content/db.php` 会直接抛异常，因为无法确认共享账本。
+
+运行期探针（§10.9-A）：正常 dispatch 后无残留；dispatch 返回 `WP_Error` 后写入 `state=uncertain`，同一 scope/key 再 `execute` 返回 `sio_remote_busy`；错误 token 解除返回 false、正确 token 返回 true、第二次再解除返回 false。
+
+#### 7.7.2 同步中心仍走 admin-ajax，没有 REST
+
+**结论**：Sync 中心的服务端入口全部是 `admin-ajax.php` / `admin-post.php`；全插件 REST 只属于 UserFiles 的 `sufm/v1`。这不是遗漏，是当前实现方式。
+
+| 观察点 | 结论 | 代码依据 |
+|---|---|---|
+| 注册面 | 9 个 `wp_ajax_sakura_s3_sync_*` + 2 个 `admin_post_*`；没有 `register_rest_route` | `src/S3/Sync_Center_Module.php:101-113` |
+| 资源加载 | 仅在 `Registry::on('storage','sync')` 时加载 `assets/admin.js` | `:138-147` |
+| 页面配置 | `wp_localize_script` 的 `sakuraSyncCenter` 提供 `ajaxUrl`（`admin-ajax.php`）与 `searchUrl`（`fast-search.php`）等；**没有 `restUrl`** | `:152-168` |
+| 普通请求 | `URLSearchParams` 组 `action + nonce + 参数`，`fetch(config.ajaxUrl, {method:'POST'})` | `assets/admin.js:43-67` |
+| 快速翻页 | `GET config.searchUrl + '?' + params`，带 `token` | `assets/admin.js:69-105` |
+| REST 反证 | `register_rest_route` 只出现在 `src/UserFiles/Rest/*`（如 `Controller.php:49`、`Picker_Controller.php:73/87`），命名空间为 `sufm/v1` | 全仓 grep |
+
+实际注册的 11 个入口：
+
+```
+wp_ajax_sakura_s3_sync_scan          wp_ajax_sakura_s3_sync_scan_step
+wp_ajax_sakura_s3_sync_cancel        wp_ajax_sakura_s3_sync_resume
+wp_ajax_sakura_s3_sync_page          wp_ajax_sakura_s3_sync_test
+wp_ajax_sakura_s3_sync_action        wp_ajax_sakura_s3_sync_refresh
+wp_ajax_sakura_s3_sync_toggle_index
+admin_post_sakura_s3_sync_export     admin_post_sakura_s3_ignored_save
+```
+
+`assets/admin.js` 里另有 `sakura_s3_retry`，它注册在 `includes/class-s3-storage-module.php:74`，属于对象存储页的旧失败重试入口，不在上表 9 个 Sync 动作内，不影响「Sync 无 REST」的结论。
+
+运行期（§10.9-B）：用后台 Cookie 请求 `/wp-admin/admin.php?page=sakura-tools-storage&t=sync` 得到 240,612 字节页面，含 `<div class="sakura-sync-app" ...>` 且加载 `assets/admin.js`；localize 配置只有 `ajaxUrl` / `searchUrl`，无 `restUrl`；同一 Cookie 会话 POST `action=sakura_s3_sync_page&nonce=...&status=all&limit=2` 返回 `success=true` 与 2 行数据。
+
+**维护含义**：新增同步操作时沿用 admin-ajax + nonce；不要假设存在可复用的 REST 客户端。真正的 REST 接口集中在 §8.5。
+
+#### 7.7.3 `scan_cursor` 的双语义由 phase 严格分隔
+
+**结论**：`scan_cursor` 一列确实有两种编码——local 阶段是 JSON 目录栈，remote 阶段是 S3 分页 token——但由 `phase` 选择解码器；local→remote 的切换与清空 cursor 在**同一条 UPDATE** 中完成，remote→reconcile 时 token 已为空，因此不会把 JSON 当 token，也不会把 token 当 JSON。
+
+| 阶段 | 编码 | 写入 | 读取 / 终止 |
+|---|---|---|---|
+| `local` | `{"d":[目录栈],"a":"最后条目"}` | `flush_local` 每 500 行回写 `processed / local_bytes / scan_cursor`（`:509-530`） | `local_phase` 读 `:362`，`decode_cursor` 校验 `:663-682`；目录走完即结束 |
+| `remote` | S3 的 opaque continuation token（MinIO 是 base64 字符串） | `remote_phase` 每页写回 `next_token`（`:764-775`） | 读 `:714`；token 为空即 `done`（`:786-793`） |
+| 切换 | `''` | `advance` 初始化 local 时写 `phase='local' + scan_cursor=''`（`:287-296`）；local→remote 时同一 UPDATE 写 `phase='remote' + scan_cursor=''`（`:317-326`）；remote→reconcile 写 `phase='reconcile'`（`:347`） | 进入 remote 前先清空；remote 结束时 token 已为空，reconcile 无需再清 |
+
+配套生命周期：
+
+- `start_scan` 插入 `phase=''`、`scan_cursor=NULL`（`src/Sync/Index_Repository.php:166`）；`resume_scan` 保留 phase 与 cursor，只把 `state` 改回 `running`（`:186-222`）；`resumable_scan` 只接受 `state IN ('failed','cancelled') AND phase<>''`（`:271-282`）。所以恢复时一定按原 phase 解释同一列。
+- local 游标失效（目录被删、旧格式）时，`local_phase` 清空 `processed/local_bytes/scan_cursor` 后重跑一次（`:376-383`）；`upsert_local` 幂等，重扫不会产生重复行。
+- `finish_scan` 写 `state='done', phase='done'`（`:381-396`），不碰 cursor；但 remote 正常结束时 token 已经是空串，所以 done 行的 cursor 也是空。
+
+运行期两组数据（详见 §10.9-C）：
+
+| 组 | 观测 | 结果 |
+|---|---|---|
+| A：5000 本地 + 1001 远端 | 逐 tick 记录 `t_sio_sync_scans` 的 UPDATE | local 每 500 行写一次 JSON，最后 `{"d":[],"a":"f04999.txt"}`；切 remote 的同一 UPDATE 把 cursor 置 `''`；remote 第 1 页写入 token，第 2 页置空后 done |
+| B：40000 本地，1 秒预算 | `tick($id, 1, 1)` 连续调用 | tick0 `processed=18500`、cursor `{"d":[],"a":"r18499.txt"}`；tick1 `processed=36500`、cursor `r36499.txt`（**没有回到 0**）；tick2 done、`total_local=40000`、cursor 空 |
+
+A 组第 1 页写入的 token 原文：
+
+```
+d3AtY29udGVudC91cGxvYWRzL3Byb2JlLzA5OTkuYmluW21pbmlvX2NhY2hlOnYyLHJldHVybjpd
+→ wp-content/uploads/probe/0999.bin[minio_cache:v2,return:]
+```
+
+这同时说明 token 是提供商/桶状态的不透明串，插件不做解析；它能被下一 tick 原样读回并继续分页。
+
+**未覆盖**：A 组的本地阶段在单 tick 内完成（5000 文件未触发预算边界），因此「local JSON 中途续跑」由 B 组补证；B 组的远端计数包含桶内 392 个既有对象，与本地续跑结论无关。B 组验证后已删除 40392 条索引、1 条 scan、2 条 counts、2 条 events，还原 `s3_options`，删除本地 40000 文件。
+
+三项至此关闭；§12 相应移除，运行记录见 §10.9。
 
 ---
 
@@ -983,7 +1069,7 @@ register() 之后调用     → 直接 add_action/add_filter 到 WP（不再入�
 | `sufm_delete_tick` | 单次（按需） | `src/UserFiles/Services/Executor.php:269` |
 | `sakura_imgopt_s3_delete_tick` | 1 分钟 | `src/S3/Delete_Worker.php:46-51` |
 | `sakura_imgopt_sync_verify_tick` | 5 分钟 | `src/Sync/Verify_Worker.php:76` |
-| `sakura_imgopt_s3_alert_check` | 15 分钟 | `src/S3/Alerting.php:396-401` |
+| `sakura_imgopt_s3_alert_check` | 15 分钟 | `src/S3/Alerting.php:364-370` |
 | `sakura_imgopt_sync_cleanup` / `_daily_reconcile` | 1 天 | `src/Sync/Scan_Worker.php:79-80` |
 | `sakura_imgopt_daily_backup_cleanup` | 1 天 | `src/Plugin.php:106` |
 
@@ -1130,7 +1216,53 @@ sufm_routes=45 endpoints=51
 
 - 第 7 条只读调用两个类的纯函数并回显字段名，未写任何 option/postmeta；profile 为 `prof_1d60d87b0606`（测试站 MinIO）。
 - 第 8 条说明测试站没有 1.12.0 之前的遗留任务，`Storage::maybe_migrate` 的迁移分支本轮没有可触发的数据；该分支按静态阅读保留，未做破坏性造数。
-- `Upload_Metrics` 的失败/死信计数仍保留在结构里（`record_batch()` 支持非 ok 样本），但生产唯一调用方 `Upload_Observer` 固定 `ok=true`——这是本轮新发现的可观测性缺口，已登记为 §12 第 5 项，不在本轮清理范围。
+- `Upload_Metrics` 的失败/死信计数仍保留在结构里（`record_batch()` 支持非 ok 样本），但生产唯一调用方 `Upload_Observer` 固定 `ok=true`——这是本轮新发现的可观测性缺口，已登记为 §12 第 3 项，不在本轮清理范围。
+
+### 10.9 §7.7 三项的运行期验证记录（2026-11-08）
+
+环境同 §10.7：测试站 `/root/sio-e2e`（PHP 8.4.27 内置服务器 + `PHP_CLI_SERVER_WORKERS=4`，MariaDB 13316，MinIO 19010，主题 zibll，插件软链到 `/root/work/sakura-tools`）。生产只读。三项验证结束后，临时 profile、临时桶、探针与临时目录均已删除，`s3_options` 已按备份还原。
+
+**A. `sio_sync_operations` 守卫**
+
+用注入测试站 `$wpdb` 的 `Remote_Operation_Guard` 执行，**不发送真实 S3 请求**；scope 为 `probe-20261108103524`，key 为 `probe/key.bin`。
+
+| # | 验证点 | 操作 | 结果 |
+|---:|---|---|---|
+| 1 | 正常准入 | `dispatch` 对 key 返回 `true` | `execute` 返回 `true`；`pending()` 为空；表中无残留 |
+| 2 | 不确定保留 | 同一 scope/key，`dispatch` 返回 `WP_Error('simulated uncertainty')` | 返回 `sio_remote_uncertain`；DB 行 `state=uncertain`、`last_error=simulated uncertainty`、token 长度 64 |
+| 3 | 冲突阻断 | 在 uncertain 未解除时对同一 scope/key 再 `execute` | 返回 `sio_remote_busy`，未调用 `dispatch` |
+| 4 | 手工解除 | `acknowledge_settled(resource, 错误 token / 正确 token / 再次正确 token)` | `false / true / false`；解除后 `pending()` 为空 |
+
+**B. 同步中心页面与 admin-ajax**
+
+登录方式：测试站 `wp-login.php` 被 zibll 主题登录页接管，`curl` 提交表单无效；改用 `wp eval-file` 先 `wp_set_current_user(1)`，生成 `AUTH_COOKIE` 与 `LOGGED_IN_COOKIE` 后带 Cookie 请求。**nonce 绑定登录 session token，页面与 AJAX 必须复用同一份 Cookie**；换一份 Cookie 会得到 `-1`。
+
+| # | 验证点 | 操作 | 结果 |
+|---:|---|---|---|
+| 5 | 同步中心页面 | GET `/wp-admin/admin.php?page=sakura-tools-storage&t=sync` | HTTP 200；240,612 字节；标题 `对象存储 ‹ SIO E2E (manual)`；含 `<div class="sakura-sync-app" data-scan-id="0" data-scan-state="" data-index-enabled="1">`；加载 `assets/admin.js?ver=1.22.8` |
+| 6 | 前端配置 | 读取页面内联 `sakuraSyncCenter` | `ajaxUrl=http://127.0.0.1:18080/wp-admin/admin-ajax.php`、`searchUrl=.../sakura-tools/fast-search.php`；**没有 `restUrl`** |
+| 7 | 列表接口 | 同一 Cookie POST `admin-ajax.php`：`action=sakura_s3_sync_page&nonce=...&status=all&limit=2` | JSON `success=true`；返回 2 行（`conc-c-300x225.webp`、`conc-s.webp`）；`cursor` 非空、`has_more=true`；counts `synced=24 / pending=2 / total=26` |
+
+**C. `scan_cursor` 两组扫描**
+
+| # | 验证点 | 操作 | 结果 |
+|---:|---|---|---|
+| 8 | 空桶对照 | 临时 profile `probe_cursor` + 空桶，`start('probe_cursor','full')` 后 `tick($id,1,1)` | `scan_id=1`，1 tick 即 `done`，`total_remote=0` |
+| 9 | 本地 JSON 写入 | 5000 个 1 字节文件，逐 tick 记录 `t_sio_sync_scans` 的 UPDATE | 本地每 500 行写一次：`processed=500/1000/…/5000`，最后 cursor `{"d":[],"a":"f04999.txt"}` |
+| 10 | 阶段切换 | 同一次扫描进入 remote | `phase='remote'`、`total_local=5000`、`processed=5000` 与 `scan_cursor=''` 在**同一条 UPDATE** |
+| 11 | 远端 token | 桶内补 1001 个对象后重跑（`scan_id=2`） | 第 1 页写 token `d3At…`（完整值见 §7.7.3），`total_remote=1000`；第 2 页 token 置空，`total_remote=1001`；最终 `state=done, phase=done, processed=6001` |
+| 12 | 本地跨 tick 续跑 | 40000 个本地文件，1 秒预算，`tick($id,1,1)` 连续调用 | tick0 `processed=18500`、cursor `{"d":[],"a":"r18499.txt"}`；tick1 `processed=36500`、cursor `{"d":[],"a":"r36499.txt"}`；tick2 done、`total_local=40000`、cursor 空 |
+| 13 | 清理 A 组 | 按 `probe_cursor` 删索引/扫描/计数/事件/任务；删临时桶对象与桶 | index 6001、scans 2、counts 2、events 4、jobs 0；删除 `probe/` 与 `wp-content/uploads/probe/` 各 1001 个对象；桶 HEAD 404 |
+| 14 | 清理 B 组 | 按 `probe_resume2` 删索引/扫描/计数/事件/任务；删本地临时目录 | index 40392、scans 1、counts 2、events 2、jobs 0；`/tmp/cursor-resume-local` 已删除 |
+
+补充说明：
+
+- A 组的原始 SQL 轨迹共 16 条 UPDATE，按序为：初始化 local → 10 条本地批次 → 切 remote（清游标）→ 远端第 1 页（写 token）→ 第 2 页（清 token）→ reconcile → done。原始日志在 `/tmp/cursor-evidence/cursor-sql.log`，运行结果在 `/tmp/cursor-evidence/cursor-probe-result.json`（会话临时文件，不作为仓库产物）。
+- B 组的 40392 条索引 = 40000 个本地文件 + 392 个桶内既有对象；本地续跑只看 `processed` 与 cursor 的变化，392 个远端对象不参与该结论。
+- 两组验证后 `s3_options` 的 md5 都回到 `e223e71b2fe351912289ccffebb5435d`，active profile 回到 `prof_1d60d87b0606`（bucket `sio-e2e`），profiles 只剩该 profile。
+- 清理后测试站最终状态：`sio_sync_index=26`（synced 24 / pending 2）、`sio_sync_scans=0`、`sio_sync_counts=3`、`sio_sync_events=1`、`sio_sync_jobs=0`、`sio_sync_operations=0`。
+- 未覆盖：A 组的 local 阶段在单 tick 内跑完，未触发预算边界；「local 中途续跑」由 B 组补证。B 组没有构造「JSON 损坏/目录被删」的 cursor-missing 路径，该路径仅有静态阅读（`src/Sync/Scan_Service.php:376-383`）。
+
 ---
 
 ## 11. 依赖关系与图谱口径
@@ -1202,17 +1334,17 @@ sufm_routes=45 endpoints=51
 
 ## 12. 待确认项汇总
 
-以下 5 项是本次分析中**没有直接证据**或**超出只读边界**的地方。除此之外，正文结论都有代码位置或测试结果支撑。
+以下 3 项是本次分析中**没有直接证据**或**超出只读边界**的地方。除此之外，正文结论都有代码位置或测试结果支撑。
 
-已关闭：原第 4 项「缩略图 `provider` 取值未枚举」与原第 5 项「HTML 旧引擎 ob 回调边界」已用静态 + 运行期证据核实（§5.7、§10.7）；原第 6 项「并发上传 `consume_pending` 匹配失败」见 §10.6；原第 12 项「`.dsh-ops/` 非插件产物」已清理并加入 `.gitignore`（§2.1）；原 S3 章的 `Upload_Queue`、`snapshot` 的 `counts/backlog`、两套 `target_hash`、`Sync_Status` 遗留方法与 `PREVIOUS_PATH_OPTION` 四条已在本轮结论并落地（§6.8、§10.8）。
+已关闭（本轮）：原第 1 项「`scans.scan_cursor` 一列双语义」与原第 2 项「`sio_sync_operations` 的消费语义」已用静态阅读 + 测试站运行期证据核实（§7.7、§10.9）。
+
+已关闭（此前）：原第 4 项「缩略图 `provider` 取值未枚举」与原第 5 项「HTML 旧引擎 ob 回调边界」已用静态 + 运行期证据核实（§5.7、§10.7）；原第 6 项「并发上传 `consume_pending` 匹配失败」见 §10.6；原第 12 项「`.dsh-ops/` 非插件产物」已清理并加入 `.gitignore`（§2.1）；原 S3 章的 `Upload_Queue`、`snapshot` 的 `counts/backlog`、两套 `target_hash`、`Sync_Status` 遗留方法与 `PREVIOUS_PATH_OPTION` 四条已在本轮结论并落地（§6.8、§10.8）。
 
 | # | 问题 | 证据位置 | 影响 | 建议验证方式 |
 |---:|---|---|---|---|
-| 1 | `scans.scan_cursor` 一列双语义（本地阶段 JSON 目录栈 / 云端阶段 S3 token） | `src/Sync/Scan_Service.php:362`、`:714`、`:301-348` | 改状态机时漏掉重置会错位 | 跑一次全量扫描并在 `remote` 阶段中途刷新，看游标是否重置 |
-| 2 | `sio_sync_operations` 的消费语义 | `src/S3/Remote_Operation_Guard.php:39` | 影响上传/删除冲突判断 | 读该类全文 + 造 uncertain 记录观察后续写入是否被拒 |
-| 3 | `fast-search.php` 是否另有 nginx/htaccess 限制 | `fast-search.php:1-12` | 影响端点可否被外部直接访问 | 生产站 `curl` 一次该 URL 看返回 |
-| 4 | `Space_Store::grant_from_order` 把 source 硬编码为 `'points'` | `src/UserFiles/Services/Space_Store.php:830-843` vs `Schema.php:452` | 购买/积分来源无法区分，影响对账 | 用测试订单走一次发放，查 `sufm_space_grants.source` |
-| 5 | 生产只记录成功上传样本，`failure_rate` 告警与失败计数恒不触发 | `src/S3/Upload_Observer.php:30`、`:41`、`:49`（固定 `ok=true`）→ `src/S3/Alerting.php:152-165`；失败路径未接观测 | 现网 `attempts_total{result="fail/dead"}`、14 天失败率与告警永远是 0，故障不可见 | 在 `Object_Store` 失败分支补 `record_batch(ok=false)` 后用测试站造一次失败上传；或先查维护者是否另有外部监控 |
+| 1 | `fast-search.php` 是否另有 nginx/htaccess 限制 | `fast-search.php:1-12` | 影响端点可否被外部直接访问 | 生产站 `curl` 一次该 URL 看返回 |
+| 2 | `Space_Store::grant_from_order` 把 source 硬编码为 `'points'` | `src/UserFiles/Services/Space_Store.php:830-843` vs `Schema.php:452` | 购买/积分来源无法区分，影响对账 | 用测试订单走一次发放，查 `sufm_space_grants.source` |
+| 3 | 生产只记录成功上传样本，`failure_rate` 告警与失败计数恒不触发 | `src/S3/Upload_Observer.php:30`、`:41`、`:49`（固定 `ok=true`）→ `src/S3/Alerting.php:152-165`；失败路径未接观测 | 现网 `attempts_total{result="fail/dead"}`、14 天失败率与告警永远是 0，故障不可见 | 在 `Object_Store` 失败分支补 `record_batch(ok=false)` 后用测试站造一次失败上传；或先查维护者是否另有外部监控 |
 
 ---
 
@@ -1226,7 +1358,10 @@ sufm_routes=45 endpoints=51
 | 连线 | 812 = 599 `ref` + 50 `modref` + 163 `contains` |
 | 钩子 | 190（面板显示，不建节点） |
 | 悬空边 | 0 |
-| 数据来源 | `/tmp/scan-new.json`（本轮清理后重扫）——由 `docs/tools/collect-comments.php` 与 codegraph 的 `scanner.php` 生成，与本文所有表格同源 |
+| 本轮变更 | 无代码/类变化；只补 §7.7 正文与 §10.9 验证记录，图谱无需重建 |
+| 数据来源 | `/tmp/scan-new.json`（上一轮 `§6.8` 清理后重扫；本轮未改代码，未重扫）——由 `docs/tools/collect-comments.php` 与 codegraph 的 `scanner.php` 生成，与本文所有表格同源 |
+
+本轮没有新增/删除类，节点、连线与钩子统计与上一轮完全一致，`docs/graph-preview/` 无需重新生成。§7.7 的三项结论都是已有节点（`Scan_Service`、`Remote_Operation_Guard`、`Sync_Center_Module`）的职责细化，没有产生新的图谱关系；因此文档与图谱仍按上一轮结论对齐。
 
 **生成与注入脚本**（都在 `docs/tools/`，可重复执行）：`build-code-structure.mjs`（事实表 → 表格 + graph.json）、`graph-inject.mjs`（graph.json → index.html 内嵌 DATA，含悬空边校验）、`assemble-doc.py`（分章 + 表格 → 本文）。完整命令见《图谱同步说明》§7。
 

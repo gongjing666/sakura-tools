@@ -182,15 +182,15 @@ cp /tmp/graph.png docs/graph-preview/preview.png
 | 3 | 钩子数 = 附录 B 行数 | 同上 | 190 = 190 ✅ |
 | 4 | 连线数 = 三类之和 | `599 + 163 + 50` | 812 ✅ |
 | 5 | 悬空边 | `graph-inject.mjs` 每次注入前校验 | 0 ✅ |
-| 6 | 同源重建 | 用 `/tmp/scan-new.json` 重建 13 个生成块并重新组装，与仓库正文比对 | md5 同为 `1c82079ea7777f5d5beeaf6b8a18e6bf` ✅ |
+| 6 | 同源重建 | 用 `/tmp/scan-new.json` 重建 13 个生成块并重新组装，与仓库正文比对 | §6.8 清理后那版 md5 为 `1c82079ea7777f5d5beeaf6b8a18e6bf`；本轮 §7.7 改写、行号校正并重建生成块后为 `0d24b7f14154b2f104a39a3038a1ddbb` ✅ |
 | 7 | 注入幂等 | 连续执行两次 | 第二次 `changed:false`（165,914 B 未变）✅ |
-| 8 | 文档可重装 | `assemble-doc.py --parts /tmp/docparts-new --chapters /tmp/chapters-new` | 与仓库内文档逐字节一致 ✅ |
+| 8 | 文档可重装 | `python3 docs/tools/assemble-doc.py --parts /tmp/docparts --chapters docs/tools/chapters --out /tmp/verify-sakura-doc.md` | 与仓库正文逐字节一致（md5 `0d24b7f14154b2f104a39a3038a1ddbb`）✅ |
 | 9 | 渲染 | Chrome headless + SwiftShader 截图 `preview.png` | 星簇正常；页脚 178 / 180 / 812 / 190；S3 详情 36 文件 ✅ |
 | 10 | 文件数一致 | `stats.files` = 附录 C 行数 | 178 = 178 ✅ |
 
 > 第 9 项是必要的：DSH 内置浏览器没有 WebGL，页面会渲染成空白 canvas，用它"看图谱"会得出错误结论。
 
-**2026-11-08 两轮补充**：上午核实文档 §5.7 的两条待确认（缩略图 `provider` 取值、HTML 旧引擎 ob 回调边界），新增 §10.7、§12 由 10 项减为 8 项，未动类与钩子；傍晚处理 §6.8 四条遗留代码（删 `Upload_Queue`、收口 `Upload_Metrics::snapshot` 的 `counts/backlog`、说明两套 `target_hash` 不统一、标注 `Sync_Status` 遗留方法并接入 `Upload_URL::PREVIOUS_PATH_OPTION`），新增 §10.8、§12 由 8 项减为 5 项，图谱随之重建为 **180 / 812 / 190**。
+**2026-11-08 三轮补充**：上午核实文档 §5.7 的两条待确认（缩略图 `provider` 取值、HTML 旧引擎 ob 回调边界），新增 §10.7、§12 由 10 项减为 8 项，未动类与钩子；傍晚处理 §6.8 四条遗留代码（删 `Upload_Queue`、收口 `Upload_Metrics::snapshot` 的 `counts/backlog`、说明两套 `target_hash` 不统一、标注 `Sync_Status` 遗留方法并接入 `Upload_URL::PREVIOUS_PATH_OPTION`），新增 §10.8、§12 由 8 项减为 5 项，图谱随之重建为 **180 / 812 / 190**；晚间再处理 §7.7 三项（`sio_sync_operations` 准入账本、Sync 中心 admin-ajax、`scan_cursor` 双语义），新增 §10.9、§12 由 5 项减为 3 项——本轮未改代码，图谱仍为 **180 / 812 / 190**，无需重建。
 
 ## 9. 读图方法
 
@@ -221,7 +221,7 @@ cp /tmp/graph.png docs/graph-preview/preview.png
 
 | 文件 | 大小 | 作用 |
 |---|---:|---|
-| `docs/sakura-tools-代码结构-1.22.8.md` | 163 KB | 正文：§0–§13 + 附录 A–D（2026-11-08 更新 §5.7 / §6.8 / §10.7–10.8 / §12） |
+| `docs/sakura-tools-代码结构-1.22.8.md` | 177 KB | 正文：§0–§13 + 附录 A–D（2026-11-08 更新 §5.7 / §6.8 / §7.7 / §10.7–10.9 / §12） |
 | `docs/sakura-tools-图谱同步-1.22.8.md` | 本文 | 图谱变更与重建说明 |
 | `docs/graph-preview/index.html` | 166 KB | 单文件 3D 图谱（数据内嵌；3d-force-graph 库走 CDN，需联网） |
 | `docs/graph-preview/graph.json` | 203 KB | 同数据，供脚本消费 |
@@ -231,4 +231,4 @@ cp /tmp/graph.png docs/graph-preview/preview.png
 | `docs/tools/assemble-doc.py` | 2.6 KB | 分章 + 表格 → 正文 |
 | `docs/tools/collect-comments.php` | 3.1 KB | 类 docblock 提取 |
 | `docs/tools/purposes.zh.json` | 16 KB | 163 条中文职责 |
-| `docs/tools/chapters/p1–p6.md` | 94 KB | 正文源片段（改正文改这里，再重组装） |
+| `docs/tools/chapters/p1–p6.md` | 109 KB | 正文源片段（改正文改这里，再重组装） |

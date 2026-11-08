@@ -2,19 +2,19 @@
  "meta": {
   "plugin": "sakura-tools",
   "version": "1.22.8",
-  "generatedAt": "2026-11-08T08:55:34.865Z",
+  "generatedAt": "2026-11-08T10:10:42.122Z",
   "source": "dsh-codegraph lib/scanner.php（token_get_all 三趟静态扫描）",
   "doc": "sakura-tools-代码结构-1.22.8.md"
  },
  "stats": {
-  "files": 179,
+  "files": 178,
   "modules": 17,
-  "classes": 164,
-  "nodes": 181,
+  "classes": 163,
+  "nodes": 180,
   "links": 812,
-  "refLinks": 598,
+  "refLinks": 599,
   "modrefLinks": 50,
-  "containsLinks": 164,
+  "containsLinks": 163,
   "hooks": 190
  },
  "layout": {
@@ -41,9 +41,9 @@
    "label": "src/S3",
    "type": "module",
    "module": "src/S3",
-   "val": 29.6,
-   "files": 37,
-   "classes": 37,
+   "val": 28.8,
+   "files": 36,
+   "classes": 36,
    "color": "#5aa9ff",
    "x": -517.6,
    "y": 1268.8,
@@ -829,7 +829,7 @@
    "val": 6.4,
    "color": "#5aa9ff",
    "x": -517.6,
-   "y": 1494.2,
+   "y": 1490,
    "z": 474.2
   },
   {
@@ -842,9 +842,9 @@
    "line": 20,
    "val": 2.2627416997969525,
    "color": "#5aa9ff",
-   "x": -572.2,
-   "y": 1481.6,
-   "z": 524.2
+   "x": -572,
+   "y": 1477.3,
+   "z": 524
   },
   {
    "id": "cls:Sakura\\ImageOptimizer\\S3\\Connection_Tester",
@@ -857,8 +857,8 @@
    "val": 2.2627416997969525,
    "color": "#5aa9ff",
    "x": -508.6,
-   "y": 1469.1,
-   "z": 371.3
+   "y": 1464.7,
+   "z": 371.9
   },
   {
    "id": "cls:Sakura\\ImageOptimizer\\S3\\Credential_Cipher",
@@ -870,9 +870,9 @@
    "line": 21,
    "val": 3.577708763999664,
    "color": "#5aa9ff",
-   "x": -441.8,
-   "y": 1456.6,
-   "z": 573.1
+   "x": -442.3,
+   "y": 1452,
+   "z": 572.5
   },
   {
    "id": "cls:Sakura\\ImageOptimizer\\S3\\Delete_Jobs",
@@ -884,9 +884,9 @@
    "line": 22,
    "val": 7.504665215717488,
    "color": "#5aa9ff",
-   "x": -657.1,
-   "y": 1444.1,
-   "z": 449.5
+   "x": -656.2,
+   "y": 1439.4,
+   "z": 449.7
   },
   {
    "id": "cls:Sakura\\ImageOptimizer\\S3\\Delete_Queue_Panel",
@@ -898,9 +898,9 @@
    "line": 23,
    "val": 3.577708763999664,
    "color": "#5aa9ff",
-   "x": -386.1,
-   "y": 1431.5,
-   "z": 390.5
+   "x": -387,
+   "y": 1426.8,
+   "z": 391.1
   },
   {
    "id": "cls:Sakura\\ImageOptimizer\\S3\\Delete_Worker",
@@ -912,9 +912,9 @@
    "line": 20,
    "val": 4.525483399593905,
    "color": "#5aa9ff",
-   "x": -561.2,
-   "y": 1419,
-   "z": 636.4
+   "x": -560.9,
+   "y": 1414.1,
+   "z": 635.2
   },
   {
    "id": "cls:Sakura\\ImageOptimizer\\S3\\Error_Mapper",
@@ -926,9 +926,9 @@
    "line": 15,
    "val": 2.7712812921102037,
    "color": "#5aa9ff",
-   "x": -599.8,
-   "y": 1406.5,
-   "z": 315.8
+   "x": -599.2,
+   "y": 1401.5,
+   "z": 317.1
   },
   {
    "id": "cls:Sakura\\ImageOptimizer\\S3\\History_Migrator",
@@ -940,9 +940,9 @@
    "line": 19,
    "val": 4.525483399593905,
    "color": "#5aa9ff",
-   "x": -341.6,
-   "y": 1394,
-   "z": 538.5
+   "x": -343.1,
+   "y": 1388.8,
+   "z": 537.9
   },
   {
    "id": "cls:Sakura\\ImageOptimizer\\S3\\Ignored_Paths",
@@ -954,9 +954,9 @@
    "line": 20,
    "val": 3.2,
    "color": "#5aa9ff",
-   "x": -698.1,
-   "y": 1381.5,
-   "z": 548.7
+   "x": -696.3,
+   "y": 1376.2,
+   "z": 548
   },
   {
    "id": "cls:Sakura\\ImageOptimizer\\S3\\Inventory",
@@ -968,9 +968,9 @@
    "line": 22,
    "val": 1.6,
    "color": "#5aa9ff",
-   "x": -432,
-   "y": 1368.9,
-   "z": 291.3
+   "x": -432.9,
+   "y": 1363.5,
+   "z": 293.2
   },
   {
    "id": "cls:Sakura\\ImageOptimizer\\S3\\Legacy_Snapshot",
@@ -982,9 +982,9 @@
    "line": 24,
    "val": 2.7712812921102037,
    "color": "#5aa9ff",
-   "x": -455.5,
-   "y": 1356.4,
-   "z": 672.3
+   "x": -456.2,
+   "y": 1350.9,
+   "z": 670.1
   },
   {
    "id": "cls:Sakura\\ImageOptimizer\\S3\\Log",
@@ -996,9 +996,9 @@
    "line": 17,
    "val": 1.6,
    "color": "#5aa9ff",
-   "x": -701.5,
-   "y": 1343.9,
-   "z": 367.6
+   "x": -699.3,
+   "y": 1338.3,
+   "z": 368.9
   },
   {
    "id": "cls:Sakura\\ImageOptimizer\\S3\\Migration_Service",
@@ -1010,9 +1010,9 @@
    "line": 17,
    "val": 2.2627416997969525,
    "color": "#5aa9ff",
-   "x": -306.1,
-   "y": 1331.4,
-   "z": 427.7
+   "x": -308.8,
+   "y": 1325.6,
+   "z": 428.3
   },
   {
    "id": "cls:Sakura\\ImageOptimizer\\S3\\Monitoring_Panel",
@@ -1024,9 +1024,9 @@
    "line": 21,
    "val": 3.2,
    "color": "#5aa9ff",
-   "x": -644,
-   "y": 1318.8,
-   "z": 654
+   "x": -642.3,
+   "y": 1313,
+   "z": 651.5
   },
   {
    "id": "cls:Sakura\\ImageOptimizer\\S3\\Object_Store",
@@ -1038,9 +1038,9 @@
    "line": 19,
    "val": 4.233202097703345,
    "color": "#5aa9ff",
-   "x": -546.2,
-   "y": 1306.3,
-   "z": 253.8
+   "x": -545.8,
+   "y": 1300.3,
+   "z": 257.1
   },
   {
    "id": "cls:Sakura\\ImageOptimizer\\S3\\Options",
@@ -1052,9 +1052,9 @@
    "line": 19,
    "val": 7.673330437300351,
    "color": "#5aa9ff",
-   "x": -346.3,
-   "y": 1293.8,
-   "z": 618.5
+   "x": -349.1,
+   "y": 1287.7,
+   "z": 616.2
   },
   {
    "id": "cls:Sakura\\ImageOptimizer\\S3\\Profile_Manager",
@@ -1066,9 +1066,9 @@
    "line": 23,
    "val": 2.2627416997969525,
    "color": "#5aa9ff",
-   "x": -742.5,
-   "y": 1281.3,
-   "z": 483.5
+   "x": -738.5,
+   "y": 1275.1,
+   "z": 483.3
   },
   {
    "id": "cls:Sakura\\ImageOptimizer\\S3\\Prometheus",
@@ -1080,9 +1080,9 @@
    "line": 24,
    "val": 4.525483399593905,
    "color": "#5aa9ff",
-   "x": -357.8,
-   "y": 1268.8,
-   "z": 315.2
+   "x": -360.9,
+   "y": 1262.4,
+   "z": 318.2
   },
   {
    "id": "cls:Sakura\\ImageOptimizer\\S3\\Providers",
@@ -1094,9 +1094,9 @@
    "line": 9,
    "val": 2.2627416997969525,
    "color": "#5aa9ff",
-   "x": -528,
-   "y": 1256.2,
-   "z": 699
+   "x": -527.8,
+   "y": 1249.8,
+   "z": 694.3
   },
   {
    "id": "cls:Sakura\\ImageOptimizer\\S3\\Remote_Operation_Guard",
@@ -1108,9 +1108,9 @@
    "line": 14,
    "val": 3.577708763999664,
    "color": "#5aa9ff",
-   "x": -661.1,
-   "y": 1243.7,
-   "z": 302.2
+   "x": -657.9,
+   "y": 1237.2,
+   "z": 306.1
   },
   {
    "id": "cls:Sakura\\ImageOptimizer\\S3\\Restore_Plan",
@@ -1122,9 +1122,9 @@
    "line": 27,
    "val": 2.7712812921102037,
    "color": "#5aa9ff",
-   "x": -297.4,
-   "y": 1231.2,
-   "z": 503.8
+   "x": -302.8,
+   "y": 1224.5,
+   "z": 503.1
   },
   {
    "id": "cls:Sakura\\ImageOptimizer\\S3\\S3_Storage_Page",
@@ -1136,9 +1136,9 @@
    "line": 9,
    "val": 2.2627416997969525,
    "color": "#5aa9ff",
-   "x": -698,
-   "y": 1218.7,
-   "z": 599.7
+   "x": -693.1,
+   "y": 1211.9,
+   "z": 596.3
   },
   {
    "id": "cls:Sakura\\ImageOptimizer\\S3\\Settings_Saver",
@@ -1150,9 +1150,9 @@
    "line": 11,
    "val": 3.2,
    "color": "#5aa9ff",
-   "x": -470.1,
-   "y": 1206.1,
-   "z": 262.9
+   "x": -471.5,
+   "y": 1199.2,
+   "z": 269.3
   },
   {
    "id": "cls:Sakura\\ImageOptimizer\\S3\\Storage",
@@ -1164,9 +1164,9 @@
    "line": 22,
    "val": 7.155417527999328,
    "color": "#5aa9ff",
-   "x": -412,
-   "y": 1193.6,
-   "z": 658.6
+   "x": -415.5,
+   "y": 1186.6,
+   "z": 652.4
   },
   {
    "id": "cls:Sakura\\ImageOptimizer\\S3\\Storage_Adapter",
@@ -1178,9 +1178,9 @@
    "line": 20,
    "val": 5.542562584220407,
    "color": "#5aa9ff",
-   "x": -715.5,
-   "y": 1181.1,
-   "z": 411.1
+   "x": -708,
+   "y": 1174,
+   "z": 413.4
   },
   {
    "id": "cls:Sakura\\ImageOptimizer\\S3\\Sync_Actions",
@@ -1192,9 +1192,9 @@
    "line": 20,
    "val": 3.577708763999664,
    "color": "#5aa9ff",
-   "x": -334.3,
-   "y": 1168.6,
-   "z": 389.5
+   "x": -342.1,
+   "y": 1161.3,
+   "z": 393.1
   },
   {
    "id": "cls:Sakura\\ImageOptimizer\\S3\\Sync_Center_Module",
@@ -1206,9 +1206,9 @@
    "line": 27,
    "val": 6.4,
    "color": "#5aa9ff",
-   "x": -593,
-   "y": 1156,
-   "z": 654.2
+   "x": -589.3,
+   "y": 1148.7,
+   "z": 645.5
   },
   {
    "id": "cls:Sakura\\ImageOptimizer\\S3\\Sync_Center_Panel",
@@ -1220,9 +1220,9 @@
    "line": 20,
    "val": 1.6,
    "color": "#5aa9ff",
-   "x": -581,
-   "y": 1143.5,
-   "z": 297.8
+   "x": -577.5,
+   "y": 1136,
+   "z": 307.7
   },
   {
    "id": "cls:Sakura\\ImageOptimizer\\S3\\Sync_Status",
@@ -1234,9 +1234,9 @@
    "line": 23,
    "val": 7.673330437300351,
    "color": "#5aa9ff",
-   "x": -359.7,
-   "y": 1131,
-   "z": 557.2
+   "x": -370,
+   "y": 1123.4,
+   "z": 551.7
   },
   {
    "id": "cls:Sakura\\ImageOptimizer\\S3\\Synchronous_Uploader",
@@ -1248,9 +1248,9 @@
    "line": 26,
    "val": 4.233202097703345,
    "color": "#5aa9ff",
-   "x": -680.1,
-   "y": 1118.5,
-   "z": 517
+   "x": -667.3,
+   "y": 1110.8,
+   "z": 513.6
   },
   {
    "id": "cls:Sakura\\ImageOptimizer\\S3\\Upload_Capabilities",
@@ -1262,9 +1262,9 @@
    "line": 23,
    "val": 2.7712812921102037,
    "color": "#5aa9ff",
-   "x": -433.3,
-   "y": 1106,
-   "z": 343
+   "x": -441.5,
+   "y": 1098.1,
+   "z": 355.8
   },
   {
    "id": "cls:Sakura\\ImageOptimizer\\S3\\Upload_Metrics",
@@ -1276,9 +1276,9 @@
    "line": 22,
    "val": 4.233202097703345,
    "color": "#5aa9ff",
-   "x": -493.6,
-   "y": 1093.4,
-   "z": 613.8
+   "x": -496.6,
+   "y": 1085.5,
+   "z": 596.2
   },
   {
    "id": "cls:Sakura\\ImageOptimizer\\S3\\Upload_Observer",
@@ -1290,23 +1290,9 @@
    "line": 20,
    "val": 2.7712812921102037,
    "color": "#5aa9ff",
-   "x": -616.1,
-   "y": 1080.9,
-   "z": 397.9
-  },
-  {
-   "id": "cls:Sakura\\ImageOptimizer\\S3\\Upload_Queue",
-   "label": "Upload_Queue",
-   "type": "class",
-   "module": "src/S3",
-   "kind": "class",
-   "file": "src/S3/Upload_Queue.php",
-   "line": 21,
-   "val": 3.2,
-   "color": "#5aa9ff",
-   "x": -414.7,
-   "y": 1068.4,
-   "z": 465.7
+   "x": -598.8,
+   "y": 1072.8,
+   "z": 411.3
   },
   {
    "id": "cls:Sakura\\ImageOptimizer\\S3\\Upload_URL",
@@ -1318,9 +1304,9 @@
    "line": 9,
    "val": 2.2627416997969525,
    "color": "#5aa9ff",
-   "x": -567.9,
-   "y": 1055.9,
-   "z": 528.6
+   "x": -444.2,
+   "y": 1060.2,
+   "z": 468.1
   },
   {
    "id": "cls:Sakura\\ImageOptimizer\\S3\\Upload_Verify",
@@ -1333,7 +1319,7 @@
    "val": 2.7712812921102037,
    "color": "#5aa9ff",
    "x": -517.6,
-   "y": 1043.3,
+   "y": 1047.5,
    "z": 474.2
   },
   {
@@ -2533,7 +2519,7 @@
    "module": "src",
    "kind": "class",
    "file": "src/Uninstaller.php",
-   "line": 21,
+   "line": 23,
    "val": 2.7712812921102037,
    "color": "#9ad1ff",
    "x": -1329.8,
@@ -6544,6 +6530,15 @@
    "w": 2
   },
   {
+   "source": "cls:Sakura\\ImageOptimizer\\Uninstaller",
+   "target": "cls:Sakura\\ImageOptimizer\\S3\\Upload_URL",
+   "type": "ref",
+   "kinds": [
+    "static"
+   ],
+   "w": 4
+  },
+  {
    "source": "cls:Nboke\\UserFiles\\Admin\\Page",
    "target": "cls:Sakura\\ImageOptimizer\\Support\\Hook_Loader",
    "type": "ref",
@@ -8878,12 +8873,6 @@
   },
   {
    "source": "mod:src/S3",
-   "target": "cls:Sakura\\ImageOptimizer\\S3\\Upload_Queue",
-   "type": "contains",
-   "w": 1
-  },
-  {
-   "source": "mod:src/S3",
    "target": "cls:Sakura\\ImageOptimizer\\S3\\Upload_URL",
    "type": "contains",
    "w": 1
@@ -9546,7 +9535,7 @@
    "source": "mod:src",
    "target": "mod:src/S3",
    "type": "modref",
-   "w": 21
+   "w": 22
   },
   {
    "source": "mod:src/Admin",

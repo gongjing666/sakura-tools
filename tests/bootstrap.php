@@ -461,7 +461,6 @@ require_once dirname( __DIR__ ) . '/src/S3/Credential_Cipher.php';
 require_once dirname( __DIR__ ) . '/src/S3/Upload_URL.php';
 require_once dirname( __DIR__ ) . '/src/S3/Options.php';
 require_once dirname( __DIR__ ) . '/src/S3/Log.php';
-require_once dirname( __DIR__ ) . '/src/S3/Upload_Queue.php';
 require_once dirname( __DIR__ ) . '/src/S3/Error_Mapper.php';
 require_once dirname( __DIR__ ) . '/src/S3/Object_Store.php';
 require_once dirname( __DIR__ ) . '/src/S3/Client_Factory.php';

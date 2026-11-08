@@ -477,6 +477,12 @@ final class Synchronous_Uploader {
 	 * Stored with every queued manual action so a later settings switch cannot
 	 * redirect that action into a different bucket.
 	 *
+	 * This is deliberately not the same fingerprint as Delete_Jobs::target_hash():
+	 * uploads bind the active profile id and upload_path as well, while deletes
+	 * bind the bucket identity including the region. The two are never compared
+	 * with each other; changing either algorithm invalidates hashes already
+	 * stored in post meta, sio_sync_jobs and sio_s3_deletes.
+	 *
 	 * @param Options $options Options snapshot.
 	 */
 	public static function target_hash_for( Options $options ): string {

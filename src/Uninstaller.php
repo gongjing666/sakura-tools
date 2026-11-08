@@ -9,6 +9,8 @@ declare( strict_types=1 );
 
 namespace Sakura\ImageOptimizer;
 
+use Sakura\ImageOptimizer\S3\Upload_URL;
+
 defined( 'ABSPATH' ) || exit;
 
 /**
@@ -203,15 +205,15 @@ final class Uninstaller {
 			? untrailingslashit( (string) $s3_options['upload_url_path'] )
 			: '';
 		$current_url  = untrailingslashit( (string) get_option( 'upload_url_path', '' ) );
-		$previous_url = get_option( 'sakura_imgopt_previous_upload_url_path', null );
+		$previous_url = get_option( Upload_URL::PREVIOUS_URL_OPTION, null );
 
 		// Only restore when the value is still ours; never overwrite a manual CDN change.
 		if ( '' !== $managed_url && $managed_url === $current_url ) {
 			update_option( 'upload_url_path', null === $previous_url ? '' : (string) $previous_url, false );
 		}
-		delete_option( 'sakura_imgopt_previous_upload_url_path' );
+		delete_option( Upload_URL::PREVIOUS_URL_OPTION );
 
-		$previous_path = get_option( 'sakura_imgopt_previous_upload_path', null );
+		$previous_path = get_option( Upload_URL::PREVIOUS_PATH_OPTION, null );
 		$managed_path  = is_array( $s3_options ) && isset( $s3_options['upload_path'] )
 			? trim( (string) $s3_options['upload_path'], '/' )
 			: '';
@@ -220,7 +222,7 @@ final class Uninstaller {
 		if ( null !== $previous_path && ( '' === $managed_path || $current_path === $managed_path ) ) {
 			update_option( 'upload_path', (string) $previous_path, false );
 		}
-		delete_option( 'sakura_imgopt_previous_upload_path' );
+		delete_option( Upload_URL::PREVIOUS_PATH_OPTION );
 
 		/*
 		 * Credentials are removed only when persistent-data deletion is enabled.

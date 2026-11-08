@@ -22,19 +22,17 @@ final class PrometheusTest extends TestCase {
 		$GLOBALS['sakura_test_transients'] = array();
 	}
 
-	/** The exposition document carries HELP/TYPE and queue labels. */
-	public function test_format_exposes_queue_and_totals(): void {
+	/** The exposition document carries HELP/TYPE and upload totals. */
+	public function test_format_exposes_totals(): void {
 		$text = Prometheus::format(
 			array(
 				'totals'     => array( 'ok' => 10, 'fail' => 2, 'dead' => 1, 'bytes' => 2048, 'avg_ms' => 12, 'max_ms' => 40, 'rate' => 0.166667 ),
 				'last_error' => array( 'at' => 1700 ),
 				'updated_at' => 1800,
-			),
-			array( 'queued' => 4, 'running' => 1, 'retrying' => 2, 'due' => 3, 'dead' => 1, 'backlog' => 5, 'oldest' => 90 )
+			)
 		);
 
-		$this->assertStringContainsString( '# TYPE sakura_imgopt_upload_queue_depth gauge', $text );
-		$this->assertStringContainsString( 'sakura_imgopt_upload_queue_depth{state="dead"} 1', $text );
+		$this->assertStringNotContainsString( 'queue_depth', $text );
 		$this->assertStringContainsString( 'sakura_imgopt_upload_attempts_total{result="ok"} 10', $text );
 		$this->assertStringContainsString( 'sakura_imgopt_upload_failure_ratio 0.166667', $text );
 		$this->assertStringContainsString( 'sakura_imgopt_info{version="1.6.5"} 1', $text );

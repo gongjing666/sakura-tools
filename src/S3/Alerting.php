@@ -1,6 +1,6 @@
 <?php
 /**
- * Upload queue alerting: threshold evaluation and JSON webhook delivery.
+ * Upload failure-rate alerting: threshold evaluation and JSON webhook delivery.
  *
  * @package Sakura_Image_Optimizer
  */
@@ -15,7 +15,7 @@ use Sakura\ImageOptimizer\Support\Hook_Loader;
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Evaluates upload queue health and posts JSON webhooks.
+ * Evaluates upload health and posts JSON webhooks.
  *
  * Alerts are intentionally conservative: the operator enables them, picks a
  * failure-rate threshold with a minimum sample size, and sets a cooldown so a
@@ -42,7 +42,6 @@ final class Alerting implements Module {
 			'webhook'      => '',
 			'fail_rate'    => 25,
 			'min_attempts' => 20,
-			'max_dead'     => 10,
 			'cooldown'     => 30,
 		);
 	}
@@ -90,7 +89,6 @@ final class Alerting implements Module {
 			'webhook'      => $webhook,
 			'fail_rate'    => self::clamp( $raw['fail_rate'] ?? $defaults['fail_rate'], 1, 100 ),
 			'min_attempts' => self::clamp( $raw['min_attempts'] ?? $defaults['min_attempts'], 1, 100000 ),
-			'max_dead'     => self::clamp( $raw['max_dead'] ?? $defaults['max_dead'], 0, 100000 ),
 			'cooldown'     => self::clamp( $raw['cooldown'] ?? $defaults['cooldown'], 5, 1440 ),
 		);
 	}
@@ -149,7 +147,7 @@ final class Alerting implements Module {
 	 *
 	 * @param array<string,mixed> $snapshot Upload_Metrics::snapshot().
 	 * @param array<string,mixed> $config   Sanitized configuration.
-	 * @return array<int,string> Reasons: dead, failure_rate.
+	 * @return array<int,string> Reasons: failure_rate.
 	 */
 	public static function evaluate( array $snapshot, array $config ): array {
 		if ( empty( $config['enabled'] ) ) {
@@ -157,13 +155,7 @@ final class Alerting implements Module {
 		}
 
 		$reasons = array();
-		$backlog = isset( $snapshot['backlog'] ) && is_array( $snapshot['backlog'] ) ? $snapshot['backlog'] : array();
 		$week    = isset( $snapshot['week'] ) && is_array( $snapshot['week'] ) ? $snapshot['week'] : array();
-
-		$dead = isset( $backlog['dead'] ) ? (int) $backlog['dead'] : 0;
-		if ( (int) $config['max_dead'] > 0 && $dead >= (int) $config['max_dead'] ) {
-			$reasons[] = 'dead';
-		}
 
 		$attempts = isset( $week['attempts'] ) ? (int) $week['attempts'] : 0;
 		// Upload_Metrics stores `week.rate` as a percentage (fail / attempts * 100),
@@ -183,17 +175,8 @@ final class Alerting implements Module {
 	 * @param array<string,mixed> $snapshot Metrics snapshot.
 	 */
 	public static function describe( array $reasons, array $snapshot ): string {
-		$backlog = isset( $snapshot['backlog'] ) && is_array( $snapshot['backlog'] ) ? $snapshot['backlog'] : array();
-		$week    = isset( $snapshot['week'] ) && is_array( $snapshot['week'] ) ? $snapshot['week'] : array();
-		$parts   = array();
-
-		if ( in_array( 'dead', $reasons, true ) ) {
-			$parts[] = sprintf(
-				/* translators: %d: dead jobs. */
-				__( '死信 %d 条', 'sakura-imgopt' ),
-				(int) ( $backlog['dead'] ?? 0 )
-			);
-		}
+		$week  = isset( $snapshot['week'] ) && is_array( $snapshot['week'] ) ? $snapshot['week'] : array();
+		$parts = array();
 
 		if ( in_array( 'failure_rate', $reasons, true ) ) {
 			$parts[] = sprintf(
@@ -205,12 +188,12 @@ final class Alerting implements Module {
 		}
 
 		if ( ! $parts ) {
-			return __( '上传队列状态正常。', 'sakura-imgopt' );
+			return __( '上传状态正常。', 'sakura-imgopt' );
 		}
 
 		return sprintf(
 			/* translators: %s: comma separated metrics. */
-			__( 'S3 上传队列异常：%s。', 'sakura-imgopt' ),
+			__( 'S3 上传异常：%s。', 'sakura-imgopt' ),
 			implode( '；', $parts )
 		);
 	}
@@ -223,9 +206,8 @@ final class Alerting implements Module {
 	 * @return array<string,mixed>
 	 */
 	public static function payload( array $reasons, array $snapshot ): array {
-		$backlog = isset( $snapshot['backlog'] ) && is_array( $snapshot['backlog'] ) ? $snapshot['backlog'] : array();
-		$week    = isset( $snapshot['week'] ) && is_array( $snapshot['week'] ) ? $snapshot['week'] : array();
-		$last    = isset( $snapshot['last_error'] ) && is_array( $snapshot['last_error'] ) ? $snapshot['last_error'] : array();
+		$week = isset( $snapshot['week'] ) && is_array( $snapshot['week'] ) ? $snapshot['week'] : array();
+		$last = isset( $snapshot['last_error'] ) && is_array( $snapshot['last_error'] ) ? $snapshot['last_error'] : array();
 		$summary = self::describe( $reasons, $snapshot );
 
 		$payload = array(
@@ -236,11 +218,6 @@ final class Alerting implements Module {
 			'reasons' => array_values( $reasons ),
 			'summary' => $summary,
 			'metrics' => array(
-				'queued'         => (int) ( $backlog['queued'] ?? 0 ),
-				'running'        => (int) ( $backlog['running'] ?? 0 ),
-				'retrying'       => (int) ( $backlog['retrying'] ?? 0 ),
-				'dead'           => (int) ( $backlog['dead'] ?? 0 ),
-				'oldest_seconds' => (int) ( $backlog['oldest'] ?? 0 ),
 				'attempts'       => (int) ( $week['attempts'] ?? 0 ),
 				'failures'       => (int) ( $week['fail'] ?? 0 ),
 				'failure_rate'   => (float) ( $week['rate'] ?? 0 ),

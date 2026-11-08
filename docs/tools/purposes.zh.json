@@ -120,7 +120,6 @@
   "Sakura\\ImageOptimizer\\S3\\Upload_Capabilities": "判定打包 SDK 能否并发多个 HTTP 请求",
   "Sakura\\ImageOptimizer\\S3\\Upload_Metrics": "把上传结果聚合写入单个选项",
   "Sakura\\ImageOptimizer\\S3\\Upload_Observer": "独立记录上传指标与索引 MD5",
-  "Sakura\\ImageOptimizer\\S3\\Upload_Queue": "对同一请求的附件上传去重并在关闭时刷新",
   "Sakura\\ImageOptimizer\\S3\\Upload_URL": "接管上传目录与地址选项的改写生命周期",
   "Sakura\\ImageOptimizer\\S3\\Upload_Verify": "比对本地文件与 S3 对象上报的 ETag",
   "Sakura\\ImageOptimizer\\Settings\\Settings_Repository": "统一设置选项名、默认值与类型化读取",

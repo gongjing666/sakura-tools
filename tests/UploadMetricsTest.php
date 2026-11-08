@@ -1,6 +1,6 @@
 <?php
 /**
- * Unit tests for upload queue metrics.
+ * Unit tests for upload metrics.
  *
  * @package Sakura_Image_Optimizer
  */
@@ -17,14 +17,14 @@ final class UploadMetricsTest extends TestCase {
 	}
 
 	public function test_empty_snapshot(): void {
-		$snapshot = ( new Upload_Metrics() )->snapshot( array() );
+		$snapshot = ( new Upload_Metrics() )->snapshot();
 
 		$this->assertSame( 0, $snapshot['today']['ok'] );
 		$this->assertSame( 0, $snapshot['today']['attempts'] );
 		$this->assertSame( '—', $snapshot['today']['rate_text'] );
 		$this->assertSame( '—', $snapshot['today']['avg_text'] );
 		$this->assertFalse( $snapshot['last_error']['has'] );
-		$this->assertSame( 0, $snapshot['backlog']['backlog'] );
+		$this->assertArrayNotHasKey( 'backlog', $snapshot );
 	}
 
 	public function test_records_success_and_failure(): void {
@@ -57,7 +57,7 @@ final class UploadMetricsTest extends TestCase {
 			)
 		);
 
-		$snapshot = $metrics->snapshot( array( 'backlog' => 2, 'due' => 1, 'retrying' => 1 ) );
+		$snapshot = $metrics->snapshot();
 
 		$this->assertSame( 2, $snapshot['today']['ok'] );
 		$this->assertSame( 1, $snapshot['today']['fail'] );
@@ -72,7 +72,6 @@ final class UploadMetricsTest extends TestCase {
 		$this->assertTrue( $snapshot['last_error']['has'] );
 		$this->assertSame( 'Access Denied', $snapshot['last_error']['message'] );
 		$this->assertSame( 3, $snapshot['last_error']['attachment'] );
-		$this->assertSame( 2, $snapshot['backlog']['backlog'] );
 	}
 
 	public function test_prunes_old_buckets(): void {

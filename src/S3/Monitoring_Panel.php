@@ -86,10 +86,6 @@ final class Monitoring_Panel {
 								<input type="number" min="1" max="100000" step="1" id="sakura-s3-alert-attempts" name="min_attempts" value="<?php echo esc_attr( (string) $config['min_attempts'] ); ?>" />
 							</p>
 							<p>
-								<label for="sakura-s3-alert-dead"><?php esc_html_e( '死信阈值（0 关闭）', 'sakura-imgopt' ); ?></label>
-								<input type="number" min="0" max="100000" step="1" id="sakura-s3-alert-dead" name="max_dead" value="<?php echo esc_attr( (string) $config['max_dead'] ); ?>" />
-							</p>
-							<p>
 								<label for="sakura-s3-alert-cooldown"><?php esc_html_e( '冷却时间（分钟）', 'sakura-imgopt' ); ?></label>
 								<input type="number" min="5" max="1440" step="1" id="sakura-s3-alert-cooldown" name="cooldown" value="<?php echo esc_attr( (string) $config['cooldown'] ); ?>" />
 							</p>
@@ -123,7 +119,6 @@ final class Monitoring_Panel {
 				'webhook'      => isset( $_POST['webhook'] ) ? (string) wp_unslash( $_POST['webhook'] ) : '', // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- sanitize() validates and escapes the URL.
 				'fail_rate'    => isset( $_POST['fail_rate'] ) ? absint( wp_unslash( $_POST['fail_rate'] ) ) : 25,
 				'min_attempts' => isset( $_POST['min_attempts'] ) ? absint( wp_unslash( $_POST['min_attempts'] ) ) : 20,
-				'max_dead'     => isset( $_POST['max_dead'] ) ? absint( wp_unslash( $_POST['max_dead'] ) ) : 10,
 				'cooldown'     => isset( $_POST['cooldown'] ) ? absint( wp_unslash( $_POST['cooldown'] ) ) : 30,
 			)
 		);

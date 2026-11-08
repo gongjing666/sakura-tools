@@ -60,29 +60,10 @@ final class AlertingTest extends TestCase {
 		$this->assertSame( array(), Alerting::evaluate( $this->snapshot(), $config ) );
 	}
 
-	/** Dead jobs above the threshold trigger the dead reason. */
-	public function test_evaluate_flags_dead_jobs(): void {
-		$config           = Alerting::defaults();
-		$config['enabled']  = 1;
-		$config['max_dead'] = 3;
-
-		$this->assertContains( 'dead', Alerting::evaluate( $this->snapshot(), $config ) );
-	}
-
-	/** A zero dead threshold disables the dead rule. */
-	public function test_evaluate_zero_dead_threshold_disables_rule(): void {
-		$config              = Alerting::defaults();
-		$config['enabled']   = 1;
-		$config['max_dead']  = 0;
-
-		$this->assertNotContains( 'dead', Alerting::evaluate( $this->snapshot(), $config ) );
-	}
-
 	/** Failure rate only fires after the minimum sample size. */
 	public function test_evaluate_failure_rate_respects_min_attempts(): void {
 		$config                 = Alerting::defaults();
 		$config['enabled']      = 1;
-		$config['max_dead']     = 0;
 		$config['fail_rate']    = 25;
 		$config['min_attempts'] = 40;
 
@@ -99,7 +80,6 @@ final class AlertingTest extends TestCase {
 	public function test_evaluate_failure_rate_uses_percent_units(): void {
 		$config                 = Alerting::defaults();
 		$config['enabled']      = 1;
-		$config['max_dead']     = 0;
 		$config['fail_rate']    = 25;
 		$config['min_attempts'] = 10;
 
@@ -118,12 +98,14 @@ final class AlertingTest extends TestCase {
 
 	/** Payload contains text and structured metrics. */
 	public function test_payload_contains_metrics_and_text(): void {
-		$payload = Alerting::payload( array( 'dead' ), $this->snapshot() );
+		$payload = Alerting::payload( array( 'failure_rate' ), $this->snapshot() );
 
 		$this->assertSame( 'upload_queue_alert', $payload['event'] );
-		$this->assertSame( array( 'dead' ), $payload['reasons'] );
-		$this->assertSame( 3, $payload['metrics']['dead'] );
-		$this->assertStringContainsString( '死信 3 条', (string) $payload['text'] );
+		$this->assertSame( array( 'failure_rate' ), $payload['reasons'] );
+		$this->assertSame( 50, $payload['metrics']['attempts'] );
+		$this->assertSame( 20, $payload['metrics']['failures'] );
+		$this->assertArrayNotHasKey( 'dead', $payload['metrics'] );
+		$this->assertStringContainsString( '近 14 天失败率 40.0%', (string) $payload['text'] );
 	}
 
 	/** A healthy queue describes itself without an alert keyword. */
@@ -132,7 +114,7 @@ final class AlertingTest extends TestCase {
 	}
 
 	/**
-	 * Snapshot fixture: 40% failure over 50 attempts and 3 dead jobs.
+	 * Snapshot fixture: 40% failure over 50 attempts.
 	 *
 	 * @return array<string,mixed>
 	 */
@@ -141,7 +123,6 @@ final class AlertingTest extends TestCase {
 			'totals'     => array( 'ok' => 30, 'fail' => 20, 'dead' => 3, 'bytes' => 100, 'rate' => 40.0, 'avg_ms' => 12, 'max_ms' => 30 ),
 			'today'      => array( 'ok' => 1, 'fail' => 1, 'rate' => 50.0 ),
 			'week'       => array( 'attempts' => 50, 'fail' => 20, 'rate' => 40.0, 'rate_text' => '40.0%' ),
-			'backlog'    => array( 'queued' => 2, 'running' => 0, 'retrying' => 1, 'dead' => 3, 'backlog' => 2, 'oldest' => 120 ),
 			'last_error' => array( 'at' => 1700, 'message' => 'boom', 'has' => true ),
 			'updated_at' => 1700,
 		);

@@ -1,6 +1,6 @@
 <?php
 /**
- * Upload queue observability: durations, failure rate, backlog and last error.
+ * Upload observability: durations, failure rate and last error.
  *
  * @package Sakura_Image_Optimizer
  */
@@ -135,10 +135,12 @@ final class Upload_Metrics {
 	/**
 	 * Build the read model used by the admin card and CLI.
 	 *
-	 * @param array<string,int>|null $counts Optional backlog counters (tests).
+	 * Queue counters are deliberately absent: the asynchronous upload queue was
+	 * removed in 1.12.0, so there is no producer for queued/running/dead rows.
+	 *
 	 * @return array<string,mixed>
 	 */
-	public function snapshot( ?array $counts = null ): array {
+	public function snapshot(): array {
 		$data = $this->load();
 
 		$today_key = self::today_key();
@@ -159,20 +161,6 @@ final class Upload_Metrics {
 
 		$totals = array_merge( $data['totals'], array( 'attempts' => (int) $data['totals']['attempts'] ) );
 
-		$counts  = $counts ?? array();
-		$counts  = array_merge(
-			array(
-				'queued'    => 0,
-				'running'   => 0,
-				'dead'      => 0,
-				'retrying'  => 0,
-				'due'       => 0,
-				'backlog'   => 0,
-				'oldest_at' => 0,
-				'oldest'    => 0,
-			),
-			$counts
-		);
 		$last    = $data['last_error'];
 		$updated = (int) $data['updated_at'];
 
@@ -181,7 +169,6 @@ final class Upload_Metrics {
 			'totals'     => $this->with_formats( $totals ),
 			'today'      => $today,
 			'week'       => $this->with_formats( $week ),
-			'backlog'    => $counts,
 			'last_error' => array(
 				'at'         => (int) $last['at'],
 				'message'    => (string) $last['message'],

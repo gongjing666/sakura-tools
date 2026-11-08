@@ -134,7 +134,7 @@ final class CLI {
 	}
 
 	/**
-	 * Print upload queue metrics: backlog, failure rate, durations, last error.
+	 * Print upload metrics: failure rate, durations, last error.
 	 *
 	 * ## OPTIONS
 	 *
@@ -159,21 +159,10 @@ final class CLI {
 			return;
 		}
 
-		$backlog = $snapshot['backlog'];
-		$today   = $snapshot['today'];
-		$week    = $snapshot['week'];
-		$last    = $snapshot['last_error'];
+		$today = $snapshot['today'];
+		$week  = $snapshot['week'];
+		$last  = $snapshot['last_error'];
 
-		\WP_CLI::line(
-			sprintf(
-				'Backlog: %d queued/running (due %d, retrying %d, dead %d, oldest %ds)',
-				(int) $backlog['backlog'],
-				(int) $backlog['due'],
-				(int) $backlog['retrying'],
-				(int) $backlog['dead'],
-				(int) $backlog['oldest']
-			)
-		);
 		\WP_CLI::line(
 			sprintf(
 				'Today: %d ok, %d failed, rate %s, avg %s, max %s, %s',

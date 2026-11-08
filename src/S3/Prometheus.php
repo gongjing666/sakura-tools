@@ -123,7 +123,7 @@ final class Prometheus implements Module {
 
 		$snapshot = ( new Upload_Metrics() )->snapshot();
 
-		echo self::format( $snapshot, (array) ( $snapshot['backlog'] ?? array() ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Plain text exposition format.
+		echo self::format( $snapshot ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Plain text exposition format.
 		exit;
 	}
 
@@ -131,9 +131,8 @@ final class Prometheus implements Module {
 	 * Render the Prometheus text exposition document.
 	 *
 	 * @param array<string,mixed> $snapshot Upload_Metrics::snapshot().
-	 * @param array<string,mixed> $queue    Queue backlog from Upload_Metrics::snapshot().
 	 */
-	public static function format( array $snapshot, array $queue ): string {
+	public static function format( array $snapshot ): string {
 		$totals = isset( $snapshot['totals'] ) && is_array( $snapshot['totals'] ) ? $snapshot['totals'] : array();
 		$last   = isset( $snapshot['last_error'] ) && is_array( $snapshot['last_error'] ) ? $snapshot['last_error'] : array();
 		$lines  = array();
@@ -156,16 +155,6 @@ final class Prometheus implements Module {
 		$lines[] = '# HELP sakura_imgopt_upload_failure_ratio Failed attempts divided by attempts in the retained window, as a percentage (0-100).';
 		$lines[] = '# TYPE sakura_imgopt_upload_failure_ratio gauge';
 		$lines[] = 'sakura_imgopt_upload_failure_ratio ' . self::num( $totals['rate'] ?? 0 );
-
-		$lines[] = '# HELP sakura_imgopt_upload_queue_depth Jobs currently in each queue state.';
-		$lines[] = '# TYPE sakura_imgopt_upload_queue_depth gauge';
-		foreach ( array( 'queued', 'running', 'retrying', 'due', 'dead', 'backlog' ) as $state ) {
-			$lines[] = 'sakura_imgopt_upload_queue_depth{state="' . $state . '"} ' . self::num( $queue[ $state ] ?? 0 );
-		}
-
-		$lines[] = '# HELP sakura_imgopt_upload_queue_oldest_seconds Age of the oldest waiting job.';
-		$lines[] = '# TYPE sakura_imgopt_upload_queue_oldest_seconds gauge';
-		$lines[] = 'sakura_imgopt_upload_queue_oldest_seconds ' . self::num( $queue['oldest'] ?? 0 );
 
 		$lines[] = '# HELP sakura_imgopt_upload_last_error_timestamp_seconds Unix timestamp of the last failed upload, 0 when none.';
 		$lines[] = '# TYPE sakura_imgopt_upload_last_error_timestamp_seconds gauge';

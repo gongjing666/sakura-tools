@@ -48,6 +48,13 @@ final class Delete_Jobs {
 	 * editing the bucket/endpoint of an existing profile in place must not turn a
 	 * queued delete into a delete in the new bucket (audit A03).
 	 *
+	 * This is deliberately not the same fingerprint as
+	 * Synchronous_Uploader::target_hash_for(): uploads also bind the active
+	 * profile id and upload_path, while deletes bind the bucket identity that
+	 * includes the region. The two are never compared with each other; changing
+	 * either algorithm invalidates the hashes already stored in
+	 * sio_s3_deletes.target_hash, sio_sync_jobs.target_hash and post meta.
+	 *
 	 * @param array<string,mixed> $profile Profile options.
 	 * @return string
 	 */

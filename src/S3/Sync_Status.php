@@ -286,6 +286,11 @@ final class Sync_Status {
 	/**
 	 * Add or refresh a persistent failed upload job.
 	 *
+	 * @deprecated 1.12.0 No caller since the asynchronous upload queue was
+	 *             removed; retained so legacy post meta keeps a documented
+	 *             writer/reader. Storage::maybe_migrate() still converts old
+	 *             _sakura_imgopt_s3_jobs rows into held failures.
+	 *
 	 * @param int    $attachment_id Attachment ID.
 	 * @param string $key           Object key.
 	 * @param string $path          Absolute local path.
@@ -315,6 +320,8 @@ final class Sync_Status {
 	/**
 	 * Failed jobs for one attachment.
 	 *
+	 * @deprecated 1.12.0 Legacy asynchronous-upload bookkeeping; see enqueue().
+	 *
 	 * @param int $attachment_id Attachment ID.
 	 * @return array<string,array<string,mixed>>
 	 */
@@ -325,6 +332,8 @@ final class Sync_Status {
 
 	/**
 	 * Record a failed retry attempt.
+	 *
+	 * @deprecated 1.12.0 Legacy asynchronous-upload bookkeeping; see enqueue().
 	 *
 	 * @param int    $attachment_id Attachment ID.
 	 * @param string $hash          Job hash.

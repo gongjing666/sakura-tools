@@ -177,6 +177,8 @@ cp /tmp/graph.png docs/graph-preview/preview.png
 
 > 第 9 项是必要的：DSH 内置浏览器没有 WebGL，页面会渲染成空白 canvas，用它"看图谱"会得出错误结论。
 
+**2026-11-08 补充**：文档 §5.7 的两条待确认（缩略图 `provider` 取值、HTML 旧引擎 ob 回调边界）已用静态 + 运行期证据核实，正文新增 §10.7、§12 由 10 项减为 8 项。这一轮只改正文结论，**没有新增类、没有改动钩子**，因此 `graph.json` 与 181/812/190 三个数字不变；上表 10 项核对结论继续有效，无需重建图谱。
+
 ## 9. 读图方法
 
 | 操作 | 效果 |
@@ -206,7 +208,7 @@ cp /tmp/graph.png docs/graph-preview/preview.png
 
 | 文件 | 大小 | 作用 |
 |---|---:|---|
-| `docs/sakura-tools-代码结构-1.22.8.md` | 143 KB | 正文：§0–§13 + 附录 A–D |
+| `docs/sakura-tools-代码结构-1.22.8.md` | 152 KB | 正文：§0–§13 + 附录 A–D（2026-11-08 更新 §5.7 / §10.7 / §12） |
 | `docs/sakura-tools-图谱同步-1.22.8.md` | 本文 | 图谱变更与重建说明 |
 | `docs/graph-preview/index.html` | 166 KB | 单文件 3D 图谱（数据内嵌；3d-force-graph 库走 CDN，需联网） |
 | `docs/graph-preview/graph.json` | 203 KB | 同数据，供脚本消费 |

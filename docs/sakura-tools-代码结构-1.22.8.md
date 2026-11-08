@@ -397,7 +397,7 @@ register() 之后调用     → 直接 add_action/add_filter 到 WP（不再入�
 | `Policy::scene_size` | `src/Thumbnail/Policy.php:163` | 按场景把请求尺寸换成配置尺寸 |
 | `Context::current` | `src/Thumbnail/Context.php:61` | 静态栈顶优先，否则按 WP 条件推断 archive/singular/sidebar/other |
 | `Settings::resolve_mode` | `src/Thumbnail/Settings.php:867` | 由配置 + 探测结果算 style/params/native/none |
-| `Settings::make_provider` | `src/Thumbnail/Settings.php:968` | 按 provider 造 `Bitiful` 或 `Generic` |
+| `Settings::make_provider` | `src/Thumbnail/Settings.php:968` | 按 S3 白名单 provider 造 `Bitiful`（bitiful）或 `Generic`（其余）；取值链见 §5.7.1 |
 | `Thumbnail_Manager::apply_size_filters` | `includes/class-thumbnail-manager.php:34` | 把 `disabled_sizes` 转成 3–4 个 `PHP_INT_MAX` 过滤器 |
 | `Theme_Cache::guard` | `src/Thumbnail/Theme_Cache.php:33-121` | `the_post` 时修正 zibll 主题缓存的缩略图 URL |
 | `Probe` | `src/Thumbnail/Probe.php:24` | 抽样 HEAD 验证前缀是否被 CDN 接受 |
@@ -413,6 +413,7 @@ register() 之后调用     → 直接 add_action/add_filter 到 WP（不再入�
 | `update_option_sakura_imgopt_oss_thumb` | action（2 参数） | 10 | `:73` |
 | `the_post` / `loop_start` / `loop_end` / `wp` / `dynamic_sidebar_before` / `dynamic_sidebar_after` | action | 1 | `:62-67` |
 | `template_redirect` | action | 0 | `:52`（仅 HTML 旧引擎） |
+| `wp_ajax_ajax_widget_ui` / `wp_ajax_nopriv_ajax_widget_ui` | action | 0 | `:53-54`（仅 HTML 旧引擎，侧栏 AJAX 片段） |
 | `init` | action | 10 | `includes/class-thumbnail-manager.php:28` |
 
 ### 5.5 数据落点
@@ -438,10 +439,53 @@ register() 之后调用     → 直接 add_action/add_filter 到 WP（不再入�
 7 memo 去重 + Stats::record()                                                  Decorator.php:308-322
 ```
 
-### 5.7 待确认
+### 5.7 provider 取值与 HTML 旧引擎（2026-11-08 核实）
 
-- `provider` 取值未在 `Settings` 内枚举，`make_provider` 只区分"是 bitiful / 否则 Generic"（`src/Thumbnail/Settings.php:968-979`），其余取值来源待确认。
-- HTML 旧引擎（`engine='html'`）的 ob 回调只在 `includes/class-thumbnail-optimizer-module.php:99`、`:128` 附近开启，与 `Html_Filter` 的调用边界未逐行追踪。
+原「待确认」两条已用静态代码 + 测试站运行期证据关闭，验证记录见 §10.7。
+
+#### 5.7.1 缩略图 provider 的取值链
+
+**结论**：provider 是 S3 设置白名单里的键，缩略图侧只读不写；工厂只有两个实现类——`bitiful` 特殊，其余全部走 `Generic`。
+
+| 环节 | 位置 | 行为 |
+|---|---|---|
+| 枚举（唯一来源） | `src/S3/Providers.php:20-33` | 10 个键：cloudflare、minio、dogecloud、aliyun、tencent、qiniu、upyun、baidu、backblaze、bitiful |
+| 存在性判断 | `src/S3/Providers.php:44-50` | `exists()` 与 `all()` 用同一列表 |
+| 默认值 | `src/S3/Options.php:100` | `provider => 'cloudflare'` |
+| 保存校验 | `src/S3/Settings_Saver.php:55-58` | `sanitize_key` 后不在 `Providers::all()` 内一律强制回 `cloudflare` |
+| 后台下拉 | `src/S3/S3_Storage_Page.php:168` | 选项由 `Providers::all()` 渲染 |
+| 生效值 | `src/Thumbnail/Settings.php:760-795` | 先读 `s3_options.provider`，活动 profile 的 `provider` 覆盖，再 `sanitize_key` 存入 `s3_config()` |
+| 取值入口 | `src/Thumbnail/Settings.php:819-822` | `provider_id()` 只返回 `s3_config()['provider']` |
+| 工厂 | `src/Thumbnail/Settings.php:968-979` | `bitiful` → `Bitiful(mode)`；其余 → `Generic(custom_provider_template)` |
+
+补充事实：
+
+- 缩略图自己的 `sakura_imgopt_oss_thumb.provider`（默认 `auto`，`src/Thumbnail/Settings.php:110`；保存时 `:277`）**全仓无读取点**，是遗留死字段。运行期把它改成 `bitiful`、而 S3 profile 仍是 `minio` 时，`provider_id()` 返回 `minio`、工厂返回 `Generic`（§10.7 第 11 条）。
+- 全 `src/Thumbnail/` 只有 `sakura_imgopt_opcache_reset` 一个 `apply_filters`（`src/Thumbnail/Settings.php:695`），provider 没有第三方扩展点；新增供应商要同时改 `Providers::all()` 与 `make_provider()`。
+- 因此「其余取值来源待确认」的答案是：来源只有 S3 白名单，白名单外的值在保存时被改写为 `cloudflare`；只有直接改数据库才能让未知值进入 `provider_id()`，此时工厂落到 `Generic`。
+
+#### 5.7.2 HTML 旧引擎的缓冲边界
+
+**结论**：`engine='html'` 时插件只开两个缓冲——整页 `template_redirect@0`（`includes/class-thumbnail-optimizer-module.php:120`）与侧栏 AJAX `wp_ajax(_nopriv)_ajax_widget_ui@0`（`:140`）；两个回调都经 `filter_scoped_html()`（`:170`）进入 `Html_Filter::filter()`（`src/Oss/Html_Filter.php:43`）。原文把 `:99`、`:128` 当作「开启点」不准确——那两行是 engine 判断，真正的 `ob_start` 在 `:120` 与 `:140`。
+
+| 步骤 | 位置 | 条件/行为 |
+|---|---|---|
+| 注册 | `includes/class-thumbnail-optimizer-module.php:52-54` | `template_redirect@0`、`wp_ajax_ajax_widget_ui@0`、`wp_ajax_nopriv_ajax_widget_ui@0` |
+| 整页闸门 | `:97-121` | engine=html（`:99`）→ `can_filter()`（`:103`）→ 非 `is_admin`（`:107`）→ 非 `is_feed`（`:110`）→ 非 `is_trackback`（`:113`）→ 非 `wp_doing_ajax`（`:116`）→ `ob_start`（`:120`） |
+| 侧栏闸门 | `:126-141` | engine=html（`:128`）→ `can_filter()` 且 `scopes.sidebar` 非空（`:132`）→ 请求的 widget 确在侧栏（`:136`）→ `ob_start`（`:140`） |
+| 侧栏判定 | `:186-205` | 读 `$_REQUEST['id']`/`['index']` 拼 `id-index`，在 `wp_get_sidebars_widgets()` 中找「侧栏名含 sidebar 且包含该 widget」 |
+| 实际门槛 | `:177-181` + `Settings::legacy_options()` `:986-1035` | `legacy_options()` 强制 `enabled ← v2 enabled`、`oss_host ← media_host()`、`sidebar_enabled ← scopes.sidebar`（`:1022-1025`），旧 `legacy.enabled/oss_host` 存什么都不生效；真正条件是 v2 `enabled=1` 且 `s3 upload_url_path` 能解析出 host |
+| 回调 | `:149-172` | `filter_list_html(force=false)` / `filter_sidebar_ajax_html(force=true)` → `new Html_Filter(Settings::legacy_options())->filter($html, $force)` |
+| 解析与改写 | `src/Oss/Html_Filter.php:43-156` | host 为空或全文不含 host 直接返回（`:46`）；需 `WP_HTML_Processor`（`:50`）；有 `<html`/`<!doctype` 走整页解析，否则片段（`:54-57`）；按 sidebar/row/post/thumb 类名维护作用域栈；`force_sidebar` 时绕过作用域全量改写 |
+| 改写目标 | `src/Oss/Html_Filter.php:181-207` | `IMG` 的 src/data-src/switch-src/white-src/dark-src、`IMG`/`SOURCE` 的 srcset/data-srcset、`VIDEO` 的 poster；suffix 由 `Url_Rewriter::build_scope_suffix()`（`src/Oss/Url_Rewriter.php:155`）生成，形如 `?w=250&h=250&mode=crop&pos=auto` |
+| 与 url 引擎互斥 | `src/Thumbnail/Theme_Cache.php:44`、`src/Thumbnail/Decorator.php:331` | 两者都要求 `engine==='url'`，html 模式下 URL 装饰整体让位 |
+
+**边界与副作用**（维护时必须知道）：
+
+- **同域静态资源会被一起改写**：`Html_Filter` 按 host 匹配，不区分是否上传目录。测试站首页的主题占位图 `https://demo.77il.cn/wp-content/themes/zibll/img/thumbnail.svg` 就被加上 `?w=250&h=250&mode=crop&pos=auto`（§10.7 第 1–2 条）。生产若开 html 模式，同域主题/插件图片都会带参数。
+- 改写结果里 `src` 与 `data-src` 的 `&` 实体形式不同（`&#038;` vs `&amp;`），是 `WP_HTML_Processor` 按属性重新序列化的结果，浏览器等价。
+- 依赖 `WP_HTML_Processor`（WP 6.4+）；不存在时 `filter()` 原样返回（`src/Oss/Html_Filter.php:50`）。
+- `is_trackback` 分支未在运行期触发（不构造 trackback 请求就无法走到），只有代码位置；其余四个闸门都有运行期对照（§10.7）。
 
 ---
 
@@ -1019,6 +1063,30 @@ sufm_routes=45 endpoints=51
 - 站级静态：`grep -rn` 扫 `/www/wwwroot/www.nboke.com/wp-content`（排除本插件）0 命中，测试站同样 0；生产激活插件为 object-cache-pro、sakura-database-care、sakura-tools、tinymce-advanced、zibll-site-enhance，主题 zibll，均不消费它。
 - 结论：**本站没有外部消费方**；该 action 与过滤器是公开扩展点（供站外或后续插件接入），不是内部依赖。站外是否存在消费者无法从本站穷举，只能确认「当前站点与已安装代码没有」。
 
+### 10.7 缩略图 provider 与 HTML 旧引擎（补充验证，2026-11-08）
+
+环境：测试站 `/root/sio-e2e`（PHP 8.4.27 内置服务器 + `PHP_CLI_SERVER_WORKERS=4`，MariaDB 13316，MinIO 19010，主题 zibll，插件软链到 `/root/work/sakura-tools`）。方法：临时 mu-plugin 在 `template_redirect@5`、`shutdown@5`、`wp_ajax(_nopriv)_ajax_widget_ui@5` 记录 `ob_get_level()` 与 `ob_list_handlers()`；另用 CLI 直调 `Html_Filter::filter()`、`Providers::all()`、`Settings::make_provider()` 与 `provider_id()`。验证后删除探针并还原全部选项。
+
+| # | 验证点 | 操作 | 结果 |
+|---:|---|---|---|
+| 1 | 整页缓冲确实开启 | `engine=html`、`enabled=1`、`upload_url_path=https://demo.77il.cn`，GET `/` | `template_redirect@5`：level=2，handlers=[default output handler, `Sakura\ImageOptimizer\Thumbnail_Optimizer_Module::filter_list_html`]；`shutdown@5` level=0 |
+| 2 | 改写了什么 | 同上，与基线首页对比 | 主题占位图 `.../themes/zibll/img/thumbnail.svg` 的 src 与 data-src 都被加上 `?w=250&h=250&mode=crop&pos=auto`；`mode=crop` 计数 0 → 2 |
+| 3 | feed 闸门 | GET `/?feed=rss2` | `template_redirect@5`：level=1，只有 default handler（`:110` 的 `is_feed` 生效） |
+| 4 | url 引擎反例 | `engine=url`、`enabled=1`，GET `/` | 无模块 handler；`mode=crop`=0 |
+| 5 | enabled=0 反例 | `engine=html`、`enabled=0`，GET `/` | 无模块 handler（`can_filter()` 拦截） |
+| 6 | 无 host 反例 | `engine=html`、`enabled=1`、`upload_url_path` 为空 | 无模块 handler（`media_host()` 为空） |
+| 7 | 侧栏 AJAX 缓冲 | `scopes.sidebar=1`，GET `admin-ajax.php?action=ajax_widget_ui&id=block&index=2` | `wp_ajax_nopriv@5`：level=2，handlers=[default, `...::filter_sidebar_ajax_html`]；同一请求在 `scopes.sidebar=0` 时只有 default |
+| 8 | 作用域改写 | CLI：`Html_Filter::filter()` 跑合成 HTML（`posts-row > posts-item.list > item-thumbnail` 内的 a/b 图、`.other` 内的 c 图、`.sidebar` 内的 d 图） | full 模式：a、b、d 被改写，c 不动；`force=true`：a、b、c、d 全改；suffix 均为 `?w=250&h=250&mode=crop&pos=auto` |
+| 9 | provider 枚举 | CLI：`Providers::all()` / `exists()` | 10 个键（cloudflare…bitiful）；`exists('foo')=false`、`exists('minio')=true` |
+| 10 | 工厂分支 | 活动 profile 的 provider 依次改为 minio / bitiful / bogus | minio → `Generic`；bitiful → `Bitiful`；bogus → `Generic`（绕过保存校验的未知值） |
+| 11 | 死字段 | 缩略图 option 的 `provider` 改 `bitiful`，S3 profile 仍为 minio | `provider_id()=minio`、工厂 `Generic`（缩略图自己的 provider 不参与） |
+
+补充说明：
+
+- 第 1、7 条里叠在插件缓冲之下的 `default output handler` 来自测试站 PHP 的 `output_buffering=4096`（探针页 `ini_get('output_buffering')` 证实），不是 WordPress 或本插件所开；CLI 的 `output_buffering` 为 0，所以只有 HTTP 请求能看到这一层。
+- 11 条全部是只读或临时配置验证：结束后已还原 `s3_options` 与 `sakura_imgopt_oss_thumb`、删除 mu-plugin 与日志；还原后首页 `mode=crop` 计数回到 0。
+- 未覆盖：`is_trackback` 分支（不构造 trackback 请求无法走到）；`wp-admin` 标签页不经过 `template_redirect`，`:107` 的 `is_admin` 判断属防御性代码，运行期没有可对照页面。
+
 ---
 
 ## 11. 依赖关系与图谱口径
@@ -1090,20 +1158,20 @@ sufm_routes=45 endpoints=51
 
 ## 12. 待确认项汇总
 
-以下 10 项是本次分析中**没有直接证据**或**超出只读边界**的地方。除此之外，正文结论都有代码位置或测试结果支撑。（原第 12 项「`.dsh-ops/` 非插件产物」已处理：清理归档并加入 `.gitignore`，见 §2.1；原第 6 项「并发上传 `consume_pending` 匹配失败」已核实关闭，见 §10.6。）
+以下 8 项是本次分析中**没有直接证据**或**超出只读边界**的地方。除此之外，正文结论都有代码位置或测试结果支撑。
+
+已关闭：原第 4 项「缩略图 `provider` 取值未枚举」与原第 5 项「HTML 旧引擎 ob 回调边界」已用静态 + 运行期证据核实（§5.7、§10.7，含 11 条运行期记录）；原第 6 项「并发上传 `consume_pending` 匹配失败」见 §10.6；原第 12 项「`.dsh-ops/` 非插件产物」已清理并加入 `.gitignore`（§2.1）。
 
 | # | 问题 | 证据位置 | 影响 | 建议验证方式 |
 |---:|---|---|---|---|
 | 1 | `scans.scan_cursor` 一列双语义（本地阶段 JSON 目录栈 / 云端阶段 S3 token） | `src/Sync/Scan_Service.php:362`、`:714`、`:301-348` | 改状态机时漏掉重置会错位 | 跑一次全量扫描并在 `remote` 阶段中途刷新，看游标是否重置 |
 | 2 | `sio_sync_operations` 的消费语义 | `src/S3/Remote_Operation_Guard.php:39` | 影响上传/删除冲突判断 | 读该类全文 + 造 uncertain 记录观察后续写入是否被拒 |
 | 3 | `fast-search.php` 是否另有 nginx/htaccess 限制 | `fast-search.php:1-12` | 影响端点可否被外部直接访问 | 生产站 `curl` 一次该 URL 看返回 |
-| 4 | 缩略图 `provider` 取值未枚举 | `src/Thumbnail/Settings.php:968-979` | 新增供应商可能静默落到 Generic | 读 `Settings::defaults()` + 枚举 UI 选项 |
-| 5 | HTML 旧引擎（`engine='html'`）的 ob 回调边界 | `includes/class-thumbnail-optimizer-module.php:99`、`:128` | 出问题时难定位 | 测试站开启该模式对比输出 HTML |
-| 6 | `Upload_Queue` 生产无实例化 | `src/S3/Upload_Queue.php:21`、`src/S3/Storage.php:135-137` | 死代码，误导读者 | 全仓 grep 确认只有测试引用 |
-| 7 | `Upload_Metrics::snapshot` 的 `counts` 无调用方 | `src/S3/Prometheus.php:124`、`Alerting.php:277`、`Sync_Center_Panel.php:29` | 删除队列 `queued/dead` 恒 0 | 设计意图还是遗漏，需问维护者 |
-| 8 | 上传与删除的 `target_hash` 字段集合不同 | `src/S3/Synchronous_Uploader.php:482` vs `src/S3/Delete_Jobs.php:54` | 跨路径比对可能永假 | 打印两条 hash 的字段集合对比 |
-| 9 | `Sync_Status::enqueue` / `fail_job` 无调用方；`Upload_URL::PREVIOUS_PATH_OPTION` 未使用 | `src/S3/Sync_Status.php:294`、`:333`、`src/S3/Upload_URL.php:12` | 死代码 | 全仓 grep 确认 |
-| 10 | `Space_Store::grant_from_order` 把 source 硬编码为 `'points'` | `src/UserFiles/Services/Space_Store.php:830-843` vs `Schema.php:452` | 购买/积分来源无法区分，影响对账 | 用测试订单走一次发放，查 `sufm_space_grants.source` |
+| 4 | `Upload_Queue` 生产无实例化 | `src/S3/Upload_Queue.php:21`、`src/S3/Storage.php:135-137` | 死代码，误导读者 | 全仓 grep 确认只有测试引用 |
+| 5 | `Upload_Metrics::snapshot` 的 `counts` 无调用方 | `src/S3/Prometheus.php:124`、`Alerting.php:277`、`Sync_Center_Panel.php:29` | 删除队列 `queued/dead` 恒 0 | 设计意图还是遗漏，需问维护者 |
+| 6 | 上传与删除的 `target_hash` 字段集合不同 | `src/S3/Synchronous_Uploader.php:482` vs `src/S3/Delete_Jobs.php:54` | 跨路径比对可能永假 | 打印两条 hash 的字段集合对比 |
+| 7 | `Sync_Status::enqueue` / `fail_job` 无调用方；`Upload_URL::PREVIOUS_PATH_OPTION` 未使用 | `src/S3/Sync_Status.php:294`、`:333`、`src/S3/Upload_URL.php:12` | 死代码 | 全仓 grep 确认 |
+| 8 | `Space_Store::grant_from_order` 把 source 硬编码为 `'points'` | `src/UserFiles/Services/Space_Store.php:830-843` vs `Schema.php:452` | 购买/积分来源无法区分，影响对账 | 用测试订单走一次发放，查 `sufm_space_grants.source` |
 
 ---
 

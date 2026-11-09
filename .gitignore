@@ -4,6 +4,9 @@
 !/vendor/s3/
 /vendor/s3/vendor/
 
+# Release artifacts
+/dist/
+
 # PHPUnit cache
 /.phpunit.cache/
 .phpunit.result.cache

@@ -1,0 +1,96 @@
+name: Release plugin
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'sakura-tools.php'
+      - 'readme.txt'
+      - 'bin/build-plugin-zip.sh'
+      - '.github/workflows/release.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: plugin-release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Resolve plugin version
+        id: version
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION="$(sed -n 's/^[[:space:]]*\*[[:space:]]*Version:[[:space:]]*//p' sakura-tools.php | head -n1 | tr -d '\r')"
+          STABLE="$(sed -n 's/^Stable tag:[[:space:]]*//p' readme.txt | head -n1 | tr -d '\r')"
+          if [ -z "$VERSION" ]; then
+            echo "Cannot read Version from sakura-tools.php" >&2
+            exit 1
+          fi
+          if ! printf '%s' "$VERSION" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$'; then
+            echo "Invalid plugin version: $VERSION" >&2
+            exit 1
+          fi
+          if [ "$STABLE" != "$VERSION" ]; then
+            echo "readme.txt Stable tag ($STABLE) does not match plugin version ($VERSION)" >&2
+            exit 1
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=v$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Check existing release
+        id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if gh release view "${{ steps.version.outputs.tag }}" >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "Release ${{ steps.version.outputs.tag }} already exists; skipping."
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build plugin zip
+        if: steps.release.outputs.exists == 'false'
+        shell: bash
+        run: bash bin/build-plugin-zip.sh --version "${{ steps.version.outputs.version }}" --out dist
+
+      - name: Extract changelog
+        if: steps.release.outputs.exists == 'false'
+        shell: bash
+        run: |
+          set -euo pipefail
+          awk -v version="${{ steps.version.outputs.version }}" '
+            $0 == "= " version " =" { in_block=1; next }
+            in_block && /^= [0-9]/ { exit }
+            in_block { print }
+          ' readme.txt > release-notes.md
+          if [ ! -s release-notes.md ]; then
+            echo "Release v${{ steps.version.outputs.version }}" > release-notes.md
+          fi
+
+      - name: Publish GitHub release
+        if: steps.release.outputs.exists == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          gh release create "${{ steps.version.outputs.tag }}" \
+            "dist/sakura-tools-${{ steps.version.outputs.version }}.zip" \
+            "dist/sakura-tools-${{ steps.version.outputs.version }}.zip.sha256" \
+            --target "$GITHUB_SHA" \
+            --title "v${{ steps.version.outputs.version }}" \
+            --notes-file release-notes.md

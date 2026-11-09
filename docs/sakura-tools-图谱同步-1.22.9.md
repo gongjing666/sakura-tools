@@ -112,6 +112,8 @@ assemble-doc.py  ──► sakura-tools-代码结构-1.22.9.md（分章正文 + 
 
 本轮代码差异只有插件头/常量/readme 的版本号、4 条译者注释和 1 条 PHPCS 例外（`src/UserFiles/Editor/Assets.php`、`src/UserFiles/Repositories/Folders.php`）。没有新增/删除类、方法或钩子，静态引用边也未变化；`Assets.php` 增加 4 行使生产总行数 60,460→60,464，但不改变节点、边权或布局。`Space_Store` 的 `val` 仍 10.1193，`Space_Store → Space_Rules` 的 `ref` 权重仍 44，`Space_Panel → Space_Store` 的 `ref` 权重仍 10，均沿用上一轮支付收口后的值。已重扫并重建 `docs/graph-preview/`，页面四角仍为 178 / 180 / 814 / 191。
 
+生产部署后已在生产执行 `Upload_Metrics::maybe_install()`：新建 `nb_sio_s3_upload_events`（0 行，`sakura_imgopt_s3_upload_schema=2.0.0`），CLI `wp sakura-sync stats` 能读出旧 option 的 91 条尝试基线。生产另有 1.12.0 遗留的空表 `nb_sio_s3_uploads`（0 行，代码不再创建或使用），不计入文档 §9.1 的 23 张代码表。
+
 ## 3. 节点与连线的定义
 
 **节点字段**

@@ -1,9 +1,9 @@
 # 樱花工具箱（sakura-tools）代码结构分析报告
 
-> **版本** 1.22.8 ｜ **代码基线** commit `55a9938`（在 `96622ab` 基础上合入 §6.8 清理与 §6.9 上传指标并发修复）｜ **分析日期** 2026-11-08
+> **版本** 1.22.9 ｜ **代码基线** commit `70e4de1`（在 `96622ab` 基础上合入 §6.8 清理、§6.9 上传指标并发修复、§8.9 空间支付收口与 1.22.9 版本收敛）｜ **分析日期** 2026-11-09
 > **分析对象** `/www/wwwroot/www.nboke.com/wp-content/plugins/sakura-tools`（生产副本；§6.8/§6.9 的代码变更已包含在基线提交中，其余阅读与运行期验证均为只读）
 > **测试环境** `/root/sio-e2e`（独立 WordPress + MariaDB 127.0.0.1:13316 + MinIO 127.0.0.1:19010），插件以软链方式挂载，行为与生产一致
-> **配套产物** 3D 图谱 `docs/graph-preview/index.html`（同源数据 `graph.json`）、生成器 `docs/tools/build-code-structure.mjs`、图谱说明 `docs/sakura-tools-图谱同步-1.22.8.md`
+> **配套产物** 3D 图谱 `docs/graph-preview/index.html`（同源数据 `graph.json`）、生成器 `docs/tools/build-code-structure.mjs`、图谱说明 `docs/sakura-tools-图谱同步-1.22.9.md`
 
 ---
 
@@ -41,7 +41,7 @@
 | 指标 | 数值 | 口径 |
 |---|---:|---|
 | 生产 PHP 文件 | **178** | 不含 `tests/`(71 文件) `stubs/`(2) `vendor/` `assets/`(JS/CSS) |
-| 生产 PHP 行数 | **60,460** | 同上，含空行与注释 |
+| 生产 PHP 行数 | **60,464** | 同上，含空行与注释 |
 | 类 / 接口 | **163** | 含 7 个接口；另有 64 个全局函数未计入图谱节点 |
 | 钩子注册 | **191** | 仅生产代码中的 `add_action`/`add_filter`，不含 `do_action` 触发点 |
 | 自定义数据表 | **23** | 15 张 `{prefix}sufm_*` + 6 张 `{prefix}sio_sync_*` + 2 张 `{prefix}sio_s3_*`（`sio_s3_deletes`、`sio_s3_upload_events`） |
@@ -60,13 +60,15 @@
 3. **模块契约极窄。** `src/Contracts/Module.php:23-31` 只有一个 `register_hooks(Hook_Loader): void`，且明确禁止在构造函数里挂 WP 钩子。所有钩子集中到 `src/Support/Hook_Loader.php`，先入队、`register()` 时一次性交付，**注册后新加的钩子立即生效**（`register_frontend` 依赖这个行为）。
 4. **后台信息架构是静态声明的。** `src/Admin/Registry.php:41-101` 用一张常量数组声明「模块 → tab → 权限门 → renderer key」；`Menu` 只做建屏与分发，`Shell` 只画外壳。**加一个 tab = 改 Registry + 注册 renderer 两处**，不需要动菜单代码。
 5. **功能面是 5 个子系统 + 3 条横切。** 子系统：图片优化管线（§4）、缩略图 URL 重写（§5）、对象存储 S3（§6）、同步索引 Sync（§7）、用户文件空间 UserFiles（§8）。横切：数据落点（§9）、钩子索引（§9.2）、REST/CLI/Cron（§9.3）。
-6. **代码量集中在两处。** UserFiles（46 文件 / 21,167 行）与 S3（36 文件 / 10,803 行）合计占生产代码的 52.9%；两者也是自定义表、加密凭据与补偿队列最集中的部分。
+6. **代码量集中在两处。** UserFiles（46 文件 / 21,171 行）与 S3（36 文件 / 10,803 行）合计占生产代码的 52.9%；两者也是自定义表、加密凭据与补偿队列最集中的部分。
 7. **运行时可访问性已验证。** 11 条后台路由全部 200 且标题正确、45 条 `/sufm/v1` REST 路由（51 个端点）全部注册、7 个插件 cron 事件已排程、12 项函数级探针结果符合预期（§10）。**未验证**的是生产环境的写路径（配额扣减、删除审核、卸载清理）——生产保持只读。测试站上补做的写验证有两次：5 张并发上传（§10.6）跑通「上传 → 压缩 → S3 PUT → 索引落库」，4×200 条并发指标写入（§10.11）验证事件表零丢失。
 8. **两张"文档"已经过期，不要当作事实源。** `DEVELOPMENT.md` 第 1 节的"当前文件结构"停留在 1.3.3 的 6 个文件；`/root/WordPress/docs/sakura-image-optimizer-代码分析报告.md`（本机历史报告，未随仓库分发） 停在 1.9.0 之前的命名。本报告与 3D 图谱是当前唯一同步的产物；`DECISIONS.md` 仍然有效（记录的是"为什么"，不是"现在有什么"）。
 9. **文档与图谱同源，不会再脱节。** 两者都由同一份扫描事实表（来自 `dsh-codegraph` 的 `lib/scanner.php`）经 `docs/tools/build-code-structure.mjs` 生成。改代码后重跑一次命令即可同时刷新表格与图谱（§13.6）。
 10. **上传指标已从单 option 改为事件表。** 旧实现每次 `record_batch()` 读改写同一个 option，4 进程各写 200 条只留下 202 条（丢 75%）；现在每条结果独立 INSERT 到 `{prefix}sio_s3_upload_events`（`src/S3/Upload_Metrics.php:79`、`:149`），`snapshot()` 用 SQL 聚合（`:204`），成功与失败分别由 `sakura_imgopt_s3_uploaded` / `sakura_imgopt_s3_upload_failed` 采集（`src/S3/Upload_Observer.php:30-31`）。返回结构不变，旧 option 只作为冻结基线读取。详见 §6.9 与 §10.11。
 
-**本轮更新（2026-11-08）**：§12 原有 3 项已全部核实并处理：① `fast-search.php` **无缺陷**，生产环境没有额外封禁，入口按 HMAC + 管理员能力鉴权；② `Space_Store::grant_from_order()` **缺陷已修复**，订单按支付渠道写 `source/channel` 与订单字段，并默认只开放余额支付、补退款补偿与每日对账（§8.9、§10.12）；③ 上传失败不可见**已修复**，旧 `Upload_Observer` 只记录成功样本，本轮改为追加事件表 + 失败钩子，并发压测 800/800 条落库（§6.9、§10.11）。
+**上一轮更新（2026-11-08）**：§12 原有 3 项已全部核实并处理：① `fast-search.php` **无缺陷**，生产环境没有额外封禁，入口按 HMAC + 管理员能力鉴权；② `Space_Store::grant_from_order()` **缺陷已修复**，订单按支付渠道写 `source/channel` 与订单字段，并默认只开放余额支付、补退款补偿与每日对账（§8.9、§10.12）；③ 上传失败不可见**已修复**，旧 `Upload_Observer` 只记录成功样本，该轮改为追加事件表 + 失败钩子，并发压测 800/800 条落库（§6.9、§10.11）。
+
+**本轮更新（2026-11-09）**：版本号、常量与 readme 统一到 **1.22.9**；消除全量 PHPCS 的 5 个既有错误（4 条译者注释、1 条异常消息的窄例外），复检 **177 个 PHP 文件 0 error**；生产代码结构与图谱拓扑未变（178 文件 / 163 类 / 180 节点 / 814 连线 / 191 钩子），仅 `src/UserFiles/Editor/Assets.php` 增加 4 行使生产总行数变为 60,464。
 
 ---
 
@@ -106,7 +108,7 @@ sakura-tools/
 ├── src/Thumbnail/              15 文件 / 3,764 行   缩略图策略、供应商、探测、统计、主题桥
 ├── src/S3/                     36 文件 / 10,803 行  凭据加密、上传、删除队列、同步中心、监控
 ├── src/Sync/                   17 文件 / 5,792 行   索引表、扫描状态机、动作队列、校验、CLI
-├── src/UserFiles/              46 文件 / 21,167 行  上传/配额/审核/执行/REST/空间套餐/Zibll 桥
+├── src/UserFiles/              46 文件 / 21,171 行  上传/配额/审核/执行/REST/空间套餐/Zibll 桥
 ├── src/Backup/                 2 文件 / 459 行
 ├── src/Contracts/              5 文件 / 392 行      5 个接口
 ├── src/Filesystem/ src/Settings/ src/Stats/ src/Support/   5 文件 / 633 行
@@ -124,7 +126,7 @@ sakura-tools/
 
 | 模块 | 文件数 | 代码行 | 类(含接口) | 说明 |
 |---|---:|---:|---:|---|
-| src/UserFiles | 46 | 21167 | 46 | 用户文件空间：上传、配额、审核执行、REST、Zibll 桥接 |
+| src/UserFiles | 46 | 21171 | 46 | 用户文件空间：上传、配额、审核执行、REST、Zibll 桥接 |
 | src/S3 | 36 | 10803 | 36 | 对象存储：配置/加密、上传同步、删除队列、同步中心、监控告警 |
 | includes | 14 | 5999 | 14 | 1.3–1.9 时代的旧类，仍在承重（媒体库、优化器、缩略图、S3、处理器） |
 | src/Sync | 17 | 5792 | 17 | 持久化同步索引：扫描、任务、校验、CLI、快速检索查询 |
@@ -141,7 +143,7 @@ sakura-tools/
 | src/Support | 2 | 178 | 2 | Hook_Loader（延迟注册）与 UTF-8 截断工具 |
 | src/Filesystem | 1 | 97 | 1 | 文件系统仓储适配器 |
 | src/Stats | 1 | 73 | 1 | 统计仓储适配器 |
-| 合计 | 178 | 60460 | 163 | 生产代码；另有 tests 72 文件/8800 行、stubs 2 文件另计 |
+| 合计 | 178 | 60464 | 163 | 生产代码；另有 tests 72 文件/8800 行、stubs 2 文件另计 |
 
 **怎么读这张表**：行数不等于复杂度——`src/UserFiles` 20k 行里有 40% 是 REST 控制器与视图模板（重复度高、改动风险低）；`src/Sync` 只有 5.8k 行却包含状态机与 SQL 层，是改动风险最高的模块。
 
@@ -907,7 +909,7 @@ d3AtY29udGVudC91cGxvYWRzL3Byb2JlLzA5OTkuYmluW21pbmlvX2NhY2hlOnYyLHJldHVybjpd
 
 ---
 
-## 8. 子系统 E：用户文件空间（src/UserFiles/，46 文件 / 21,167 行）
+## 8. 子系统 E：用户文件空间（src/UserFiles/，46 文件 / 21,171 行）
 
 ### 8.1 职责与边界
 
@@ -1281,13 +1283,15 @@ order_refunded(order_id)
 
 **边界声明**：生产环境为**只读验证**——只执行查询、纯函数调用与 GET 请求，没有触发任何写路径。日常命令都在测试站 `/root/sio-e2e` 执行，插件以软链挂载到 `/root/work/sakura-tools`（同一份代码）。测试站上另补做了一次写验证：2026-11-08 的 5 张并发上传（§10.6），数据只落在测试站自己的 MariaDB 与 MinIO，未触及生产。
 
+> **版本说明**：§10.1 的版本号已在 2026-11-09 复核为 1.22.9；§10.4–§10.12 的命令与输出仍记录于 1.22.8（2026-11-08）。1.22.9 只改版本号、readme changelog、4 条译者注释与 1 条 PHPCS 例外，没有改变路由、钩子、数据路径或类/方法集合，因此没有重跑写验证；表格里出现的 `assets/admin.js?ver=1.22.8` 是当时的观测值。
+
 ### 10.1 环境与激活状态
 
 ```
 $ cd /root/sio-e2e && ./e2e.sh wp plugin get sakura-tools --fields=name,status,version
 name:      sakura-tools
 status:    active
-version:   1.22.8
+version:   1.22.9
 ```
 
 WordPress 核心与 PHP 版本、MariaDB 127.0.0.1:13316、MinIO 127.0.0.1:19010 均正常；后台 `admin` 可登录（用于 §10.4 的路由检查）。
@@ -1688,7 +1692,7 @@ WHERE order_num = %s AND state = 'refund_pending' AND updated_at <= %s
 
 ## 12. 待确认项与已确认缺陷
 
-截至 2026-11-08，正文没有「只有结论、没有代码位置或运行证据」的待确认项，也没有未修复的高/中优先代码缺陷。原 §12 的三项均已核实；其中 `grant_from_order()` 的高优先缺陷已在本轮按「支付入口收口」方案修复并验证，S3 上传指标缺陷也已在此前修复。下面保留的是有意接受的边界，不是待确认项。
+截至 2026-11-09，正文没有「只有结论、没有代码位置或运行证据」的待确认项，也没有未修复的高/中优先代码缺陷。原 §12 的三项均已核实；其中 `grant_from_order()` 的高优先缺陷已在 2026-11-08 按「支付入口收口」方案修复并验证，S3 上传指标缺陷也已在此前修复。1.22.9 只做版本与 PHPCS 规范收敛，没有新增缺陷或待确认项。下面保留的是有意接受的边界，不是待确认项。
 
 ### 12.1 本轮关闭：空间扩容支付收口
 
@@ -1746,18 +1750,18 @@ WHERE order_num = %s AND state = 'refund_pending' AND updated_at <= %s
 | 连线 | 814 = 601 `ref` + 50 `modref` + 163 `contains` |
 | 钩子 | 191（面板显示，不建节点） |
 | 悬空边 | 0 |
-| 本轮变更 | 无节点/连线增删；`Space_Store` 的 `val` 9.7324→10.1193（方法数增加），`Space_Store → Space_Rules` 的 `ref` 权重 34→44，`Space_Panel → Space_Store` 的 `ref` 权重 12→10。已重扫并重建 `docs/graph-preview/` |
+| 本轮变更 | 无节点/连线/钩子增删；仅 `graph.json` 的 `meta.version` 由 1.22.8 改为 1.22.9、`generatedAt` 更新，页面副标题版本号同步为 1.22.9。已重扫并重建 `docs/graph-preview/` |
 | 数据来源 | 本轮重新扫描的事实表（codegraph `scanner.php` 输出）——由 `docs/tools/collect-comments.php` 生成类注释，与本文所有表格同源 |
 
-本轮没有新增/删除类，节点数仍是 180，连线仍是 814（601 `ref` + 50 `modref` + 163 `contains`），钩子仍是 191；`Space_Store` 新增支付白名单、退款补偿、退款重试与每日对账方法，方法总数上升，故节点的 `val` 从 9.7324 变为 10.1193；退款与重试路径对 `Space_Rules` 的静态引用从 34 增至 44；`Space_Panel` 改为共享 `points_state`/`points_plans` 后，直接引用 `Space_Store` 的次数从 12 降至 10。计数没有变化，但**不能沿用上一轮导出的节点大小与边权**，已重新生成。
+本轮没有新增/删除类、方法钩子或引用边，节点仍 180（163 类 + 17 模块）、连线仍 814（601 `ref` + 50 `modref` + 163 `contains`）、钩子仍 191；`Space_Store` 的 `val` 仍 10.1193，`Space_Store → Space_Rules` 的 `ref` 权重仍 44，`Space_Panel → Space_Store` 的 `ref` 权重仍 10，均沿用上一轮支付收口后的值。变化只在版本元数据与页面副标题；这是版本收敛，不是拓扑变化。
 
-`fast-search.php` 是脚本型文件，本来就不进入图谱；`Space_Store` 的字段缺陷已在 §8.9 修复，不再是未修复缺陷，本轮只更新该已有节点的大小与两条边权。
+`fast-search.php` 是脚本型文件，本来就不进入图谱；`Space_Store` 的字段缺陷已在 §8.9 修复，不再是未修复缺陷。本轮没有改图谱节点或边。
 
 **生成与注入脚本**（都在 `docs/tools/`，可重复执行）：`build-code-structure.mjs`（事实表 → 表格 + graph.json）、`graph-inject.mjs`（graph.json → index.html 内嵌 DATA，含悬空边校验）、`assemble-doc.py`（分章 + 表格 → 本文）。完整命令见《图谱同步说明》§7。
 
 **与文档的对应关系**：每个类节点在正文里都有一条同名记录——附录 A 给 `文件:行`，所属章节的表给职责与方法数；模块节点对应 §2.2 的模块总览。**改代码后重跑一次生成器，表格与图谱同时更新**，这是两者不脱节的机制保证。
 
-详细的操作步骤、本次新增/修改的节点与连线清单、一致性核对项，见配套文档 **`docs/sakura-tools-图谱同步-1.22.8.md`**。
+详细的操作步骤、本次新增/修改的节点与连线清单、一致性核对项，见配套文档 **`docs/sakura-tools-图谱同步-1.22.9.md`**。
 
 ---
 
@@ -2308,7 +2312,7 @@ WHERE order_num = %s AND state = 'refund_pending' AND updated_at <= %s
 | src/UserFiles/Admin/Space_Page.php | src/UserFiles | 274 | `Space_Page` |
 | src/UserFiles/Capabilities.php | src/UserFiles | 155 | `Capabilities` |
 | src/UserFiles/CLI.php | src/UserFiles | 397 | `CLI` |
-| src/UserFiles/Editor/Assets.php | src/UserFiles | 103 | `Assets` |
+| src/UserFiles/Editor/Assets.php | src/UserFiles | 107 | `Assets` |
 | src/UserFiles/Editor/Context.php | src/UserFiles | 66 | `Context` |
 | src/UserFiles/Editor/Module.php | src/UserFiles | 66 | `Module` |
 | src/UserFiles/Editor/Picker.php | src/UserFiles | 100 | `Picker` |

@@ -212,6 +212,43 @@ final class UploadMetricsTest extends TestCase {
 		$this->assertSame( 10, $snapshot['totals']['ok'] );
 		$this->assertSame( 1, $snapshot['today']['ok'] );
 		$this->assertSame( 1, $snapshot['week']['attempts'] );
+		$this->assertSame( 9, get_option( Upload_Metrics::OPTION )['totals']['ok'], 'Recording events must not rewrite the frozen legacy option.' );
+	}
+
+	public function test_old_version_option_write_is_added_once_after_upgrade(): void {
+		$old = array(
+			'ok'       => 30,
+			'fail'     => 0,
+			'dead'     => 0,
+			'bytes'    => 1279424,
+			'ms_sum'   => 0,
+			'max_ms'   => 0,
+			'attempts' => 30,
+		);
+		$GLOBALS['sakura_test_options'][ Upload_Metrics::OPTION ] = array(
+			'version'    => '1.0.0',
+			'totals'     => $old,
+			'days'       => array(),
+			'last_error' => array( 'at' => 0, 'message' => '', 'attachment' => 0, 'key' => '' ),
+			'updated_at' => 1,
+		);
+
+		$metrics = new Upload_Metrics();
+		for ( $i = 0; $i < 5; $i++ ) {
+			$metrics->record_batch( array( array( 'ok' => true, 'ms' => 10, 'bytes' => 100 ) ) );
+		}
+
+		// A rollback writes only its own counter into the still-frozen option.
+		$legacy                   = get_option( Upload_Metrics::OPTION );
+		$legacy['totals']['ok']      += 3;
+		$legacy['totals']['attempts'] += 3;
+		update_option( Upload_Metrics::OPTION, $legacy );
+
+		$snapshot = $metrics->snapshot();
+
+		$this->assertCount( 5, $this->db->rows );
+		$this->assertSame( 38, $snapshot['totals']['ok'], 'The old write and the event rows are additive, not duplicated.' );
+		$this->assertSame( 38, $snapshot['totals']['attempts'] );
 	}
 
 	public function test_failed_upload_observer_records_attachment_and_error(): void {

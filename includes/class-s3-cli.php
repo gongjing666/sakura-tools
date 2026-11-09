@@ -60,7 +60,11 @@ class S3_CLI {
 	 * ## OPTIONS
 	 *
 	 * [<action>]
-	 * : list (default) or release.
+	 * : list (default), count, or release.
+	 * [--limit=<number>]
+	 * : Rows to show for list. Default 100, maximum 100.
+	 * [--offset=<number>]
+	 * : Rows to skip for list. Default 0.
 	 * [--resource=<hash>]
 	 * : Resource hash from list.
 	 * [--token=<token>]
@@ -76,8 +80,21 @@ class S3_CLI {
 		$guard = new \Sakura\ImageOptimizer\S3\Remote_Operation_Guard( '' );
 		$action = $args[0] ?? 'list';
 		if ( 'list' === $action ) {
-			\WP_CLI\Utils\format_items( 'table', $guard->pending(), array( 'resource_hash', 'token', 'object_key', 'action', 'state', 'created_at', 'last_error', 'context_json' ) );
-			\WP_CLI::line( 'At most 100 held operations shown. Age/HEAD alone never establishes that old requests stopped.' );
+			$limit  = isset( $assoc_args['limit'] ) ? max( 1, min( 100, (int) $assoc_args['limit'] ) ) : 100;
+			$offset = isset( $assoc_args['offset'] ) ? max( 0, (int) $assoc_args['offset'] ) : 0;
+			$rows   = $guard->pending( $limit, $offset );
+			\WP_CLI\Utils\format_items( 'table', $rows, array( 'resource_hash', 'token', 'object_key', 'action', 'state', 'created_at', 'last_error', 'context_json' ) );
+			\WP_CLI::line( sprintf( 'Showing %1$d of %2$d held operations (offset %3$d). Age/HEAD alone never establishes that old requests stopped.', count( $rows ), $guard->count_reservations(), $offset ) );
+			return;
+		}
+		if ( 'count' === $action ) {
+			$rows = array(
+				array( 'state' => 'inflight', 'count' => $guard->count_reservations( 'inflight' ) ),
+				array( 'state' => 'uncertain', 'count' => $guard->count_reservations( 'uncertain' ) ),
+				array( 'state' => 'total', 'count' => $guard->count_reservations() ),
+			);
+			\WP_CLI\Utils\format_items( 'table', $rows, array( 'state', 'count' ) );
+			\WP_CLI::line( 'Read-only counts. Uncertain rows still require explicit operator release.' );
 			return;
 		}
 		if ( 'release' !== $action || ! isset( $assoc_args['remote-settled'] ) ) {
@@ -482,6 +499,87 @@ class S3_CLI {
 		}
 
 		\WP_CLI\Utils\format_items( 'table', $rows, array( 'id', 'profile_id', 'state', 'attempts', 'object_key', 'last_error', 'updated_at' ) );
+	}
+
+	/**
+	 * Read-only operational health summary.
+	 *
+	 * ## OPTIONS
+	 *
+	 * [--format=<format>]
+	 * : table (default), json, csv or yaml.
+	 *
+	 * ## EXAMPLES
+	 *
+	 *     wp sakura-s3 health
+	 *     wp sakura-s3 health --format=json
+	 *
+	 * @subcommand health
+	 *
+	 * @param array<int,string>   $args       Positional arguments.
+	 * @param array<string,mixed> $assoc_args Associative arguments.
+	 */
+	public function health( $args, $assoc_args ): void {
+		$snapshot = ( new \Sakura\ImageOptimizer\S3\Upload_Metrics() )->snapshot();
+		$today    = isset( $snapshot['today'] ) && is_array( $snapshot['today'] ) ? $snapshot['today'] : array();
+		$week     = isset( $snapshot['week'] ) && is_array( $snapshot['week'] ) ? $snapshot['week'] : array();
+		$totals   = isset( $snapshot['totals'] ) && is_array( $snapshot['totals'] ) ? $snapshot['totals'] : array();
+
+		$rows = array(
+			array( 'metric' => 'upload_today_attempts', 'value' => (string) (int) ( $today['attempts'] ?? 0 ) ),
+			array( 'metric' => 'upload_today_ok', 'value' => (string) (int) ( $today['ok'] ?? 0 ) ),
+			array( 'metric' => 'upload_today_fail', 'value' => (string) (int) ( $today['fail'] ?? 0 ) ),
+			array( 'metric' => 'upload_today_dead', 'value' => (string) (int) ( $today['dead'] ?? 0 ) ),
+			array( 'metric' => 'upload_14d_attempts', 'value' => (string) (int) ( $week['attempts'] ?? 0 ) ),
+			array( 'metric' => 'upload_14d_fail_rate', 'value' => (string) ( $week['rate_text'] ?? '—' ) ),
+			array( 'metric' => 'upload_total_attempts', 'value' => (string) (int) ( $totals['attempts'] ?? 0 ) ),
+			array( 'metric' => 'upload_metrics_updated_at', 'value' => (int) ( $snapshot['updated_at'] ?? 0 ) > 0 ? gmdate( 'Y-m-d H:i:s', (int) $snapshot['updated_at'] ) : '—' ),
+		);
+
+		$delete = array( 'pending' => 'n/a', 'dead' => 'n/a', 'stale' => 'n/a' );
+		try {
+			$jobs             = new \Sakura\ImageOptimizer\S3\Delete_Jobs();
+			$delete['pending'] = (string) $jobs->pending_count();
+			$delete['dead']    = (string) $jobs->failure_count();
+			$delete['stale']   = (string) $jobs->stale_count();
+		} catch ( \Throwable $e ) {
+			unset( $e ); // Keep n/a when the delete queue is unavailable.
+		}
+		$rows[] = array( 'metric' => 'delete_pending', 'value' => $delete['pending'] );
+		$rows[] = array( 'metric' => 'delete_dead', 'value' => $delete['dead'] );
+		$rows[] = array( 'metric' => 'delete_stale', 'value' => $delete['stale'] );
+
+		$remote = array( 'inflight' => 'n/a', 'uncertain' => 'n/a' );
+		try {
+			$guard               = new \Sakura\ImageOptimizer\S3\Remote_Operation_Guard( '' );
+			$remote['inflight']  = (string) $guard->count_reservations( 'inflight' );
+			$remote['uncertain'] = (string) $guard->count_reservations( 'uncertain' );
+		} catch ( \Throwable $e ) {
+			unset( $e ); // Custom db.php routing can make the isolated guard unavailable.
+		}
+		$rows[] = array( 'metric' => 'remote_inflight', 'value' => $remote['inflight'] );
+		$rows[] = array( 'metric' => 'remote_uncertain', 'value' => $remote['uncertain'] );
+
+		$sync = array( 'jobs_dead' => 'n/a', 'actions_failed' => 'n/a', 'updated_at' => '—' );
+		try {
+			$sync['jobs_dead'] = (string) ( new \Sakura\ImageOptimizer\Sync\Index_Repository() )->dead_jobs_count();
+		} catch ( \Throwable $e ) {
+			unset( $e ); // Keep n/a when the sync index is unavailable.
+		}
+		try {
+			$metrics               = \Sakura\ImageOptimizer\Sync\Metrics::snapshot();
+			$sync['actions_failed'] = (string) (int) ( $metrics['actions_failed'] ?? 0 );
+			$sync['updated_at']     = (string) ( $metrics['updated_at'] ?? '' );
+		} catch ( \Throwable $e ) {
+			unset( $e ); // Keep n/a when the sync counters are unavailable.
+		}
+		$rows[] = array( 'metric' => 'sync_jobs_dead', 'value' => $sync['jobs_dead'] );
+		$rows[] = array( 'metric' => 'sync_actions_failed', 'value' => $sync['actions_failed'] );
+		$rows[] = array( 'metric' => 'sync_metrics_updated_at', 'value' => '' !== $sync['updated_at'] ? $sync['updated_at'] : '—' );
+
+		$format = isset( $assoc_args['format'] ) ? (string) $assoc_args['format'] : 'table';
+		\WP_CLI\Utils\format_items( $format, $rows, array( 'metric', 'value' ) );
+		\WP_CLI::line( 'Read-only summary. sync_actions_failed comes from the lossy Sync\\Metrics option; use table COUNT for exact alerts.' );
 	}
 
 	/**

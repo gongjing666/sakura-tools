@@ -11,6 +11,7 @@ namespace Sakura\ImageOptimizer\S3;
 
 use Sakura\ImageOptimizer\Contracts\Module;
 use Sakura\ImageOptimizer\Support\Hook_Loader;
+use Sakura\ImageOptimizer\Sync\Index_Repository;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -123,7 +124,7 @@ final class Prometheus implements Module {
 
 		$snapshot = ( new Upload_Metrics() )->snapshot();
 
-		echo self::format( $snapshot ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Plain text exposition format.
+		echo self::format( $snapshot, self::health() ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Plain text exposition format.
 		exit;
 	}
 
@@ -131,11 +132,17 @@ final class Prometheus implements Module {
 	 * Render the Prometheus text exposition document.
 	 *
 	 * @param array<string,mixed> $snapshot Upload_Metrics::snapshot().
+	 * @param array<string,mixed> $health   Optional read-only queue health gauges.
 	 */
-	public static function format( array $snapshot ): string {
+	public static function format( array $snapshot, array $health = array() ): string {
 		$totals = isset( $snapshot['totals'] ) && is_array( $snapshot['totals'] ) ? $snapshot['totals'] : array();
 		$last   = isset( $snapshot['last_error'] ) && is_array( $snapshot['last_error'] ) ? $snapshot['last_error'] : array();
 		$lines  = array();
+
+		$delete_dead      = max( 0, (int) ( $health['delete_dead'] ?? 0 ) );
+		$delete_stale     = max( 0, (int) ( $health['delete_stale'] ?? 0 ) );
+		$remote_uncertain = max( 0, (int) ( $health['remote_uncertain'] ?? 0 ) );
+		$sync_jobs_dead   = max( 0, (int) ( $health['sync_jobs_dead'] ?? 0 ) );
 
 		$lines[] = '# HELP sakura_imgopt_upload_attempts_total Upload attempts by result since metrics were installed.';
 		$lines[] = '# TYPE sakura_imgopt_upload_attempts_total counter';
@@ -164,6 +171,22 @@ final class Prometheus implements Module {
 		$lines[] = '# TYPE sakura_imgopt_upload_metrics_updated_timestamp_seconds gauge';
 		$lines[] = 'sakura_imgopt_upload_metrics_updated_timestamp_seconds ' . self::num( $snapshot['updated_at'] ?? 0 );
 
+		$lines[] = '# HELP sakura_imgopt_delete_dead Remote delete jobs in the dead state.';
+		$lines[] = '# TYPE sakura_imgopt_delete_dead gauge';
+		$lines[] = 'sakura_imgopt_delete_dead ' . self::num( $delete_dead );
+
+		$lines[] = '# HELP sakura_imgopt_delete_stale Remote delete jobs running longer than the stale threshold.';
+		$lines[] = '# TYPE sakura_imgopt_delete_stale gauge';
+		$lines[] = 'sakura_imgopt_delete_stale ' . self::num( $delete_stale );
+
+		$lines[] = '# HELP sakura_imgopt_remote_uncertain Remote operations in the uncertain state, awaiting operator release.';
+		$lines[] = '# TYPE sakura_imgopt_remote_uncertain gauge';
+		$lines[] = 'sakura_imgopt_remote_uncertain ' . self::num( $remote_uncertain );
+
+		$lines[] = '# HELP sakura_imgopt_sync_jobs_dead Sync jobs in the dead state.';
+		$lines[] = '# TYPE sakura_imgopt_sync_jobs_dead gauge';
+		$lines[] = 'sakura_imgopt_sync_jobs_dead ' . self::num( $sync_jobs_dead );
+
 		$last_sent = (int) get_transient( Alerting::COOLDOWN_TRANSIENT );
 		$lines[]   = '# HELP sakura_imgopt_alert_last_sent_timestamp_seconds Unix timestamp of the last delivered webhook alert.';
 		$lines[]   = '# TYPE sakura_imgopt_alert_last_sent_timestamp_seconds gauge';
@@ -174,6 +197,28 @@ final class Prometheus implements Module {
 		$lines[] = 'sakura_imgopt_info{version="' . self::escape( (string) SAKURA_TOOLS_VERSION ) . '"} 1';
 
 		return implode( "\n", $lines ) . "\n";
+	}
+
+	/**
+	 * Read-only queue health gauges. Failures degrade to zero rather than
+	 * breaking the scrape.
+	 *
+	 * @return array<string,int>
+	 */
+	private static function health(): array {
+		try {
+			$delete = new Delete_Jobs();
+			$index  = new Index_Repository();
+
+			return array(
+				'delete_dead'      => $delete->failure_count(),
+				'delete_stale'     => $delete->stale_count(),
+				'remote_uncertain' => Remote_Operation_Guard::count_held( 'uncertain' ),
+				'sync_jobs_dead'   => $index->dead_jobs_count(),
+			);
+		} catch ( \Throwable ) {
+			return array();
+		}
 	}
 
 	/**

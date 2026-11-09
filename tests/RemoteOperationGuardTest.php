@@ -16,13 +16,23 @@ final class RemoteGuardDatabase {
 		if ( str_starts_with( $sql, 'INSERT IGNORE' ) ) {
 			[ $id, $token, $key, $action ] = $args;
 			if ( isset( $this->rows[ $id ] ) ) { return 0; }
-			$this->rows[ $id ] = array( 'token' => $token, 'key' => $key, 'action' => $action, 'state' => 'inflight', 'created_at' => $args[4] );
+			$this->rows[ $id ] = array(
+				'token'        => $token,
+				'key'          => $key,
+				'action'       => $action,
+				'state'        => 'inflight',
+				'created_at'   => $args[4],
+				'updated_at'   => $args[5] ?? $args[4],
+				'context_json' => $args[6] ?? '',
+			);
 			return 1;
 		}
 		if ( str_starts_with( $sql, 'UPDATE' ) ) {
 			[ $error, $time, $id, $token ] = $args;
 			if ( ( $this->rows[ $id ]['token'] ?? '' ) !== $token ) { return 0; }
-			$this->rows[ $id ]['state'] = 'uncertain';
+			$this->rows[ $id ]['state']     = 'uncertain';
+			$this->rows[ $id ]['last_error'] = $error;
+			$this->rows[ $id ]['updated_at'] = $time;
 			return 1;
 		}
 		[ $id, $token ] = $args;
@@ -30,6 +40,48 @@ final class RemoteGuardDatabase {
 		if ( str_contains( $sql, "state = 'inflight'" ) && 'inflight' !== $this->rows[ $id ]['state'] ) { return 0; }
 		unset( $this->rows[ $id ] );
 		return 1;
+	}
+
+	public function get_results( $prepared, $output = 'OBJECT' ) {
+		if ( $this->offline ) { return array(); }
+		[ $sql, $args ] = json_decode( $prepared, true );
+		if ( ! str_starts_with( $sql, 'SELECT resource_hash' ) ) { return array(); }
+		$rows = array();
+		foreach ( $this->rows as $id => $row ) {
+			$rows[] = array(
+				'resource_hash' => $id,
+				'token'         => $row['token'],
+				'object_key'    => $row['key'],
+				'action'        => $row['action'],
+				'state'         => $row['state'],
+				'created_at'    => $row['created_at'],
+				'updated_at'    => $row['updated_at'] ?? $row['created_at'],
+				'last_error'    => $row['last_error'] ?? '',
+				'context_json'  => $row['context_json'] ?? '',
+			);
+		}
+		usort( $rows, static function ( $a, $b ) {
+			return strcmp( $a['created_at'], $b['created_at'] ) ?: strcmp( $a['resource_hash'], $b['resource_hash'] );
+		} );
+		$limit  = (int) ( $args[0] ?? 100 );
+		$offset = (int) ( $args[1] ?? 0 );
+		return array_slice( $rows, $offset, $limit );
+	}
+
+	public function get_var( $prepared ) {
+		if ( $this->offline ) { return null; }
+		$sql  = (string) $prepared;
+		$args = array();
+		if ( str_starts_with( $sql, '[' ) ) {
+			[ $sql, $args ] = json_decode( $sql, true );
+		}
+		if ( ! str_starts_with( $sql, 'SELECT COUNT(*)' ) ) { return null; }
+		$state = (string) ( $args[0] ?? '' );
+		$count = 0;
+		foreach ( $this->rows as $row ) {
+			if ( '' === $state || $state === $row['state'] ) { ++$count; }
+		}
+		return $count;
 	}
 }
 
@@ -98,6 +150,46 @@ final class RemoteOperationGuardTest extends TestCase {
 		$this->assertTrue( $guard->execute( array( 'a' ), 'delete', static fn() => array( 'a' => true ) )['a'] );
 		$this->assertTrue( ( new Remote_Operation_Guard( 'other-target', $db ) )->execute( array( 'b' ), 'upload', static fn() => array( 'b' => true ) )['b'] );
 		$this->assertCount( 1, $db->rows );
+	}
+
+	public function test_pending_paginates_and_counts_states(): void {
+		$db = new RemoteGuardDatabase();
+		$guard = new Remote_Operation_Guard( 'scope', $db );
+		foreach ( array( 'a', 'b', 'c' ) as $key ) {
+			$guard->execute( array( $key ), 'upload', static function () { throw new RuntimeException( 'unknown outcome' ); } );
+		}
+
+		$this->assertSame( 3, $guard->count_reservations() );
+		$this->assertSame( 3, $guard->count_reservations( 'uncertain' ) );
+		$this->assertSame( 0, $guard->count_reservations( 'inflight' ) );
+		$this->assertSame( 0, $guard->count_reservations( 'bogus' ) );
+		$this->assertCount( 2, $guard->pending( 2 ) );
+		$this->assertCount( 1, $guard->pending( 2, 2 ) );
+		$this->assertCount( 1, $guard->pending( 0 ) );
+	}
+
+	public function test_count_held_uses_request_connection_as_read_only_gauge(): void {
+		$db = new RemoteGuardDatabase();
+		$guard = new Remote_Operation_Guard( 'scope', $db );
+		foreach ( array( 'a', 'b' ) as $key ) {
+			$guard->execute( array( $key ), 'upload', static function () { throw new RuntimeException( 'unknown outcome' ); } );
+		}
+
+		$had_previous = array_key_exists( 'wpdb', $GLOBALS );
+		$previous     = $GLOBALS['wpdb'] ?? null;
+		$GLOBALS['wpdb'] = $db;
+		try {
+			$this->assertSame( 2, Remote_Operation_Guard::count_held() );
+			$this->assertSame( 2, Remote_Operation_Guard::count_held( 'uncertain' ) );
+			$this->assertSame( 0, Remote_Operation_Guard::count_held( 'inflight' ) );
+			$this->assertSame( 0, Remote_Operation_Guard::count_held( 'bogus' ) );
+		} finally {
+			if ( $had_previous ) {
+				$GLOBALS['wpdb'] = $previous;
+			} else {
+				unset( $GLOBALS['wpdb'] );
+			}
+		}
 	}
 
 	public function test_database_failure_fails_closed_without_network(): void {

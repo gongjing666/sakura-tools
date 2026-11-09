@@ -137,10 +137,64 @@ final class Remote_Operation_Guard {
 		) );
 	}
 
-	/** Read-only operator inventory; includes crashes left in inflight state. */
-	public function pending(): array {
-		$rows = $this->db->get_results( "SELECT resource_hash, token, object_key, action, state, created_at, updated_at, last_error, context_json FROM {$this->table} ORDER BY created_at LIMIT 100", ARRAY_A );
+	/**
+	 * Read-only operator inventory; includes crashes left in inflight state.
+	 *
+	 * @param int $limit  Rows to return, clamped to 1..100.
+	 * @param int $offset Rows to skip.
+	 * @return array<int,array<string,string>>
+	 */
+	public function pending( int $limit = 100, int $offset = 0 ): array {
+		$limit  = max( 1, min( 100, $limit ) );
+		$offset = max( 0, $offset );
+		$rows   = $this->db->get_results(
+			$this->db->prepare(
+				"SELECT resource_hash, token, object_key, action, state, created_at, updated_at, last_error, context_json FROM {$this->table} ORDER BY created_at, resource_hash LIMIT %d OFFSET %d",
+				$limit,
+				$offset
+			),
+			'ARRAY_A'
+		);
 		return is_array( $rows ) ? $rows : array();
+	}
+
+	/**
+	 * Read-only count of held reservations.
+	 *
+	 * @param string $state Optional state: inflight|uncertain.
+	 */
+	public function count_reservations( string $state = '' ): int {
+		$state = strtolower( trim( $state ) );
+		if ( '' !== $state && ! in_array( $state, array( 'inflight', 'uncertain' ), true ) ) {
+			return 0;
+		}
+		$sql = "SELECT COUNT(*) FROM {$this->table}";
+		if ( '' !== $state ) {
+			$sql = $this->db->prepare( $sql . ' WHERE state = %s', $state );
+		}
+		return max( 0, (int) $this->db->get_var( $sql ) );
+	}
+
+	/**
+	 * Advisory read-only count through the request connection, for metrics.
+	 *
+	 * The guard itself uses a dedicated autocommit connection; this helper is
+	 * intentionally only a gauge and must never authorize or release anything.
+	 *
+	 * @param string $state Optional state: inflight|uncertain.
+	 */
+	public static function count_held( string $state = '' ): int {
+		global $wpdb;
+		$state = strtolower( trim( $state ) );
+		if ( '' !== $state && ! in_array( $state, array( 'inflight', 'uncertain' ), true ) ) {
+			return 0;
+		}
+		$table = ( is_object( $wpdb ) ? (string) ( $wpdb->prefix ?? '' ) : '' ) . 'sio_sync_operations';
+		$sql   = "SELECT COUNT(*) FROM {$table}";
+		if ( '' !== $state ) {
+			$sql = $wpdb->prepare( $sql . ' WHERE state = %s', $state );
+		}
+		return max( 0, (int) $wpdb->get_var( $sql ) );
 	}
 
 	/**

@@ -29,14 +29,29 @@ final class PrometheusTest extends TestCase {
 				'totals'     => array( 'ok' => 10, 'fail' => 2, 'dead' => 1, 'bytes' => 2048, 'avg_ms' => 12, 'max_ms' => 40, 'rate' => 0.166667 ),
 				'last_error' => array( 'at' => 1700 ),
 				'updated_at' => 1800,
+			),
+			array(
+				'delete_dead'      => 2,
+				'delete_stale'     => 1,
+				'remote_uncertain' => 3,
+				'sync_jobs_dead'   => 4,
 			)
 		);
 
 		$this->assertStringNotContainsString( 'queue_depth', $text );
 		$this->assertStringContainsString( 'sakura_imgopt_upload_attempts_total{result="ok"} 10', $text );
 		$this->assertStringContainsString( 'sakura_imgopt_upload_failure_ratio 0.166667', $text );
+		$this->assertStringContainsString( 'sakura_imgopt_delete_dead 2', $text );
+		$this->assertStringContainsString( 'sakura_imgopt_delete_stale 1', $text );
+		$this->assertStringContainsString( 'sakura_imgopt_remote_uncertain 3', $text );
+		$this->assertStringContainsString( 'sakura_imgopt_sync_jobs_dead 4', $text );
 		$this->assertStringContainsString( 'sakura_imgopt_info{version="1.6.5"} 1', $text );
 		$this->assertStringEndsWith( "\n", $text );
+
+		$without_health = Prometheus::format( array( 'totals' => array(), 'updated_at' => 0 ) );
+		$this->assertStringContainsString( 'sakura_imgopt_delete_dead 0', $without_health );
+		$this->assertStringContainsString( 'sakura_imgopt_remote_uncertain 0', $without_health );
+		$this->assertStringContainsString( 'sakura_imgopt_sync_jobs_dead 0', $without_health );
 	}
 
 	/** Tokens are generated and compared in constant time. */

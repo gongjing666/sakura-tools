@@ -4,7 +4,7 @@ Tags: image optimization, webp, avif, imagick, media library
 Requires at least: 6.4
 Tested up to: 7.1.4
 Requires PHP: 8.2
-Stable tag: 1.24.1
+Stable tag: 1.24.2
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -78,6 +78,12 @@ Access Key 和 Secret 会加密后存进数据库，页面和源码都不会显�
 插件目前没有接管这个跳转。等出现「既要防直链、又要保留购买校验」的需求时再研发，方向是在主题之前拦截下载请求，由插件代理输出或签发短时有效的预签名地址；若暂时需要这层保护，请关闭「上传后删除本地文件」，让文件保留在本地。
 
 == Changelog ==
+
+= 1.24.2 =
+* 对象存储/Sync 运维：新增只读 wp sakura-s3 health，汇总上传、删除队列、远端守卫与同步作业的 16 项指标。
+* 对象存储/Sync 运维：wp sakura-s3 remote-operations 新增 count 与 --limit/--offset 分页；uncertain 仍需人工确认后 release。
+* Prometheus：新增 delete_dead、delete_stale、remote_uncertain、sync_jobs_dead 四个只读 gauge，读取失败时降级为 0。
+* 上传指标：不自动裁剪事件表；补回滚回归测试，确认旧版写 option 不会造成重复计数。
 
 = 1.24.1 =
 * 文件面板：用户中心与编辑页都支持 Shift 连选、Ctrl/⌘ 点选、Ctrl/⌘A 全选与 Esc 清空；网格视图新增「全选 / 取消全选」按钮。

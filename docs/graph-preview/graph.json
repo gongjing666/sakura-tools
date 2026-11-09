@@ -1,18 +1,18 @@
 {
  "meta": {
   "plugin": "sakura-tools",
-  "version": "1.24.1",
-  "generatedAt": "2026-11-09T10:37:20.060Z",
+  "version": "1.24.2",
+  "generatedAt": "2026-11-09T14:24:28.111Z",
   "source": "dsh-codegraph lib/scanner.php（token_get_all 三趟静态扫描）",
-  "doc": "sakura-tools-代码结构-1.24.1.md"
+  "doc": "sakura-tools-代码结构-1.24.2.md"
  },
  "stats": {
   "files": 178,
   "modules": 17,
   "classes": 163,
   "nodes": 180,
-  "links": 815,
-  "refLinks": 602,
+  "links": 822,
+  "refLinks": 609,
   "modrefLinks": 50,
   "containsLinks": 163,
   "hooks": 191
@@ -364,7 +364,7 @@
    "kind": "class",
    "file": "includes/class-s3-cli.php",
    "line": 14,
-   "val": 3.577708763999664,
+   "val": 3.919183588453085,
    "color": "#ff9f7f",
    "x": -1118.8,
    "y": 695.3,
@@ -1077,7 +1077,7 @@
    "module": "src/S3",
    "kind": "class",
    "file": "src/S3/Prometheus.php",
-   "line": 24,
+   "line": 25,
    "val": 4.525483399593905,
    "color": "#5aa9ff",
    "x": -360.9,
@@ -1106,7 +1106,7 @@
    "kind": "class",
    "file": "src/S3/Remote_Operation_Guard.php",
    "line": 14,
-   "val": 3.577708763999664,
+   "val": 4.233202097703345,
    "color": "#5aa9ff",
    "x": -657.9,
    "y": 1237.2,
@@ -3238,7 +3238,7 @@
     "new",
     "call"
    ],
-   "w": 3
+   "w": 10
   },
   {
    "source": "cls:Sakura\\ImageOptimizer\\S3_CLI",
@@ -3250,6 +3250,44 @@
     "call"
    ],
    "w": 8
+  },
+  {
+   "source": "cls:Sakura\\ImageOptimizer\\S3_CLI",
+   "target": "cls:Sakura\\ImageOptimizer\\S3\\Upload_Metrics",
+   "type": "ref",
+   "kinds": [
+    "new"
+   ],
+   "w": 1
+  },
+  {
+   "source": "cls:Sakura\\ImageOptimizer\\S3_CLI",
+   "target": "cls:Sakura\\ImageOptimizer\\S3\\Delete_Jobs",
+   "type": "ref",
+   "kinds": [
+    "new",
+    "call"
+   ],
+   "w": 4
+  },
+  {
+   "source": "cls:Sakura\\ImageOptimizer\\S3_CLI",
+   "target": "cls:Sakura\\ImageOptimizer\\Sync\\Index_Repository",
+   "type": "ref",
+   "kinds": [
+    "new"
+   ],
+   "w": 1
+  },
+  {
+   "source": "cls:Sakura\\ImageOptimizer\\S3_CLI",
+   "target": "cls:Sakura\\ImageOptimizer\\Sync\\Metrics",
+   "type": "ref",
+   "kinds": [
+    "static",
+    "call"
+   ],
+   "w": 2
   },
   {
    "source": "cls:Sakura\\ImageOptimizer\\S3_Doge_Cloud",
@@ -5016,6 +5054,36 @@
     "static"
    ],
    "w": 1
+  },
+  {
+   "source": "cls:Sakura\\ImageOptimizer\\S3\\Prometheus",
+   "target": "cls:Sakura\\ImageOptimizer\\S3\\Delete_Jobs",
+   "type": "ref",
+   "kinds": [
+    "new",
+    "call"
+   ],
+   "w": 3
+  },
+  {
+   "source": "cls:Sakura\\ImageOptimizer\\S3\\Prometheus",
+   "target": "cls:Sakura\\ImageOptimizer\\Sync\\Index_Repository",
+   "type": "ref",
+   "kinds": [
+    "new",
+    "call"
+   ],
+   "w": 2
+  },
+  {
+   "source": "cls:Sakura\\ImageOptimizer\\S3\\Prometheus",
+   "target": "cls:Sakura\\ImageOptimizer\\S3\\Remote_Operation_Guard",
+   "type": "ref",
+   "kinds": [
+    "static",
+    "call"
+   ],
+   "w": 2
   },
   {
    "source": "cls:Sakura\\ImageOptimizer\\S3\\Remote_Operation_Guard",
@@ -9523,13 +9591,13 @@
    "source": "mod:includes",
    "target": "mod:src/S3",
    "type": "modref",
-   "w": 40
+   "w": 43
   },
   {
    "source": "mod:includes",
    "target": "mod:src/Sync",
    "type": "modref",
-   "w": 4
+   "w": 7
   },
   {
    "source": "mod:includes",
@@ -9685,7 +9753,7 @@
    "source": "mod:src/S3",
    "target": "mod:src/Sync",
    "type": "modref",
-   "w": 33
+   "w": 35
   },
   {
    "source": "mod:src/S3",

@@ -162,7 +162,10 @@ if ( '' === $notice_text ) {
 			<nav class="sufm-crumbs" id="sufm-crumbs" aria-label="<?php echo esc_attr__( '当前位置', 'sakura-imgopt' ); ?>">
 				<button type="button" class="sufm-crumb" data-sufm-folder="0"><?php esc_html_e( '全部文件', 'sakura-imgopt' ); ?></button>
 			</nav>
-			<span class="sufm-path-count" id="sufm-path-count"></span>
+			<span class="sufm-path-tools">
+				<button type="button" class="sufm-btn sufm-btn-sm sufm-select-all" data-sufm-select-all hidden aria-pressed="false"><?php echo esc_html( $sufm_str( 'selectAllShort' ) ); ?></button>
+				<span class="sufm-path-count" id="sufm-path-count"></span>
+			</span>
 		</div>
 
 		<div class="sufm-alert" id="sufm-alert" role="alert" hidden>

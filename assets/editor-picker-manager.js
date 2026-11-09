@@ -38,6 +38,8 @@
 		overQuota: false,
 		selection: {},
 		selectedCount: 0,
+		anchor: 0,
+		pointerInside: false,
 		loading: false,
 		requestsMode: false,
 		requestPage: 1,
@@ -618,6 +620,7 @@
 			el.files.insertAdjacentHTML( 'beforeend', '<div class="sufm-more-wrap"><button type="button" class="sufm-btn sufm-btn-sm" data-sufm-more="1">加载更多</button></div>' );
 		}
 
+		syncSelectAll();
 	}
 
 	function updateCounts() {
@@ -797,6 +800,7 @@
 			state.files = [];
 			state.selection = {};
 			state.selectedCount = 0;
+			state.anchor = 0;
 			updateBatch();
 		}
 
@@ -854,6 +858,7 @@
 		app.classList.add( 'is-requests' );
 		state.selection = {};
 		state.selectedCount = 0;
+		state.anchor = 0;
 		updateBatch();
 		loadRequests( true );
 	}
@@ -871,8 +876,126 @@
 	 * Selection
 	 * ------------------------------------------------------------------ */
 
+	function checkboxOf( target ) {
+		var box = target.closest( '[data-sufm-select]' );
+		if ( box ) { return box; }
+		var wrap = target.closest( '.sufm-grid-check, .sufm-row-check' );
+		return wrap ? wrap.querySelector( '[data-sufm-select]' ) : null;
+	}
+
+	function isTypingTarget( target ) {
+		if ( ! target || ! target.closest ) { return false; }
+		if ( target.isContentEditable ) { return true; }
+		var field = target.closest( 'input, textarea, select, [contenteditable="true"], [contenteditable=""], .mce-edit-area, .wp-editor-area' );
+		if ( ! field ) { return false; }
+		if ( 'INPUT' === field.tagName ) {
+			// Checkboxes are selection targets, not text fields.
+			return ! /^(checkbox|radio|button|submit|reset)$/i.test( field.type || '' );
+		}
+		return true;
+	}
+
+	function hasOpenMenus() {
+		return !! document.querySelector( '[data-sufm-menu-panel]:not([hidden])' );
+	}
+
+	function selectableIds() {
+		var seen = {};
+		var ids = [];
+
+		root.querySelectorAll( '[data-sufm-select]' ).forEach( function ( box ) {
+			if ( box.disabled ) { return; }
+			var row = box.closest( '[data-sufm-file]' );
+			var id = row ? Number( row.getAttribute( 'data-sufm-file' ) ) : 0;
+			if ( ! id || seen[ id ] ) { return; }
+			seen[ id ] = true;
+			ids.push( id );
+		} );
+
+		return ids;
+	}
+
+	function isSelectable( id ) {
+		return selectableIds().indexOf( Number( id ) ) >= 0;
+	}
+
+	function selectRange( id ) {
+		var target = Number( id );
+		var ids = selectableIds();
+		if ( ids.indexOf( target ) < 0 ) { return; }
+
+		var anchor = Number( state.anchor ) || target;
+		var from = ids.indexOf( anchor );
+		var to = ids.indexOf( target );
+		if ( from < 0 ) { from = to; }
+
+		var start = Math.min( from, to );
+		var end = Math.max( from, to );
+
+		for ( var i = start; i <= end; i++ ) {
+			state.selection[ String( ids[ i ] ) ] = true;
+		}
+
+		// Ranges only add. Keep the original anchor so Shift can extend both ways.
+		state.anchor = anchor;
+		state.selectedCount = Object.keys( state.selection ).length;
+		updateBatch();
+	}
+
+	function toggleFile( id ) {
+		if ( ! isSelectable( id ) ) { return; }
+		id = Number( id );
+		if ( state.selection[ String( id ) ] ) {
+			delete state.selection[ String( id ) ];
+		} else {
+			state.selection[ String( id ) ] = true;
+		}
+		state.anchor = id;
+		state.selectedCount = Object.keys( state.selection ).length;
+		if ( 0 === state.selectedCount ) { state.anchor = 0; }
+		updateBatch();
+	}
+
+	function clearSelection() {
+		state.selection = {};
+		state.selectedCount = 0;
+		state.anchor = 0;
+		updateBatch();
+	}
+
+	function allSelected() {
+		var ids = selectableIds();
+		if ( ! ids.length ) { return false; }
+		return ids.every( function ( id ) { return !! state.selection[ String( id ) ]; } );
+	}
+
+	function syncSelectAll() {
+		var ids = selectableIds();
+		var picked = ids.filter( function ( id ) { return !! state.selection[ String( id ) ]; } ).length;
+		var checked = ids.length > 0 && picked === ids.length;
+		var partial = picked > 0 && picked < ids.length;
+		var toggle = root.querySelector( '[data-sufm-select-all]' );
+
+		if ( toggle ) {
+			toggle.hidden = state.view !== 'grid' || ids.length === 0;
+			toggle.textContent = checked
+				? ( strings.selectNoneShort || '取消全选' )
+				: ( strings.selectAllShort || '全选' );
+			toggle.setAttribute( 'aria-pressed', checked ? 'true' : 'false' );
+		}
+
+		var all = root.querySelector( '#sufm-check-all' );
+		if ( all ) {
+			all.checked = checked;
+			all.indeterminate = partial;
+		}
+	}
+
 	function updateBatch() {
-		if ( ! el.batch ) { return; }
+		if ( ! el.batch ) {
+			document.dispatchEvent( new CustomEvent( 'sufm:selection-changed' ) );
+			return;
+		}
 		var count = state.selectedCount;
 		el.batch.hidden = count === 0;
 		var upBtn = el.batch.querySelector( '[data-sufm-batch="up"]' );
@@ -897,23 +1020,28 @@
 				el.head.appendChild( el.batch );
 			}
 		}
-		document.querySelectorAll( '[data-sufm-select]' ).forEach( function ( box ) {
+		root.querySelectorAll( '[data-sufm-select]' ).forEach( function ( box ) {
 			var id = box.getAttribute( 'data-sufm-select' );
 			var on = !! state.selection[ id ];
 			box.checked = on;
 			var row = box.closest( '[data-sufm-file]' );
 			if ( row ) { row.classList.toggle( 'is-selected', on ); }
 		} );
+
+		syncSelectAll();
+
+		// The insert bar keeps its own tick order in editor-picker.js; tell it
+		// that a batch/range changed the boxes without firing per-box changes.
+		document.dispatchEvent( new CustomEvent( 'sufm:selection-changed' ) );
 	}
 
 	function selectAll( checked ) {
 		state.selection = {};
-		state.selectedCount = 0;
-		state.files.forEach( function ( file ) {
-			if ( file.locked ) { return; }
-			if ( checked ) { state.selection[ file.id ] = true; }
-		} );
+		if ( checked ) {
+			selectableIds().forEach( function ( id ) { state.selection[ String( id ) ] = true; } );
+		}
 		state.selectedCount = Object.keys( state.selection ).length;
+		state.anchor = 0;
 		updateBatch();
 	}
 
@@ -1544,6 +1672,13 @@
 			return;
 		}
 
+		var allBtn = event.target.closest( '[data-sufm-select-all]' );
+		if ( allBtn ) {
+			event.preventDefault();
+			selectAll( ! allSelected() );
+			return;
+		}
+
 		var menuBtn = event.target.closest( '[data-sufm-menu]' );
 
 		if ( menuBtn ) {
@@ -1566,6 +1701,17 @@
 		var act = event.target.closest( '[data-sufm-act]' );
 		if ( act ) {
 			runMenuAction( act );
+			return;
+		}
+
+		var modify = event.shiftKey || event.ctrlKey || event.metaKey;
+		var fileRow = event.target.closest( '[data-sufm-file]' );
+		if ( modify && fileRow && ! event.target.closest( '.sufm-grid-check, .sufm-row-check, .sufm-check, [data-sufm-menu], [data-sufm-act]' ) ) {
+			closeAllMenus();
+			event.preventDefault();
+			event.stopPropagation();
+			var fileId = fileRow.getAttribute( 'data-sufm-file' );
+			if ( event.shiftKey ) { selectRange( fileId ); } else { toggleFile( fileId ); }
 			return;
 		}
 
@@ -1635,9 +1781,7 @@
 			var ids = Object.keys( state.selection ).map( Number );
 
 			if ( 'cancel' === action ) {
-				state.selection = {};
-				state.selectedCount = 0;
-				updateBatch();
+				clearSelection();
 			} else if ( 'move' === action && ids.length ) {
 				movePicker( ids.map( function ( id ) { return { type: 'file', id: id }; } ) );
 			} else if ( 'up' === action && ids.length ) {
@@ -1659,7 +1803,9 @@
 		if ( box ) {
 			var id = box.getAttribute( 'data-sufm-select' );
 			if ( box.checked ) { state.selection[ id ] = true; } else { delete state.selection[ id ]; }
+			state.anchor = Number( id );
 			state.selectedCount = Object.keys( state.selection ).length;
+			if ( 0 === state.selectedCount ) { state.anchor = 0; }
 			updateBatch();
 		}
 	} );
@@ -1679,9 +1825,52 @@
 		}
 	} );
 
-	document.addEventListener( 'keydown', function ( event ) {
-		if ( 'Escape' !== event.key ) { return; }
+	root.addEventListener( 'click', function ( event ) {
+		var box = checkboxOf( event.target );
+		if ( ! box || box.disabled ) { return; }
+		if ( ! ( event.shiftKey || event.ctrlKey || event.metaKey ) ) { return; }
+
 		closeAllMenus();
+		event.preventDefault();
+		event.stopPropagation();
+
+		var id = box.getAttribute( 'data-sufm-select' );
+		if ( event.shiftKey ) { selectRange( id ); } else { toggleFile( id ); }
+
+		// Canceling a checkbox click restores its pre-click checked state after
+		// dispatch, which can overwrite the boxes we just set. Re-apply once the
+		// browser has finished the canceled activation.
+		window.setTimeout( updateBatch, 0 );
+	}, true );
+
+	document.addEventListener( 'pointerdown', function ( event ) {
+		state.pointerInside = app.contains( event.target );
+	}, true );
+
+	document.addEventListener( 'keydown', function ( event ) {
+		if ( el.modal && el.modal.open ) { return; }
+
+		if ( 'Escape' === event.key ) {
+			// Let the panel's Escape handler clear the insert bar when this
+			// listener only closed an open menu.
+			if ( hasOpenMenus() ) { event.__sufmMenuClosed = true; }
+			closeAllMenus();
+			return;
+		}
+
+		if ( ! ( event.ctrlKey || event.metaKey ) || event.altKey || event.shiftKey ) { return; }
+		if ( 'a' !== String( event.key || '' ).toLowerCase() ) { return; }
+		if ( ! state.pointerInside && ! app.contains( event.target ) ) { return; }
+		if ( ! root.getClientRects().length || state.requestsMode || hasOpenMenus() ) { return; }
+		if ( isTypingTarget( event.target ) || ! selectableIds().length ) { return; }
+
+		event.preventDefault();
+		selectAll( true );
+	} );
+
+	document.addEventListener( 'sufm:file-picked', function ( event ) {
+		var id = Number( event.detail && event.detail.id );
+		if ( id ) { state.anchor = id; }
 	} );
 
 	window.addEventListener( 'blur', function () {

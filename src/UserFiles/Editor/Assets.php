@@ -78,7 +78,9 @@ final class Assets {
 					/* translators: %d: number of items to insert. */
 					'insertMany' => __( '插入 %d 个', 'sakura-imgopt' ),
 					'orderHint'  => __( '图片优先，按勾选顺序插入', 'sakura-imgopt' ),
-					'pickHint'   => __( '单击选中，双击插入，也可拖到正文', 'sakura-imgopt' ),
+					'selectAllShort'  => __( '全选', 'sakura-imgopt' ),
+					'selectNoneShort' => __( '取消全选', 'sakura-imgopt' ),
+					'pickHint'   => __( '单击选中，双击插入；Shift 连选，Ctrl/⌘ 点选', 'sakura-imgopt' ),
 					'folders'    => __( '子文件夹', 'sakura-imgopt' ),
 					'files'      => __( '文件', 'sakura-imgopt' ),
 					'allFiles'   => __( '全部文件', 'sakura-imgopt' ),

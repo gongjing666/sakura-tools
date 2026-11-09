@@ -614,6 +614,28 @@ body.dark-theme #sufm-picker {
 	white-space: nowrap;
 }
 
+#sufm-picker .sufm-path-tools {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	flex: none;
+	min-width: 0;
+}
+
+#sufm-picker .sufm-select-all {
+	min-height: 26px;
+	padding: 0 8px;
+	border-color: transparent;
+	background: transparent;
+	color: var(--sufm-pink);
+	font-size: 11px;
+}
+
+#sufm-picker .sufm-select-all:hover {
+	border-color: var(--sufm-line);
+	background: var(--sufm-card);
+}
+
 /* Inline alert */
 #sufm-picker .sufm-alert {
 	display: flex;
@@ -5381,7 +5403,7 @@ html.dark-theme #sufm-picker .sufm-files::-webkit-scrollbar-thumb {
 }
 
 #sufm-picker .sufm-path.is-batching > .sufm-crumbs,
-#sufm-picker .sufm-path.is-batching > .sufm-path-count {
+#sufm-picker .sufm-path.is-batching > .sufm-path-tools {
 	display: none;
 }
 
@@ -5652,4 +5674,17 @@ html.dark-theme #sufm-picker .sufm-files::-webkit-scrollbar-thumb {
 	flex: 0 0 auto;
 	min-height: 0;
 	overflow: visible;
+}
+
+/* ---------- List rows always use the square checkbox ----------
+ * Same guard as the user-centre panel: only grid cards carry the round
+ * selection dot, never a file/table row.
+ */
+#sufm-picker .sufm-row .sufm-check,
+#sufm-picker .sufm-row .sufm-grid-check .sufm-check,
+#sufm-picker .sufm-row-check .sufm-check,
+#sufm-picker .sufm-head-check .sufm-check {
+	width: 14px !important;
+	height: 14px !important;
+	border-radius: 3px !important;
 }

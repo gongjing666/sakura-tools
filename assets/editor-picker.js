@@ -574,6 +574,10 @@
 		state.picked = info;
 		markPicked( node );
 		updatePicked();
+
+		// The manager owns Shift/Ctrl ranges; a plain pick still sets the
+		// anchor so Shift-clicking from here starts at this file.
+		document.dispatchEvent( new CustomEvent( 'sufm:file-picked', { detail: { id: info.id } } ) );
 	}
 
 	/*
@@ -1048,6 +1052,13 @@
 			return;
 		}
 
+		// Shift/Ctrl clicks are batch selection. Leave them for the manager --
+		// especially the open-file button, which this handler would otherwise
+		// stop before the manager saw the modifier.
+		if ( event.shiftKey || event.ctrlKey || event.metaKey ) {
+			return;
+		}
+
 		if ( event.target.closest( '[data-sufm-open-file]' ) ) {
 			event.preventDefault();
 			event.stopPropagation();
@@ -1165,6 +1176,25 @@
 			return;
 		}
 
+		if ( panel.querySelector( 'dialog[open]' ) ) {
+			return;
+		}
+
+		// The manager runs first and marks the event when it closed a menu.
+		if ( event.__sufmMenuClosed ) {
+			return;
+		}
+
+		if ( state.picked || panel.querySelector( '.sufm-check[data-sufm-select]:checked' ) ) {
+			event.preventDefault();
+			clearChecked();
+			state.picked = null;
+			markPicked( null );
+			updatePicked();
+
+			return;
+		}
+
 		userClose();
 	} );
 
@@ -1245,6 +1275,13 @@
 
 		state.picked = null;
 		markPicked( null );
+		updatePicked();
+	} );
+
+	// Batch/range selection is applied straight to the checkboxes by the
+	// manager, without a change event per box; rebuild the insert bar from the
+	// DOM so its count and order never disagree with the list.
+	document.addEventListener( 'sufm:selection-changed', function () {
 		updatePicked();
 	} );
 

@@ -387,6 +387,9 @@ final class Tab {
 			/* translators: %s: file name */
 			'fileActions'            => __( '%s的操作', 'sakura-imgopt' ),
 			'selectAll'              => __( '全选当前文件', 'sakura-imgopt' ),
+			'selectAllShort'         => __( '全选', 'sakura-imgopt' ),
+			'selectNoneShort'        => __( '取消全选', 'sakura-imgopt' ),
+			'selectHint'             => __( 'Shift 连选 · Ctrl/⌘ 点选 · Ctrl/⌘A 全选', 'sakura-imgopt' ),
 			/* translators: %s: item name */
 			'selectFile'             => __( '选择 %s', 'sakura-imgopt' ),
 			'sortName'               => __( '文件名', 'sakura-imgopt' ),

@@ -4,7 +4,7 @@ Tags: image optimization, webp, avif, imagick, media library
 Requires at least: 6.4
 Tested up to: 7.1.4
 Requires PHP: 8.2
-Stable tag: 1.22.9
+Stable tag: 1.23.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -78,6 +78,12 @@ Access Key 和 Secret 会加密后存进数据库，页面和源码都不会显�
 插件目前没有接管这个跳转。等出现「既要防直链、又要保留购买校验」的需求时再研发，方向是在主题之前拦截下载请求，由插件代理输出或签发短时有效的预签名地址；若暂时需要这层保护，请关闭「上传后删除本地文件」，让文件保留在本地。
 
 == Changelog ==
+
+= 1.23.0 =
+* 编辑页文件面板：拖动文件时显示跟手标签与落点提示；文件可直接拖入正文，按拖动位置插入；多选会一次插入多个文件。
+* 编辑页文件面板：右键菜单新增「插入」，可把当前文件插入到编辑器光标处；文件夹拖拽仍只用于移动。
+* 编辑页文件面板：修复批量操作条归位时报 NotFoundError 的既有问题；编辑器不可用或拖拽取消时给出提示并复位。
+* 用户中心的文件管理界面保持不变，本次交互只对编辑页生效。
 
 = 1.22.9 =
 * 版本号与常量统一为 1.22.9。

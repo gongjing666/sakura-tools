@@ -1,9 +1,9 @@
 # 樱花工具箱（sakura-tools）代码结构分析报告
 
-> **版本** 1.22.9 ｜ **代码基线** commit `70e4de1`（在 `96622ab` 基础上合入 §6.8 清理、§6.9 上传指标并发修复、§8.9 空间支付收口与 1.22.9 版本收敛）｜ **分析日期** 2026-11-09
+> **版本** 1.23.0 ｜ **代码基线** commit `2fec6a3`（在 `70e4de1` 基础上合入编辑页拖拽插入与右键「插入」；1.23.0 版本号与本文档在随后提交）｜ **分析日期** 2026-11-09
 > **分析对象** `/www/wwwroot/www.nboke.com/wp-content/plugins/sakura-tools`（生产副本；§6.8/§6.9 的代码变更已包含在基线提交中，其余阅读与运行期验证均为只读）
 > **测试环境** `/root/sio-e2e`（独立 WordPress + MariaDB 127.0.0.1:13316 + MinIO 127.0.0.1:19010），插件以软链方式挂载，行为与生产一致
-> **配套产物** 3D 图谱 `docs/graph-preview/index.html`（同源数据 `graph.json`）、生成器 `docs/tools/build-code-structure.mjs`、图谱说明 `docs/sakura-tools-图谱同步-1.22.9.md`
+> **配套产物** 3D 图谱 `docs/graph-preview/index.html`（同源数据 `graph.json`）、生成器 `docs/tools/build-code-structure.mjs`、图谱说明 `docs/sakura-tools-图谱同步-1.23.0.md`
 
 ---
 
@@ -41,7 +41,7 @@
 | 指标 | 数值 | 口径 |
 |---|---:|---|
 | 生产 PHP 文件 | **178** | 不含 `tests/`(71 文件) `stubs/`(2) `vendor/` `assets/`(JS/CSS) |
-| 生产 PHP 行数 | **60,464** | 同上，含空行与注释 |
+| 生产 PHP 行数 | **60,468** | 同上，含空行与注释 |
 | 类 / 接口 | **163** | 含 7 个接口；另有 64 个全局函数未计入图谱节点 |
 | 钩子注册 | **191** | 仅生产代码中的 `add_action`/`add_filter`，不含 `do_action` 触发点 |
 | 自定义数据表 | **23** | 15 张 `{prefix}sufm_*` + 6 张 `{prefix}sio_sync_*` + 2 张 `{prefix}sio_s3_*`（`sio_s3_deletes`、`sio_s3_upload_events`） |
@@ -60,15 +60,17 @@
 3. **模块契约极窄。** `src/Contracts/Module.php:23-31` 只有一个 `register_hooks(Hook_Loader): void`，且明确禁止在构造函数里挂 WP 钩子。所有钩子集中到 `src/Support/Hook_Loader.php`，先入队、`register()` 时一次性交付，**注册后新加的钩子立即生效**（`register_frontend` 依赖这个行为）。
 4. **后台信息架构是静态声明的。** `src/Admin/Registry.php:41-101` 用一张常量数组声明「模块 → tab → 权限门 → renderer key」；`Menu` 只做建屏与分发，`Shell` 只画外壳。**加一个 tab = 改 Registry + 注册 renderer 两处**，不需要动菜单代码。
 5. **功能面是 5 个子系统 + 3 条横切。** 子系统：图片优化管线（§4）、缩略图 URL 重写（§5）、对象存储 S3（§6）、同步索引 Sync（§7）、用户文件空间 UserFiles（§8）。横切：数据落点（§9）、钩子索引（§9.2）、REST/CLI/Cron（§9.3）。
-6. **代码量集中在两处。** UserFiles（46 文件 / 21,171 行）与 S3（36 文件 / 10,803 行）合计占生产代码的 52.9%；两者也是自定义表、加密凭据与补偿队列最集中的部分。
+6. **代码量集中在两处。** UserFiles（46 文件 / 21,174 行）与 S3（36 文件 / 10,803 行）合计占生产代码的 52.9%；两者也是自定义表、加密凭据与补偿队列最集中的部分。
 7. **运行时可访问性已验证。** 11 条后台路由全部 200 且标题正确、45 条 `/sufm/v1` REST 路由（51 个端点）全部注册、7 个插件 cron 事件已排程、12 项函数级探针结果符合预期（§10）。**未验证**的是生产环境的写路径（配额扣减、删除审核、卸载清理）——生产保持只读。测试站上补做的写验证有两次：5 张并发上传（§10.6）跑通「上传 → 压缩 → S3 PUT → 索引落库」，4×200 条并发指标写入（§10.11）验证事件表零丢失。
 8. **两张"文档"已经过期，不要当作事实源。** `DEVELOPMENT.md` 第 1 节的"当前文件结构"停留在 1.3.3 的 6 个文件；`/root/WordPress/docs/sakura-image-optimizer-代码分析报告.md`（本机历史报告，未随仓库分发） 停在 1.9.0 之前的命名。本报告与 3D 图谱是当前唯一同步的产物；`DECISIONS.md` 仍然有效（记录的是"为什么"，不是"现在有什么"）。
 9. **文档与图谱同源，不会再脱节。** 两者都由同一份扫描事实表（来自 `dsh-codegraph` 的 `lib/scanner.php`）经 `docs/tools/build-code-structure.mjs` 生成。改代码后重跑一次命令即可同时刷新表格与图谱（§13.6）。
 10. **上传指标已从单 option 改为事件表。** 旧实现每次 `record_batch()` 读改写同一个 option，4 进程各写 200 条只留下 202 条（丢 75%）；现在每条结果独立 INSERT 到 `{prefix}sio_s3_upload_events`（`src/S3/Upload_Metrics.php:79`、`:149`），`snapshot()` 用 SQL 聚合（`:204`），成功与失败分别由 `sakura_imgopt_s3_uploaded` / `sakura_imgopt_s3_upload_failed` 采集（`src/S3/Upload_Observer.php:30-31`）。返回结构不变，旧 option 只作为冻结基线读取。详见 §6.9 与 §10.11。
 
-**上一轮更新（2026-11-08）**：§12 原有 3 项已全部核实并处理：① `fast-search.php` **无缺陷**，生产环境没有额外封禁，入口按 HMAC + 管理员能力鉴权；② `Space_Store::grant_from_order()` **缺陷已修复**，订单按支付渠道写 `source/channel` 与订单字段，并默认只开放余额支付、补退款补偿与每日对账（§8.9、§10.12）；③ 上传失败不可见**已修复**，旧 `Upload_Observer` 只记录成功样本，该轮改为追加事件表 + 失败钩子，并发压测 800/800 条落库（§6.9、§10.11）。
+**更早一轮更新（2026-11-08）**：§12 原有 3 项已全部核实并处理：① `fast-search.php` **无缺陷**，生产环境没有额外封禁，入口按 HMAC + 管理员能力鉴权；② `Space_Store::grant_from_order()` **缺陷已修复**，订单按支付渠道写 `source/channel` 与订单字段，并默认只开放余额支付、补退款补偿与每日对账（§8.9、§10.12）；③ 上传失败不可见**已修复**，旧 `Upload_Observer` 只记录成功样本，该轮改为追加事件表 + 失败钩子，并发压测 800/800 条落库（§6.9、§10.11）。
 
-**本轮更新（2026-11-09）**：版本号、常量与 readme 统一到 **1.22.9**；消除全量 PHPCS 的 5 个既有错误（4 条译者注释、1 条异常消息的窄例外），复检 **177 个 PHP 文件 0 error**；生产代码结构与图谱拓扑未变（178 文件 / 163 类 / 180 节点 / 814 连线 / 191 钩子），仅 `src/UserFiles/Editor/Assets.php` 增加 4 行使生产总行数变为 60,464。
+**上一轮更新（2026-11-09，1.22.9）**：版本号、常量与 readme 统一到 **1.22.9**；消除全量 PHPCS 的 5 个既有错误（4 条译者注释、1 条异常消息的窄例外），复检 **177 个 PHP 文件 0 error**；生产代码结构与图谱拓扑未变（178 文件 / 163 类 / 180 节点 / 814 连线 / 191 钩子），仅 `src/UserFiles/Editor/Assets.php` 增加 4 行使生产总行数变为 60,464。
+
+**本轮更新（2026-11-09，1.23.0）**：编辑页文件面板新增拖拽跟手标签、拖到正文按落点插入、右键菜单「插入」。改动只落在编辑页 fork（`assets/editor-picker*.js/css`、`includes/views/editor-picker-app.php`、`src/UserFiles/Editor/Assets.php` 文案与图标）；用户中心 `assets/userfiles.*` 与 `Frontend/Tab.php` 的界面未改，只新增一个 `dragInsert` 文案键。没有新增类、路由、钩子或数据表，图谱拓扑仍 180 节点 / 814 连线 / 191 钩子；`includes/views/editor-picker-app.php` +1 行、`Editor/Assets.php` +2 行、`Tab.php` +1 行，生产总行数 60,468，UserFiles 21,174。详见 §8.10、§10.13。
 
 ---
 
@@ -96,7 +98,7 @@ sakura-tools/
 │   ├── class-thumbnail-optimizer-module.php 缩略图子系统唯一装配点
 │   ├── class-thumbnail-manager.php     按尺寸禁用缩略图生成
 │   └── class-s3-storage-module.php     对象存储设置页
-├── includes/views/             12 文件 / 4,732 行               ← 旧版页面模板
+├── includes/views/             12 文件 / 4,733 行               ← 旧版页面模板
 ├── src/                        4 文件 / 759 行                  ← 组合根
 │   ├── Plugin.php              启动、装配、注册 WP-CLI 命令
 │   ├── Activation.php          默认值、迁移、建表、排程
@@ -108,7 +110,7 @@ sakura-tools/
 ├── src/Thumbnail/              15 文件 / 3,764 行   缩略图策略、供应商、探测、统计、主题桥
 ├── src/S3/                     36 文件 / 10,803 行  凭据加密、上传、删除队列、同步中心、监控
 ├── src/Sync/                   17 文件 / 5,792 行   索引表、扫描状态机、动作队列、校验、CLI
-├── src/UserFiles/              46 文件 / 21,171 行  上传/配额/审核/执行/REST/空间套餐/Zibll 桥
+├── src/UserFiles/              46 文件 / 21,174 行  上传/配额/审核/执行/REST/空间套餐/Zibll 桥
 ├── src/Backup/                 2 文件 / 459 行
 ├── src/Contracts/              5 文件 / 392 行      5 个接口
 ├── src/Filesystem/ src/Settings/ src/Stats/ src/Support/   5 文件 / 633 行
@@ -126,11 +128,11 @@ sakura-tools/
 
 | 模块 | 文件数 | 代码行 | 类(含接口) | 说明 |
 |---|---:|---:|---:|---|
-| src/UserFiles | 46 | 21171 | 46 | 用户文件空间：上传、配额、审核执行、REST、Zibll 桥接 |
+| src/UserFiles | 46 | 21174 | 46 | 用户文件空间：上传、配额、审核执行、REST、Zibll 桥接 |
 | src/S3 | 36 | 10803 | 36 | 对象存储：配置/加密、上传同步、删除队列、同步中心、监控告警 |
 | includes | 14 | 5999 | 14 | 1.3–1.9 时代的旧类，仍在承重（媒体库、优化器、缩略图、S3、处理器） |
 | src/Sync | 17 | 5792 | 17 | 持久化同步索引：扫描、任务、校验、CLI、快速检索查询 |
-| includes/views | 12 | 4732 | 0 | 旧式页面模板（由 includes 类 require 渲染） |
+| includes/views | 12 | 4733 | 0 | 旧式页面模板（由 includes 类 require 渲染） |
 | src/Thumbnail | 15 | 3764 | 15 | 缩略图 URL 重写策略：上下文、尺寸、供应商、探测、缓存 |
 | src/Image | 10 | 3177 | 10 | 图片处理管线：改名、备份、引擎选择、元数据、还原、尺寸目录 |
 | src/Admin | 7 | 1895 | 7 | 后台信息架构：Registry 路由表、Menu、Layout、Shell、Assets、环境自检 |
@@ -143,7 +145,7 @@ sakura-tools/
 | src/Support | 2 | 178 | 2 | Hook_Loader（延迟注册）与 UTF-8 截断工具 |
 | src/Filesystem | 1 | 97 | 1 | 文件系统仓储适配器 |
 | src/Stats | 1 | 73 | 1 | 统计仓储适配器 |
-| 合计 | 178 | 60464 | 163 | 生产代码；另有 tests 72 文件/8800 行、stubs 2 文件另计 |
+| 合计 | 178 | 60468 | 163 | 生产代码；另有 tests 72 文件/8800 行、stubs 2 文件另计 |
 
 **怎么读这张表**：行数不等于复杂度——`src/UserFiles` 20k 行里有 40% 是 REST 控制器与视图模板（重复度高、改动风险低）；`src/Sync` 只有 5.8k 行却包含状态机与 SQL 层，是改动风险最高的模块。
 
@@ -538,8 +540,8 @@ register() 之后调用     → 直接 add_action/add_filter 到 WP（不再入�
 | `Sync_Status` | src/S3/Sync_Status.php:23 |  | 23 / 23 | 30 / 5 |  | 用附件元数据保存同步状态、对象键与重试任务 |
 | `Synchronous_Uploader` | src/S3/Synchronous_Uploader.php:26 |  | 7 / 13 | 16 / 12 |  | 在创建附件的请求内完成其全部文件上传 |
 | `Upload_Capabilities` | src/S3/Upload_Capabilities.php:23 |  | 3 / 3 | 8 / 2 |  | 判定打包 SDK 能否并发多个 HTTP 请求 |
-| `Upload_Metrics` | src/S3/Upload_Metrics.php:27 |  | 10 / 18 | 13 / 2 |  | 把上传结果逐条追加到事件表并按 SQL 聚合快照 |
-| `Upload_Observer` | src/S3/Upload_Observer.php:20 | implements Module | 4 / 4 | 3 / 12 | 2 | 记录上传成功/失败事件并回写索引 MD5 |
+| `Upload_Metrics` | src/S3/Upload_Metrics.php:27 |  | 10 / 18 | 13 / 2 |  | 把上传结果聚合写入单个选项 |
+| `Upload_Observer` | src/S3/Upload_Observer.php:20 | implements Module | 4 / 4 | 3 / 12 | 2 | 独立记录上传指标与索引 MD5 |
 | `Upload_URL` | src/S3/Upload_URL.php:9 |  | 2 / 2 | 7 / 0 |  | 接管上传目录与地址选项的改写生命周期 |
 | `Upload_Verify` | src/S3/Upload_Verify.php:20 |  | 3 / 3 | 6 / 0 |  | 比对本地文件与 S3 对象上报的 ETag |`
 
@@ -909,7 +911,7 @@ d3AtY29udGVudC91cGxvYWRzL3Byb2JlLzA5OTkuYmluW21pbmlvX2NhY2hlOnYyLHJldHVybjpd
 
 ---
 
-## 8. 子系统 E：用户文件空间（src/UserFiles/，46 文件 / 21,171 行）
+## 8. 子系统 E：用户文件空间（src/UserFiles/，46 文件 / 21,174 行）
 
 ### 8.1 职责与边界
 
@@ -1196,6 +1198,77 @@ order_refunded(order_id)
 6. **积分没有独立开关**：见 §8.9.6；关闭积分入口要清空积分套餐或把单价设为 0。
 7. **改这段代码的固定动作**：更新 `tests/Services/SpaceStorePaymentTest.php` 与 `SpaceStoreRefundTest.php`；跑 `phpunit`、`phpstan`、`phpcs`；按《图谱同步说明》重扫图谱；同步更新本节的代码行号与 `DECISIONS.md` 的 ADR。
 
+### 8.10 编辑页文件面板：拖拽插入与右键插入（1.23.0）
+
+编辑页和用户中心不是同一套前端。`src/UserFiles/Editor/Assets.php:28-31` 的注释写明：面板使用自己的 `assets/editor-picker.css` 与 `assets/editor-picker-manager.js`，这两个文件是从 user-centre 的样式/脚本分叉出来的；`Tab` 只负责生成共享的 `sufmData` 配置（`Assets.php:47`）。因此本次把拖拽反馈和落点插入做在编辑页副本里，用户中心 `/user/files` 的 DOM、菜单与拖拽行为保持原样。改这一块时不要顺手去改 `assets/userfiles.js` / `assets/userfiles.css`，否则会把两个入口重新绑在一起。
+
+#### 8.10.1 准入与文件清单
+
+- 准入门在 `src/UserFiles/Editor/Context.php:63-70`：`Context::is_screen()`（Zibll 的 `pages/newposts.php` 模板或 `forum_post_edit` 查询变量，`:29-45`）＋桌面端＋已登录＋`Capabilities::MANAGE_OWN`＋`Settings::editor_enabled()`。`Module::start()`（`src/UserFiles/Editor/Module.php:52-64`）在 `wp@20` 决定是否 `Assets::enqueue()`，并在 `wp_footer@5` 渲染面板。
+- `Assets::enqueue()`（`src/UserFiles/Editor/Assets.php:27-55`）只挂三样东西：编辑页专用 CSS、manager、editor-picker；配置对象仍由 `Tab::script_data()` 提供。用户中心走的是 `Frontend/Tab.php:189-221` 的 `sufm-front`，两条资源链互不覆盖。
+
+| 文件 | 职责 | 本次改动 |
+|---|---|---|
+| `assets/editor-picker-manager.js` | 列表、右键菜单、拖拽源、跟手标签、批量条 | 新增「插入」菜单项、拖拽 badge、`sufm:drag-files` / `sufm:drag-end` 事件、批量条归位修复 |
+| `assets/editor-picker.js` | 插入、落点投放层、光标映射 | `insert(forced, point)`、`rangeAtPoint()`、投放层构建与显隐、事件监听 |
+| `assets/editor-picker.css` | 编辑页专用样式 | 拖拽行、跟手 badge、投放层、菜单滚动、深色主题与减少动效 |
+| `includes/views/editor-picker-app.php` | 面板 SVG sprite | 新增 `#sufm-i-insert` 文档＋加号图标（`:55`） |
+| `src/UserFiles/Editor/Assets.php` | 编辑页资源与文案 | 新增 `dropInsert` / `dropInsertHint`，改写 `pickHint`（`:74-75`、`:81`） |
+| `src/UserFiles/Frontend/Tab.php` | 共享配置对象 | 只新增 `dragInsert` 文案键（`:358`），不改用户中心 UI |
+
+#### 8.10.2 拖起来之后看到什么
+
+1. **原生拖影被压掉**。`emptyDragImage()`（`editor-picker-manager.js:1872-1880`）创建一个 1×1 透明 canvas，`dragstart` 里用 `setDragImage(..., 0, 0)`（`:1995`）替换浏览器的默认缩略图；CSS 把 `.sufm-drag-ghost-image` 放在屏幕外并设 `opacity:0`（`editor-picker.css:3746-3754`）。这不是多余的一步：不压掉原生拖影，页面里会同时出现两个视觉反馈，跟手标签会被原生缩略图挡住。
+2. **跟手标签是真实 DOM，不是 tooltip**。`dragBadgeNode()`（`:1858-1865`）在 `body` 下建 `.sufm-drag-badge`；`moveDragBadge()`（`:1882-1889`）把 `left/top` 设成 `clientX+16` / `clientY+18`，document 的 `drag` 与 `dragover` 都用 capture 监听（`:1891-1892`）。样式在 `editor-picker.css:3710-3729`：固定定位、`z-index:2147483600`、粉紫渐变、白边、白点、入场动画，`pointer-events:none` 保证它不抢投放层的 `drop`。
+3. **文案区分文件与文件夹**。文件 badge 显示「拖到正文插入」，多选追加「· N 个」；文件夹仍显示「移动到文件夹」（`:1988-1993`）。文件夹不派发 `sufm:drag-files`（`:2002-2004`），所以不会出现正文投放层，也不会被误插进文章。
+4. **拖拽源本身有状态**。源行加 `.is-dragging`（opacity .55、`scale(.985)`、阴影，CSS `:3662-3667`），面板容器加 `is-drag-moving` / `is-drag-file`（`:1998-2000`）；投放目标另用 `.is-drop-target` 高亮（CSS `:3669-3707`）。
+5. **文件允许两种落点**。`effectAllowed` 对文件设为 `copyMove`（`:1982-1984`），文件夹仍为 `move`；正文投放层再把 `dropEffect` 收窄为 `copy`（`editor-picker.js:944-946`）。只写 `move` 会和投放层的 `copy` 不兼容，真实浏览器可能直接不触发 `drop`，这是本轮修掉的一个隐性 bug。
+6. **拖拽结束统一复位**。`endDrag()`（`:2007-2016`）清 `.is-dragging`、清面板类、清投放目标、移除 badge、置空 `dragMove`，最后派发 `sufm:drag-end`；editor-picker 收到后 `hideDropzone()`（`editor-picker.js:1020`）。
+
+#### 8.10.3 拖到正文：从落点到光标
+
+1. **manager 只负责宣告“拖的是哪些文件”**。`dragstart` 里根据当前选中集合决定 targets：多选且当前行在选中集合内就带全部选中项，否则只带当前行（`editor-picker-manager.js:1968-1977`）；然后 `document.dispatchEvent(new CustomEvent('sufm:drag-files', { detail: { targets } }))`（`:2003`）。
+2. **editor-picker 把投放层盖在编辑器 iframe 上**。监听器（`editor-picker.js:1012-1018`）把 targets 映射成 id 列表交给 `showDropzone()`（`:977-1010`）；`showDropzone` 先确认 `activeEditor()` 和 `editorFrame()` 都存在，否则直接返回，不显示遮挡层。`buildDropzone()`（`:922-975`）创建 `.sufm-editor-drop`，文案取 `t.dropInsert` / `t.dropInsertHint`；`placeDropzone()`（`:884-909`）用 iframe 的 `getBoundingClientRect()` 设置 fixed 层的 `left/top/width/height`，并在 `scroll` / `resize` 时重新定位（`:1022-1023`）。
+3. **投放层自己接管 dragover/drop**。`dragover` 只在 `dragIds` 非空时 `preventDefault()` + `stopPropagation()`，设 `dropEffect='copy'` 并加 `.is-over`（`:936-949`）。`drop` 先复制 id 列表和 `clientX/clientY`，再 `hideDropzone()` 并调用 `insert(ids, point)`（`:957-970`）。投放层是 fixed 的独立节点，不塞进 TinyMCE 文档，所以不会污染正文 DOM，也不依赖编辑器内部的事件系统。
+4. **落点转成编辑器内的 Range**。`editorFrame()`（`:833-849`）先取 `editor.iframe`，部分 TinyMCE 构建返回 null 时退回 `getContentAreaContainer().querySelector('iframe')`，最后才用 `#<editorId>_ifr`。`rangeAtPoint()`（`:851-882`）把 `clientX/clientY` 减去 iframe 的 `rect.left/top` 和 `clientLeft/clientTop`，越界返回 null；然后优先 `caretRangeFromPoint`，不支持时用 `caretPositionFromPoint` 手工构造折叠 Range。
+5. **插入复用已有的 `insert()`，只多了一个可选 `point`**。`insert(forced, point)`（`:724-824`）先解析 id（显式数组 / 勾选集合 / 当前单击项），找不到编辑器就 toast 并返回；随后走已有的 REST 读取（`:751-753`），把返回项按「图片优先、其余随后」分组（`:758-769`），在 `point` 存在时取 Range（`:776`），`editor.focus()` 后 `selection.setRng(range)`，没有 Range 就 `collapse()`（`:778-784`），最后 `execCommand('mceInsertContent', false, html)`（`:786`）。插入后折叠光标、`nodeChanged()`、清空勾选与单击项（`:788-797`），并把按钮文案短暂改成「已插入」（`:799-815`）。
+6. **失败与取消都有出口**。没有编辑器时 toast「找不到编辑器，请点一下正文再试」（`:741-745`）；REST 失败时恢复按钮并 toast「插入失败，请重试」（`:816-823`）；拖拽取消时 `endDrag()` 统一移除 badge 和投放层，不会留下悬空的遮挡节点。
+
+#### 8.10.4 右键菜单「插入」
+
+- `fileMenu(id)`（`editor-picker-manager.js:507-517`）在菜单最前面新增 `data-sufm-act="insert"` 的按钮（`:509`），图标用 `#sufm-i-insert`（模板 `:55`）。根目录下文件菜单是 6 项（插入/打开/重命名/移动到/复制链接/下载）；在子文件夹里多一项「移到上一级」（`:513`）。
+- `runMenuAction()`（`:1496-1508`）识别 `insert` 后调用 `window.SUFMPicker.insert([ id ])`；没有 `point` 参数，因此插入位置就是编辑器当前光标/选区，没有选区时由 `insert()` 的 `collapse()` 落到当前 caret。`window.SUFMPicker` 在 `editor-picker.js:1251-1258` 暴露，`insert` 是其中之一。
+- 编辑器未就绪（面板在但 TinyMCE 还没初始化）时，菜单不会静默失败，而是 toast「编辑器还没有准备好，请刷新页面再试。」（`:1503-1507`）。
+- 文件夹菜单没有「插入」；文件夹拖拽仍然只用于移动到文件夹，不会把文件夹当附件插入正文。
+
+#### 8.10.5 顺手修掉的批量条异常
+
+这是编辑页 fork 里的既有 bug，不是 1.23.0 新引入的。修复前的 `updateBatch()` 在取消选择时执行 `el.head.insertBefore(el.batch, el.folders || null)`；但 `el.batch` 当时在 `.sufm-head` 下，`el.folders` 却在 `.sufm-scroll` 下，两者不是同一父节点，浏览器抛 `NotFoundError: Failed to execute 'insertBefore' on 'Node'`。选择状态归零、或插入成功后 `clearChecked()` 触发 `updateBatch()` 时都会踩到。
+
+现在的分支（`:874-907`）按状态把批量条放回正确父节点：有选中项时挂到面包屑 `el.path`（`:888-891`）；取消选择时如果它仍在 `el.path`，先移除 `is-batching`，再 `el.head.appendChild(el.batch)`（`:892-898`），并在注释里写明「`el.folders` lives in `.sufm-scroll`, not `.sufm-head`」（`:895-896`）。用户中心没有这条批量条归位逻辑，不受影响。
+
+#### 8.10.6 验证与边界
+
+运行记录见 §10.13。摘要：
+
+| 检查 | 结果 |
+|---|---|
+| 语法 | `node --check` 两个 JS、`php -l` 三个 PHP 文件均通过 |
+| 单测 / 静态 | PHPUnit 406 tests / 1185 assertions / 5 skipped；PHPStan 无错误；PHPCS 177 files 0 error |
+| 编辑页加载 | `/newposts` 上 `window.SUFMPicker` 存在，manager started，8 个文件 |
+| 右键插入 | 文件菜单 6 项，首项为「插入」；插入附件 229 到正文光标 BBB 之后 |
+| 拖拽反馈 | badge 文案「拖到正文插入」；源行 `.is-dragging`；投放层与 iframe 矩形一致（407/360/676/504），`dragover` 后 `.is-visible.is-over` |
+| 落点插入 | 合成拖拽插入 229；多选 424+423 插入 228/229；原生 CDP `Input.dispatchDragEvent` 插入 229 |
+| 用户中心隔离 | `/user/files` 菜单没有「插入」，页面上没有 `.sufm-editor-drop`，UI 与改动前一致 |
+
+**边界**：
+
+1. 只支持 TinyMCE iframe。面板准入的写作屏目前使用 iframe 版编辑器；块编辑器、纯 textarea 或没有 iframe 的构建不会显示投放层，`showDropzone()` 会直接返回，右键「插入」仍走 TinyMCE 的 `mceInsertContent`，在没有编辑器的页面上只会 toast。
+2. 投放层只覆盖 iframe。拖到页面其他区域不会插入，也不会移动文件；移动文件仍要把文件拖到文件夹行/面包屑上（`.is-drop-target`）。
+3. 多选顺序来自选中集合的枚举顺序，不是屏幕上的视觉顺序；插入时又按「图片优先、其余随后」分组，所以最终顺序可能与勾选顺序不完全一致。这是既有 `insert()` 的排序规则，本轮没有改。
+4. 无头 Chrome 的鼠标事件无法触发真实 HTML5 `dragstart`；§10.13 的拖拽记录用合成 `DragEvent` 与 CDP `Input.dispatchDragEvent` 覆盖，真实鼠标拖拽由用户在测试站手动确认（m05324）。
+5. 本次没有改 REST、数据库、cron 或 PHP 类方法；新增的只是一个图标 symbol、三条文案键和前端逻辑。图谱不收录 JS 函数，因此节点/边/钩子都不变（§13）。
+
 ---
 
 ## 9. 横切：数据落点、钩子、REST、CLI 与 Cron
@@ -1283,7 +1356,7 @@ order_refunded(order_id)
 
 **边界声明**：生产环境为**只读验证**——只执行查询、纯函数调用与 GET 请求，没有触发任何写路径。日常命令都在测试站 `/root/sio-e2e` 执行，插件以软链挂载到 `/root/work/sakura-tools`（同一份代码）。测试站上另补做了一次写验证：2026-11-08 的 5 张并发上传（§10.6），数据只落在测试站自己的 MariaDB 与 MinIO，未触及生产。
 
-> **版本说明**：§10.1 的版本号已在 2026-11-09 复核为 1.22.9；§10.4–§10.12 的命令与输出仍记录于 1.22.8（2026-11-08）。1.22.9 只改版本号、readme changelog、4 条译者注释与 1 条 PHPCS 例外，没有改变路由、钩子、数据路径或类/方法集合，因此没有重跑写验证；表格里出现的 `assets/admin.js?ver=1.22.8` 是当时的观测值。
+> **版本说明**：§10.1 的版本号已在 2026-11-09 复核为 1.23.0；§10.4–§10.12 的命令与输出仍记录于 1.22.8（2026-11-08），§10.13 的编辑页交互记录于提交 `2fec6a3`（1.22.9）。1.23.0 相对 1.22.9 只增加编辑页文件面板的前端交互（代码来自 `2fec6a3`）并更新版本号、readme 与文案，没有改变路由、钩子、数据路径或类/方法集合，因此没有重跑写验证；表格里出现的 `assets/admin.js?ver=1.22.8` 是当时的观测值。
 
 ### 10.1 环境与激活状态
 
@@ -1291,7 +1364,7 @@ order_refunded(order_id)
 $ cd /root/sio-e2e && ./e2e.sh wp plugin get sakura-tools --fields=name,status,version
 name:      sakura-tools
 status:    active
-version:   1.22.9
+version:   1.23.0
 ```
 
 WordPress 核心与 PHP 版本、MariaDB 127.0.0.1:13316、MinIO 127.0.0.1:19010 均正常；后台 `admin` 可登录（用于 §10.4 的路由检查）。
@@ -1621,6 +1694,67 @@ WHERE order_num = %s AND state = 'refund_pending' AND updated_at <= %s
 - 占位依赖 `updated_at` 条件更新，没有数据库唯一约束；系统时钟回拨、手工改时间或同一秒内多次执行都可能影响节流。
 - 钱包查重仍受主题 `balance_record`/`points_record` 最多 50 条的限制（§12.3），强一致退款需要独立账本表。
 
+### 10.13 编辑页文件面板交互的运行期验证（2026-11-09）
+
+**A. 环境与准入**
+
+测试站 `/root/sio-e2e`（PHP 8.4.27，MariaDB 13316，站点 `http://127.0.0.1:18080`），后台 `admin`；插件当时是 1.22.9、提交 `2fec6a3`，`sufm_settings` 的 `enabled` 与 `editor_enabled` 临时置为 true。测试站原 `siteurl` 是 `https://demo.77il.cn`，本地登录会被 302 到外域，因此测试期间临时把 `siteurl`/`home` 改成 `http://127.0.0.1:18080`，结束后已恢复。`router.php` 另加了一条软链目录放行规则，否则插件软链到 `/root/work/sakura-tools` 后静态资源会被 WordPress 404；这是测试基础设施，不属于插件改动。
+
+编辑页 `/newposts` 加载后，`window.SUFMPicker` 存在，manager 的 `started` 为 1；面板列出 8 个文件，资源版本为 `?ver=1.22.9.1794188421.93173`。
+
+**B. 右键菜单与光标插入**
+
+| # | 验证点 | 结果 |
+|---:|---|---|
+| 1 | 文件菜单项 | 6 项，顺序为 插入 / 打开 / 重命名 / 移动到 / 复制链接 / 下载；首项带 `data-sufm-act="insert"` |
+| 2 | 插入位置 | 光标在正文 `BBB` 之后时，右键插入附件 229，内容出现在 `BBB` 之后 |
+| 3 | 插入内容 | 生成 `alt="conc-d"` 与 `data-edit-file-id="229"`；`data-sufm-file="424"` 是用户文件行 id，229 是 REST 返回的附件 id，既有插入逻辑一直如此 |
+| 4 | 菜单动作 | `runMenuAction( 'insert' )` 调用 `window.SUFMPicker.insert( [ id ] )`，没有走文件打开或移动分支 |
+
+**C. 拖拽反馈与落点**
+
+无头 Chrome 的鼠标事件无法触发真实 HTML5 `dragstart`，所以这一组用合成 `DragEvent` 驱动 manager 的拖拽路径，再用 CDP `Input.dispatchDragEvent` 补一次原生投放；真实鼠标拖拽由用户在测试站手动确认（m05324）。
+
+| # | 验证点 | 结果 |
+|---:|---|---|
+| 5 | 跟手标签 | `.sufm-drag-badge` 存在，文案为「拖到正文插入」；源行有 `.is-dragging`，面板容器同时有 `is-drag-moving` 与 `is-drag-file` |
+| 6 | 标签定位 | 派发一次 document `drag` 后，badge 的 `left/top` 为 662/448，与 `clientX+16` / `clientY+18` 一致 |
+| 7 | 投放层尺寸 | `.sufm-editor-drop` 的矩形为 x=407、y=360、w=676、h=504，与编辑器 iframe 完全一致 |
+| 8 | 投放态 | 投放层 `dragover` 后 class 为 `sufm-editor-drop is-visible is-over` |
+| 9 | 单文件投放 | `drop` 后投放层回到 `hidden`，正文插入附件 229（`conc-d`），控制台无异常 |
+| 10 | 多选投放 | 选中 424+423 时 badge 文案为「拖到正文插入 · 2 个」，投放后插入 228（`conc-c`）与 229（`conc-d`） |
+| 11 | 原生投放 | CDP `Input.dispatchDragEvent` 的 drop 同样插入 229，说明不是只有合成事件能工作 |
+| 12 | 文件移动兼容 | 文件拖拽的 `effectAllowed` 为 `copyMove`，投放层 `dropEffect` 为 `copy`；原先只写 `move` 时两者不兼容，真实浏览器可能不触发 `drop`，本轮已修正 |
+
+**D. 用户中心隔离**
+
+| # | 验证点 | 结果 |
+|---:|---|---|
+| 13 | 菜单 | `/user/files` 的文件右键菜单没有「插入」 |
+| 14 | 投放层 | 页面上没有 `.sufm-editor-drop`，拖拽不会出现正文投放层 |
+| 15 | UI | 用户中心仍走 `sufm-front`，面板布局、菜单项与改动前一致 |
+
+**E. 自动化检查与清理**
+
+| # | 验证点 | 结果 |
+|---:|---|---|
+| 16 | PHPUnit | 406 tests / 1185 assertions / 5 skipped，全绿 |
+| 17 | PHPStan | `[OK] No errors` |
+| 18 | PHPCS | 全量 177 files，0 errors、0 warnings |
+| 19 | 语法 | 两个 JS 文件 `node --check` 通过；`Assets.php`、`editor-picker-app.php`、`Tab.php` 的 `php -l` 通过 |
+| 20 | 空白检查 | `git diff --check` 无输出 |
+| 21 | 测试站还原 | `siteurl`/`home` 恢复 `https://demo.77il.cn`；临时 `sufm_settings` 也按原值处理 |
+
+首轮复测时，浏览器控制台曾抓到旧版本 URL 下的 `insertBefore` 堆栈；核对响应源码与网络版本后，用新的 `?ver` 重新加载再测，批量条归位与插入均通过。这说明当时是页面保留了上一版脚本的异常事件，不是当前文件仍在执行旧代码。
+
+**F. 边界**
+
+- 只覆盖 TinyMCE iframe。块编辑器、纯 textarea 或无 iframe 的编辑器不会出现投放层；右键「插入」在那种页面上只会 toast。
+- 投放层只覆盖 iframe。拖到页面其他区域不会插入，也不会移动文件；移动文件仍要拖到文件夹行或面包屑的 `.is-drop-target` 上。
+- 多选顺序来自选中集合的枚举顺序，不是屏幕上的视觉顺序；插入时又按「图片优先、其余随后」分组，所以最终顺序可能与勾选顺序不完全一致。这是既有 `insert()` 的排序规则，本轮没有改。
+- 本节没有执行真实上传、删除、REST 写或数据库写；所有验证只发生在测试站的前端 DOM 与编辑器内容里。
+- 批量条 `insertBefore` 异常是编辑页 fork 的既有 bug，不是 1.23.0 引入；它只在取消选择或插入后清空勾选时触发，修复见 §8.10.5。
+
 ---
 
 ## 11. 依赖关系与图谱口径
@@ -1692,7 +1826,7 @@ WHERE order_num = %s AND state = 'refund_pending' AND updated_at <= %s
 
 ## 12. 待确认项与已确认缺陷
 
-截至 2026-11-09，正文没有「只有结论、没有代码位置或运行证据」的待确认项，也没有未修复的高/中优先代码缺陷。原 §12 的三项均已核实；其中 `grant_from_order()` 的高优先缺陷已在 2026-11-08 按「支付入口收口」方案修复并验证，S3 上传指标缺陷也已在此前修复。1.22.9 只做版本与 PHPCS 规范收敛，没有新增缺陷或待确认项。下面保留的是有意接受的边界，不是待确认项。
+截至 2026-11-09，正文没有「只有结论、没有代码位置或运行证据」的待确认项，也没有未修复的高/中优先代码缺陷。原 §12 的三项均已核实；其中 `grant_from_order()` 的高优先缺陷已在 2026-11-08 按「支付入口收口」方案修复并验证，S3 上传指标缺陷也已在此前修复。1.23.0 只增加编辑页文件面板的前端交互（拖拽插入、右键插入、批量条归位）与版本/文案，没有改路由、REST、数据表或 PHP 类方法，也没有新增缺陷或待确认项。下面保留的是有意接受的边界，不是待确认项。
 
 ### 12.1 本轮关闭：空间扩容支付收口
 
@@ -1750,10 +1884,10 @@ WHERE order_num = %s AND state = 'refund_pending' AND updated_at <= %s
 | 连线 | 814 = 601 `ref` + 50 `modref` + 163 `contains` |
 | 钩子 | 191（面板显示，不建节点） |
 | 悬空边 | 0 |
-| 本轮变更 | 无节点/连线/钩子增删；仅 `graph.json` 的 `meta.version` 由 1.22.8 改为 1.22.9、`generatedAt` 更新，页面副标题版本号同步为 1.22.9。已重扫并重建 `docs/graph-preview/` |
-| 数据来源 | 本轮重新扫描的事实表（codegraph `scanner.php` 输出）——由 `docs/tools/collect-comments.php` 生成类注释，与本文所有表格同源 |
+| 本轮变更 | 无节点/连线/钩子增删；仅 `graph.json` 的 `meta.version` 由 1.22.9 改为 1.23.0、`generatedAt` 更新为 `2026-11-09T02:08:43.079Z`，页面副标题版本号同步为 1.23.0。已重扫并重建 `docs/graph-preview/` |
+| 数据来源 | 本轮重新扫描的 1.23.0 工作树事实表（codegraph `scanner.php` 输出）——由 `docs/tools/collect-comments.php` 生成类注释，与本文所有表格同源 |
 
-本轮没有新增/删除类、方法钩子或引用边，节点仍 180（163 类 + 17 模块）、连线仍 814（601 `ref` + 50 `modref` + 163 `contains`）、钩子仍 191；`Space_Store` 的 `val` 仍 10.1193，`Space_Store → Space_Rules` 的 `ref` 权重仍 44，`Space_Panel → Space_Store` 的 `ref` 权重仍 10，均沿用上一轮支付收口后的值。变化只在版本元数据与页面副标题；这是版本收敛，不是拓扑变化。
+本轮没有新增/删除类、方法、钩子或引用边，节点仍 180（163 类 + 17 模块）、连线仍 814（601 `ref` + 50 `modref` + 163 `contains`）、钩子仍 191；`Space_Store` 的 `val` 仍 10.1193，`Space_Store → Space_Rules` 的 `ref` 权重仍 44，`Space_Panel → Space_Store` 的 `ref` 权重仍 10，均沿用上一轮支付收口后的值。编辑页的 JS/CSS 不是图谱对象，新增的图标 symbol 与文案键也不产生节点或边。变化只在版本元数据与页面副标题；这是版本收敛，不是拓扑变化。
 
 `fast-search.php` 是脚本型文件，本来就不进入图谱；`Space_Store` 的字段缺陷已在 §8.9 修复，不再是未修复缺陷。本轮没有改图谱节点或边。
 
@@ -1761,7 +1895,7 @@ WHERE order_num = %s AND state = 'refund_pending' AND updated_at <= %s
 
 **与文档的对应关系**：每个类节点在正文里都有一条同名记录——附录 A 给 `文件:行`，所属章节的表给职责与方法数；模块节点对应 §2.2 的模块总览。**改代码后重跑一次生成器，表格与图谱同时更新**，这是两者不脱节的机制保证。
 
-详细的操作步骤、本次新增/修改的节点与连线清单、一致性核对项，见配套文档 **`docs/sakura-tools-图谱同步-1.22.9.md`**。
+详细的操作步骤、本次新增/修改的节点与连线清单、一致性核对项，见配套文档 **`docs/sakura-tools-图谱同步-1.23.0.md`**。
 
 ---
 
@@ -2193,7 +2327,7 @@ WHERE order_num = %s AND state = 'refund_pending' AND updated_at <= %s
 | includes/class-thumbnail-manager.php | includes | 114 | `Thumbnail_Manager` |
 | includes/class-thumbnail-optimizer-module.php | includes | 399 | `Thumbnail_Optimizer_Module` |
 | includes/views/basic-settings.php | includes/views | 357 | — |
-| includes/views/editor-picker-app.php | includes/views | 307 | — |
+| includes/views/editor-picker-app.php | includes/views | 308 | — |
 | includes/views/media-progress.php | includes/views | 231 | — |
 | includes/views/s3-sync-center.php | includes/views | 756 | — |
 | includes/views/settings-backup.php | includes/views | 191 | — |
@@ -2312,7 +2446,7 @@ WHERE order_num = %s AND state = 'refund_pending' AND updated_at <= %s
 | src/UserFiles/Admin/Space_Page.php | src/UserFiles | 274 | `Space_Page` |
 | src/UserFiles/Capabilities.php | src/UserFiles | 155 | `Capabilities` |
 | src/UserFiles/CLI.php | src/UserFiles | 397 | `CLI` |
-| src/UserFiles/Editor/Assets.php | src/UserFiles | 107 | `Assets` |
+| src/UserFiles/Editor/Assets.php | src/UserFiles | 109 | `Assets` |
 | src/UserFiles/Editor/Context.php | src/UserFiles | 66 | `Context` |
 | src/UserFiles/Editor/Module.php | src/UserFiles | 66 | `Module` |
 | src/UserFiles/Editor/Picker.php | src/UserFiles | 100 | `Picker` |
@@ -2320,7 +2454,7 @@ WHERE order_num = %s AND state = 'refund_pending' AND updated_at <= %s
 | src/UserFiles/Frontend/Provider.php | src/UserFiles | 60 | `Provider` |
 | src/UserFiles/Frontend/Providers/Generic.php | src/UserFiles | 186 | `Generic` |
 | src/UserFiles/Frontend/Providers/Zibll.php | src/UserFiles | 96 | `Zibll` |
-| src/UserFiles/Frontend/Tab.php | src/UserFiles | 550 | `Tab` |
+| src/UserFiles/Frontend/Tab.php | src/UserFiles | 551 | `Tab` |
 | src/UserFiles/Media/Library_Filter.php | src/UserFiles | 75 | `Library_Filter` |
 | src/UserFiles/Media/Media_Hooks.php | src/UserFiles | 2183 | `Media_Hooks` |
 | src/UserFiles/Module.php | src/UserFiles | 362 | `Module` |

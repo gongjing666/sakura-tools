@@ -1,12 +1,12 @@
-# sakura-tools 3D 图谱同步说明（v1.22.9）
+# sakura-tools 3D 图谱同步说明（v1.23.0）
 
-> 配套文档：[sakura-tools 代码结构 1.22.9](sakura-tools-代码结构-1.22.9.md) ｜ **代码基线** commit `70e4de1`（本轮版本收敛与 PHPCS 清理基于此提交）。本文只回答三件事：**图谱变了什么、怎么和文档对上、以后怎么重建**。
+> 配套文档：[sakura-tools 代码结构 1.23.0](sakura-tools-代码结构-1.23.0.md) ｜ **代码基线** commit `2fec6a3`（编辑页拖拽插入与右键「插入」在此提交；1.23.0 版本号与文档随后提交）。本文只回答三件事：**图谱变了什么、怎么和文档对上、以后怎么重建**。
 
 ## 0. 结论
 
-- 图谱由同一份扫描事实表与文档同时产出，不是手工对齐的副产物；本轮（2026-11-09 版本收敛）没有改代码结构，只重扫并重建页面（§2.5）。
+- 图谱由同一份扫描事实表与文档同时产出，不是手工对齐的副产物；本轮（2026-11-09 1.23.0 编辑页面板）没有改 PHP 类或钩子，只重扫并更新版本元数据（§2.6）。
 - 规模：**178 个生产 PHP 文件 / 163 个类 / 17 个模块 / 180 个节点 / 814 条连线**（601 `ref` + 163 `contains` + 50 `modref`）/ **191 个钩子** / **0 悬空边**。
-- 与上一轮相比：本轮没有节点/连线/钩子增删，也没有节点大小或边权变化；只有 `meta.version`、`generatedAt` 与页面副标题版本号更新（§2.5）。页面四角仍显示 178 / 180 / 814 / 191。
+- 与上一轮相比：本轮没有节点/连线/钩子增删，也没有节点大小或边权变化；只有 `meta.version`、`generatedAt` 与页面副标题版本号更新（§2.6）。页面四角仍显示 178 / 180 / 814 / 191。
 - 页面四角数字由 `graph.json` 的 `stats` 注入，不再手写；本轮重建后的页面显示 178 / 180 / 814 / 191，与文档附录计数一致。
 - 生成、注入、组装三个脚本已固化到 `docs/tools/`，可在任意机器重跑（§7）。
 
@@ -24,7 +24,7 @@ build-code-structure.mjs
         ▼
 graph-inject.mjs ──► docs/graph-preview/index.html（内嵌 DATA）+ graph.json
         ▼
-assemble-doc.py  ──► sakura-tools-代码结构-1.22.9.md（分章正文 + 上述表格）
+assemble-doc.py  ──► sakura-tools-代码结构-1.23.0.md（分章正文 + 上述表格）
 ```
 
 | 步骤 | 命令（在插件根目录下执行） | 产物 |
@@ -101,7 +101,7 @@ assemble-doc.py  ──► sakura-tools-代码结构-1.22.9.md（分章正文 + 
 
 该轮 P0/P1 在 `Space_Store` 增加支付白名单、退款补偿、退款重试与每日对账方法，方法总数上升，节点 `val` 从 9.7324 变为 10.1193；退款与重试路径增加对 `Space_Rules` 的静态引用，边权 34→44；P2 让 `Space_Panel` 共享 `points_state`/`points_plans`，直接引用 `Space_Store` 的次数从 12 降到 10。没有新增/删除类，所以节点、`contains` 边与钩子计数都不变。已重扫并重建 `docs/graph-preview/`，页面四角仍为 178 / 180 / 814 / 191。
 
-### 2.5 本轮增量（2026-11-09 1.22.9 版本收敛）
+### 2.5 增量（2026-11-09 1.22.9 版本收敛，历史）
 
 | 变更 | 图谱对象 | 计数影响 | 文档对应 |
 |---|---|---|---|
@@ -110,9 +110,23 @@ assemble-doc.py  ──► sakura-tools-代码结构-1.22.9.md（分章正文 + 
 | 页面副标题 | `index.html` | `sakura-tools v1.22.8`→`v1.22.9` | §13 |
 | 节点/连线/钩子 | — | 180 / 814 / 191 不变；601 `ref` + 50 `modref` + 163 `contains`；0 悬空边 | §13 |
 
-本轮代码差异只有插件头/常量/readme 的版本号、4 条译者注释和 1 条 PHPCS 例外（`src/UserFiles/Editor/Assets.php`、`src/UserFiles/Repositories/Folders.php`）。没有新增/删除类、方法或钩子，静态引用边也未变化；`Assets.php` 增加 4 行使生产总行数 60,460→60,464，但不改变节点、边权或布局。`Space_Store` 的 `val` 仍 10.1193，`Space_Store → Space_Rules` 的 `ref` 权重仍 44，`Space_Panel → Space_Store` 的 `ref` 权重仍 10，均沿用上一轮支付收口后的值。已重扫并重建 `docs/graph-preview/`，页面四角仍为 178 / 180 / 814 / 191。
+1.22.9 的代码差异只有插件头/常量/readme 的版本号、4 条译者注释和 1 条 PHPCS 例外（`src/UserFiles/Editor/Assets.php`、`src/UserFiles/Repositories/Folders.php`）。没有新增/删除类、方法或钩子，静态引用边也未变化；`Assets.php` 增加 4 行使生产总行数 60,460→60,464，但不改变节点、边权或布局。`Space_Store` 的 `val` 仍 10.1193，`Space_Store → Space_Rules` 的 `ref` 权重仍 44，`Space_Panel → Space_Store` 的 `ref` 权重仍 10，均沿用上一轮支付收口后的值。当时已重扫并重建 `docs/graph-preview/`，页面四角仍为 178 / 180 / 814 / 191。
 
-生产部署后已在生产执行 `Upload_Metrics::maybe_install()`：新建 `nb_sio_s3_upload_events`（0 行，`sakura_imgopt_s3_upload_schema=2.0.0`），CLI `wp sakura-sync stats` 能读出旧 option 的 91 条尝试基线。生产另有 1.12.0 遗留的空表 `nb_sio_s3_uploads`（0 行，代码不再创建或使用），不计入文档 §9.1 的 23 张代码表。
+1.22.9 部署后已在生产执行 `Upload_Metrics::maybe_install()`：新建 `nb_sio_s3_upload_events`（0 行，`sakura_imgopt_s3_upload_schema=2.0.0`），CLI `wp sakura-sync stats` 能读出旧 option 的 91 条尝试基线。生产另有 1.12.0 遗留的空表 `nb_sio_s3_uploads`（0 行，代码不再创建或使用），不计入文档 §9.1 的 23 张代码表。
+
+### 2.6 本轮增量（2026-11-09 1.23.0 编辑页面板）
+
+| 变更 | 图谱对象 | 计数影响 | 文档对应 |
+|---|---|---|---|
+| 版本元数据 | `graph.json` 的 `meta.version` | 1.22.9→1.23.0 | §13 |
+| 生成时间 | `meta.generatedAt` | 2026-11-09T00:18:33.084Z→2026-11-09T02:08:43.079Z | §13 |
+| 页面副标题 | `index.html` | `sakura-tools v1.22.9`→`v1.23.0` | §13 |
+| 节点/连线/钩子 | — | 180 / 814 / 191 不变；601 `ref` + 50 `modref` + 163 `contains`；0 悬空边 | §13 |
+| 文件行数 | — | 178 文件；生产总行数 60,464→60,468；`src/UserFiles` 21,171→21,174（+3），`includes/views` 4,732→4,733（+1） | §8.10、§10.13 |
+
+本轮代码差异全部在编辑页文件面板的前端 fork：`assets/editor-picker-manager.js` 增加「插入」菜单项、拖拽跟手 badge 与 `sufm:drag-files` / `sufm:drag-end` 事件；`assets/editor-picker.js` 增加 `insert(forced, point)`、`rangeAtPoint()` 与正文投放层；`assets/editor-picker.css` 增加拖拽行、badge、投放层与深色/减少动效适配；`includes/views/editor-picker-app.php` 增加 `#sufm-i-insert` 图标（+1 行）；`src/UserFiles/Editor/Assets.php` 增加 `dropInsert` / `dropInsertHint` 两条文案（+2 行）；`src/UserFiles/Frontend/Tab.php` 增加 `dragInsert` 共享文案（+1 行）。这些都是 JS/CSS/视图/字符串，图谱不收录 JS 函数与模板，因此没有新增/删除类、方法、钩子或静态引用边。
+
+已重新扫描 1.23.0 工作树并重建 `docs/graph-preview/`：页面四角仍为 178 / 180 / 814 / 191，`Space_Store` 的 `val` 仍 10.1193，`Space_Store → Space_Rules` 的 `ref` 权重仍 44，`Space_Panel → Space_Store` 的 `ref` 权重仍 10。变化只在版本元数据与页面副标题；本轮是编辑页前端交互，图谱层面没有拓扑变化。用户中心 `/user/files` 仍走 `sufm-front`，没有本轮编辑器投放层与「插入」菜单，UI 未变。
 
 ## 3. 节点与连线的定义
 
@@ -231,10 +245,10 @@ google-chrome --headless=new --no-sandbox --user-data-dir=/tmp/chrome-graph \
 | 3 | 钩子数 = 附录 B 行数 | 同上 | 191 = 191 ✅ |
 | 4 | 连线数 = 三类之和 | `601 + 163 + 50` | 814 ✅ |
 | 5 | 悬空边 | `graph-inject.mjs` 每次注入前校验 | 0 ✅ |
-| 6 | 同源重建 | 分章 `p1–p6` + `build-code-structure.mjs` 生成块重新组装，与仓库正文比对 | §6.8 清理后 `1c82079ea7777f5d5beeaf6b8a18e6bf`；§7.7 改写后 `f2948e675caf9dbdb3cf58d0395623c9`；§12 三项回写后 `b479d3fb379c695a2c8ce2eac2a1f02b`；上传指标修复稿 `affe363d81b6325cbe739b54aac28446`；删除预览图后 `971f0c3996a10bffb207fe7f6d4dccc6`；空间支付收口稿 `5eb2bf875d00d1e776cf89089e41ae6f`（219,712 字节）；1.22.9 版本稿 `1aba478232bdbb9b1d196eebee1f794e`（220,481 字节）✅ |
+| 6 | 同源重建 | 分章 `p1–p6` + `build-code-structure.mjs` 生成块重新组装，与仓库正文比对 | §6.8 清理后 `1c82079ea7777f5d5beeaf6b8a18e6bf`；§7.7 改写后 `f2948e675caf9dbdb3cf58d0395623c9`；§12 三项回写后 `b479d3fb379c695a2c8ce2eac2a1f02b`；上传指标修复稿 `affe363d81b6325cbe739b54aac28446`；删除预览图后 `971f0c3996a10bffb207fe7f6d4dccc6`；空间支付收口稿 `5eb2bf875d00d1e776cf89089e41ae6f`（219,712 字节）；1.22.9 版本稿 `1aba478232bdbb9b1d196eebee1f794e`（220,481 字节）；1.23.0 编辑页面板稿 `4a801b137efc0bc3805f765df8eac822`（238,153 字节）✅ |
 | 7 | 注入幂等 | `graph-inject.mjs` dry-run 与页面 `DATA` 比对 | 本轮 `--write` 后 dry-run 报 `changed:false`、`dangling:0`，页面 `DATA` 与 `graph.json` 的结构与计数完全一致 ✅ |
-| 8 | 文档可重装 | `python3 docs/tools/assemble-doc.py --parts /tmp/docparts-129 --chapters docs/tools/chapters --out /tmp/verify-sakura-doc.md` | 与仓库正文逐字节一致（md5 `1aba478232bdbb9b1d196eebee1f794e`）✅ |
-| 9 | 渲染 | Chrome headless + SwiftShader 打开页面核对（截图只写 `/tmp`，不落仓库） | 星簇正常；副标题 `sakura-tools v1.22.9`；四角 178 / 180 / 814 / 191；S3 详情 36 文件 / 引用出 42 ✅ |
+| 8 | 文档可重装 | `python3 docs/tools/assemble-doc.py --parts /tmp/docparts-130 --chapters docs/tools/chapters --out /tmp/verify-sakura-doc.md` | 与仓库正文逐字节一致（md5 `4a801b137efc0bc3805f765df8eac822`）✅ |
+| 9 | 渲染 | Chrome headless + SwiftShader 打开页面核对（截图只写 `/tmp`，不落仓库） | 星簇正常；副标题 `sakura-tools v1.23.0`；四角 178 / 180 / 814 / 191；S3 详情 36 文件 / 引用出 42 ✅ |
 | 10 | 文件数一致 | `stats.files` = 附录 C 行数 | 178 = 178 ✅ |
 
 > 第 9 项是必要的：DSH 内置浏览器没有 WebGL，页面会渲染成空白 canvas，用它"看图谱"会得出错误结论。从 2026-11-08 起仓库不再保存渲染截图，核对用截图只写到临时目录。第 7 项的幂等判据是页面 `DATA` 与 `graph.json` 的结构、计数、悬空边一致，不是 HTML 文件字节不变；`meta.generatedAt` 会随生成时间变化，重建时以 dry-run 的 `changed`、节点/连线计数和悬空边为准。
@@ -243,7 +257,9 @@ google-chrome --headless=new --no-sandbox --user-data-dir=/tmp/chrome-graph \
 
 **2026-11-08 归档调整**：按维护要求删除 `docs/graph-preview/preview.png`，图谱只保留 `index.html` 与 `graph.json`，后续不再生成截图文件；图谱数据未变（180 / 814 / 191），本次仅更新文档与交付清单。
 
-**2026-11-09 版本收敛**：插件版本统一到 **1.22.9**，消除全量 PHPCS 的 5 个既有错误；代码结构与钩子集合未变，重扫仍为 **178 / 163 / 180 / 814 / 191**，图谱仅更新 `meta.version`、`generatedAt` 与页面副标题（§2.5）。
+**2026-11-09 版本收敛（1.22.9）**：插件版本统一到 **1.22.9**，消除全量 PHPCS 的 5 个既有错误；代码结构与钩子集合未变，重扫仍为 **178 / 163 / 180 / 814 / 191**，图谱仅更新 `meta.version`、`generatedAt` 与页面副标题（§2.5）。
+
+**2026-11-09 编辑页面板（1.23.0）**：提交 `2fec6a3` 增加编辑页文件面板的拖拽插入、右键「插入」与批量条归位；只动 JS/CSS/视图/字符串，没有新增 PHP 类、方法或钩子，图谱重建后仍为 **178 / 163 / 180 / 814 / 191**，仅 `meta.version`、`generatedAt` 与副标题更新（§2.6）。生产总行数 60,464→60,468，`src/UserFiles` 21,171→21,174，`includes/views` 4,732→4,733；文档新增 §8.10 与 §10.13。
 
 ## 9. 读图方法
 
@@ -274,8 +290,8 @@ google-chrome --headless=new --no-sandbox --user-data-dir=/tmp/chrome-graph \
 
 | 文件 | 大小 | 作用 |
 |---|---:|---|
-| `docs/sakura-tools-代码结构-1.22.9.md` | 215 KB | 正文：§0–§13 + 附录 A–D（2026-11-09 版本收敛：1.22.9、PHPCS 清零、生产 60,464 行） |
-| `docs/sakura-tools-图谱同步-1.22.9.md` | 本文 | 图谱变更与重建说明 |
+| `docs/sakura-tools-代码结构-1.23.0.md` | 233 KB | 正文：§0–§13 + 附录 A–D（2026-11-09 1.23.0：编辑页拖拽/右键插入、生产 60,468 行） |
+| `docs/sakura-tools-图谱同步-1.23.0.md` | 本文 | 图谱变更与重建说明 |
 | `docs/graph-preview/index.html` | 163 KB | 单文件 3D 图谱（数据内嵌；3d-force-graph 库走 CDN，需联网） |
 | `docs/graph-preview/graph.json` | 199 KB | 同数据，供脚本消费 |
 | `docs/tools/build-code-structure.mjs` | 15 KB | 事实表 → 表格 + graph.json |
@@ -283,6 +299,6 @@ google-chrome --headless=new --no-sandbox --user-data-dir=/tmp/chrome-graph \
 | `docs/tools/assemble-doc.py` | 2.6 KB | 分章 + 表格 → 正文 |
 | `docs/tools/collect-comments.php` | 3.1 KB | 类 docblock 提取 |
 | `docs/tools/purposes.zh.json` | 16 KB | 163 条中文职责 |
-| `docs/tools/chapters/p1–p6.md` | 148 KB | 正文源片段（改正文改这里，再重组装；当前 151,696 字节） |
+| `docs/tools/chapters/p1–p6.md` | 165 KB | 正文源片段（改正文改这里，再重组装；当前 169,404 字节） |
 
 > 图谱可视化只交付 `index.html`（数据内嵌）与 `graph.json`；从 2026-11-08 起不再保存 `preview.png` 或其他渲染截图。

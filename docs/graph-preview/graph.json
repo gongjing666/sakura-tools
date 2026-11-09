@@ -1,10 +1,10 @@
 {
  "meta": {
   "plugin": "sakura-tools",
-  "version": "1.22.9",
-  "generatedAt": "2026-11-09T00:18:33.084Z",
+  "version": "1.23.0",
+  "generatedAt": "2026-11-09T02:08:43.079Z",
   "source": "dsh-codegraph lib/scanner.php（token_get_all 三趟静态扫描）",
-  "doc": "sakura-tools-代码结构-1.22.9.md"
+  "doc": "sakura-tools-代码结构-1.23.0.md"
  },
  "stats": {
   "files": 178,

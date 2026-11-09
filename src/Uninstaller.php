@@ -9,6 +9,7 @@ declare( strict_types=1 );
 
 namespace Sakura\ImageOptimizer;
 
+use Nboke\UserFiles\Schema;
 use Sakura\ImageOptimizer\S3\Upload_URL;
 
 defined( 'ABSPATH' ) || exit;
@@ -146,7 +147,7 @@ final class Uninstaller {
 	private static function drop_sufm_tables(): void {
 		global $wpdb;
 
-		foreach ( array( 'folders', 'files', 'usage', 'reservations', 'artifacts', 'delete_requests', 'delete_request_items', 'delete_batches', 'jobs', 'events', 'notifications', 'rate_limits', 'media_operations', 'space_grants' ) as $table ) {
+		foreach ( Schema::tables() as $table ) {
 			$name = $wpdb->prefix . 'sufm_' . $table;
 			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.SchemaChange, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Fixed table names, no user input.
 			$wpdb->query( "DROP TABLE IF EXISTS `{$name}`" );

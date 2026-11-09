@@ -5,6 +5,7 @@
  * @package Sakura_Image_Optimizer
  */
 
+use Nboke\UserFiles\Schema;
 use PHPUnit\Framework\TestCase;
 use Sakura\ImageOptimizer\Uninstaller;
 
@@ -46,6 +47,51 @@ final class UninstallerTest extends TestCase {
 		$this->assertContains( 'sakura_imgopt_s3_upload_metrics', $options );
 		$this->assertContains( 'sakura_imgopt_s3_alerts', $options );
 		$this->assertContains( 'sakura_imgopt_s3_prometheus_token', $options );
+	}
+
+	/**
+	 * Every sufm table from Schema is dropped, including file_tokens.
+	 */
+	public function test_drop_sufm_tables_uses_schema(): void {
+		require_once dirname( __DIR__ ) . '/src/UserFiles/Schema.php';
+
+		$had_previous = array_key_exists( 'wpdb', $GLOBALS );
+		$previous     = $GLOBALS['wpdb'] ?? null;
+		$db           = new class() {
+			/** @var string */
+			public $prefix = 't_';
+
+			/** @var array<int,string> */
+			public $queries = array();
+
+			/**
+			 * @param string $sql SQL statement.
+			 * @return bool
+			 */
+			public function query( $sql ) {
+				$this->queries[] = (string) $sql;
+				return true;
+			}
+		};
+		$GLOBALS['wpdb'] = $db;
+
+		try {
+			$method = new ReflectionMethod( Uninstaller::class, 'drop_sufm_tables' );
+			$method->setAccessible( true );
+			$method->invoke( null );
+		} finally {
+			if ( $had_previous ) {
+				$GLOBALS['wpdb'] = $previous;
+			} else {
+				unset( $GLOBALS['wpdb'] );
+			}
+		}
+
+		$this->assertCount( count( Schema::tables() ), $db->queries );
+		foreach ( Schema::tables() as $table ) {
+			$this->assertContains( "DROP TABLE IF EXISTS `t_sufm_{$table}`", $db->queries );
+		}
+		$this->assertContains( 'DROP TABLE IF EXISTS `t_sufm_file_tokens`', $db->queries );
 	}
 
 	/**

@@ -1,18 +1,18 @@
 {
  "meta": {
   "plugin": "sakura-tools",
-  "version": "1.23.0",
-  "generatedAt": "2026-11-09T02:08:43.079Z",
+  "version": "1.24.0",
+  "generatedAt": "2026-11-09T07:12:35.784Z",
   "source": "dsh-codegraph lib/scanner.php（token_get_all 三趟静态扫描）",
-  "doc": "sakura-tools-代码结构-1.23.0.md"
+  "doc": "sakura-tools-代码结构-1.24.0.md"
  },
  "stats": {
   "files": 178,
   "modules": 17,
   "classes": 163,
   "nodes": 180,
-  "links": 814,
-  "refLinks": 601,
+  "links": 815,
+  "refLinks": 602,
   "modrefLinks": 50,
   "containsLinks": 163,
   "hooks": 191
@@ -1890,7 +1890,7 @@
    "kind": "class",
    "file": "src/UserFiles/CLI.php",
    "line": 23,
-   "val": 3.919183588453085,
+   "val": 4.233202097703345,
    "color": "#fca5a5",
    "x": -145.7,
    "y": 1663.8,
@@ -2324,7 +2324,7 @@
    "kind": "class",
    "file": "src/UserFiles/Space_Settings.php",
    "line": 20,
-   "val": 5.986651818838307,
+   "val": 6.4,
    "color": "#fca5a5",
    "x": -146.8,
    "y": 1305.6,
@@ -2338,7 +2338,7 @@
    "kind": "class",
    "file": "src/UserFiles/Services/Space_Store.php",
    "line": 22,
-   "val": 10.119288512538816,
+   "val": 10.369185117452577,
    "color": "#fca5a5",
    "x": 1,
    "y": 1294,
@@ -6770,6 +6770,16 @@
   },
   {
    "source": "cls:Nboke\\UserFiles\\CLI",
+   "target": "cls:Nboke\\UserFiles\\Services\\Space_Store",
+   "type": "ref",
+   "kinds": [
+    "static",
+    "call"
+   ],
+   "w": 4
+  },
+  {
+   "source": "cls:Nboke\\UserFiles\\CLI",
    "target": "cls:Nboke\\UserFiles\\Repositories\\Requests",
    "type": "ref",
    "kinds": [
@@ -8198,7 +8208,7 @@
     "static",
     "call"
    ],
-   "w": 18
+   "w": 22
   },
   {
    "source": "cls:Nboke\\UserFiles\\Services\\Space_Store",
@@ -8208,7 +8218,7 @@
     "static",
     "call"
    ],
-   "w": 44
+   "w": 48
   },
   {
    "source": "cls:Nboke\\UserFiles\\Services\\Space_Store",

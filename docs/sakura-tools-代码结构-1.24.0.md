@@ -1,9 +1,9 @@
 # 樱花工具箱（sakura-tools）代码结构分析报告
 
-> **版本** 1.23.0 ｜ **代码基线** commit `2fec6a3`（在 `70e4de1` 基础上合入编辑页拖拽插入与右键「插入」；1.23.0 版本号与本文档在随后提交）｜ **分析日期** 2026-11-09
+> **版本** 1.24.0 ｜ **代码基线** commit `1f88ca8`（1.24.0 代码与测试；文档与图谱在随后提交）｜ **分析日期** 2026-11-09
 > **分析对象** `/www/wwwroot/www.nboke.com/wp-content/plugins/sakura-tools`（生产副本；§6.8/§6.9 的代码变更已包含在基线提交中，其余阅读与运行期验证均为只读）
 > **测试环境** `/root/sio-e2e`（独立 WordPress + MariaDB 127.0.0.1:13316 + MinIO 127.0.0.1:19010），插件以软链方式挂载，行为与生产一致
-> **配套产物** 3D 图谱 `docs/graph-preview/index.html`（同源数据 `graph.json`）、生成器 `docs/tools/build-code-structure.mjs`、图谱说明 `docs/sakura-tools-图谱同步-1.23.0.md`
+> **配套产物** 3D 图谱 `docs/graph-preview/index.html`（同源数据 `graph.json`）、生成器 `docs/tools/build-code-structure.mjs`、图谱说明 `docs/sakura-tools-图谱同步-1.24.0.md`
 
 ---
 
@@ -33,7 +33,7 @@
 | `文件:行` | 静态证据：结论直接来自该位置的代码 | `src/Plugin.php:83-86` |
 | **验证** | 运行证据：在测试站实际执行过，第 10 章有命令与输出 | 验证 §10.3 路由 11/11 |
 | **未验证** | 只有静态阅读，未在运行时复现 | 配额扣减（只读边界） |
-| **待确认** | 代码里存在歧义或超出本次范围，不下结论 | §12.2（本轮为空） |
+| **待确认** | 代码里存在歧义或超出本次范围，不下结论 | §12（当前清零，只保留边界） |
 | **口径** | 统计方式说明，避免读者误读数字 | 入度/出度的计算方式 |
 
 ### 0.3 数字口径（先对齐，避免误读）
@@ -41,7 +41,7 @@
 | 指标 | 数值 | 口径 |
 |---|---:|---|
 | 生产 PHP 文件 | **178** | 不含 `tests/`(71 文件) `stubs/`(2) `vendor/` `assets/`(JS/CSS) |
-| 生产 PHP 行数 | **60,468** | 同上，含空行与注释 |
+| 生产 PHP 行数 | **61,215** | 同上，含空行与注释 |
 | 类 / 接口 | **163** | 含 7 个接口；另有 64 个全局函数未计入图谱节点 |
 | 钩子注册 | **191** | 仅生产代码中的 `add_action`/`add_filter`，不含 `do_action` 触发点 |
 | 自定义数据表 | **23** | 15 张 `{prefix}sufm_*` + 6 张 `{prefix}sio_sync_*` + 2 张 `{prefix}sio_s3_*`（`sio_s3_deletes`、`sio_s3_upload_events`） |
@@ -60,17 +60,19 @@
 3. **模块契约极窄。** `src/Contracts/Module.php:23-31` 只有一个 `register_hooks(Hook_Loader): void`，且明确禁止在构造函数里挂 WP 钩子。所有钩子集中到 `src/Support/Hook_Loader.php`，先入队、`register()` 时一次性交付，**注册后新加的钩子立即生效**（`register_frontend` 依赖这个行为）。
 4. **后台信息架构是静态声明的。** `src/Admin/Registry.php:41-101` 用一张常量数组声明「模块 → tab → 权限门 → renderer key」；`Menu` 只做建屏与分发，`Shell` 只画外壳。**加一个 tab = 改 Registry + 注册 renderer 两处**，不需要动菜单代码。
 5. **功能面是 5 个子系统 + 3 条横切。** 子系统：图片优化管线（§4）、缩略图 URL 重写（§5）、对象存储 S3（§6）、同步索引 Sync（§7）、用户文件空间 UserFiles（§8）。横切：数据落点（§9）、钩子索引（§9.2）、REST/CLI/Cron（§9.3）。
-6. **代码量集中在两处。** UserFiles（46 文件 / 21,174 行）与 S3（36 文件 / 10,803 行）合计占生产代码的 52.9%；两者也是自定义表、加密凭据与补偿队列最集中的部分。
-7. **运行时可访问性已验证。** 11 条后台路由全部 200 且标题正确、45 条 `/sufm/v1` REST 路由（51 个端点）全部注册、7 个插件 cron 事件已排程、12 项函数级探针结果符合预期（§10）。**未验证**的是生产环境的写路径（配额扣减、删除审核、卸载清理）——生产保持只读。测试站上补做的写验证有两次：5 张并发上传（§10.6）跑通「上传 → 压缩 → S3 PUT → 索引落库」，4×200 条并发指标写入（§10.11）验证事件表零丢失。
+6. **代码量集中在两处。** UserFiles（46 文件 / 21,833 行）与 S3（36 文件 / 10,803 行）合计占生产代码的 53.3%；两者也是自定义表、加密凭据与补偿队列最集中的部分。
+7. **运行时可访问性已验证。** 11 条后台路由全部 200 且标题正确、45 条 `/sufm/v1` REST 路由（51 个端点）全部注册、7 个插件 cron 事件已排程、12 项函数级探针结果符合预期（§10）。**未验证**的是生产环境的写路径（配额扣减、删除审核、卸载清理）——生产保持只读。测试站上补做的写验证有三批：5 张并发上传（§10.6）跑通「上传 → 压缩 → S3 PUT → 索引落库」，4×200 条并发指标写入（§10.11）验证事件表零丢失，1.24.0 的对账失败退避与历史 grant 回填（§10.14）验证了退避序列、租约与字段白名单。
 8. **两张"文档"已经过期，不要当作事实源。** `DEVELOPMENT.md` 第 1 节的"当前文件结构"停留在 1.3.3 的 6 个文件；`/root/WordPress/docs/sakura-image-optimizer-代码分析报告.md`（本机历史报告，未随仓库分发） 停在 1.9.0 之前的命名。本报告与 3D 图谱是当前唯一同步的产物；`DECISIONS.md` 仍然有效（记录的是"为什么"，不是"现在有什么"）。
 9. **文档与图谱同源，不会再脱节。** 两者都由同一份扫描事实表（来自 `dsh-codegraph` 的 `lib/scanner.php`）经 `docs/tools/build-code-structure.mjs` 生成。改代码后重跑一次命令即可同时刷新表格与图谱（§13.6）。
 10. **上传指标已从单 option 改为事件表。** 旧实现每次 `record_batch()` 读改写同一个 option，4 进程各写 200 条只留下 202 条（丢 75%）；现在每条结果独立 INSERT 到 `{prefix}sio_s3_upload_events`（`src/S3/Upload_Metrics.php:79`、`:149`），`snapshot()` 用 SQL 聚合（`:204`），成功与失败分别由 `sakura_imgopt_s3_uploaded` / `sakura_imgopt_s3_upload_failed` 采集（`src/S3/Upload_Observer.php:30-31`）。返回结构不变，旧 option 只作为冻结基线读取。详见 §6.9 与 §10.11。
 
 **更早一轮更新（2026-11-08）**：§12 原有 3 项已全部核实并处理：① `fast-search.php` **无缺陷**，生产环境没有额外封禁，入口按 HMAC + 管理员能力鉴权；② `Space_Store::grant_from_order()` **缺陷已修复**，订单按支付渠道写 `source/channel` 与订单字段，并默认只开放余额支付、补退款补偿与每日对账（§8.9、§10.12）；③ 上传失败不可见**已修复**，旧 `Upload_Observer` 只记录成功样本，该轮改为追加事件表 + 失败钩子，并发压测 800/800 条落库（§6.9、§10.11）。
 
-**上一轮更新（2026-11-09，1.22.9）**：版本号、常量与 readme 统一到 **1.22.9**；消除全量 PHPCS 的 5 个既有错误（4 条译者注释、1 条异常消息的窄例外），复检 **177 个 PHP 文件 0 error**；生产代码结构与图谱拓扑未变（178 文件 / 163 类 / 180 节点 / 814 连线 / 191 钩子），仅 `src/UserFiles/Editor/Assets.php` 增加 4 行使生产总行数变为 60,464。
+**更早一轮更新（2026-11-09，1.22.9）**：版本号、常量与 readme 统一到 **1.22.9**；消除全量 PHPCS 的 5 个既有错误（4 条译者注释、1 条异常消息的窄例外），复检 **177 个 PHP 文件 0 error**；生产代码结构与图谱拓扑未变（178 文件 / 163 类 / 180 节点 / 814 连线 / 191 钩子），仅 `src/UserFiles/Editor/Assets.php` 增加 4 行使生产总行数变为 60,464。
 
-**本轮更新（2026-11-09，1.23.0）**：编辑页文件面板新增拖拽跟手标签、拖到正文按落点插入、右键菜单「插入」。改动只落在编辑页 fork（`assets/editor-picker*.js/css`、`includes/views/editor-picker-app.php`、`src/UserFiles/Editor/Assets.php` 文案与图标）；用户中心 `assets/userfiles.*` 与 `Frontend/Tab.php` 的界面未改，只新增一个 `dragInsert` 文案键。没有新增类、路由、钩子或数据表，图谱拓扑仍 180 节点 / 814 连线 / 191 钩子；`includes/views/editor-picker-app.php` +1 行、`Editor/Assets.php` +2 行、`Tab.php` +1 行，生产总行数 60,468，UserFiles 21,174。详见 §8.10、§10.13。
+**上一轮更新（2026-11-09，1.23.0）**：编辑页文件面板新增拖拽跟手标签、拖到正文按落点插入、右键菜单「插入」。改动只落在编辑页 fork（`assets/editor-picker*.js/css`、`includes/views/editor-picker-app.php`、`src/UserFiles/Editor/Assets.php` 文案与图标）；用户中心 `assets/userfiles.*` 与 `Frontend/Tab.php` 的界面未改，只新增一个 `dragInsert` 文案键。没有新增类、路由、钩子或数据表，图谱拓扑仍 180 节点 / 814 连线 / 191 钩子；生产总行数 60,468，UserFiles 21,174。详见 §8.10、§10.13。
+
+**本轮更新（2026-11-09，1.24.0）**：空间扩容支付入口改为后台勾选（默认仅 `balance`，积分有独立开关，`sufm_space_allowed_payment_methods` 只能收窄）；每日对账改为租约 + 900/1800/3600/7200/14400/21600 秒指数退避，失败不再空等 24 小时；新增 `wp sufm grants` 历史 `order:` 授权审计/回填，默认 dry-run，`--apply` 才写。生产仍 178 文件 / 163 类 / 191 钩子 / 23 张表，但总行数 61,215（UserFiles 21,833、`includes/views` 4,821）；图谱 180 节点 / **815** 连线，新增 `CLI → Space_Store` 一条 `ref`，`Space_Store → Space_Settings` 权重 22、`Space_Store → Space_Rules` 权重 48。`refund_failed` 仍坚持人工处理，本轮没有自动复活。详见 §8.9、§10.14。
 
 ---
 
@@ -98,7 +100,7 @@ sakura-tools/
 │   ├── class-thumbnail-optimizer-module.php 缩略图子系统唯一装配点
 │   ├── class-thumbnail-manager.php     按尺寸禁用缩略图生成
 │   └── class-s3-storage-module.php     对象存储设置页
-├── includes/views/             12 文件 / 4,733 行               ← 旧版页面模板
+├── includes/views/             12 文件 / 4,821 行               ← 旧版页面模板
 ├── src/                        4 文件 / 759 行                  ← 组合根
 │   ├── Plugin.php              启动、装配、注册 WP-CLI 命令
 │   ├── Activation.php          默认值、迁移、建表、排程
@@ -110,7 +112,7 @@ sakura-tools/
 ├── src/Thumbnail/              15 文件 / 3,764 行   缩略图策略、供应商、探测、统计、主题桥
 ├── src/S3/                     36 文件 / 10,803 行  凭据加密、上传、删除队列、同步中心、监控
 ├── src/Sync/                   17 文件 / 5,792 行   索引表、扫描状态机、动作队列、校验、CLI
-├── src/UserFiles/              46 文件 / 21,174 行  上传/配额/审核/执行/REST/空间套餐/Zibll 桥
+├── src/UserFiles/              46 文件 / 21,833 行  上传/配额/审核/执行/REST/空间套餐/Zibll 桥
 ├── src/Backup/                 2 文件 / 459 行
 ├── src/Contracts/              5 文件 / 392 行      5 个接口
 ├── src/Filesystem/ src/Settings/ src/Stats/ src/Support/   5 文件 / 633 行
@@ -128,11 +130,11 @@ sakura-tools/
 
 | 模块 | 文件数 | 代码行 | 类(含接口) | 说明 |
 |---|---:|---:|---:|---|
-| src/UserFiles | 46 | 21174 | 46 | 用户文件空间：上传、配额、审核执行、REST、Zibll 桥接 |
+| src/UserFiles | 46 | 21833 | 46 | 用户文件空间：上传、配额、审核执行、REST、Zibll 桥接 |
 | src/S3 | 36 | 10803 | 36 | 对象存储：配置/加密、上传同步、删除队列、同步中心、监控告警 |
 | includes | 14 | 5999 | 14 | 1.3–1.9 时代的旧类，仍在承重（媒体库、优化器、缩略图、S3、处理器） |
 | src/Sync | 17 | 5792 | 17 | 持久化同步索引：扫描、任务、校验、CLI、快速检索查询 |
-| includes/views | 12 | 4733 | 0 | 旧式页面模板（由 includes 类 require 渲染） |
+| includes/views | 12 | 4821 | 0 | 旧式页面模板（由 includes 类 require 渲染） |
 | src/Thumbnail | 15 | 3764 | 15 | 缩略图 URL 重写策略：上下文、尺寸、供应商、探测、缓存 |
 | src/Image | 10 | 3177 | 10 | 图片处理管线：改名、备份、引擎选择、元数据、还原、尺寸目录 |
 | src/Admin | 7 | 1895 | 7 | 后台信息架构：Registry 路由表、Menu、Layout、Shell、Assets、环境自检 |
@@ -145,7 +147,7 @@ sakura-tools/
 | src/Support | 2 | 178 | 2 | Hook_Loader（延迟注册）与 UTF-8 截断工具 |
 | src/Filesystem | 1 | 97 | 1 | 文件系统仓储适配器 |
 | src/Stats | 1 | 73 | 1 | 统计仓储适配器 |
-| 合计 | 178 | 60468 | 163 | 生产代码；另有 tests 72 文件/8800 行、stubs 2 文件另计 |
+| 合计 | 178 | 61215 | 163 | 生产代码；另有 tests 72 文件/8800 行、stubs 2 文件另计 |
 
 **怎么读这张表**：行数不等于复杂度——`src/UserFiles` 20k 行里有 40% 是 REST 控制器与视图模板（重复度高、改动风险低）；`src/Sync` 只有 5.8k 行却包含状态机与 SQL 层，是改动风险最高的模块。
 
@@ -911,7 +913,7 @@ d3AtY29udGVudC91cGxvYWRzL3Byb2JlLzA5OTkuYmluW21pbmlvX2NhY2hlOnYyLHJldHVybjpd
 
 ---
 
-## 8. 子系统 E：用户文件空间（src/UserFiles/，46 文件 / 21,174 行）
+## 8. 子系统 E：用户文件空间（src/UserFiles/，46 文件 / 21,833 行）
 
 ### 8.1 职责与边界
 
@@ -927,7 +929,7 @@ d3AtY29udGVudC91cGxvYWRzL3Byb2JlLzA5OTkuYmluW21pbmlvX2NhY2hlOnYyLHJldHVybjpd
 | `Assets` | src/UserFiles/Editor/Assets.php:20 |  | 1 / 1 | 3 / 2 |  | 注册编辑器样式、脚本与配置对象 |
 | `Assets` | src/UserFiles/Support/Assets.php:21 |  | 1 / 1 | 10 / 0 |  | 统一为打包资源生成防缓存版本号 |
 | `Capabilities` | src/UserFiles/Capabilities.php:20 |  | 8 / 8 | 20 / 0 |  | 定义四个文件操作能力，删除另需 delete_post |
-| `CLI` | src/UserFiles/CLI.php:23 |  | 6 / 7 | 0 / 11 |  | 用 WP-CLI 检查并驱动文件空间任务 |
+| `CLI` | src/UserFiles/CLI.php:23 |  | 7 / 8 | 0 / 13 |  | 用 WP-CLI 检查并驱动文件空间任务 |
 | `Context` | src/UserFiles/Editor/Context.php:20 |  | 3 / 3 | 3 / 3 |  | 为 Zibll 两个编辑屏幕提供统一编辑器标识 |
 | `Controller` | src/UserFiles/Rest/Controller.php:34 |  | 58 / 64 | 1 / 40 |  | 从会话取所有者，提供 sufm/v1 REST 接口 |
 | `Db_Transaction` | src/UserFiles/Support/Db_Transaction.php:22 |  | 5 / 5 | 16 / 0 |  | 统计插件自身的事务语句以避免嵌套 |
@@ -958,8 +960,8 @@ d3AtY29udGVudC91cGxvYWRzL3Byb2JlLzA5OTkuYmluW21pbmlvX2NhY2hlOnYyLHJldHVybjpd
 | `Space_Page` | src/UserFiles/Admin/Space_Page.php:27 |  | 5 / 6 | 1 / 22 | 5 | 注册 Zibll 标签页的设置组、资源与视图 |
 | `Space_Panel` | src/UserFiles/Space_Panel.php:23 |  | 10 / 11 | 2 / 10 | 3 | 服务端渲染前端空间面板并加载资源 |
 | `Space_Rules` | src/UserFiles/Services/Space_Rules.php:24 |  | 8 / 13 | 12 / 6 |  | 汇总配额公式、发放聚合与请求级缓存 |
-| `Space_Settings` | src/UserFiles/Space_Settings.php:20 |  | 14 / 30 | 15 / 0 |  | 为扩容选项提供默认值、读取与清洗 |
-| `Space_Store` | src/UserFiles/Services/Space_Store.php:22 |  | 40 / 59 | 11 / 9 | 2 | 管理空间套餐、购买与发放记录 |
+| `Space_Settings` | src/UserFiles/Space_Settings.php:20 |  | 16 / 33 | 19 / 0 |  | 为扩容选项提供默认值、读取与清洗 |
+| `Space_Store` | src/UserFiles/Services/Space_Store.php:22 |  | 42 / 64 | 16 / 9 | 2 | 管理空间套餐、购买与发放记录 |
 | `Sync_Service` | src/UserFiles/Services/Sync_Service.php:26 |  | 6 / 9 | 5 / 10 |  | 按附件 ID 游标执行可恢复的扫描 |
 | `Tab` | src/UserFiles/Frontend/Tab.php:22 |  | 11 / 16 | 10 / 5 | 4 | 为 Zibll 用户中心添加文件管理页签与资源 |
 | `Theme_Levels` | src/UserFiles/Support/Theme_Levels.php:22 |  | 3 / 4 | 2 / 0 |  | 从主题读取并统一等级价格与名称 |
@@ -1058,59 +1060,68 @@ d3AtY29udGVudC91cGxvYWRzL3Byb2JlLzA5OTkuYmluW21pbmlvX2NhY2hlOnYyLHJldHVybjpd
 | 与 Admin IA | 向 Registry 的 `files` 模块注册 4 个 renderer（settings/users/queue/log） | `src/UserFiles/Admin/Page.php:71-78` |
 | 与 Zibll | 能力探测单例 `Zibll_Bridge`；tab、订单卡、空间面板都走它 | `src/UserFiles/Services/Zibll_Bridge.php:23` |
 
-### 8.9 空间扩容支付收口（2026-11-08 修复）
+### 8.9 空间扩容支付收口（2026-11-08 修复，2026-11-09 补对账退避与历史回填）
 
-**结论：原 §8.9 的高优先缺陷已修复，并按「只走主题余额/积分」的口径收口支付入口。** 订单发放现在按实际支付渠道写 `source/channel` 与订单字段；余额是唯一默认开放的支付方式；退款按渠道补偿钱包；每日对账补发 paid-no-grant；面板在现金或积分任一不可用时仍能给出可用入口。
+**结论：空间扩容的现金入口由管理员在后台显式勾选，默认只开放余额；积分入口有独立开关；订单按实际支付渠道记账；退款按渠道补偿；每日对账用租约 + 指数退避；历史 order: 授权提供手动审计/回填命令。** 退款失败（refund_failed）仍坚持人工核对，不自动复活——这是有意保留的资金安全边界，不是遗漏。
 
-> 历史结论（2026-11-08 修复前）：`grant_from_order()` 把 `source`/`channel` 固定写 `'points'`，`order_id`/`order_num`/`price`/`points` 清零，现金购买会被记成积分兑换并占用 `points_used_bytes()` 日限额。该缺陷已在本次修复中关闭；下面的「修复前」引用只用于追溯。
+> 追溯：2026-11-08 之前的 grant_from_order() 把 source/channel 固定写 'points'，并把 order_id/order_num/price/points 清零；现金（含余额）购买会被记成积分兑换并占用 points_used_bytes() 日限额。该缺陷已在同日的支付收口修复中关闭。2026-11-09 的 1.24.0 又补了两件事：对账失败不再空等 24 小时，以及历史 order: 行的手动回填入口。
 
 #### 8.9.1 支付入口为什么收口
 
-主题 Zibll 的所有支付方式（余额、支付宝、微信、积分）最终都走同一个 `ZibPay::payment_order()`，成功后统一 `do_action('payment_order_success', $order)`（`wp-content/themes/zibll/zibpay/class/order-class.php:916`）。插件无法只靠钩子区分「余额」与「外部扫码」；如果继续把主题返回的全部方式暴露在空间面板，就等于让空间订单直接生成支付宝/微信订单。
+主题 Zibll 的余额、支付宝、微信等支付方式最终都走同一个 ZibPay::payment_order()，成功后统一 do_action('payment_order_success', $order)（wp-content/themes/zibll/zibpay/class/order-class.php:916）。插件无法只靠这个钩子区分「余额」与「外部扫码」；如果继续把主题返回的全部方式暴露在空间面板，就等于让空间订单直接生成支付宝/微信订单。
 
-本次按用户确认的折中方案落地：**空间扩容只默认开放余额；用户先通过主题充值余额，再用余额购买空间。** 外部扫码不是被删除，而是变成显式 opt-in：站点所有者必须用过滤器主动放开，并自行承担该渠道的退款与对账责任。
+现行口径是**支付入口收口**：
+
+- 空间扩容默认只开放余额。用户先通过主题充值余额，再用余额购买空间；充值入口仍然是主题的，站点仍然是收款方。
+- 外部渠道不是被删除，而是变成管理员显式勾选；勾选后风险（未支付订单、退款、对账）由站点自行承担。
+- 积分不是主题支付方式，而是插件自己的兑换产品，有独立开关。
 
 #### 8.9.2 支付入口白名单
 
 | 位置 | 行为 |
 |---|---|
-| `Space_Store::ALLOWED_METHODS`（`:44`） | 默认 `array( 'balance' )`；余额是同步扣款，空间面板不会生成外部支付二维码 |
-| `Space_Store::payment_methods()`（`:195-236`） | 调用主题 `zibpay_get_payment_methods(21)` 后归一为 `id => [name]`，末尾交给 `filter_payment_methods()` |
-| `Space_Store::filter_payment_methods()`（`:248`） | 读取 `apply_filters( 'sufm_space_allowed_payment_methods', self::ALLOWED_METHODS )`；非数组回退默认值；逐项 `sanitize_key` 后与主题返回的 map 取交集，保留主题的名称 |
-| `Space_Store::purchase()`（`:291`） | 用过滤后的 map 做服务端硬校验；不在 map 内的 method 返回 `sufm_space_method_missing`，不会到达 `zibpay_initiate_pay()` |
+| Space_Settings::defaults()（src/UserFiles/Space_Settings.php:68-71） | 默认 allowed_methods = array( 'balance' ) |
+| Space_Settings::allowed_methods()（:265-271） | 读取 sufm_space_settings，经 sanitize_methods() 去空、去重、sanitize_key、上限 20 |
+| Space_Settings::sanitize()（:386-424） | allowed_methods_present=1 且没有勾选时保存空数组（关闭现金）；字段缺席的 partial 保存保留已存值，不会把未编辑的卡片误清空 |
+| 后台「支付方式」卡片（includes/views/userfiles-space-admin.php:233-309） | 左侧遍历主题当前提供的通道生成 checkbox；右侧是积分 points[enabled] 独立开关；隐藏字段 allowed_methods_present=1（:245）区分「全不勾选」与「表单没提交这个字段」 |
+| Space_Store::payment_methods()（src/UserFiles/Services/Space_Store.php:194） | 调主题 zibpay_get_payment_methods(21) 并归一为 id => [name]，末尾交给 filter_payment_methods() |
+| Space_Store::filter_payment_methods()（:249） | 以 Space_Settings::allowed_methods() 为唯一来源；sufm_space_allowed_payment_methods 只能收窄，不能重新启用未勾选通道；空数组直接关闭现金 |
+| Space_Store::purchase()（:311） | 用过滤后的 map 做服务端硬校验；不在 map 内的 method 返回 sufm_space_method_missing（:347-351），不会到达 zibpay_initiate_pay() |
 
-**放开外部渠道的方式**（明确写在代码注释与 ADR 中）：
+**后台操作**：在「用户文件空间 → 子比专属 → 支付方式」勾选要开放的通道，保存后立即影响前台；全部取消勾选等于关闭现金收银台，前台只保留积分或整个扩容入口。诊断卡片只展示「已启用且主题当前提供」的通道，不再把主题的全部支付方式当成可购买项。
+
+**过滤器只做减法**：
 
 ```php
 add_filter( 'sufm_space_allowed_payment_methods', function ( $methods ) {
-    $methods[] = 'alipay';
-    return $methods;
+    // 例如测试站要临时隐藏 alipay，即使用户勾选了
+    return array_values( array_diff( $methods, array( 'alipay' ) ) );
 } );
 ```
 
-过滤器返回空数组等于关闭现金收银台；面板会按 §8.9.6 的空态规则退回积分兑换。测试站实测：主题对 `order_type=21` 返回 `balance`；过滤后仍只有 `balance`，未出现扫码入口。
+它不能把未勾选的 alipay 重新加回来。旧版本里的 Space_Store::ALLOWED_METHODS 常量已删除，代码中不存在第二个默认白名单。
+
+**积分开关**：Space_Settings::points_enabled()（:280-284）读取 points['enabled']；points_state()（Space_Store.php:3050-3075）的 enabled 同时要求开关打开且 points_per_gb > 0；redeem_points()（:3221-3245）在关闭时返回 sufm_points_off。关闭积分不会清空已配置的积分套餐或价格，只是隐藏入口并拒绝新兑换；已售出的积分授权仍按原有效期生效。
 
 #### 8.9.3 订单发放记账
 
-`normalise_order()`（`:979`）现在除 `order_id/order_num/user_id/product_id/price/channel/plan_id/label/bytes/days` 外，还解析 `points` 与 `pay_detail`：`points` 优先取 `other.points`，其次取 `pay_detail.points`；两者都没有且渠道是 `points` 时，用 `round(order_price)` 回退。`channel` 仍来自主题订单的 `pay_type`。
+normalise_order()（Space_Store.php:999）解析 order_id/order_num/user_id/product_id/price/channel/plan_id/label/bytes/days，并补 points 与 pay_detail：points 优先取 other.points，其次取 pay_detail.points；两者都没有且渠道是 points 时，用 round(order_price) 回退。channel 来自主题订单的 pay_type。
 
-`grant_ledger_fields()`（`:826`）把归一化结果压成 6 个账本字段，`grant_from_order()`（`:861`）用它们参数化 INSERT（`:928-946`），不再写死字面量：
+grant_ledger_fields()（:846）把归一化结果压成 6 个账本字段，grant_from_order()（:881）用它们参数化 INSERT（:948-966），不再写死字面量：
 
-| 订单渠道 | `source` | `channel` | `order_id` / `order_num` | `price` | `points` |
+| 订单渠道 | source | channel | order_id / order_num | price | points |
 |---|---|---|---|---|---|
-| `balance` | `purchase` | `balance` | 保留 | `order_price` | 0 |
-| `points`（直兑/主题积分单） | `points` | `points` | 保留 | 0 | 实际扣减积分 |
-| 其他（仅 filter 放开时） | `purchase` | `sanitize_key(pay_type)`，截 24 | 保留 | `order_price` | 0 |
+| balance | purchase | balance | 保留 | order_price | 0 |
+| points（直兑/主题积分单） | points | points | 保留 | 0 | 实际扣减积分 |
+| 其他（管理员勾选后） | purchase | sanitize_key(pay_type)，截 24 | 保留 | order_price | 0 |
 
-`meta`（`:907-916`）同步保留 `plan_id`、`order_num`、`order_id`、`channel`、`source`、`points`；`grant_key` 仍是 `order:` + `order_num`，`INSERT IGNORE` + 唯一键保证同一订单只发一次。
+meta（:927-936）同步保留 plan_id、order_num、order_id、channel、source、points；grant_key 仍是 order: + order_num，INSERT IGNORE + 唯一键保证同一订单只发一次。
 
-**防重复发放保护仍然有效**：积分直兑会在 `redeem_points()` 里创建 `product_id='sufm_space_points'` 的订单并走主题支付，因而也会触发 `payment_order_success`；`grant_from_order()` 对 `plan('points')` 不存在且 `bytes=0` 的订单返回 `false`，不会重复发放。改动这段时必须保留该断言。
-
-**历史数据不回填**：修复只影响新写入。历史 `order:` 行若已是 `purchase/balance` 且字段齐全则无需处理；历史 `points:` 行中订单字段为 0 的记录仍保持原样。若要做批量回填，应以 `meta.order_num` 反查订单后逐行核对，不能只按 `source='points'` 改。
+**防重复发放保护仍然有效**：积分直兑会在 redeem_points() 里创建 product_id='sufm_space_points' 的订单并触发同一个成功钩子；该订单的 plan('points') 不存在且 bytes=0，grant_from_order() 返回 false，不会重复发放。改动这段时必须保留该断言。
 
 #### 8.9.4 退款补偿
 
-退款入口是主题 `ZibPay::refund_order()` 发出的 `order_refunded`（参数是订单表主键，不是订单号）。`Space_Store::register_hooks()`（`:2539`）以优先级 12 挂 `handle_order_refunded()`，转 `on_order_refunded()`（`:1248`）。
+退款入口是主题 ZibPay::refund_order() 发出的 order_refunded（参数是订单表主键，不是订单号）。Space_Store::register_hooks()（:3014）以优先级 12 挂 handle_order_refunded()，转 on_order_refunded()（:1268）。
 
 ```text
 order_refunded(order_id)
@@ -1118,85 +1129,130 @@ order_refunded(order_id)
   → 只认 order_type=21
   → UPDATE state='refund_pending' WHERE order_num AND state IN ('active','pending')   ← 原子占位
   → 0 行：直接返回（重复回调/已退款/已撤销）
-  → 取 owners + SUM(bytes)，先 Space_Rules::flush()（配额立即下降）
-  → settle_refund()
-       balance → zibpay_update_user_balance(+order_price, type=space_expand_refund)
-       points  → zibpay_update_user_points(+points，缺失时 round(price))
-       其他    → 只释放授权，不代付
-  → 成功：state='refunded'；失败：fail_refund() attempts+1，第 5 次 state='refund_failed'
+  → 释放配额 → settle_refund() 按渠道退钱包
+      balance → 加 order_price
+      points  → 加 points（缺失时 round(price)）
+      其他    → 只释放授权，不代付
+  → 成功 state='refunded'；失败 attempts+1，满 5 次 state='refund_failed'
 ```
 
-| 位置 | 作用 |
-|---|---|
-| `on_order_refunded()`（`:1248`） | 订单读取 + `refund_pending` 占位；先 flush 配额，再尝试钱包补偿 |
-| `settle_refund()`（`:1387`） | 按 `wallet_refund_plan()` 补偿；成功把 `refund_pending` 行置 `refunded` |
-| `wallet_refund_plan()`（`:1576`） | `balance` → `order_price`；`points` → `points`（缺失时 `round(price)`）；其他 → `external/0` |
-| `wallet_refund_recorded()`（`:1612`） | 读主题 `balance_record` / `points_record`，同 `order_num` + `type='space_expand_refund'` + `value>0` 则视为已退，防崩溃窗口重复加钱 |
-| `fail_refund()`（`:1502`） | 逐行 `attempts+1`；满 5 次置 `refund_failed` 并记 `space.grant.refund_failed` |
-| `retry_refunds()`（`:1652`） | 每 60 秒挑 `refund_pending` 且 `attempts<5`；先用条件 UPDATE 抢占订单，再调 `settle_refund()` |
-| `state_label()`（`:1157`） | `refund_pending` → 退款处理中；`refund_failed` → 退款失败 |
+关键位置：settle_refund() :1407、fail_refund() :1522、wallet_refund_recorded() :1632、retry_refunds() :1672。
 
-`wallet_refund_recorded()` 必须优先用主题的 `zib_get_user_meta()`，不能用普通 `get_user_meta()`：Zibll 把这些记录存在主题自己的 meta 路由里（`wp-content/themes/zibll/inc/dependent.php:328-346`），普通读取在真实站点返回空，崩溃窗口保护会失效。这是本轮运行验证中发现并修正的问题。
+**退款失败的人工边界（1.24.0 明确保留）**：retry_refunds() 只挑 state='refund_pending' AND attempts<5 AND updated_at<=now-60，refund_failed 不会被自动拾取；主题订单已经是 status=-2，不会再发一次 order_refunded。这样做的原因是主题钱包先加钱、后写 balance_record，崩溃窗口里自动重试有重复加钱的真实风险。人工处理时应先核对订单、用户与钱包流水；wallet_refund_recorded() 命中则说明钱已经到账，只能把状态修正为 refunded，不能再次加钱。不要简单把 refund_failed 改回 refund_pending：attempts 仍 >=5 时它不会被重试，反而会卡在中间态。
 
-**重试的并发边界**：`retry_refunds()` 先执行 `UPDATE ... SET updated_at=now WHERE order_num=... AND state='refund_pending' AND updated_at <= threshold`，只有影响行数大于 0 才继续；两个 cron worker 同时选中同一订单时，后到者拿到 0 行并跳过。崩溃后 `updated_at` 已前移，最多等 60 秒再试。
+**弱幂等**：主题 balance_record/points_record 最多保留 50 条且没有唯一键，wallet_refund_recorded() 的查重可能因记录被挤出而失效；这是主题数据结构的边界，插件不能单独保证 100% 幂等（详见 §8.9.8）。
 
-#### 8.9.5 每日对账
+#### 8.9.5 每日对账：租约 + 指数退避
 
-`maybe_reconcile()`（`:1811`）由 `tick()` 调用，用 option `sufm_space_reconcile_last`（`:49`）做 24 小时水位；到期后调用 `reconcile( true, 100 )`（`:2017`）补发「订单已支付、但没有 grant」的订单。`reconcile()` 的 SQL 仍是 `LEFT JOIN` + `order_type=21 AND status=1 AND g.id IS NULL`，`ready=false` 或 `missing > healed` 时记 `space.reconcile.alert`（带 missing/healed/error），正常补发记 `space.reconcile.healed`。
+maybe_reconcile()（Space_Store.php:1838）仍由 tick()（:2869）调用，但状态从单个时间戳改为数组 option sufm_space_reconcile_last（:40），结构为：
 
-手动入口保留：`POST /admin/space/reconcile` 仍可按需 dry-run 或 apply。自动对账不新增 cron 钩子，只挂在原有 `sufm_tick` 上。`sufm_space_reconcile_last` 已加入 `Uninstaller::derived_options()`（`src/Uninstaller.php:186`），卸载时会清理。
+```text
+{ last_attempt, last_success, next_attempt, failures, last_alert }
+```
 
-边界：`maybe_reconcile()` 先写时间戳再对账；如果对账本身失败，要等 24 小时才会自动重试。需要立即重试时走手动 REST。
+调度规则：
 
-#### 8.9.6 面板空态
+1. next_attempt > now 时直接返回，不碰订单表。
+2. 到期后先把 last_attempt=now、next_attempt=now+900 写成租约，再执行 reconcile(true,100)（:2173）。进程中途死掉，最多 15 分钟后可再试，不会像旧实现那样锁死 24 小时。
+3. 成功且 missing <= healed 且没有更多页：last_success=now、failures=0、next_attempt=now+86400。
+4. 成功但 more=true（这一页 100 条已处理完，还有下一页）：next_attempt=now+900 继续排空；不当成失败。
+5. 失败或 ready=false 或 missing > healed：failures++，按 RECONCILE_BACKOFF（:48，900/1800/3600/7200/14400/21600 秒）取下一次；封顶 6 小时。
+6. space.reconcile.alert 每个失败序列最多每天一条（last_alert）；detail 带 missing/healed/more/error/failures/next_attempt/auto=true。
+7. 旧版本写入的标量 option 会迁移为 last_attempt=旧值、next_attempt=旧值+86400，升级后不会立刻重放一次对账。
 
-`Space_Panel::build_data()`（`:112`）先取 `$plans/$methods/$points_state/$points_plans`，再计算：
+reconcile() 用 limit+1 查询判断 more（:2199-2261），因此刚好 100 条时不会误判为「还有更多」；ready=false 且 last_error 非空时返回错误并记 space.reconcile.error，不会再被读成「没有缺失订单」。手动 POST /admin/space/reconcile 保留，可随时 dry-run 或 apply。
+
+#### 8.9.6 面板空态与积分入口
+
+Space_Panel::build_data()（src/UserFiles/Space_Panel.php:112）先取 $plans/$methods/$points_state/$points_plans，再计算：
 
 | 标志 | 计算 | 位置 |
 |---|---|---|
-| `cash_ready` | 现金套餐非空 **且** 过滤后的支付方式非空 | `:137` |
-| `points_ready` | 积分规则开启（`points_state['enabled']`）**且** 至少一个可售积分套餐 | `:141` |
+| cash_ready | 现金套餐非空 **且** 过滤后的支付方式非空 | :137 |
+| points_ready | 积分开关打开且单价 > 0 **且** 至少一个可售积分套餐 | :141 |
 
-两者都 false 才返回 `null`（整个面板不渲染）；否则把两个标志交给模板。模板与脚本的行为：
+两者都 false 才返回 null（整个面板不渲染）；否则把两个标志交给模板。模板与脚本的行为：
 
-- 现金套餐、余额支付方式、余额钱包只在 `cash_ready` 时显示；没有现金方式但有积分时显示提示「余额支付暂未开启，可使用积分兑换。」。
-- 积分套餐、积分面板、兑换按钮只在 `points_ready` 时显示；没有现金套餐或没有支付方式时，默认选中积分 radio。
-- `assets/userfiles-space.js` 的 `openDialog()` 焦点回退顺序改为现金套餐 → 积分套餐 → 支付方式 → `data-sufm-space-redeem-gb`；`confirmPurchase()` 在 `pointsMode()` 为真时直接返回，积分模式不会误建现金订单。
+- 现金套餐、余额支付方式、余额钱包只在 cash_ready 时显示；没有现金方式但有积分时显示提示「余额支付暂未开启，可使用积分兑换。」。
+- 积分套餐、积分面板、兑换按钮只在 points_ready 时显示；没有现金套餐或没有支付方式时，默认选中积分 radio。
+- assets/userfiles-space.js 的 openDialog() 焦点回退顺序为现金套餐 → 积分套餐 → 支付方式 → data-sufm-space-redeem-gb；confirmPurchase() 在 pointsMode() 为真时直接返回，积分模式不会误建现金订单。
 
-测试站四态实测（`Space_Panel::data()`/`markup()`，临时写 `sufm_space_settings` 后已恢复）：
+测试站四态实测（Space_Panel::data()/markup()，临时写 sufm_space_settings 后已恢复）：
 
-| 场景 | `cash_ready` | `points_ready` | 渲染结果 |
+| 场景 | cash_ready | points_ready | 渲染结果 |
 |---|---|---|---|
 | 现金 + 积分 | true | true | 8251 字节；2 个支付 radio；默认 balance；现金与积分套餐都在 |
 | 仅积分 | false | true | 6408 字节；1 个积分 radio 且默认选中；现金区隐藏；提示出现 |
 | 仅现金 | true | false | 6195 字节；1 个余额 radio；积分区隐藏 |
-| 都不可用 | false | false | `data() === null`，`markup()` 空串 |
+| 都不可用 | false | false | data() === null，markup() 空串 |
 
-**积分开关的边界**：`points_state()`（`:2575`）把 `enabled` 定义为 `per_gb > 0`，并不读取 `Space_Settings::points()['enabled']`；后台也没有独立关闭积分的 UI。因此 `points_ready` 实际由「后台积分单价 > 0 + 至少一个可售积分套餐」决定。要关闭积分入口，应清空积分套餐或把单价设为 0；不要只改 `points.enabled`。
+**积分开关已经独立**：1.24.0 之前 points_state() 的 enabled 只等于 per_gb > 0，后台的 points.enabled 没有读取点；现在 enabled = Space_Settings::points_enabled() && 0 < per_gb，关闭开关会隐藏入口并让 redeem_points() 返回 sufm_points_off。已售出的积分授权不受影响。
 
 #### 8.9.7 运行验证
 
-- **余额退款**：测试站创建余额订单 + grant，触发 `ZibPay::refund_order()`；`balance` 100→130（+30），`state=refunded`；重复回调余额不再变化，`balance_record` 命中 1 条。
-- **积分退款**：积分订单 90 分；退款后 `points` 520→610（+90），`balance` 不变，`points_record` 命中 1 条。
-- **崩溃窗口**：先手工写入同 `order_num` 的 `space_expand_refund` 余额记录，再触发回调；`state=refunded`，余额不再增加，证明 `wallet_refund_recorded()` 生效。
-- **外部渠道**：`alipay` 订单只把 grant 置 `refunded`，`balance`/`points` 均无变化。
-- **失败重试**：`user_id=0` 首退得到 `refund_pending/attempts=1/error=user_missing`；恢复用户并把 `updated_at` 调旧后 `retry_refunds(20)` 返回 1，最终 `refunded/attempts=2`，余额 +30。
-- **连续失败**：`attempts` 2→3→4 保持 `refund_pending`，第 5 次置 `refund_failed`，`error=user_missing`。
-- **退款重试占位**：fresh `refund_pending`（`updated_at=now`）不被抢占，`retry_refunds` 返回 0、余额不变；180 秒前的 stale 记录返回 1、余额 +30、`state=refunded/attempts=1`；第二次重试返回 0、余额不再增加。完整探针见 §10.12。
-- **每日对账**：有效 paid 单但没有 grant + 无效 `sufm_space_zzz/bytes=0` 单；删 option 后 `tick()` 给有效单补发、无效单不补，写入时间戳，并产生 `space.reconcile.alert` 1 条。
-- **单测**：`phpunit --filter 'SpaceStoreRefundTest|SpaceStorePaymentTest|SpaceRulesTest'` = OK（20 tests / 69 assertions）；`phpstan` 对 `Space_Store.php` 无错误。
+- **余额退款**：测试站创建余额订单 + grant，触发 ZibPay::refund_order()；balance 100→130（+30），state=refunded；重复回调余额不再变化，balance_record 命中 1 条。
+- **积分退款**：积分订单 90 分；退款后 points 520→610（+90），balance 不变，points_record 命中 1 条。
+- **崩溃窗口**：先手工写入同 order_num 的 space_expand_refund 余额记录，再触发回调；state=refunded，余额不再增加，证明 wallet_refund_recorded() 生效。
+- **外部渠道**：alipay 订单只把 grant 置 refunded，balance/points 均无变化。
+- **失败重试**：user_id=0 首退得到 refund_pending/attempts=1/error=user_missing；恢复用户并把 updated_at 调旧后 retry_refunds(20) 返回 1，最终 refunded/attempts=2，余额 +30。
+- **连续失败**：attempts 2→3→4 保持 refund_pending，第 5 次置 refund_failed，error=user_missing。
+- **退款重试占位**：fresh refund_pending（updated_at=now）不被抢占，retry_refunds 返回 0、余额不变；180 秒前的 stale 记录返回 1、余额 +30、state=refunded/attempts=1；第二次重试返回 0、余额不再增加。完整探针见 §10.12。
+- **每日对账（退避版）**：成功写 last_success 并排到 24 小时后；失败进入 failures=1/next=+900，第二次失败 failures=2/next=+1800；租约期间的重复 tick() 不改状态；告警只写一次。完整输出见 §10.14-A。
+- **历史授权回填**：合成 order: 空字段行 dry-run 为 pending，--apply --yes 后字段恢复为 purchase/balance/order_id=21/order_num=990.../price=30.00/points=0，bytes/state/label 不变；第二次运行 candidates=0。见 §10.14-B。
+- **单测**：phpunit --filter 'SpaceStoreReconcileTest|SpaceStoreRefundTest|SpaceStorePaymentTest|SpaceSettingsTest' 全绿；SpaceStoreReconcileTest 覆盖退避、租约、旧标量迁移、回填字段白名单与跳过原因（10 tests / 59 assertions）。
 
-测试后清理：`t_sufm_space_grants` 0 行、`t_zibpay_order` 0 行、临时用户删除、`sufm_space_settings` 与 `sufm_space_reconcile_last` 均恢复为测试前状态。
+测试后清理：t_sufm_space_grants 恢复为 1 行（原 points: 授权），t_zibpay_order 恢复为 1 行，临时订单/grant/事件已删；sufm_space_reconcile_last 恢复为测试前的标量 1794152631，wp sufm status 读回 recon_next=1794239031；sufm_space_settings 未留下临时值。
 
 #### 8.9.8 边界与维护要求
 
 1. **预充值余额仍承担资金责任**：充值入口仍是主题的支付宝/微信，站点仍是收款方；退款、发票、消费者权益与资金合规不因「空间只收余额」而消失。本改动只把「空间订单的直接外部支付入口」收口，不等于零风险。
-2. **外部渠道不代付退款**：若站点用 filter 放开 `alipay`/`wechat`，插件退款只释放授权，钱包不会加钱；外部退款必须在主题/支付平台完成。
-3. **主题钱包历史只有 50 条且无唯一键**：`wallet_refund_recorded()` 的查重可能因记录被挤出而失效；这是主题数据结构的硬边界，不能当成强幂等。
-4. **`refund_failed` 不会自动复活**：满 5 次后停在 `refund_failed`，需要人工核对后修正订单/用户并手工处理；没有后台一键重开。
-5. **历史 grant 未回填**：修复只影响新订单；历史 `points/0` 行仍是旧形态。
-6. **积分没有独立开关**：见 §8.9.6；关闭积分入口要清空积分套餐或把单价设为 0。
-7. **改这段代码的固定动作**：更新 `tests/Services/SpaceStorePaymentTest.php` 与 `SpaceStoreRefundTest.php`；跑 `phpunit`、`phpstan`、`phpcs`；按《图谱同步说明》重扫图谱；同步更新本节的代码行号与 `DECISIONS.md` 的 ADR。
+2. **外部渠道不代付退款**：若管理员勾选 alipay/wechat，插件退款只释放授权，钱包不会加钱；外部退款必须在主题/支付平台完成。
+3. **主题钱包历史只有 50 条且无唯一键**：wallet_refund_recorded() 的查重可能因记录被挤出而失效；这是主题数据结构的硬边界，不能当成强幂等。
+4. **refund_failed 坚持人工处理**：满 5 次后停在 refund_failed，没有自动复活、没有后台一键重开。人工核对订单/用户/钱包后，按「先查流水、再决定是否补账」的顺序处理；不要为了触发重试把状态简单改回 refund_pending。
+5. **历史授权只手动回填**：新增 wp sufm grants，默认 dry-run，--apply 才写；只处理 grant_key LIKE 'order:%' 且 order_id=0 或 order_num='' 的行。points: 直兑行没有对应的主题订单，保持原样。回填只写订单号/渠道/金额/积分，不改容量、有效期、状态、标签、grant_key 或 meta。
+6. **对账退避不是失败重试队列**：它只控制「下一次自动对账什么时候跑」，不重放退款，也不修复坏订单；space.reconcile.alert 仍是告警，不是自动修复。
+7. **改这段代码的固定动作**：更新 tests/Services/SpaceStorePaymentTest.php、SpaceStoreRefundTest.php、SpaceStoreReconcileTest.php、tests/SpaceSettingsTest.php；跑 phpunit、phpstan、phpcs；按《图谱同步说明》重扫图谱；同步更新本节行号与 DECISIONS.md 的 ADR。
+
+#### 8.9.9 历史订单授权的审计与回填（wp sufm grants）
+
+1.24.0 新增的入口在 src/UserFiles/CLI.php:174，命令注册仍是 wp sufm（src/UserFiles/Module.php:116）。命令默认 dry-run，参数：
+
+| 参数 | 作用 |
+|---|---|
+| --apply | 真正写库；不带时只审计 |
+| --limit=<n> | 本次最多检查多少行，默认 100，服务端夹在 1..500 |
+| --yes | --apply 时跳过确认提示（自动化用） |
+
+审计范围（Space_Store::audit_legacy_order_grants() :2326）：grant_key LIKE 'order:%' 且 (order_id = 0 OR order_num = '')，按 id 升序。逐行校验（audit_legacy_order_grant() :2414）：
+
+| 状态 | 触发条件 | 是否写库 |
+|---|---|---|
+| pending | 字段可恢复，当前是 dry-run | 否 |
+| filled | --apply 更新成功 | 是 |
+| current | 字段已与订单一致，或另一进程已更新（0 行） | 否 |
+| key_mismatch | key 不以 order: 开头、后缀为空、或与已存 order_num 冲突 | 否 |
+| missing_order | 主题订单表找不到该 order_num | 否 |
+| ambiguous_order | 同一 order_num 有多条订单 | 否 |
+| order_not_paid | 订单 status != '1'（含已退款 -2） | 否 |
+| owner_mismatch | 订单 user_id 与 grant owner_id 不同 | 否 |
+| not_space_product | product_id 不以 sufm_space_ 开头 | 否 |
+| invalid_order | normalise_order() 返回 null | 否 |
+| query_error / write_failed / unavailable | SQL 或数据库异常 | 否 |
+
+写库只更新 order_id/order_num/price/points/source/channel/updated_at，WHERE id = %d；成功后 Space_Rules::flush(owner_id) 并写 space.grant.backfilled 事件（带 grant_id/order_id/source/channel）。CLI 输出逐行 #id key owner=… order=… status=… message，末尾汇总 candidates/pending/filled/skipped，dry-run 追加 (dry run)；审计查询失败时 WP_CLI::error 退出，不会把 SQL 错误读成「没有候选」。
+
+**生产操作建议**：先 wp sufm grants（不加 --apply）核对候选；只对 pending 行执行 wp sufm grants --apply；missing_order/ambiguous_order/order_not_paid/owner_mismatch 必须人工查订单，不绕过。生产当前 4 行历史 grant 中，order: 行字段完整（待回填 0 行），points: 两行是无主题订单的直兑回退，不需要也不应该回填。
+
+#### 8.9.10 运维检查清单
+
+| 场景 | 先看 | 再做 |
+|---|---|---|
+| 前台没有余额入口 | 「支付方式」卡片是否勾选 balance；诊断卡「已启用购买方式」 | 勾选并保存；确认主题在登录上下文返回余额 |
+| 前台出现不想要的外部渠道 | 后台勾选与 sufm_space_allowed_payment_methods 过滤器 | 取消勾选；过滤器只能收窄，不能加回 |
+| 积分入口消失 | points[enabled]、points_per_gb、积分套餐 | 打开开关并保留至少一个可售套餐；关闭开关不会清空价格 |
+| 对账一直不跑 | wp sufm status 的 recon_last/recon_next/recon_failed | 看 sufm_space_reconcile_last 的 next_attempt；失败按退避等待或手动 REST |
+| 退款停在 refund_failed | grant 的 attempts、last_error、主题钱包流水 | 人工核对后补账/修正状态；不要自动重试 |
+| 历史 order: 字段为 0 | wp sufm grants | 先 dry-run，再 --apply；不要改 points: 行 |
 
 ### 8.10 编辑页文件面板：拖拽插入与右键插入（1.23.0）
 
@@ -1334,7 +1390,7 @@ order_refunded(order_id)
 | `wp sakura-sync …` | `src/Plugin.php:96-102` → `includes/class-s3-cli.php` | 扫描/索引/校验/对账 |
 | `wp sakura-thumb …` | 同上 | 缩略图探测与批量 |
 | `wp sakura-s3 …` | `includes/class-s3-cli.php:501` | 连接测试、迁移、删除队列 |
-| `wp sufm …` | `src/UserFiles/CLI.php:23` | 诊断、对账、导入 |
+| `wp sufm …` | `src/UserFiles/CLI.php:23` | 诊断、对账、历史授权审计（`grants`）、导入 |
 
 **Cron（实测 7 条插件事件，§10.3）**：
 
@@ -1356,7 +1412,7 @@ order_refunded(order_id)
 
 **边界声明**：生产环境为**只读验证**——只执行查询、纯函数调用与 GET 请求，没有触发任何写路径。日常命令都在测试站 `/root/sio-e2e` 执行，插件以软链挂载到 `/root/work/sakura-tools`（同一份代码）。测试站上另补做了一次写验证：2026-11-08 的 5 张并发上传（§10.6），数据只落在测试站自己的 MariaDB 与 MinIO，未触及生产。
 
-> **版本说明**：§10.1 的版本号已在 2026-11-09 复核为 1.23.0；§10.4–§10.12 的命令与输出仍记录于 1.22.8（2026-11-08），§10.13 的编辑页交互记录于提交 `2fec6a3`（1.22.9）。1.23.0 相对 1.22.9 只增加编辑页文件面板的前端交互（代码来自 `2fec6a3`）并更新版本号、readme 与文案，没有改变路由、钩子、数据路径或类/方法集合，因此没有重跑写验证；表格里出现的 `assets/admin.js?ver=1.22.8` 是当时的观测值。
+> **版本说明**：§10.1 的版本号已在 2026-11-09 复核为 1.24.0；§10.4–§10.12 的命令与输出仍记录于 1.22.8（2026-11-08），§10.13 记录于 1.23.0（提交 `2fec6a3`），§10.14 记录于 1.24.0（提交 `1f88ca8`）。1.24.0 相对 1.23.0 增加支付方式勾选、积分独立开关、对账退避与 `wp sufm grants`，改变的是 `src/UserFiles` 的方法与 CLI，不改变路由、钩子集合或数据表；写验证只覆盖对账与回填，没有重跑上传/删除/退款链路。表格里出现的旧 `?ver=` 是当时观测值。
 
 ### 10.1 环境与激活状态
 
@@ -1364,7 +1420,7 @@ order_refunded(order_id)
 $ cd /root/sio-e2e && ./e2e.sh wp plugin get sakura-tools --fields=name,status,version
 name:      sakura-tools
 status:    active
-version:   1.23.0
+version:   1.24.0
 ```
 
 WordPress 核心与 PHP 版本、MariaDB 127.0.0.1:13316、MinIO 127.0.0.1:19010 均正常；后台 `admin` 可登录（用于 §10.4 的路由检查）。
@@ -1757,6 +1813,58 @@ WHERE order_num = %s AND state = 'refund_pending' AND updated_at <= %s
 
 ---
 
+### 10.14 对账退避与历史授权回填的运行期验证（2026-11-09）
+
+**A. 对账状态迁移与退避**
+
+测试站 `/root/sio-e2e`（PHP 8.4.27，MariaDB 13316，站点 `http://127.0.0.1:18080`），插件软链到 `/root/work/sakura-tools`。测试前 `sufm_space_reconcile_last` 是旧版标量 `"1794152631"`；测试后已恢复原值。
+
+| # | 步骤 | 结果 |
+|---:|---|---|
+| 1 | 读取旧标量 | `wp sufm status` 输出 `recon_last=0`、`recon_next=1794239031`，等于旧值 + 86400；没有立刻重放对账 |
+| 2 | 把 `next_attempt` 置 0 后跑一次 `tick()` | 成功：`last_attempt=1794206878`、`last_success=1794206878`、`next_attempt=1794293278`（+86400）、`failures=0`、`last_alert=0` |
+| 3 | 在同一 PHP 进程内把 `t_sufm_space_grants` 临时改名，再跑 `tick()` | 失败：`last_success` 保持 1794206878、`failures=1`、`next_attempt=1794207878`（+900）、`last_alert=1794206978` |
+| 4 | 立即再跑一次 `tick()` | 租约生效：状态完全不变（`last_attempt=1794206978`、`next_attempt=1794207878`、`failures=1`） |
+| 5 | 把 `next_attempt` 再置 0 后制造第二次失败 | `failures=2`、`next_attempt=1794208800`（+1800）；`last_alert` 不变 |
+| 6 | 检查事件 | 只写一条 `space.reconcile.alert`（事件 id 116，`result=error`，`safe_detail={"missing":0,"healed":0,"more":false,"error":"","failures":1,"next_attempt":1794207878,"auto":true}`）；第二次失败没有第二条告警 |
+
+失败模拟必须在**同一个 PHP 进程**里先改名再调 `tick()`：跨进程改名会被插件的启动建表逻辑自动补回，模拟不出失败。表格第 3 步的 `error` 为空不是缺陷——失败来自表被改名后的查询异常，`reconcile()` 的 `ready=false` 分支负责给出 `error`；这里记录的是告警分支实际写入的字段。第 6 步的事件 id 是测试站自增序列的观测值，不作为稳定契约。
+
+**B. 历史 `order:` 授权审计与回填**
+
+测试站原有 1 行 `points:` 授权（`grant_key=points:1db6…`，`order_id=20`、`order_num=2611090558493023960`、`source=points/channel=points/points=900`），它不在审计范围内。另插入 1 行合成的 `order:` 授权和 1 行对应订单：
+
+| 对象 | 值 |
+|---|---|
+| 订单 | `id=21`、`order_num=9900000000000000001`、`order_type=21`、`status=1`、`user_id=1`、`order_price=30`、`pay_type=balance`、`product_id=sufm_space_1` |
+| 授权 | `id=18`、`grant_key=order:9900000000000000001`、`owner_id=1`、`bytes=1073741824`、`state=active`、`label=legacy probe`、`order_id=0`、`order_num=''`、`price=0`、`points=0` |
+
+| # | 命令 | 结果 |
+|---:|---|---|
+| 1 | `wp sufm grants --limit=10` | `#18 … status=pending`；汇总 `candidates=1 pending=1 filled=0 skipped=0 (dry run)`；数据库未变 |
+| 2 | `wp sufm grants --apply --yes` | `#18 … status=filled`；库中 `source=purchase`、`channel=balance`、`order_id=21`、`order_num=9900000000000000001`、`price=30.00`、`points=0`；`bytes=1073741824`、`state=active`、`label=legacy probe` 均未变 |
+| 3 | 再跑一次 `wp sufm grants --limit=10` | `candidates=0`，没有重复写入 |
+| 4 | 检查事件 | 新增 `space.grant.backfilled`（事件 id 117），带 `grant_id=18`、`order_id=21`、`source=purchase`、`channel=balance` |
+
+**C. 自动化检查与清理**
+
+| # | 检查 | 结果 |
+|---:|---|---|
+| 1 | PHPUnit | 423 tests / 1257 assertions / 5 skipped，全绿 |
+| 2 | PHPStan | `[OK] No errors` |
+| 3 | PHPCS | 177 files，0 errors、0 warnings |
+| 4 | 语法 | `php -l` 两个改动文件通过；`git diff --check` 无输出 |
+| 5 | 新测试 | `tests/Services/SpaceStoreReconcileTest.php` 10 tests / 59 assertions，覆盖退避序列、旧标量迁移、租约、`more`、回填字段白名单与跳过原因 |
+
+清理结果：删除合成授权 18、订单 21 与事件 116/117；`t_sufm_space_grants` 恢复 1 行、`t_zibpay_order` 恢复 1 行、事件表最大 id 回到 115；`sufm_space_reconcile_last` 恢复为 `"1794152631"`，`wp sufm status` 读回 `recon_next=1794239031`；`wp sufm grants` 最终 `candidates=0`；`flush(1)` 清配额缓存。
+
+**D. 边界**
+
+- 本节只写测试站；生产没有执行 `--apply`，也没有改动任何历史 grant。
+- 回填只处理 `grant_key LIKE 'order:%'` 且 `order_id=0` 或 `order_num=''` 的行；`points:` 直兑回退行没有主题订单，保持原样。
+- 对账退避只改变「下一次自动对账什么时候跑」，不重放退款、不修复坏订单；告警仍是日志，不是自动修复。
+- `refund_failed` 没有在本节测试自动复活；1.24.0 明确保留人工处理。
+
 ## 11. 依赖关系与图谱口径
 
 ### 11.1 模块依赖矩阵（类级引用边计数）
@@ -1819,26 +1927,28 @@ WHERE order_num = %s AND state = 'refund_pending' AND updated_at <= %s
 | `Media_Hooks` | `Requests` | 静态调用 | 24 | src/UserFiles/Media/Media_Hooks.php:290,291 |
 | `Requests` | `Schema` | 静态调用 | 24 | src/UserFiles/Repositories/Requests.php:86,123 |
 | `Requests` | `Schema` | 调用 | 24 | src/UserFiles/Repositories/Requests.php:86,123 |
-| `Folders` | `Schema` | 静态调用 | 23 | src/UserFiles/Repositories/Folders.php:49,71 |
-| `Folders` | `Schema` | 调用 | 23 | src/UserFiles/Repositories/Folders.php:49,71 |
+| `Space_Store` | `Space_Rules` | 静态调用 | 24 | src/UserFiles/Services/Space_Store.php:925,973 |
+| `Space_Store` | `Space_Rules` | 调用 | 24 | src/UserFiles/Services/Space_Store.php:925,973 |
 
 ---
 
 ## 12. 待确认项与已确认缺陷
 
-截至 2026-11-09，正文没有「只有结论、没有代码位置或运行证据」的待确认项，也没有未修复的高/中优先代码缺陷。原 §12 的三项均已核实；其中 `grant_from_order()` 的高优先缺陷已在 2026-11-08 按「支付入口收口」方案修复并验证，S3 上传指标缺陷也已在此前修复。1.23.0 只增加编辑页文件面板的前端交互（拖拽插入、右键插入、批量条归位）与版本/文案，没有改路由、REST、数据表或 PHP 类方法，也没有新增缺陷或待确认项。下面保留的是有意接受的边界，不是待确认项。
+截至 2026-11-09（1.24.0），正文没有「只有结论、没有代码位置或运行证据」的待确认项，也没有未修复的高/中优先代码缺陷。1.24.0 关闭了三件事：支付方式改为后台勾选、积分入口有独立开关；每日对账改为租约 + 指数退避；历史 `order:` 授权提供手动审计/回填命令。`refund_failed` 仍坚持人工处理，这是有意保留的资金安全边界，不是遗漏。下面保留的是有意接受的边界。
 
-### 12.1 本轮关闭：空间扩容支付收口
+### 12.1 1.24.0 关闭与核对
 
 | 问题 | 修复前 | 修复后 | 验证 |
 |---|---|---|---|
-| 订单发放把余额/现金单写成积分单，订单字段清零 | `grant_from_order()` 的 INSERT 固定写 `'points','points',0,'',0,0`；`source='points'` 会把现金购买计入 `points_used_bytes()` 日限额 | `normalise_order()` 解析 `points/pay_detail`；新增 `grant_ledger_fields()`；INSERT 参数化 `source/channel/order_id/order_num/price/points`（`src/UserFiles/Services/Space_Store.php:826`、`:861`、`:928-946`） | 余额单写 `purchase/balance` 且订单字段齐全；积分单写 `points/points` 且积分保留；`SpaceStorePaymentTest` 7 tests 覆盖两类渠道与缺失积分回退 |
-| 空间面板暴露主题的全部支付方式，等于可生成外部扫码单 | `payment_methods()` 原样返回主题方法 | 默认 `ALLOWED_METHODS = ['balance']`；`filter_payment_methods()` 按 `sufm_space_allowed_payment_methods` 过滤；`purchase()` 用过滤后的 map 硬校验（`Space_Store.php:44`、`:195`、`:248`、`:291`） | 测试站过滤后只有 `balance`；过滤器返回空数组时现金收银台关闭，面板退回积分 |
-| 退款只把 grant 置 `refunded`，不退余额/积分 | `on_order_refunded()` 只 UPDATE 状态，不区分 `pay_type` | 先原子占位 `refund_pending`，再释放配额，按渠道 `settle_refund()`；余额加 `order_price`、积分加 `points`，外部渠道只释放；失败重试 5 次（`Space_Store.php:1248`、`:1387`、`:1502`、`:1652`） | 测试站余额 100→130、积分 520→610；重复回调与崩溃窗口不重复加钱；`user_missing` 重试后 `refunded/attempts=2`；第 5 次置 `refund_failed` |
-| paid-no-grant 只能手工对账 | `tick()` 注释明确「Reconcile deliberately stays manual」 | `maybe_reconcile()` 用 `sufm_space_reconcile_last` 做 24 小时水位，自动 `reconcile(true,100)`；`ready=false` 或 `missing>healed` 记 `space.reconcile.alert`（`:1811`、`:2017`） | 测试站有效 paid 单补发、无效单不补，水位写入，`space.reconcile.alert` 1 条；手动 REST 保留 |
+| 订单发放把余额/现金单写成积分单，订单字段清零 | `grant_from_order()` 的 INSERT 固定写 `'points','points',0,'',0,0`；`source='points'` 会把现金购买计入 `points_used_bytes()` 日限额 | `normalise_order()` 解析 `points/pay_detail`；新增 `grant_ledger_fields()`；INSERT 参数化 `source/channel/order_id/order_num/price/points`（`src/UserFiles/Services/Space_Store.php:846`、`:881`、`:948-966`） | 余额单写 `purchase/balance` 且订单字段齐全；积分单写 `points/points` 且积分保留；`SpaceStorePaymentTest` 覆盖两类渠道与缺失积分回退 |
+| 空间面板暴露主题的全部支付方式，等于可生成外部扫码单 | `payment_methods()` 原样返回主题方法 | 默认值在 `Space_Settings::defaults()` 的 `allowed_methods=['balance']`；后台「支付方式」卡片勾选；`filter_payment_methods()` 以该设置为唯一来源，过滤器只能收窄；`purchase()` 用过滤后的 map 硬校验（`Space_Store.php:194`、`:249`、`:311`；卡片 `includes/views/userfiles-space-admin.php:233-309`） | 测试站只勾 `balance` 时现金通道只有余额；全不勾选时现金收银台关闭；过滤器无法重新启用未勾选通道 |
+| 积分没有独立开关 | `points_state()` 的 `enabled` 只等于 `per_gb > 0`，后台 `points[enabled]` 无读取点 | `Space_Settings::points_enabled()`（`src/UserFiles/Space_Settings.php:280-284`）成为独立开关；`points_state()`（`Space_Store.php:3050`）同时要求开关打开且单价 > 0；`redeem_points()`（`:3221`）关闭时返回 `sufm_points_off` | 四态实测：现金+积分、仅积分、仅现金、都不可用；关闭积分只隐藏入口并拒绝新兑换，已售出的授权不受影响 |
+| 退款只把 grant 置 `refunded`，不退余额/积分 | `on_order_refunded()` 只 UPDATE 状态，不区分 `pay_type` | 先原子占位 `refund_pending`，再释放配额，按渠道 `settle_refund()`；余额加 `order_price`、积分加 `points`，外部渠道只释放；失败重试 5 次（`Space_Store.php:1268`、`:1407`、`:1522`、`:1672`） | 测试站余额 100→130、积分 520→610；重复回调与崩溃窗口不重复加钱；`user_missing` 重试后 `refunded/attempts=2`；第 5 次置 `refund_failed` |
+| paid-no-grant 只能手工对账，失败要等 24 小时 | `maybe_reconcile()` 先写单个时间戳，失败也把水位推到 24 小时后 | 状态改为 `{last_attempt,last_success,next_attempt,failures,last_alert}`；先写 15 分钟租约，再执行 `reconcile(true,100)`；失败按 900/1800/3600/7200/14400/21600 秒退避；成功才写每日水位（`Space_Store.php:1838`、`:1932`、`:2173`） | 成功 +86400；失败 +900、第二次 +1800；租约期间重复 tick 不改状态；告警每天最多一条（§10.14-A） |
+| 历史 `order:` 授权字段为 0，退款按 `order_num` 找不到 | 修复只影响新写入；旧行没有回填入口 | 新增 `wp sufm grants`（`src/UserFiles/CLI.php:174`），默认 dry-run，`--apply` 才写；只处理 `order:` 且 `order_id=0` 或 `order_num=''` 的行；校验订单存在/唯一/已支付/同一用户/空间商品（`Space_Store.php:2326`、`:2414`） | 合成行 dry-run 为 `pending`，`--apply` 后写回 `purchase/balance/order_id=21/order_num=…/price=30.00/points=0`；`bytes/state/label` 不变；第二次 `candidates=0`（§10.14-B） |
 | 现金或积分任一不可用时面板空白或无法提交 | `build_data()` 在 `plans` 或 `methods` 为空时直接返回 `null`；无现金 plan 时积分 radio 不默认选中 | `cash_ready` / `points_ready` 分别判断（`src/UserFiles/Space_Panel.php:137`、`:141`）；模板按标志隐藏/显示；无现金时默认积分；`confirmPurchase()` 在积分模式直接返回 | 测试站四态：现金+积分 8251 字节、仅积分 6408、仅现金 6195、都不可用 `null`；临时 `sufm_space_settings` 已恢复 |
 
-代码位置与完整运行记录见 §8.9 与 §10.12；决策理由见 `DECISIONS.md` 的「空间扩容支付收口（2026-11-08）」。
+代码位置与完整运行记录见 §8.9、§10.12、§10.14；决策理由见 `DECISIONS.md` 的「空间扩容支付收口与对账（2026-11-08，2026-11-09 补齐）」。
 
 ### 12.2 原 §12 三项核实结果
 
@@ -1853,12 +1963,13 @@ WHERE order_num = %s AND state = 'refund_pending' AND updated_at <= %s
 | 边界 | 影响 | 处理 |
 |---|---|---|
 | 预充值余额仍由主题的支付宝/微信充值产生 | 站点仍是收款方，退款、发票、消费者权益与资金合规责任仍在 | 本方案只收口「空间订单的直接外部支付入口」，不是零风险；运营侧需有充值退款与对账规则 |
-| 外部渠道退款不代付 | 若用 filter 放开 `alipay`/`wechat`，插件只释放授权，钱包不加钱 | 外部退款必须在主题/支付平台完成；文档与代码注释已标注 |
+| 外部渠道退款不代付 | 若管理员勾选 `alipay`/`wechat`，插件只释放授权，钱包不加钱 | 外部退款必须在主题/支付平台完成；文档与代码注释已标注 |
 | 主题 `balance_record`/`points_record` 最多 50 条且无唯一键 | `wallet_refund_recorded()` 的崩溃窗口查重可能因记录被挤出而失效 | 这是弱幂等，不作为强一致保证；需要强幂等时应新增独立退款账本表 |
-| `refund_failed` 不会自动复活 | 满 5 次失败后需要人工核对订单/用户并手工处理 | 保留 `refund_failed` 状态与事件日志；没有后台一键重开 |
-| `maybe_reconcile()` 先写水位再对账 | 对账失败要等 24 小时才会自动重试 | 需要立即重试时走手动 `POST /admin/space/reconcile` |
-| 历史 grant 未回填 | 旧 `points/0` 行仍是旧形态，新订单才按渠道记账 | 修复只影响新写入；批量回填应以 `meta.order_num` 反查订单后逐行核对 |
-| 积分没有独立开关 | `points_state()` 的 `enabled` 实际是 `per_gb > 0`，后台没有独立关闭 UI | 关闭积分入口应清空积分套餐或把单价设为 0；见 §8.9.6 |
+| `refund_failed` 不会自动复活 | 满 5 次失败后需要人工核对订单/用户并手工处理；主题订单已 `-2`，不会重发 `order_refunded` | 保留 `refund_failed` 状态与事件日志；不自动重试、不提供后台一键重开；处理时先查主题钱包流水，命中 `space_expand_refund` 只能修正状态，不能再次加钱 |
+| 历史授权回填必须人工触发 | 旧 `order:` 行不会自动补齐；`points:` 直兑行没有主题订单，不能按订单回填 | 先 `wp sufm grants` dry-run，核对后再 `--apply`；只写订单号/渠道/金额/积分，不改容量、有效期、状态、标签、`grant_key` 或 `meta` |
+| 对账退避封顶 6 小时 | 连续失败时，下一次自动对账最晚约 6 小时后；它不会立即重试 | 需要立即重试时走手动 `POST /admin/space/reconcile`；`space.reconcile.alert` 只是告警，不自动修复订单 |
+| 对账告警每个失败序列每天最多一条 | 持续失败时不会每次 tick 都刷日志 | 看 `sufm_space_reconcile_last` 的 `failures/next_attempt/last_alert`；必要时人工介入 |
+| 旧版标量水位会迁移为「旧值 + 24 小时」 | 升级后不会立刻重放一次对账 | 这是防止升级瞬间重复对账的保守选择；要立即对账用手动 REST 或把 `next_attempt` 置 0（仅测试/运维） |
 
 ### 12.4 此前关闭的上传指标缺陷
 
@@ -1873,7 +1984,6 @@ WHERE order_num = %s AND state = 'refund_pending' AND updated_at <= %s
 
 ---
 
-
 ## 13. 3D 图谱同步说明
 
 图谱文件：`docs/graph-preview/index.html`（单文件，数据内嵌）+ `docs/graph-preview/graph.json`（同数据美化版）。不保存渲染截图。
@@ -1881,21 +1991,21 @@ WHERE order_num = %s AND state = 'refund_pending' AND updated_at <= %s
 | 项 | 本次结果 |
 |---|---|
 | 节点 | 180 = 163 类 + 17 模块（类集合未变） |
-| 连线 | 814 = 601 `ref` + 50 `modref` + 163 `contains` |
+| 连线 | **815** = 602 `ref` + 50 `modref` + 163 `contains` |
 | 钩子 | 191（面板显示，不建节点） |
 | 悬空边 | 0 |
-| 本轮变更 | 无节点/连线/钩子增删；仅 `graph.json` 的 `meta.version` 由 1.22.9 改为 1.23.0、`generatedAt` 更新为 `2026-11-09T02:08:43.079Z`，页面副标题版本号同步为 1.23.0。已重扫并重建 `docs/graph-preview/` |
-| 数据来源 | 本轮重新扫描的 1.23.0 工作树事实表（codegraph `scanner.php` 输出）——由 `docs/tools/collect-comments.php` 生成类注释，与本文所有表格同源 |
+| 本轮变更 | 无节点/钩子增删；新增 `CLI → Space_Store` 一条 `ref`（静态调用，w=4），所以 `ref` 601→602、总连线 814→815；`Space_Store → Space_Settings` 权重 18→22，`Space_Store → Space_Rules` 权重 44→48；`CLI`、`Space_Settings`、`Space_Store` 的 `val` 随方法数变化。`meta.version` 改为 1.24.0，页面副标题同步 |
+| 数据来源 | 本轮重新扫描的 1.24.0 工作树事实表（codegraph `scanner.php` 输出）——由 `docs/tools/collect-comments.php` 生成类注释，与本文所有表格同源 |
 
-本轮没有新增/删除类、方法、钩子或引用边，节点仍 180（163 类 + 17 模块）、连线仍 814（601 `ref` + 50 `modref` + 163 `contains`）、钩子仍 191；`Space_Store` 的 `val` 仍 10.1193，`Space_Store → Space_Rules` 的 `ref` 权重仍 44，`Space_Panel → Space_Store` 的 `ref` 权重仍 10，均沿用上一轮支付收口后的值。编辑页的 JS/CSS 不是图谱对象，新增的图标 symbol 与文案键也不产生节点或边。变化只在版本元数据与页面副标题；这是版本收敛，不是拓扑变化。
+本轮没有新增/删除类、模块或钩子，节点仍 180（163 类 + 17 模块）、钩子仍 191；变化集中在 `src/UserFiles` 的方法与行数（支付方式勾选、对账退避、授权审计/回填）和 `src/UserFiles/CLI.php` 的新命令。`Space_Store` 的 `val` 为 10.369185117452577（上一轮 10.119288512538816），`Space_Settings` 为 6.4，`CLI` 为 4.233202097703345。编辑页 JS/CSS 不是图谱对象。
 
-`fast-search.php` 是脚本型文件，本来就不进入图谱；`Space_Store` 的字段缺陷已在 §8.9 修复，不再是未修复缺陷。本轮没有改图谱节点或边。
+`fast-search.php` 是脚本型文件，本来就不进入图谱；`Space_Store` 的字段缺陷已在 §8.9 修复，不再是未修复缺陷。
 
 **生成与注入脚本**（都在 `docs/tools/`，可重复执行）：`build-code-structure.mjs`（事实表 → 表格 + graph.json）、`graph-inject.mjs`（graph.json → index.html 内嵌 DATA，含悬空边校验）、`assemble-doc.py`（分章 + 表格 → 本文）。完整命令见《图谱同步说明》§7。
 
 **与文档的对应关系**：每个类节点在正文里都有一条同名记录——附录 A 给 `文件:行`，所属章节的表给职责与方法数；模块节点对应 §2.2 的模块总览。**改代码后重跑一次生成器，表格与图谱同时更新**，这是两者不脱节的机制保证。
 
-详细的操作步骤、本次新增/修改的节点与连线清单、一致性核对项，见配套文档 **`docs/sakura-tools-图谱同步-1.23.0.md`**。
+详细的操作步骤、本次新增/修改的节点与连线清单、一致性核对项，见配套文档 **`docs/sakura-tools-图谱同步-1.24.0.md`**。
 
 ---
 
@@ -2020,7 +2130,7 @@ WHERE order_num = %s AND state = 'refund_pending' AND updated_at <= %s
 | 115 | `Nboke\UserFiles\Editor\Assets` | src/UserFiles/Editor/Assets.php:20 | 1 |
 | 116 | `Nboke\UserFiles\Support\Assets` | src/UserFiles/Support/Assets.php:21 | 1 |
 | 117 | `Nboke\UserFiles\Capabilities` | src/UserFiles/Capabilities.php:20 | 8 |
-| 118 | `Nboke\UserFiles\CLI` | src/UserFiles/CLI.php:23 | 7 |
+| 118 | `Nboke\UserFiles\CLI` | src/UserFiles/CLI.php:23 | 8 |
 | 119 | `Nboke\UserFiles\Editor\Context` | src/UserFiles/Editor/Context.php:20 | 3 |
 | 120 | `Nboke\UserFiles\Rest\Controller` | src/UserFiles/Rest/Controller.php:34 | 64 |
 | 121 | `Nboke\UserFiles\Support\Db_Transaction` | src/UserFiles/Support/Db_Transaction.php:22 | 5 |
@@ -2051,8 +2161,8 @@ WHERE order_num = %s AND state = 'refund_pending' AND updated_at <= %s
 | 146 | `Nboke\UserFiles\Admin\Space_Page` | src/UserFiles/Admin/Space_Page.php:27 | 6 |
 | 147 | `Nboke\UserFiles\Space_Panel` | src/UserFiles/Space_Panel.php:23 | 11 |
 | 148 | `Nboke\UserFiles\Services\Space_Rules` | src/UserFiles/Services/Space_Rules.php:24 | 13 |
-| 149 | `Nboke\UserFiles\Space_Settings` | src/UserFiles/Space_Settings.php:20 | 30 |
-| 150 | `Nboke\UserFiles\Services\Space_Store` | src/UserFiles/Services/Space_Store.php:22 | 59 |
+| 149 | `Nboke\UserFiles\Space_Settings` | src/UserFiles/Space_Settings.php:20 | 33 |
+| 150 | `Nboke\UserFiles\Services\Space_Store` | src/UserFiles/Services/Space_Store.php:22 | 64 |
 | 151 | `Nboke\UserFiles\Services\Sync_Service` | src/UserFiles/Services/Sync_Service.php:26 | 9 |
 | 152 | `Nboke\UserFiles\Frontend\Tab` | src/UserFiles/Frontend/Tab.php:22 | 16 |
 | 153 | `Nboke\UserFiles\Support\Theme_Levels` | src/UserFiles/Support/Theme_Levels.php:22 | 4 |
@@ -2267,7 +2377,7 @@ WHERE order_num = %s AND state = 'refund_pending' AND updated_at <= %s
 | `main_user_tab_content_files` | filter | content | src/UserFiles/Frontend/Tab.php:46 |
 | `manage_media_columns` | filter | add_columns | src/UserFiles/Media/Media_Hooks.php:128 |
 | `manage_media_custom_column` | action | render_column | src/UserFiles/Media/Media_Hooks.php:129 |
-| `order_refunded` | action | handle_order_refunded | src/UserFiles/Services/Space_Store.php:2541 |
+| `order_refunded` | action | handle_order_refunded | src/UserFiles/Services/Space_Store.php:3016 |
 | `payment_order_success` | action | on_payment_success | src/UserFiles/Space_Panel.php:40 |
 | `posts_where` | filter | filter_media_where | src/UserFiles/Media/Media_Hooks.php:133 |
 | `pre_delete_attachment` | filter | guard_delete | src/UserFiles/Media/Media_Hooks.php:136 |
@@ -2280,7 +2390,7 @@ WHERE order_num = %s AND state = 'refund_pending' AND updated_at <= %s
 | `sufm_allow_attachment_delete` | filter | Uploader::discard_upload | src/UserFiles/Services/Uploader.php:434 |
 | `sufm_allow_attachment_delete` | filter | Executor::purge_file | src/UserFiles/Services/Executor.php:676 |
 | `sufm_allow_attachment_delete` | filter | Executor::purge_file | src/UserFiles/Services/Executor.php:758 |
-| `sufm_tick` | action | handle_tick | src/UserFiles/Services/Space_Store.php:2544 |
+| `sufm_tick` | action | handle_tick | src/UserFiles/Services/Space_Store.php:3019 |
 | `update_option_` | action | flush_caches | src/UserFiles/Admin/Space_Page.php:51 |
 | `update_option_` | action | flush_entry_cache | src/UserFiles/Admin/Page.php:52 |
 | `update_option_` | action | sync_theme_limits | src/UserFiles/Module.php:69 |
@@ -2335,7 +2445,7 @@ WHERE order_num = %s AND state = 'refund_pending' AND updated_at <= %s
 | includes/views/settings-stats.php | includes/views | 115 | — |
 | includes/views/thumb-settings.php | includes/views | 555 | — |
 | includes/views/userfiles-admin.php | includes/views | 581 | — |
-| includes/views/userfiles-space-admin.php | includes/views | 939 | — |
+| includes/views/userfiles-space-admin.php | includes/views | 1027 | — |
 | includes/views/userfiles-space-panel.php | includes/views | 276 | — |
 | includes/views/userfiles-tab.php | includes/views | 304 | — |
 | sakura-tools.php | 根文件 | 109 | — |
@@ -2445,7 +2555,7 @@ WHERE order_num = %s AND state = 'refund_pending' AND updated_at <= %s
 | src/UserFiles/Admin/Page.php | src/UserFiles | 192 | `Page` |
 | src/UserFiles/Admin/Space_Page.php | src/UserFiles | 274 | `Space_Page` |
 | src/UserFiles/Capabilities.php | src/UserFiles | 155 | `Capabilities` |
-| src/UserFiles/CLI.php | src/UserFiles | 397 | `CLI` |
+| src/UserFiles/CLI.php | src/UserFiles | 487 | `CLI` |
 | src/UserFiles/Editor/Assets.php | src/UserFiles | 109 | `Assets` |
 | src/UserFiles/Editor/Context.php | src/UserFiles | 66 | `Context` |
 | src/UserFiles/Editor/Module.php | src/UserFiles | 66 | `Module` |
@@ -2475,14 +2585,14 @@ WHERE order_num = %s AND state = 'refund_pending' AND updated_at <= %s
 | src/UserFiles/Services/Quota.php | src/UserFiles | 534 | `Quota` |
 | src/UserFiles/Services/Rate_Limiter.php | src/UserFiles | 174 | `Rate_Limiter` |
 | src/UserFiles/Services/Space_Rules.php | src/UserFiles | 418 | `Space_Rules` |
-| src/UserFiles/Services/Space_Store.php | src/UserFiles | 3149 | `Space_Store` |
+| src/UserFiles/Services/Space_Store.php | src/UserFiles | 3624 | `Space_Store` |
 | src/UserFiles/Services/Sync_Service.php | src/UserFiles | 411 | `Sync_Service` |
 | src/UserFiles/Services/Theme_Limits.php | src/UserFiles | 114 | `Theme_Limits` |
 | src/UserFiles/Services/Uploader.php | src/UserFiles | 620 | `Uploader` |
 | src/UserFiles/Services/Zibll_Bridge.php | src/UserFiles | 383 | `Zibll_Bridge` |
 | src/UserFiles/Settings.php | src/UserFiles | 387 | `Settings` |
 | src/UserFiles/Space_Panel.php | src/UserFiles | 349 | `Space_Panel` |
-| src/UserFiles/Space_Settings.php | src/UserFiles | 842 | `Space_Settings` |
+| src/UserFiles/Space_Settings.php | src/UserFiles | 936 | `Space_Settings` |
 | src/UserFiles/Space/Zibll_Order_Card.php | src/UserFiles | 339 | `Zibll_Order_Card` |
 | src/UserFiles/Support/Assets.php | src/UserFiles | 49 | `Assets` |
 | src/UserFiles/Support/Db_Transaction.php | src/UserFiles | 93 | `Db_Transaction` |

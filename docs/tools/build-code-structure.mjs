@@ -246,7 +246,7 @@ for (const [key, w] of modPair) {
 }
 const maxR = Math.max(...nodes.map((n) => Math.hypot(n.x, n.y, n.z)));
 // 版本号从插件主文件头读取，避免图谱与文档版本脱节
-let pluginVersion = '1.22.8';
+let pluginVersion = '1.22.9';
 try {
   const rootDir = scan.root || '';
   const main = fs.readdirSync(rootDir).find((f) => /\.php$/.test(f) && /Plugin Name:/i.test(fs.readFileSync(path.join(rootDir, f), 'utf8').slice(0, 2000)));

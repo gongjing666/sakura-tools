@@ -71,7 +71,9 @@ final class Assets {
 					'retry'      => __( '重试', 'sakura-imgopt' ),
 					'insert'     => __( '插入', 'sakura-imgopt' ),
 					'inserted'   => __( '已插入', 'sakura-imgopt' ),
+					/* translators: %d: number of selected items. */
 					'picked'     => __( '已选 %d 项', 'sakura-imgopt' ),
+					/* translators: %d: number of items to insert. */
 					'insertMany' => __( '插入 %d 个', 'sakura-imgopt' ),
 					'orderHint'  => __( '图片优先，按勾选顺序插入', 'sakura-imgopt' ),
 					'pickHint'   => __( '单击选中，双击直接插入', 'sakura-imgopt' ),
@@ -80,6 +82,7 @@ final class Assets {
 					'allFiles'   => __( '全部文件', 'sakura-imgopt' ),
 					'unassigned' => __( '未整理', 'sakura-imgopt' ),
 					'back'       => __( '返回上级', 'sakura-imgopt' ),
+					/* translators: %d: number of files. */
 					'total'      => __( '%d 个文件', 'sakura-imgopt' ),
 					'narrow'     => __( '窗口宽度不足 1360px，文件面板已收起', 'sakura-imgopt' ),
 					'fold'       => __( '收起文件空间', 'sakura-imgopt' ),
@@ -91,6 +94,7 @@ final class Assets {
 					'collapse'   => __( '收起', 'sakura-imgopt' ),
 					'viewGrid'   => __( '网格视图', 'sakura-imgopt' ),
 					'viewList'   => __( '列表视图', 'sakura-imgopt' ),
+					/* translators: %d: total number of items. */
 					'items'      => __( '共 %d 项', 'sakura-imgopt' ),
 					'loadMore'   => __( '加载更多', 'sakura-imgopt' ),
 					'emptyHint'  => __( '这里还没有上传过文件', 'sakura-imgopt' ),

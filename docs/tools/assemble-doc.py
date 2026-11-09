@@ -15,7 +15,7 @@ import argparse, os, re
 ap = argparse.ArgumentParser()
 ap.add_argument('--parts', default='/tmp/docparts')
 ap.add_argument('--chapters', default=os.path.join(os.path.dirname(os.path.abspath(__file__)), 'chapters'))
-ap.add_argument('--out', default=os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'sakura-tools-代码结构-1.22.8.md'))
+ap.add_argument('--out', default=os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'sakura-tools-代码结构-1.22.9.md'))
 a = ap.parse_args()
 
 def body(name, demote=False):

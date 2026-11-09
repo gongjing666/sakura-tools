@@ -858,7 +858,7 @@ final class Folders {
 		$locked = $this->db_get_var( $wpdb->prepare( "SELECT id FROM {$files} WHERE owner_id=%d AND folder_id IN ({$marks}) AND lifecycle<>'purged' AND (pending_request_id>0 OR lifecycle<>'active') LIMIT 1 FOR UPDATE", $args ) );
 		return $locked ? new WP_Error( 'sufm_folder_locked', __( '目录内有正在删除申请中的文件，暂不能整理。', 'sakura-imgopt' ), array( 'status' => 409 ) ) : true;
 	}
-	private function check_db( $result ) { global $wpdb; if ( $this->write_lock && ( false === $result || $wpdb->last_error ) ) { throw new \RuntimeException( 'folder_sql_failed: ' . (string) $wpdb->last_error ); } return $result; }
+	private function check_db( $result ) { global $wpdb; if ( $this->write_lock && ( false === $result || $wpdb->last_error ) ) { throw new \RuntimeException( 'folder_sql_failed: ' . (string) $wpdb->last_error ); } return $result; } // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- caught in write(), only logged, never printed.
 	private function db_get_row( ...$args ) { global $wpdb; return $this->check_db( $wpdb->get_row( ...$args ) ); }
 	private function db_get_results( ...$args ) { global $wpdb; return $this->check_db( $wpdb->get_results( ...$args ) ); }
 	private function db_get_var( ...$args ) { global $wpdb; return $this->check_db( $wpdb->get_var( ...$args ) ); }

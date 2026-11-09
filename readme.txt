@@ -4,7 +4,7 @@ Tags: image optimization, webp, avif, imagick, media library
 Requires at least: 6.4
 Tested up to: 7.1.4
 Requires PHP: 8.2
-Stable tag: 1.23.0
+Stable tag: 1.24.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -78,6 +78,12 @@ Access Key 和 Secret 会加密后存进数据库，页面和源码都不会显�
 插件目前没有接管这个跳转。等出现「既要防直链、又要保留购买校验」的需求时再研发，方向是在主题之前拦截下载请求，由插件代理输出或签发短时有效的预签名地址；若暂时需要这层保护，请关闭「上传后删除本地文件」，让文件保留在本地。
 
 == Changelog ==
+
+= 1.24.0 =
+* 空间扩容：支付方式改为后台「支付方式」卡片显式勾选，默认只启用余额；未勾选的外部渠道不会出现在前台，也不能通过过滤器重新启用。积分入口改为独立开关，关闭后隐藏入口并拒绝兑换。
+* 空间扩容：每日 paid-no-grant 对账改为租约加指数退避（15 分钟、30 分钟、1 小时、2 小时、4 小时、6 小时），成功才写 24 小时水位；失败保留上次成功时间，告警每天最多一次。
+* 空间扩容：新增 wp sufm grants 审计命令，默认 dry-run，加 --apply 才回填历史 order: 授权的订单字段；只写订单号、渠道、金额与积分，不改容量、有效期、状态和 grant_key。
+* 空间扩容：refund_failed 仍不自动重试，需人工核对订单与用户后处理；本次没有放宽退款幂等边界。
 
 = 1.23.0 =
 * 编辑页文件面板：拖动文件时显示跟手标签与落点提示；文件可直接拖入正文，按拖动位置插入；多选会一次插入多个文件。

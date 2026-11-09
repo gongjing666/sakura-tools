@@ -55,16 +55,21 @@ final class CLI {
 		$services = self::services();
 		$requests = $services['requests'];
 
+		$reconcile = \Nboke\UserFiles\Services\Space_Store::instance()->reconcile_state();
+
 		$rows = array(
-			'schema'      => (string) get_option( Schema::VERSION_OPTION, '' ),
-			'pending'     => (string) $requests->count( 0, Repositories\Requests::PENDING ),
-			'approved'    => (string) $requests->count( 0, Repositories\Requests::APPROVED ),
-			'queued'      => (string) $requests->count( 0, Repositories\Requests::QUEUED ),
-			'executing'   => (string) $requests->count( 0, Repositories\Requests::EXECUTING ),
-			'jobs'        => (string) (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ' . Schema::table( 'jobs' ) . " WHERE state IN ('queued','running')" ),
-			'next_tick'   => (string) (int) wp_next_scheduled( Module::TICK ),
-			'outbox_due'  => (string) count( $services['outbox']->due( 100 ) ),
-			'tables'      => (string) count( Schema::tables() ),
+			'schema'       => (string) get_option( Schema::VERSION_OPTION, '' ),
+			'pending'      => (string) $requests->count( 0, Repositories\Requests::PENDING ),
+			'approved'     => (string) $requests->count( 0, Repositories\Requests::APPROVED ),
+			'queued'       => (string) $requests->count( 0, Repositories\Requests::QUEUED ),
+			'executing'    => (string) $requests->count( 0, Repositories\Requests::EXECUTING ),
+			'jobs'         => (string) (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ' . Schema::table( 'jobs' ) . " WHERE state IN ('queued','running')" ),
+			'next_tick'    => (string) (int) wp_next_scheduled( Module::TICK ),
+			'outbox_due'   => (string) count( $services['outbox']->due( 100 ) ),
+			'tables'       => (string) count( Schema::tables() ),
+			'recon_last'   => (string) $reconcile['last_success'],
+			'recon_next'   => (string) $reconcile['next_attempt'],
+			'recon_failed' => (string) $reconcile['failures'],
 		);
 
 		$width = 12;
@@ -136,6 +141,91 @@ final class CLI {
 		}
 
 		\WP_CLI::success( sprintf( 'reconciled %d owner(s)', $fixed ) );
+	}
+
+	/**
+	 * Audit or backfill legacy space grants.
+	 *
+	 * Rows written before 1.24 stored every order as source/channel "points" and
+	 * zeroed order_id, order_num, price and points. The grant key still contains
+	 * the order number, so the missing fields can be restored from the theme order.
+	 * Capacity, expiry, state, label and grant_key are never changed.
+	 *
+	 * ## OPTIONS
+	 *
+	 * [--apply]
+	 * : Write the missing order fields. Without this flag the command is a dry run.
+	 *
+	 * [--limit=<n>]
+	 * : Maximum grant rows to inspect. Default 100.
+	 *
+	 * [--yes]
+	 * : Skip the confirmation prompt used with --apply.
+	 *
+	 * ## EXAMPLES
+	 *
+	 *     wp sufm grants
+	 *     wp sufm grants --apply --yes
+	 *
+	 * @param array<string, mixed> $args       Positional arguments.
+	 * @param array<string, mixed> $assoc_args Associative arguments.
+	 * @return void
+	 */
+	public function grants( array $args, array $assoc_args ): void {
+		$apply = isset( $assoc_args['apply'] );
+		$limit = isset( $assoc_args['limit'] ) ? max( 1, (int) $assoc_args['limit'] ) : 100;
+
+		if ( $apply ) {
+			\WP_CLI::confirm(
+				__( '将回填历史授权的订单字段（不改容量、有效期、状态和 grant_key）。继续？', 'sakura-imgopt' ),
+				$assoc_args
+			);
+		}
+
+		$result = \Nboke\UserFiles\Services\Space_Store::instance()->audit_legacy_order_grants( $apply, $limit );
+
+		if ( empty( $result['ready'] ) ) {
+			\WP_CLI::error(
+				sprintf(
+					/* translators: %s: database error */
+					__( '审计失败：%s', 'sakura-imgopt' ),
+					'' !== (string) $result['error'] ? (string) $result['error'] : __( '授权表不可用', 'sakura-imgopt' )
+				)
+			);
+		}
+
+		if ( array() === $result['items'] ) {
+			\WP_CLI::log( __( '没有发现需要审计的历史订单授权。', 'sakura-imgopt' ) );
+		} else {
+			foreach ( $result['items'] as $item ) {
+				\WP_CLI::log(
+					sprintf(
+						'#%1$d %2$s owner=%3$d order=%4$s status=%5$s %6$s',
+						(int) $item['grant_id'],
+						(string) $item['grant_key'],
+						(int) $item['owner_id'],
+						'' !== (string) $item['order_num'] ? (string) $item['order_num'] : '-',
+						(string) $item['status'],
+						(string) $item['message']
+					)
+				);
+			}
+		}
+
+		$summary = sprintf(
+			'candidates=%d pending=%d filled=%d skipped=%d',
+			(int) $result['candidates'],
+			(int) $result['pending'],
+			(int) $result['filled'],
+			(int) $result['skipped']
+		);
+
+		if ( $result['dry_run'] ) {
+			\WP_CLI::success( $summary . ' (dry run)' );
+			return;
+		}
+
+		\WP_CLI::success( $summary );
 	}
 
 	/**

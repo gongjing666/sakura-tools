@@ -32,9 +32,20 @@ final class Space_Store {
 	public const PRODUCT_PREFIX = 'sufm_space_';
 
 	/**
-	 * Option storing the last automatic reconciliation timestamp.
+	 * Option storing the automatic reconciliation state.
+	 *
+	 * Older versions stored a single timestamp here. reconcile_state() upgrades
+	 * that scalar to an array on the next run.
 	 */
 	public const RECONCILE_OPTION = 'sufm_space_reconcile_last';
+
+	/**
+	 * Delays after consecutive automatic reconciliation failures.
+	 *
+	 * 15m, 30m, 1h, 2h, 4h, then every 6h. A success resets the series and the
+	 * next run moves back to one day.
+	 */
+	private const RECONCILE_BACKOFF = array( 900, 1800, 3600, 7200, 14400, 21600 );
 
 	/**
 	 * Singleton.
@@ -1813,7 +1824,14 @@ final class Space_Store {
 	}
 
 	/**
-	 * Daily paid-without-grant sweep, at most once per 24 hours.
+	 * Paid-without-grant sweep with a success-only daily watermark.
+	 *
+	 * The old implementation wrote the watermark before running, so a failure
+	 * (locked order table, missing grants table, partial heal) postponed the next
+	 * attempt by a full day. Now every attempt claims a 15 minute lease first, a
+	 * success stores "next attempt in 24 hours", and a failure backs off through
+	 * RECONCILE_BACKOFF. Alerts are rate limited to one per day so a persistent
+	 * error cannot flood the event log.
 	 *
 	 * @return void
 	 */
@@ -1822,17 +1840,66 @@ final class Space_Store {
 			return;
 		}
 
-		$last = (int) get_option( self::RECONCILE_OPTION, 0 );
+		$state = $this->reconcile_state();
+		$now   = time();
 
-		if ( 0 < $last && $last > time() - DAY_IN_SECONDS ) {
+		if ( 0 < $state['next_attempt'] && $state['next_attempt'] > $now ) {
 			return;
 		}
 
-		update_option( self::RECONCILE_OPTION, time(), false );
+		// Claim the run before touching the order table. If this process dies the
+		// lease expires in 15 minutes instead of blocking the sweep for a day.
+		$state['last_attempt'] = $now;
+		$state['next_attempt'] = $now + 900;
+		$this->save_reconcile_state( $state );
 
-		$result = $this->reconcile( true, 100 );
+		try {
+			$result = $this->reconcile( true, 100 );
+		} catch ( \Throwable $e ) {
+			$result = array(
+				'ready'   => false,
+				'error'   => $e->getMessage(),
+				'missing' => 0,
+				'healed'  => 0,
+				'more'    => false,
+			);
+		}
 
-		if ( ! empty( $result['ready'] ) && (int) $result['missing'] <= (int) $result['healed'] ) {
+		$ready   = ! empty( $result['ready'] );
+		$missing = (int) ( $result['missing'] ?? 0 );
+		$healed  = (int) ( $result['healed'] ?? 0 );
+		$more    = ! empty( $result['more'] );
+
+		if ( $ready && $missing <= $healed && ! $more ) {
+			$state['last_success'] = $now;
+			$state['failures']     = 0;
+			$state['next_attempt'] = $now + DAY_IN_SECONDS;
+			$this->save_reconcile_state( $state );
+
+			return;
+		}
+
+		// The page was full and every row was healed: keep draining without
+		// treating this as an error or waiting for the daily window.
+		if ( $ready && $missing <= $healed && $more ) {
+			$state['next_attempt'] = $now + 900;
+			$this->save_reconcile_state( $state );
+
+			return;
+		}
+
+		$state['failures']++;
+		$state['next_attempt'] = $now + self::reconcile_delay( (int) $state['failures'] );
+
+		$alert = 0 === $state['last_alert'] || $now - $state['last_alert'] >= DAY_IN_SECONDS;
+
+		if ( $alert ) {
+			$state['last_alert'] = $now;
+		}
+
+		$this->save_reconcile_state( $state );
+
+		if ( ! $alert ) {
 			return;
 		}
 
@@ -1840,15 +1907,95 @@ final class Space_Store {
 			'space.reconcile.alert',
 			array(
 				'owner_id' => 0,
-				'result'   => empty( $result['ready'] ) ? 'error' : 'warn',
+				'result'   => $ready ? 'warn' : 'error',
 				'detail'   => array(
-					'missing' => (int) ( $result['missing'] ?? 0 ),
-					'healed'  => (int) ( $result['healed'] ?? 0 ),
-					'error'   => (string) ( $result['error'] ?? '' ),
-					'auto'    => true,
+					'missing'      => $missing,
+					'healed'       => $healed,
+					'more'         => $more,
+					'error'        => (string) ( $result['error'] ?? '' ),
+					'failures'     => (int) $state['failures'],
+					'next_attempt' => (int) $state['next_attempt'],
+					'auto'         => true,
 				),
 			)
 		);
+	}
+
+	/**
+	 * Reads the automatic reconciliation schedule.
+	 *
+	 * A scalar option written by 1.23 and earlier is treated as the last attempt
+	 * due 24 hours later, so upgrading does not immediately replay a sweep.
+	 *
+	 * @return array{last_attempt:int,last_success:int,next_attempt:int,failures:int,last_alert:int}
+	 */
+	public function reconcile_state(): array {
+		$state = array(
+			'last_attempt' => 0,
+			'last_success' => 0,
+			'next_attempt' => 0,
+			'failures'     => 0,
+			'last_alert'   => 0,
+		);
+
+		if ( ! function_exists( 'get_option' ) ) {
+			return $state;
+		}
+
+		$raw = get_option( self::RECONCILE_OPTION, 0 );
+
+		if ( is_array( $raw ) ) {
+			foreach ( $state as $key => $unused ) {
+				if ( isset( $raw[ $key ] ) && is_numeric( $raw[ $key ] ) ) {
+					$state[ $key ] = max( 0, (int) $raw[ $key ] );
+				}
+			}
+
+			return $state;
+		}
+
+		if ( is_numeric( $raw ) && 0 < (int) $raw ) {
+			$state['last_attempt'] = (int) $raw;
+			$state['next_attempt'] = (int) $raw + DAY_IN_SECONDS;
+		}
+
+		return $state;
+	}
+
+	/**
+	 * Persists the automatic reconciliation schedule.
+	 *
+	 * @param array<string,int> $state State array.
+	 * @return void
+	 */
+	private function save_reconcile_state( array $state ): void {
+		if ( ! function_exists( 'update_option' ) ) {
+			return;
+		}
+
+		update_option(
+			self::RECONCILE_OPTION,
+			array(
+				'last_attempt' => max( 0, (int) ( $state['last_attempt'] ?? 0 ) ),
+				'last_success' => max( 0, (int) ( $state['last_success'] ?? 0 ) ),
+				'next_attempt' => max( 0, (int) ( $state['next_attempt'] ?? 0 ) ),
+				'failures'     => max( 0, (int) ( $state['failures'] ?? 0 ) ),
+				'last_alert'   => max( 0, (int) ( $state['last_alert'] ?? 0 ) ),
+			),
+			false
+		);
+	}
+
+	/**
+	 * Backoff for one failure count.
+	 *
+	 * @param int $failures Consecutive failure count (1-based).
+	 * @return int Seconds.
+	 */
+	private static function reconcile_delay( int $failures ): int {
+		$index = max( 0, min( count( self::RECONCILE_BACKOFF ) - 1, $failures - 1 ) );
+
+		return (int) self::RECONCILE_BACKOFF[ $index ];
 	}
 
 	/**
@@ -2031,6 +2178,7 @@ final class Space_Store {
 			'items'   => array(),
 			'ready'   => $this->has_table(),
 			'error'   => '',
+			'more'    => false,
 		);
 
 		if ( ! $out['ready'] ) {
@@ -2046,6 +2194,7 @@ final class Space_Store {
 		$table  = $this->table();
 		$orders = $wpdb->prefix . 'zibpay_order';
 		$limit  = max( 1, min( 500, $limit ) );
+		$fetch  = $limit + 1;
 
 		// order_num is created by the theme (MariaDB 11 defaults it to
 		// utf8mb4_uca1400_ai_ci) while our column uses the WordPress default
@@ -2074,7 +2223,7 @@ final class Space_Store {
 				ORDER BY o.id DESC
 				LIMIT %d",
 				self::ORDER_TYPE,
-				$limit
+				$fetch
 			),
 			ARRAY_A
 		);
@@ -2102,6 +2251,15 @@ final class Space_Store {
 			);
 
 			return $out;
+		}
+
+		// Fetch one extra row to tell "exactly this many" from "there are more".
+		// Without it a full page looks healed while orders beyond the limit wait
+		// for the next daily window.
+		$out['more'] = count( $rows ) > $limit;
+
+		if ( $out['more'] ) {
+			$rows = array_slice( $rows, 0, $limit );
 		}
 
 		$out['missing'] = count( $rows );
@@ -2145,6 +2303,314 @@ final class Space_Store {
 		}
 
 		return $out;
+	}
+
+	/**
+	 * Audits legacy order grants whose order columns were zeroed by the old writer.
+	 *
+	 * Before 1.24 every grant was inserted with source/channel "points" and
+	 * order_id/order_num/price/points set to zero, even for a cash balance order.
+	 * The grant key still carries the real order number, so the missing fields can
+	 * be rebuilt from the theme order without touching bytes, expiry, state or the
+	 * key itself. This is intentionally a manual CLI operation: it mutates
+	 * historical ledger rows and must be reviewed with a dry run first.
+	 *
+	 * Only rows whose grant_key starts with "order:" and whose order_id or
+	 * order_num is still empty are considered. Points fallbacks use a different
+	 * key and are never rewritten.
+	 *
+	 * @param bool $apply When false this is a dry run.
+	 * @param int  $limit Max grant rows per run.
+	 * @return array<string,mixed>
+	 */
+	public function audit_legacy_order_grants( bool $apply = false, int $limit = 100 ): array {
+		$out = array(
+			'candidates' => 0,
+			'pending'    => 0,
+			'filled'     => 0,
+			'skipped'    => 0,
+			'dry_run'    => ! $apply,
+			'ready'      => $this->has_table(),
+			'error'      => '',
+			'items'      => array(),
+		);
+
+		if ( ! $out['ready'] ) {
+			return $out;
+		}
+
+		global $wpdb;
+
+		if ( ! is_object( $wpdb ) ) {
+			return $out;
+		}
+
+		$table = $this->table();
+		$limit = max( 1, min( 500, $limit ) );
+
+		$rows = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT id, owner_id, grant_key, source, channel, order_id, order_num, price, points, state
+				FROM {$table}
+				WHERE grant_key LIKE %s AND (order_id = 0 OR order_num = '')
+				ORDER BY id ASC
+				LIMIT %d",
+				'order:%',
+				$limit
+			),
+			ARRAY_A
+		);
+
+		if ( ! is_array( $rows ) ) {
+			$rows = array();
+		}
+
+		if ( array() === $rows && '' !== (string) $wpdb->last_error ) {
+			$out['ready'] = false;
+			$out['error'] = (string) $wpdb->last_error;
+
+			$this->log_event(
+				'space.grant.audit_error',
+				array(
+					'owner_id' => 0,
+					'result'   => 'error',
+					'detail'   => array( 'message' => $out['error'] ),
+				)
+			);
+
+			return $out;
+		}
+
+		$out['candidates'] = count( $rows );
+
+		foreach ( $rows as $row ) {
+			if ( ! is_array( $row ) ) {
+				continue;
+			}
+
+			$item = $this->audit_legacy_order_grant( $row, $apply );
+
+			$out['items'][] = $item;
+
+			if ( 'filled' === $item['status'] ) {
+				$out['filled']++;
+			} elseif ( 'pending' === $item['status'] ) {
+				$out['pending']++;
+			} else {
+				$out['skipped']++;
+			}
+		}
+
+		return $out;
+	}
+
+	/**
+	 * Inspects or repairs one legacy order grant.
+	 *
+	 * @param array<string,mixed> $row   Grant row.
+	 * @param bool                $apply Write the order fields.
+	 * @return array<string,mixed> Audit item.
+	 */
+	private function audit_legacy_order_grant( array $row, bool $apply ): array {
+		$item = array(
+			'grant_id'  => isset( $row['id'] ) ? (int) $row['id'] : 0,
+			'grant_key' => isset( $row['grant_key'] ) ? (string) $row['grant_key'] : '',
+			'owner_id'  => isset( $row['owner_id'] ) ? (int) $row['owner_id'] : 0,
+			'order_num' => '',
+			'order_id'  => 0,
+			'source'    => isset( $row['source'] ) ? (string) $row['source'] : '',
+			'channel'   => isset( $row['channel'] ) ? (string) $row['channel'] : '',
+			'price'     => isset( $row['price'] ) ? (float) $row['price'] : 0.0,
+			'points'    => isset( $row['points'] ) ? (int) $row['points'] : 0,
+			'status'    => 'skipped',
+			'message'   => '',
+		);
+
+		$key = $item['grant_key'];
+
+		if ( 0 !== strpos( $key, 'order:' ) ) {
+			$item['status']  = 'key_mismatch';
+			$item['message'] = 'grant key is not order:{order_num}';
+
+			return $item;
+		}
+
+		$order_num      = substr( $key, 6 );
+		$item['order_num'] = $order_num;
+
+		if ( '' === $order_num ) {
+			$item['status']  = 'key_mismatch';
+			$item['message'] = 'empty order number in grant key';
+
+			return $item;
+		}
+
+		$stored_num = isset( $row['order_num'] ) ? (string) $row['order_num'] : '';
+
+		if ( '' !== $stored_num && $stored_num !== $order_num ) {
+			$item['status']  = 'key_mismatch';
+			$item['message'] = 'grant_key and order_num disagree';
+
+			return $item;
+		}
+
+		global $wpdb;
+
+		if ( ! is_object( $wpdb ) ) {
+			$item['status']  = 'unavailable';
+			$item['message'] = 'database unavailable';
+
+			return $item;
+		}
+
+		$orders = $wpdb->prefix . 'zibpay_order';
+		$rows   = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT id, order_num, order_type, status, user_id, order_price, pay_type, product_id, other, pay_detail
+				FROM {$orders}
+				WHERE order_num = %s AND order_type = %s
+				LIMIT 2",
+				$order_num,
+				self::ORDER_TYPE
+			),
+			ARRAY_A
+		);
+
+		if ( ! is_array( $rows ) ) {
+			$item['status']  = 'query_error';
+			$item['message'] = '' !== (string) $wpdb->last_error ? (string) $wpdb->last_error : 'order query failed';
+
+			return $item;
+		}
+
+		if ( array() === $rows ) {
+			$item['status']  = 'missing_order';
+			$item['message'] = 'order not found';
+
+			return $item;
+		}
+
+		if ( 1 < count( $rows ) ) {
+			$item['status']  = 'ambiguous_order';
+			$item['message'] = 'more than one order has this number';
+
+			return $item;
+		}
+
+		$order = $rows[0];
+
+		if ( '1' !== (string) ( $order['status'] ?? '' ) ) {
+			$item['status']  = 'order_not_paid';
+			$item['message'] = 'order status=' . (string) ( $order['status'] ?? '' );
+
+			return $item;
+		}
+
+		if ( (int) ( $order['user_id'] ?? 0 ) !== $item['owner_id'] ) {
+			$item['status']  = 'owner_mismatch';
+			$item['message'] = 'order owner and grant owner differ';
+
+			return $item;
+		}
+
+		if ( 0 !== strpos( (string) ( $order['product_id'] ?? '' ), self::PRODUCT_PREFIX ) ) {
+			$item['status']  = 'not_space_product';
+			$item['message'] = 'order is not a space product';
+
+			return $item;
+		}
+
+		$data = $this->normalise_order( $order );
+
+		if ( null === $data ) {
+			$item['status']  = 'invalid_order';
+			$item['message'] = 'order could not be normalised';
+
+			return $item;
+		}
+
+		$ledger = $this->grant_ledger_fields( $data );
+
+		$item['order_id'] = (int) $ledger['order_id'];
+		$item['order_num'] = (string) $ledger['order_num'];
+		$item['source']    = (string) $ledger['source'];
+		$item['channel']   = (string) $ledger['channel'];
+		$item['price']     = (float) $ledger['price'];
+		$item['points']    = (int) $ledger['points'];
+
+		$same = (int) ( $row['order_id'] ?? 0 ) === $item['order_id']
+			&& (string) ( $row['order_num'] ?? '' ) === $item['order_num']
+			&& abs( (float) ( $row['price'] ?? 0 ) - $item['price'] ) < 0.005
+			&& (int) ( $row['points'] ?? 0 ) === $item['points']
+			&& (string) ( $row['source'] ?? '' ) === $item['source']
+			&& (string) ( $row['channel'] ?? '' ) === $item['channel'];
+
+		if ( $same ) {
+			$item['status']  = 'current';
+			$item['message'] = 'order fields already match';
+
+			return $item;
+		}
+
+		if ( ! $apply ) {
+			$item['status']  = 'pending';
+			$item['message'] = 'dry run; pass --apply to write';
+
+			return $item;
+		}
+
+		$table   = $this->table();
+		$written = $wpdb->update(
+			$table,
+			array(
+				'order_id'   => $item['order_id'],
+				'order_num'  => $item['order_num'],
+				'price'      => $item['price'],
+				'points'     => $item['points'],
+				'source'     => $item['source'],
+				'channel'    => $item['channel'],
+				'updated_at' => Space_Rules::now(),
+			),
+			array( 'id' => $item['grant_id'] ),
+			array( '%d', '%s', '%f', '%d', '%s', '%s', '%s' ),
+			array( '%d' )
+		);
+
+		if ( false === $written ) {
+			$item['status']  = 'write_failed';
+			$item['message'] = (string) $wpdb->last_error;
+
+			return $item;
+		}
+
+		if ( 0 === (int) $written ) {
+			$item['status']  = 'current';
+			$item['message'] = 'another process already updated this row';
+
+			return $item;
+		}
+
+		Space_Rules::flush( $item['owner_id'] );
+
+		$this->log_event(
+			'space.grant.backfilled',
+			array(
+				'owner_id'  => $item['owner_id'],
+				'result'    => 'ok',
+				'order_num' => $item['order_num'],
+				'detail'    => array(
+					'grant_id' => $item['grant_id'],
+					'order_id' => $item['order_id'],
+					'source'   => $item['source'],
+					'channel'  => $item['channel'],
+				),
+			)
+		);
+
+		$item['status']  = 'filled';
+		$item['message'] = 'order fields restored';
+
+		return $item;
 	}
 
 	/**

@@ -506,6 +506,7 @@
 
 	function fileMenu( id ) {
 		return '<div class="sufm-menu" role="menu" hidden data-sufm-menu-panel="' + id + '">' +
+			'<button type="button" role="menuitem" data-sufm-act="insert" data-id="' + id + '">' + icon( 'insert' ) + '插入</button>' +
 			'<button type="button" role="menuitem" data-sufm-act="open" data-id="' + id + '">' + icon( 'external' ) + '打开</button>' +
 			'<button type="button" role="menuitem" data-sufm-act="rename" data-id="' + id + '">' + icon( 'file-text' ) + '重命名</button>' +
 			'<button type="button" role="menuitem" data-sufm-act="move" data-id="' + id + '">' + icon( 'move' ) + '移动到</button>' +
@@ -891,7 +892,9 @@
 		} else if ( el.path && el.batch.parentNode === el.path ) {
 			el.path.classList.remove( 'is-batching' );
 			if ( el.head ) {
-				el.head.insertBefore( el.batch, el.folders || null );
+				// `el.folders` lives in .sufm-scroll, not .sufm-head; appending keeps
+				// the restored bar after the alert and avoids insertBefore throwing.
+				el.head.appendChild( el.batch );
 			}
 		}
 		document.querySelectorAll( '[data-sufm-select]' ).forEach( function ( box ) {
@@ -1496,6 +1499,13 @@
 
 		closeAllMenus();
 
+		if ( 'insert' === name ) {
+			if ( window.SUFMPicker && typeof window.SUFMPicker.insert === 'function' ) {
+				window.SUFMPicker.insert( [ id ] );
+			} else {
+				toast( '编辑器还没有准备好，请刷新页面再试。', true );
+			}
+		}
 		if ( 'open' === name ) { openFileById( id ); }
 		if ( 'download' === name ) { downloadFileById( id ); }
 		if ( 'rename' === name ) { renameFile( id ); }
@@ -1854,6 +1864,33 @@
 		return dragBadge;
 	}
 
+	var dragGhostImage = null;
+
+	/* A 1x1 transparent canvas suppresses the browser's own drag snapshot. The
+	 * visible chip is the fixed .sufm-drag-badge below, so it can follow the
+	 * pointer and stay readable over both the panel and the editor. */
+	function emptyDragImage() {
+		if ( dragGhostImage && dragGhostImage.parentNode ) { return dragGhostImage; }
+		dragGhostImage = document.createElement( 'canvas' );
+		dragGhostImage.width = 1;
+		dragGhostImage.height = 1;
+		dragGhostImage.className = 'sufm-drag-ghost-image';
+		document.body.appendChild( dragGhostImage );
+		return dragGhostImage;
+	}
+
+	function moveDragBadge( event ) {
+		if ( ! dragMove || ! dragBadge ) { return; }
+		var x = Number( event.clientX || 0 );
+		var y = Number( event.clientY || 0 );
+		if ( ! x && ! y ) { return; }
+		dragBadge.style.left = ( x + 16 ) + 'px';
+		dragBadge.style.top = ( y + 18 ) + 'px';
+	}
+
+	document.addEventListener( 'drag', moveDragBadge, true );
+	document.addEventListener( 'dragover', moveDragBadge, true );
+
 	function clearDropTargets() {
 		document.querySelectorAll( '.is-drop-target' ).forEach( function ( node ) {
 			node.classList.remove( 'is-drop-target' );
@@ -1942,28 +1979,40 @@
 		dragMove = { targets: targets, sourceType: type, sourceId: id };
 
 		if ( event.dataTransfer ) {
-			event.dataTransfer.effectAllowed = 'move';
+			// A file can be moved into a folder or copied into the editor, so the
+			// source must allow both; the drop target narrows it to move/copy.
+			event.dataTransfer.effectAllowed = 'file' === type ? 'copyMove' : 'move';
 			try {
 				event.dataTransfer.setData( 'text/plain', targets.length > 1 ? targets.length + ' 个文件' : handle.textContent.trim() );
 			} catch ( e ) {}
 			var badge = dragBadgeNode();
-			badge.textContent = targets.length > 1 ? '移动 ' + targets.length + ' 个文件' : '移动到文件夹';
-			badge.style.left = '-200px';
-			badge.style.top = '-200px';
-			try { event.dataTransfer.setDragImage( badge, 18, 18 ); } catch ( e ) {}
+			if ( 'file' === type ) {
+				badge.textContent = ( strings.dragInsert || '拖到正文插入' ) + ( targets.length > 1 ? ' · ' + targets.length + ' 个' : '' );
+			} else {
+				badge.textContent = '移动到文件夹';
+			}
+			moveDragBadge( event );
+			try { event.dataTransfer.setDragImage( emptyDragImage(), 0, 0 ); } catch ( e ) {}
 		}
 
 		handle.classList.add( 'is-dragging' );
 		app.classList.add( 'is-drag-moving' );
+		app.classList.toggle( 'is-drag-file', 'file' === type );
+
+		if ( 'file' === type ) {
+			document.dispatchEvent( new CustomEvent( 'sufm:drag-files', { detail: { targets: targets.slice() } } ) );
+		}
 	} );
 
 	function endDrag() {
+		if ( ! dragMove ) { return; }
 		document.querySelectorAll( '.is-dragging' ).forEach( function ( node ) { node.classList.remove( 'is-dragging' ); } );
-		app.classList.remove( 'is-drag-moving' );
+		app.classList.remove( 'is-drag-moving', 'is-drag-file' );
 		clearDropTargets();
 		if ( dragBadge && dragBadge.parentNode ) { dragBadge.parentNode.removeChild( dragBadge ); }
 		dragBadge = null;
 		dragMove = null;
+		document.dispatchEvent( new CustomEvent( 'sufm:drag-end' ) );
 	}
 
 	app.addEventListener( 'dragend', function () {

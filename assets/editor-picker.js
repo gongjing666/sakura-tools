@@ -658,7 +658,7 @@
 
 		if ( ! state.picked ) {
 			el.insert.disabled = true;
-			el.picked.textContent = t.pickHint || '单击选中，双击直接插入';
+			el.picked.textContent = t.pickHint || '单击选中，双击插入，也可拖到正文';
 
 			return;
 		}
@@ -721,7 +721,7 @@
 			'</div></div></div><p></p>';
 	}
 
-	function insert( forced ) {
+	function insert( forced, point ) {
 		var ids = Array.isArray( forced ) ? forced.slice() : checkedIds();
 
 		if ( ! ids.length && state.picked && state.picked.id ) {
@@ -773,8 +773,15 @@
 			 * runs against a stale selection and the markup lands at the top of the
 			 * document (or nowhere at all).
 			 */
+			var range = point ? rangeAtPoint( editor, point ) : null;
+
 			editor.focus();
-			editor.selection.collapse();
+
+			if ( range ) {
+				editor.selection.setRng( range );
+			} else {
+				editor.selection.collapse();
+			}
 
 			editor.execCommand( 'mceInsertContent', false, html );
 
@@ -802,6 +809,10 @@
 			} else {
 				updatePicked();
 			}
+
+			if ( point ) {
+				toast( t.inserted || '已插入' );
+			}
 		} ).catch( function () {
 			if ( el.insert ) {
 				el.insert.disabled = false;
@@ -811,6 +822,205 @@
 			toast( t.insertFailed || '插入失败，请重试' );
 		} );
 	}
+
+	/* ---------- drag a file into the editor ---------- */
+
+	var dragIds = [];
+	var dropzone = null;
+
+	/* TinyMCE exposes `iframe` in most builds, but some versions return null;
+	 * the content-area container is the stable fallback. */
+	function editorFrame( editor ) {
+		if ( editor && editor.iframe ) {
+			return editor.iframe;
+		}
+
+		var area = editor && editor.getContentAreaContainer ? editor.getContentAreaContainer() : null;
+
+		if ( area ) {
+			var frame = area.querySelector( 'iframe' );
+
+			if ( frame ) {
+				return frame;
+			}
+		}
+
+		return doc.getElementById( cfg.editorId + '_ifr' );
+	}
+
+	function rangeAtPoint( editor, point ) {
+		var frame = editorFrame( editor );
+
+		if ( ! frame || ! frame.contentDocument || ! point ) {
+			return null;
+		}
+
+		var rect = frame.getBoundingClientRect();
+		var x = point.clientX - rect.left - ( frame.clientLeft || 0 );
+		var y = point.clientY - rect.top - ( frame.clientTop || 0 );
+
+		if ( x < 0 || y < 0 || x > frame.clientWidth || y > frame.clientHeight ) {
+			return null;
+		}
+
+		var frameDoc = frame.contentDocument;
+		var range = null;
+
+		if ( frameDoc.caretRangeFromPoint ) {
+			range = frameDoc.caretRangeFromPoint( x, y );
+		} else if ( frameDoc.caretPositionFromPoint ) {
+			var position = frameDoc.caretPositionFromPoint( x, y );
+
+			if ( position && position.offsetNode ) {
+				range = frameDoc.createRange();
+				range.setStart( position.offsetNode, position.offset );
+				range.collapse( true );
+			}
+		}
+
+		return range;
+	}
+
+	function placeDropzone() {
+		if ( ! dropzone || dropzone.hidden ) {
+			return;
+		}
+
+		var frame = editorFrame( activeEditor() );
+
+		if ( ! frame ) {
+			hideDropzone();
+
+			return;
+		}
+
+		var rect = frame.getBoundingClientRect();
+
+		if ( rect.width < 1 || rect.height < 1 ) {
+			hideDropzone();
+
+			return;
+		}
+
+		dropzone.style.left = Math.round( rect.left ) + 'px';
+		dropzone.style.top = Math.round( rect.top ) + 'px';
+		dropzone.style.width = Math.round( rect.width ) + 'px';
+		dropzone.style.height = Math.round( rect.height ) + 'px';
+	}
+
+	function hideDropzone() {
+		dragIds = [];
+
+		if ( ! dropzone ) {
+			return;
+		}
+
+		dropzone.classList.remove( 'is-visible', 'is-over' );
+		dropzone.hidden = true;
+	}
+
+	function buildDropzone() {
+		var node = doc.createElement( 'div' );
+
+		node.className = 'sufm-editor-drop';
+		node.hidden = true;
+		node.setAttribute( 'aria-hidden', 'true' );
+		node.innerHTML = '<div class="sufm-editor-drop__inner">' +
+			'<span class="sufm-editor-drop__icon" aria-hidden="true">' +
+				'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M5 21h14"/></svg>' +
+			'</span>' +
+			'<strong>' + esc( t.dropInsert || '松手插入到正文' ) + '</strong>' +
+			'<small>' + esc( t.dropInsertHint || '图片优先，按拖入顺序插入' ) + '</small>' +
+		'</div>';
+
+		node.addEventListener( 'dragover', function ( event ) {
+			if ( ! dragIds.length ) {
+				return;
+			}
+
+			event.preventDefault();
+			event.stopPropagation();
+
+			if ( event.dataTransfer ) {
+				event.dataTransfer.dropEffect = 'copy';
+			}
+
+			node.classList.add( 'is-over' );
+		} );
+
+		node.addEventListener( 'dragleave', function ( event ) {
+			if ( ! node.contains( event.relatedTarget ) ) {
+				node.classList.remove( 'is-over' );
+			}
+		} );
+
+		node.addEventListener( 'drop', function ( event ) {
+			if ( ! dragIds.length ) {
+				return;
+			}
+
+			event.preventDefault();
+			event.stopPropagation();
+
+			var ids = dragIds.slice();
+			var point = { clientX: event.clientX, clientY: event.clientY };
+
+			hideDropzone();
+			insert( ids, point );
+		} );
+
+		body.appendChild( node );
+
+		return node;
+	}
+
+	function showDropzone( ids ) {
+		dragIds = ids.filter( function ( id ) {
+			return Number( id ) > 0;
+		} );
+
+		if ( ! dragIds.length ) {
+			return;
+		}
+
+		var editor = activeEditor();
+
+		if ( ! editor || ! editorFrame( editor ) ) {
+			dragIds = [];
+
+			return;
+		}
+
+		if ( ! dropzone ) {
+			dropzone = buildDropzone();
+		}
+
+		dropzone.hidden = false;
+		dropzone.classList.remove( 'is-visible', 'is-over' );
+		placeDropzone();
+
+		// Force a frame so the fade/scale transition can run after `hidden` is removed.
+		void dropzone.offsetWidth;
+
+		window.requestAnimationFrame( function () {
+			if ( dropzone ) {
+				dropzone.classList.add( 'is-visible' );
+			}
+		} );
+	}
+
+	document.addEventListener( 'sufm:drag-files', function ( event ) {
+		var targets = event.detail && event.detail.targets ? event.detail.targets : [];
+
+		showDropzone( targets.map( function ( target ) {
+			return Number( target.id );
+		} ) );
+	} );
+
+	document.addEventListener( 'sufm:drag-end', hideDropzone );
+
+	window.addEventListener( 'scroll', placeDropzone, { passive: true } );
+	window.addEventListener( 'resize', placeDropzone );
 
 	/* ---------- events ---------- */
 
@@ -1043,6 +1253,7 @@
 		open: open,
 		close: close,
 		place: place,
-		autoOpen: autoOpen
+		autoOpen: autoOpen,
+		insert: insert
 	};
 }() );

@@ -355,6 +355,7 @@ final class Tab {
 			'audio'                  => __( '音频', 'sakura-imgopt' ),
 			'requests'               => __( '删除申请', 'sakura-imgopt' ),
 			'fileUnit'               => __( '个文件', 'sakura-imgopt' ),
+			'dragInsert'             => __( '拖到正文插入', 'sakura-imgopt' ),
 			'folderUnit'             => __( '个文件夹', 'sakura-imgopt' ),
 			'itemUnit'               => __( '项', 'sakura-imgopt' ),
 			/* translators: %s: file count */

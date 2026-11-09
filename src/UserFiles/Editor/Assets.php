@@ -71,12 +71,14 @@ final class Assets {
 					'retry'      => __( '重试', 'sakura-imgopt' ),
 					'insert'     => __( '插入', 'sakura-imgopt' ),
 					'inserted'   => __( '已插入', 'sakura-imgopt' ),
+					'dropInsert' => __( '松手插入到正文', 'sakura-imgopt' ),
+					'dropInsertHint' => __( '图片优先，按拖入顺序插入', 'sakura-imgopt' ),
 					/* translators: %d: number of selected items. */
 					'picked'     => __( '已选 %d 项', 'sakura-imgopt' ),
 					/* translators: %d: number of items to insert. */
 					'insertMany' => __( '插入 %d 个', 'sakura-imgopt' ),
 					'orderHint'  => __( '图片优先，按勾选顺序插入', 'sakura-imgopt' ),
-					'pickHint'   => __( '单击选中，双击直接插入', 'sakura-imgopt' ),
+					'pickHint'   => __( '单击选中，双击插入，也可拖到正文', 'sakura-imgopt' ),
 					'folders'    => __( '子文件夹', 'sakura-imgopt' ),
 					'files'      => __( '文件', 'sakura-imgopt' ),
 					'allFiles'   => __( '全部文件', 'sakura-imgopt' ),

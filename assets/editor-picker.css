@@ -3660,7 +3660,10 @@ body.dark-theme #sufm-picker .sufm-drop {
 }
 
 #sufm-picker .is-dragging {
-	opacity: .45;
+	opacity: .55;
+	transform: scale( .985 );
+	box-shadow: 0 14px 30px rgba( 15, 39, 64, .12 );
+	transition: opacity .16s ease, transform .16s ease, box-shadow .16s ease;
 }
 
 .sufm.is-drag-moving .is-drop-target,
@@ -3706,18 +3709,135 @@ body.dark-theme #sufm-picker .sufm-drop {
 
 .sufm-drag-badge {
 	position: fixed;
-	z-index: 100001;
+	z-index: 2147483600;
 	display: inline-flex;
 	align-items: center;
-	padding: 6px 12px;
-	border-radius: 8px;
-	background: var(--sufm-pink, #f04494);
+	gap: 7px;
+	padding: 7px 13px 7px 10px;
+	border: 1px solid rgba( 255, 255, 255, .55 );
+	border-radius: 999px;
+	background: linear-gradient( 135deg, #f04494, #df2f81 );
 	color: #fff;
 	font-size: 12px;
+	font-weight: 500;
 	line-height: 1.4;
 	white-space: nowrap;
-	box-shadow: 0 8px 20px rgba(240, 68, 148, .28);
+	box-shadow: 0 10px 24px rgba( 240, 68, 148, .34 ), 0 2px 6px rgba( 15, 39, 64, .12 );
 	pointer-events: none;
+	will-change: left, top;
+	animation: sufm-drag-badge-in .16s ease-out;
+}
+
+.sufm-drag-badge::before {
+	content: "";
+	width: 6px;
+	height: 6px;
+	flex: 0 0 auto;
+	border-radius: 50%;
+	background: #fff;
+	box-shadow: 0 0 0 3px rgba( 255, 255, 255, .2 );
+}
+
+@keyframes sufm-drag-badge-in {
+	from { opacity: 0; transform: translate3d( 0, 4px, 0 ) scale( .94 ); }
+	to { opacity: 1; transform: translate3d( 0, 0, 0 ) scale( 1 ); }
+}
+
+.sufm-drag-ghost-image {
+	position: fixed;
+	left: -20px;
+	top: -20px;
+	width: 1px;
+	height: 1px;
+	opacity: 0;
+	pointer-events: none;
+}
+
+/* Drop target that covers the editor iframe while a file is dragged. It is
+ * fixed rather than inserted into TinyMCE so it works with both the iframe and
+ * any future inline editor, and its coordinates are mapped back to a caret. */
+.sufm-editor-drop {
+	position: fixed;
+	z-index: 2147482000;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	box-sizing: border-box;
+	border: 2px dashed rgba( 240, 68, 148, .58 );
+	border-radius: 8px;
+	background: rgba( 255, 247, 251, .86 );
+	box-shadow: inset 0 0 0 9999px rgba( 240, 68, 148, .025 );
+	opacity: 0;
+	transform: scale( .985 );
+	transition: opacity .16s ease, transform .16s ease, background-color .16s ease, border-color .16s ease, box-shadow .16s ease;
+	pointer-events: auto;
+}
+
+.sufm-editor-drop[hidden] {
+	display: none;
+}
+
+.sufm-editor-drop.is-visible {
+	opacity: 1;
+	transform: scale( 1 );
+}
+
+.sufm-editor-drop.is-over {
+	border-color: var(--sufm-pink, #f04494);
+	background: rgba( 255, 235, 245, .95 );
+	box-shadow: 0 0 0 4px rgba( 240, 68, 148, .14 ), inset 0 0 0 9999px rgba( 240, 68, 148, .03 );
+}
+
+.sufm-editor-drop__inner {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 2px;
+	padding: 16px 22px;
+	border-radius: 8px;
+	color: #7a244d;
+	text-align: center;
+	pointer-events: none;
+}
+
+.sufm-editor-drop__icon {
+	display: grid;
+	place-items: center;
+	width: 38px;
+	height: 38px;
+	margin-bottom: 4px;
+	border-radius: 50%;
+	background: var(--sufm-pink, #f04494);
+	color: #fff;
+	box-shadow: 0 8px 18px rgba( 240, 68, 148, .28 );
+}
+
+.sufm-editor-drop__icon svg {
+	width: 20px;
+	height: 20px;
+}
+
+.sufm-editor-drop__inner strong {
+	font-size: 14px;
+	font-weight: 600;
+}
+
+.sufm-editor-drop__inner small {
+	font-size: 11px;
+	opacity: .72;
+}
+
+body.dark-theme .sufm-editor-drop {
+	border-color: rgba( 240, 68, 148, .62 );
+	background: rgba( 42, 28, 37, .9 );
+}
+
+body.dark-theme .sufm-editor-drop.is-over {
+	background: rgba( 58, 35, 48, .96 );
+}
+
+body.dark-theme .sufm-editor-drop__inner {
+	color: #ffd9e9;
 }
 
 #sufm-picker .sufm-row,
@@ -3736,6 +3856,18 @@ body.dark-theme #sufm-picker .sufm-drop {
 @media (prefers-reduced-motion: reduce) {
 	#sufm-picker [data-sufm-drag] {
 		cursor: default;
+	}
+
+	#sufm-picker .is-dragging,
+	.sufm-drag-badge,
+	.sufm-editor-drop {
+		transition: none;
+		animation: none;
+	}
+
+	.sufm-editor-drop,
+	.sufm-editor-drop.is-visible {
+		transform: none;
 	}
 }
 
@@ -3768,6 +3900,8 @@ body.dark-theme #sufm-picker .sufm-drop {
 	z-index: 1;
 	display: grid;
 	width: 152px;
+	max-height: calc( 100vh - 24px );
+	overflow-y: auto;
 	gap: 2px;
 	padding: 6px;
 	border: 1px solid #e6e9ee;

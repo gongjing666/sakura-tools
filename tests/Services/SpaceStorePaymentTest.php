@@ -10,8 +10,10 @@
 declare(strict_types=1);
 
 use Nboke\UserFiles\Services\Space_Store;
+use Nboke\UserFiles\Space_Settings;
 use PHPUnit\Framework\TestCase;
 
+require_once dirname( __DIR__, 2 ) . '/src/UserFiles/Space_Settings.php';
 require_once dirname( __DIR__, 2 ) . '/src/UserFiles/Services/Space_Store.php';
 
 /**
@@ -215,5 +217,30 @@ final class SpaceStorePaymentTest extends TestCase {
 				)
 			)
 		);
+	}
+
+	/**
+	 * The stored allow-list feeds the checkout filter; the filter cannot widen it.
+	 *
+	 * @return void
+	 */
+	public function test_saved_allow_list_is_the_only_source(): void {
+		update_option( Space_Settings::OPTION, array( 'allowed_methods' => array( 'alipay' ) ) );
+		Space_Settings::flush();
+
+		try {
+			$store   = new Space_Store();
+			$methods = $store->filter_payment_methods(
+				array(
+					'balance' => array( 'name' => '余额支付' ),
+					'alipay'  => array( 'name' => '支付宝' ),
+				)
+			);
+
+			$this->assertSame( array( 'alipay' ), array_keys( $methods ) );
+		} finally {
+			update_option( Space_Settings::OPTION, array() );
+			Space_Settings::flush();
+		}
 	}
 }

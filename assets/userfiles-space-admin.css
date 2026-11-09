@@ -135,6 +135,109 @@ body.dark-theme .sakura-sync-app {
 	background: var(--surface-soft);
 }
 
+/* ---- payment allow-list ---- */
+
+.sakura-sync-app .sufm-space-paygrid {
+	display: grid;
+	grid-template-columns: minmax(0, 1.35fr) minmax(260px, 0.9fr);
+	gap: 20px 36px;
+	align-items: start;
+}
+
+.sakura-sync-app .sufm-space-paygroup {
+	min-width: 0;
+}
+
+.sakura-sync-app .sufm-space-paygroup + .sufm-space-paygroup {
+	padding-left: 32px;
+	border-left: 1px dashed var(--line);
+}
+
+.sakura-sync-app .sufm-space-paylist {
+	margin: 0;
+	padding: 0;
+	list-style: none;
+	display: grid;
+	gap: 10px;
+}
+
+.sakura-sync-app .sufm-space-pay-row {
+	display: flex;
+	align-items: flex-start;
+	gap: 12px;
+	margin: 0;
+	padding: 12px 14px;
+	border: 1px solid var(--line);
+	border-radius: 10px;
+	background: var(--surface-soft);
+	cursor: pointer;
+	transition: border-color 0.15s ease;
+}
+
+.sakura-sync-app .sufm-space-pay-row:hover,
+.sakura-sync-app .sufm-space-pay-row:focus-within {
+	border-color: var(--blue);
+}
+
+.sakura-sync-app .sufm-space-pay-row input[type="checkbox"] {
+	flex: 0 0 16px;
+	width: 16px;
+	height: 16px;
+	margin: 2px 0 0;
+}
+
+.sakura-sync-app .sufm-space-pay-text {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	min-width: 0;
+}
+
+.sakura-sync-app .sufm-space-pay-name {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: baseline;
+	gap: 4px 8px;
+	font-size: 13px;
+	line-height: 20px;
+}
+
+.sakura-sync-app .sufm-space-pay-name code {
+	padding: 0;
+	background: transparent;
+	color: var(--muted);
+	font-size: 11px;
+}
+
+.sakura-sync-app .sufm-space-pay-name strong {
+	font-weight: 600;
+}
+
+.sakura-sync-app .sufm-space-pay-text em {
+	font-style: normal;
+	font-size: 12px;
+	line-height: 18px;
+	color: var(--muted);
+}
+
+.sakura-sync-app .sufm-space-paygroup .sufm-space-hint {
+	margin-top: 10px;
+}
+
+@media screen and (max-width: 1100px) {
+	.sakura-sync-app .sufm-space-paygrid {
+		grid-template-columns: minmax(0, 1fr);
+		gap: 18px;
+	}
+
+	.sakura-sync-app .sufm-space-paygroup + .sufm-space-paygroup {
+		padding-top: 18px;
+		padding-left: 0;
+		border-top: 1px dashed var(--line);
+		border-left: 0;
+	}
+}
+
 /* ---- switches ---- */
 
 .sakura-sync-app .sufm-space-switch-row {

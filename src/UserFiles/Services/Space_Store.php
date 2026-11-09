@@ -32,18 +32,6 @@ final class Space_Store {
 	public const PRODUCT_PREFIX = 'sufm_space_';
 
 	/**
-	 * Payment channels this plugin can reconcile on its own.
-	 *
-	 * A space order is only granted after the theme reports it as paid. Balance
-	 * is synchronous: zibpay_initiate_balance() either returns payok=1 or an
-	 * error, so there is no unpaid order left behind. QR channels can stay
-	 * pending forever and need an operator to reconcile them, so they are opt-in.
-	 *
-	 * @var string[]
-	 */
-	public const ALLOWED_METHODS = array( 'balance' );
-
-	/**
 	 * Option storing the last automatic reconciliation timestamp.
 	 */
 	public const RECONCILE_OPTION = 'sufm_space_reconcile_last';
@@ -238,30 +226,51 @@ final class Space_Store {
 	/**
 	 * Keeps only the payment channels this plugin is allowed to sell through.
 	 *
-	 * Sites that can reconcile another channel (for example a QR channel with a
-	 * manual settlement process) can opt in with the
-	 * sufm_space_allowed_payment_methods filter and return its key here.
+	 * The operator ticks channels in the space settings card; that stored list is
+	 * the source of truth. Sites that can narrow it further (for example a
+	 * staging site that must hide a channel) can still use the
+	 * sufm_space_allowed_payment_methods filter, but it can never re-enable a
+	 * channel that was left unticked.
 	 *
 	 * @param array<string,array<string,string>> $methods Methods keyed by id.
 	 * @return array<string,array<string,string>>
 	 */
 	public function filter_payment_methods( array $methods ): array {
-		$allowed = apply_filters( 'sufm_space_allowed_payment_methods', self::ALLOWED_METHODS );
+		$configured = Space_Settings::allowed_methods();
+		$filtered   = apply_filters( 'sufm_space_allowed_payment_methods', $configured );
 
-		if ( ! is_array( $allowed ) ) {
-			$allowed = self::ALLOWED_METHODS;
+		if ( ! is_array( $filtered ) ) {
+			$filtered = $configured;
+		}
+
+		// The stored allow-list is the single source of truth; the filter can
+		// only narrow it, never add a channel the operator did not tick.
+		$base = array();
+
+		foreach ( $configured as $key ) {
+			if ( is_string( $key ) ) {
+				$key = sanitize_key( $key );
+
+				if ( '' !== $key ) {
+					$base[ $key ] = true;
+				}
+			}
+		}
+
+		if ( array() === $base ) {
+			return array();
 		}
 
 		$keys = array();
 
-		foreach ( $allowed as $key ) {
+		foreach ( $filtered as $key ) {
 			if ( ! is_string( $key ) ) {
 				continue;
 			}
 
 			$key = sanitize_key( $key );
 
-			if ( '' !== $key ) {
+			if ( isset( $base[ $key ] ) ) {
 				$keys[ $key ] = true;
 			}
 		}
@@ -2592,7 +2601,7 @@ final class Space_Store {
 		$used = 0 < $user_id ? ( self::points_used_bytes( $user_id ) / 1073741824 ) : 0.0;
 
 		return array(
-			'enabled'      => 0 < $per_gb,
+			'enabled'      => Space_Settings::points_enabled() && 0 < $per_gb,
 			'per_gb'       => $per_gb,
 			'max_gb'       => $max_gb,
 			'daily_cap_gb' => $cap_gb,
@@ -2758,7 +2767,7 @@ final class Space_Store {
 
 		$state = $this->points_state( $user_id );
 
-		if ( $state['per_gb'] <= 0 ) {
+		if ( empty( $state['enabled'] ) ) {
 			return new WP_Error( 'sufm_points_off', __( '积分兑换未开启。', 'sakura-imgopt' ), array( 'status' => 503 ) );
 		}
 

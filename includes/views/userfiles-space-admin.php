@@ -33,7 +33,11 @@ $sufm_space_caps = array(
 
 $sufm_space_theme   = $sufm_space_diag['theme'];
 $sufm_space_caps_ok = $sufm_space_diag['capabilities'];
-$sufm_space_methods = $sufm_space_diag['payment_methods'];
+
+$sufm_space_theme_methods  = is_array( $sufm_space_diag['payment_methods'] ) ? $sufm_space_diag['payment_methods'] : array();
+$sufm_space_allowed        = \Nboke\UserFiles\Space_Settings::allowed_methods();
+$sufm_space_points_enabled = \Nboke\UserFiles\Space_Settings::points_enabled();
+$sufm_space_methods        = array_intersect_key( $sufm_space_theme_methods, array_flip( $sufm_space_allowed ) );
 
 $sufm_space_size = static function ( $bytes ): string {
 	$bytes = (int) $bytes;
@@ -140,9 +144,9 @@ $sufm_space_rule      = \Nboke\UserFiles\Space_Settings::level_rule();
 						</div>
 
 						<div class="sufm-space-diag__block">
-							<p class="sufm-space-subtitle"><?php esc_html_e( '可用支付方式', 'sakura-imgopt' ); ?></p>
-							<?php if ( empty( $sufm_space_methods ) ) : ?>
-								<p class="sufm-space-muted"><?php esc_html_e( '未取到支付方式。若在无登录上下文（CLI / 定时任务）中查看，这是正常现象。', 'sakura-imgopt' ); ?></p>
+							<p class="sufm-space-subtitle"><?php esc_html_e( '已启用购买方式', 'sakura-imgopt' ); ?></p>
+							<?php if ( empty( $sufm_space_methods ) && ! $sufm_space_points_enabled ) : ?>
+								<p class="sufm-space-muted"><?php esc_html_e( '当前没有启用任何购买方式。可在下方「支付方式」卡片勾选并保存。', 'sakura-imgopt' ); ?></p>
 							<?php else : ?>
 								<ul class="sufm-space-methods">
 									<?php foreach ( $sufm_space_methods as $sufm_space_method_id => $sufm_space_method ) : ?>
@@ -153,8 +157,14 @@ $sufm_space_rule      = \Nboke\UserFiles\Space_Settings::level_rule();
 											<?php endif; ?>
 										</li>
 									<?php endforeach; ?>
+									<?php if ( $sufm_space_points_enabled ) : ?>
+										<li class="is-points">
+											<code>points</code>
+											<span><?php esc_html_e( '积分兑换', 'sakura-imgopt' ); ?></span>
+										</li>
+									<?php endif; ?>
 								</ul>
-								<p class="sufm-space-muted"><?php esc_html_e( '需登录上下文才会出现「余额」通道。', 'sakura-imgopt' ); ?></p>
+								<p class="sufm-space-muted"><?php esc_html_e( '现金通道只显示已勾选且主题当前提供的项目；积分兑换由本插件直接扣减，不经过主题支付。', 'sakura-imgopt' ); ?></p>
 							<?php endif; ?>
 						</div>
 
@@ -217,6 +227,84 @@ $sufm_space_rule      = \Nboke\UserFiles\Space_Settings::level_rule();
 							</p>
 						</div>
 					</div>
+				</div>
+			</section>
+
+			<section class="card" data-sakura-card="space_payment" data-sakura-span="12">
+				<div class="card-head">
+					<div>
+						<p class="section-kicker"><?php esc_html_e( 'PAYMENT', 'sakura-imgopt' ); ?></p>
+						<h2><?php esc_html_e( '支付方式', 'sakura-imgopt' ); ?></h2>
+						<p><?php esc_html_e( '只有勾选并保存的通道才会出现在前台收银台。默认只启用余额；支付宝、微信等外部渠道需自行确认对账与退款流程。', 'sakura-imgopt' ); ?></p>
+					</div>
+				</div>
+				<div class="card-body">
+					<form method="post" action="<?php echo esc_url( admin_url( 'options.php' ) ); ?>" data-sufm-space-payment>
+						<?php settings_fields( \Nboke\UserFiles\Admin\Space_Page::GROUP ); ?>
+						<input type="hidden" name="<?php echo esc_attr( $sufm_space_option ); ?>[_partial]" value="1" />
+						<input type="hidden" name="<?php echo esc_attr( $sufm_space_option ); ?>[allowed_methods_present]" value="1" />
+
+						<div class="sufm-space-paygrid">
+							<div class="sufm-space-paygroup">
+								<p class="sufm-space-subtitle"><?php esc_html_e( '主题支付通道', 'sakura-imgopt' ); ?></p>
+								<?php if ( empty( $sufm_space_theme_methods ) ) : ?>
+									<p class="sufm-space-muted"><?php esc_html_e( '未读取到主题支付通道。请确认已登录后台，且主题已开启对应的支付方式。', 'sakura-imgopt' ); ?></p>
+								<?php else : ?>
+									<ul class="sufm-space-paylist">
+										<?php foreach ( $sufm_space_theme_methods as $sufm_space_method_id => $sufm_space_method ) : ?>
+											<?php
+											$sufm_space_method_id    = (string) $sufm_space_method_id;
+											$sufm_space_method_name  = isset( $sufm_space_method['name'] ) && '' !== (string) $sufm_space_method['name'] ? (string) $sufm_space_method['name'] : $sufm_space_method_id;
+											$sufm_space_method_check = in_array( $sufm_space_method_id, $sufm_space_allowed, true );
+											?>
+											<li>
+												<label class="sufm-space-pay-row">
+													<input type="checkbox" name="<?php echo esc_attr( $sufm_space_option . '[allowed_methods][]' ); ?>" value="<?php echo esc_attr( $sufm_space_method_id ); ?>" <?php checked( $sufm_space_method_check ); ?> />
+													<span class="sufm-space-pay-text">
+														<span class="sufm-space-pay-name">
+															<code><?php echo esc_html( $sufm_space_method_id ); ?></code>
+															<strong><?php echo esc_html( $sufm_space_method_name ); ?></strong>
+														</span>
+														<em>
+															<?php echo 'balance' === $sufm_space_method_id ? esc_html__( '同步到账，推荐启用。', 'sakura-imgopt' ) : esc_html__( '外部支付渠道，可能出现未支付订单，需要人工对账。', 'sakura-imgopt' ); ?>
+														</em>
+													</span>
+												</label>
+											</li>
+										<?php endforeach; ?>
+									</ul>
+								<?php endif; ?>
+								<p class="sufm-space-hint"><?php esc_html_e( '余额由主题同步确认；二维码或跳转渠道必须确认能处理退款与超时订单后再勾选。', 'sakura-imgopt' ); ?></p>
+							</div>
+
+							<div class="sufm-space-paygroup">
+								<p class="sufm-space-subtitle"><?php esc_html_e( '积分兑换', 'sakura-imgopt' ); ?></p>
+								<input type="hidden" name="<?php echo esc_attr( $sufm_space_option ); ?>[points][enabled]" value="0" />
+								<label class="sufm-space-pay-row">
+									<input type="checkbox" name="<?php echo esc_attr( $sufm_space_option ); ?>[points][enabled]" value="1" <?php checked( $sufm_space_points_enabled ); ?> />
+									<span class="sufm-space-pay-text">
+										<span class="sufm-space-pay-name">
+											<code>points</code>
+											<strong><?php esc_html_e( '积分兑换', 'sakura-imgopt' ); ?></strong>
+										</span>
+										<em><?php esc_html_e( '关闭后前台隐藏积分入口，接口拒绝兑换；已售出的积分授权不受影响。', 'sakura-imgopt' ); ?></em>
+									</span>
+								</label>
+								<p class="sufm-space-hint"><?php esc_html_e( '积分由本插件直接扣减，不经过主题支付；与现金通道互不影响。', 'sakura-imgopt' ); ?></p>
+							</div>
+						</div>
+
+						<div class="card-savebar">
+							<?php
+							submit_button(
+								__( '保存支付方式', 'sakura-imgopt' ),
+								'btn btn--primary',
+								'submit',
+								false
+							);
+							?>
+						</div>
+					</form>
 				</div>
 			</section>
 

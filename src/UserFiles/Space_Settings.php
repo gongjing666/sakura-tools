@@ -68,6 +68,7 @@ final class Space_Settings {
 	public static function defaults(): array {
 		return array(
 			'enabled'             => false,
+			'allowed_methods'     => array( 'balance' ),
 			'apply_bonuses'       => true,
 			'quota_override_mode' => 'cap',
 			'order_icon'          => '',
@@ -162,8 +163,15 @@ final class Space_Settings {
 		}
 
 		$stored = self::stored();
+		$merged = array_merge( self::defaults(), $stored );
 
-		self::$memo = self::sanitize( array_merge( self::defaults(), $stored ) );
+		// Numeric lists are appended by array_merge(); the stored allow-list must
+		// replace the shipped one instead of extending it.
+		if ( array_key_exists( 'allowed_methods', $stored ) ) {
+			$merged['allowed_methods'] = $stored['allowed_methods'];
+		}
+
+		self::$memo = self::sanitize( $merged );
 
 		return self::$memo;
 	}
@@ -244,6 +252,35 @@ final class Space_Settings {
 		$points   = $settings['points'] ?? array();
 
 		return is_array( $points ) ? $points : array();
+	}
+
+	/**
+	 * Theme payment channels the operator has explicitly enabled.
+	 *
+	 * Empty means the cash checkout is closed. The value is a whitelist: the
+	 * sufm_space_allowed_payment_methods filter can only narrow it further.
+	 *
+	 * @return string[]
+	 */
+	public static function allowed_methods(): array {
+		$settings = self::get();
+		$methods  = $settings['allowed_methods'] ?? array();
+
+		return self::sanitize_methods( $methods );
+	}
+
+	/**
+	 * Whether the points exchange product is switched on.
+	 *
+	 * Kept separate from points_per_gb: a site can keep its price table and
+	 * close the entrance without losing the configured numbers.
+	 *
+	 * @return bool
+	 */
+	public static function points_enabled(): bool {
+		$points = self::points();
+
+		return true === (bool) ( $points['enabled'] ?? true );
 	}
 
 	/**
@@ -357,11 +394,34 @@ final class Space_Settings {
 			unset( $value['_partial'] );
 		}
 
+		// A checkbox group sends nothing when every box is cleared, so the form
+		// also posts allowed_methods_present=1 to distinguish "all off" from a
+		// card that does not edit this field at all.
+		$methods_present = array_key_exists( 'allowed_methods', $value ) || isset( $value['allowed_methods_present'] );
+		unset( $value['allowed_methods_present'] );
+
 		$merged = $partial
 			? array_merge( $defaults, $stored, $value )
 			: array_merge( $defaults, $value );
 
+		// The payment card posts only points[enabled]; a shallow array_merge()
+		// would replace the whole points block and reset its price fields.
+		if ( $partial && isset( $value['points'] ) && is_array( $value['points'] ) ) {
+			$stored_points  = isset( $stored['points'] ) && is_array( $stored['points'] ) ? $stored['points'] : array();
+			$merged['points'] = array_merge( $defaults['points'], $stored_points, $value['points'] );
+		}
+
 		$out = array();
+
+		if ( $methods_present ) {
+			$methods = $value['allowed_methods'] ?? array();
+		} elseif ( $partial ) {
+			$methods = $stored['allowed_methods'] ?? $defaults['allowed_methods'];
+		} else {
+			$methods = $defaults['allowed_methods'];
+		}
+
+		$out['allowed_methods'] = self::sanitize_methods( $methods );
 
 		$out['enabled']             = true === (bool) ( $merged['enabled'] ?? false );
 		$out['apply_bonuses']       = true === (bool) ( $merged['apply_bonuses'] ?? true );
@@ -699,6 +759,40 @@ final class Space_Settings {
 		}
 
 		return $prefix . $next;
+	}
+
+	/**
+	 * Normalises a payment channel allow-list.
+	 *
+	 * @param mixed $methods Raw method ids.
+	 * @return string[]
+	 */
+	private static function sanitize_methods( $methods ): array {
+		if ( ! is_array( $methods ) ) {
+			return array();
+		}
+
+		$out = array();
+
+		foreach ( $methods as $key ) {
+			if ( ! is_string( $key ) ) {
+				continue;
+			}
+
+			$key = sanitize_key( $key );
+
+			if ( '' === $key ) {
+				continue;
+			}
+
+			$out[ $key ] = true;
+
+			if ( 20 <= count( $out ) ) {
+				break;
+			}
+		}
+
+		return array_keys( $out );
 	}
 
 	private static function sanitize_points( array $value, array $merged, array $defaults ): array {

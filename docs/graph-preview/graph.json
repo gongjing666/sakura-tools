@@ -1,18 +1,18 @@
 {
  "meta": {
   "plugin": "sakura-tools",
-  "version": "1.24.2",
-  "generatedAt": "2026-11-09T14:24:28.111Z",
+  "version": "1.24.3",
+  "generatedAt": "2026-11-09T15:45:29.492Z",
   "source": "dsh-codegraph lib/scanner.php（token_get_all 三趟静态扫描）",
-  "doc": "sakura-tools-代码结构-1.24.2.md"
+  "doc": "sakura-tools-代码结构-1.24.3.md"
  },
  "stats": {
   "files": 178,
   "modules": 17,
   "classes": 163,
   "nodes": 180,
-  "links": 822,
-  "refLinks": 609,
+  "links": 823,
+  "refLinks": 610,
   "modrefLinks": 50,
   "containsLinks": 163,
   "hooks": 191
@@ -2519,7 +2519,7 @@
    "module": "src",
    "kind": "class",
    "file": "src/Uninstaller.php",
-   "line": 23,
+   "line": 24,
    "val": 2.7712812921102037,
    "color": "#9ad1ff",
    "x": -1329.8,
@@ -6619,6 +6619,16 @@
   },
   {
    "source": "cls:Sakura\\ImageOptimizer\\Uninstaller",
+   "target": "cls:Nboke\\UserFiles\\Schema",
+   "type": "ref",
+   "kinds": [
+    "static",
+    "call"
+   ],
+   "w": 2
+  },
+  {
+   "source": "cls:Sakura\\ImageOptimizer\\Uninstaller",
    "target": "cls:Sakura\\ImageOptimizer\\S3\\Upload_URL",
    "type": "ref",
    "kinds": [
@@ -9633,7 +9643,7 @@
    "source": "mod:src",
    "target": "mod:src/UserFiles",
    "type": "modref",
-   "w": 7
+   "w": 9
   },
   {
    "source": "mod:src/Admin",

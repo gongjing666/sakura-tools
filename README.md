@@ -6,7 +6,7 @@
 
 图片压缩 · 缩略图治理 · S3 对象存储 · 同步索引 · 用户文件空间
 
-[![版本](https://img.shields.io/badge/version-1.24.2-e85d8b?style=flat-square)](https://github.com/gongjing666/sakura-tools/releases/latest)
+[![版本](https://img.shields.io/badge/version-1.24.3-e85d8b?style=flat-square)](https://github.com/gongjing666/sakura-tools/releases/latest)
 [![PHPUnit](https://img.shields.io/badge/PHPUnit-10.5-4c1?style=flat-square)](https://github.com/gongjing666/sakura-tools/actions/workflows/tests.yml)
 [![PHPStan](https://img.shields.io/badge/PHPStan-level%205-4c1?style=flat-square)](https://github.com/gongjing666/sakura-tools/actions/workflows/phpstan.yml)
 ![WordPress](https://img.shields.io/badge/WordPress-6.4%2B-21759b?style=flat-square&logo=wordpress&logoColor=white)
@@ -40,6 +40,7 @@
 
 ## 最近更新
 
+- **1.24.3** — 修复开启「卸载时删除数据」后仍残留 `sufm_file_tokens` 的问题；卸载删表清单改为直接读取 `UserFiles\Schema`，并补回归测试。
 - **1.24.2** — 新增只读 `wp sakura-s3 health`（16 项指标）、`remote-operations count` 与分页，以及 4 个 Prometheus 运维 gauge；上传事件表不自动裁剪，守卫 `uncertain` 仍需人工 `release`。
 - **1.24.1** — 用户中心与编辑页文件面板支持 Shift 连选、Ctrl/⌘ 点选、Ctrl/⌘A 全选与 Esc 清空；补齐网格全选按钮，并修复 Shift 点击时浏览器默认勾选覆盖选区的问题。
 - **1.24.0** — 空间扩容的支付方式改为后台显式勾选，默认只启用余额；积分入口改为独立开关；对账失败按 15 分钟到 6 小时退避；新增 `wp sufm grants` 历史授权审计。
@@ -92,7 +93,7 @@ flowchart LR
 | 兼容层 | `includes/`、`includes/views/` | 旧实现与后台模板，仍由启动流程加载，不能盲删 |
 
 <details>
-<summary><strong>代码规模与仓库结构（1.24.2）</strong></summary>
+<summary><strong>代码规模与仓库结构（1.24.3）</strong></summary>
 
 | 指标 | 数值 |
 | --- | --- |
@@ -250,12 +251,12 @@ git clone https://github.com/gongjing666/sakura-tools.git
 
 ## 文档与代码结构
 
-当前版本 1.24.2 的分析产物：
+当前版本 1.24.3 的分析产物：
 
 | 文档 | 内容 |
 | --- | --- |
-| [代码结构文档](docs/sakura-tools-代码结构-1.24.2.md) | 文件树、类职责、调用关系、运行期验证与待确认项，按“结构 → 职责 → 关系 → 验证”组织 |
-| [图谱同步说明](docs/sakura-tools-图谱同步-1.24.2.md) | 3D 图谱的节点 / 连线口径、生成方式与每轮更新记录 |
+| [代码结构文档](docs/sakura-tools-代码结构-1.24.3.md) | 文件树、类职责、调用关系、运行期验证与待确认项，按“结构 → 职责 → 关系 → 验证”组织 |
+| [图谱同步说明](docs/sakura-tools-图谱同步-1.24.3.md) | 3D 图谱的节点 / 连线口径、生成方式与每轮更新记录 |
 | [3D 图谱静态页](docs/graph-preview/index.html) | 模块与类的关系图；GitHub 不执行页面脚本，克隆后用浏览器打开 |
 | [DECISIONS.md](DECISIONS.md) | 关键设计取舍与已知边界 |
 | [DEVELOPMENT.md](DEVELOPMENT.md) | 历史开发记录；文件结构章节停在 1.3.3，现状以代码结构文档为准 |
@@ -290,7 +291,7 @@ composer lint:strict
 本地构建（默认当前 HEAD）：
 
 ```bash
-bin/build-plugin-zip.sh --version 1.24.2 --out dist
+bin/build-plugin-zip.sh --version 1.24.3 --out dist
 ```
 
 补建历史版本包：

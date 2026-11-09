@@ -1,9 +1,9 @@
 # 樱花工具箱（sakura-tools）代码结构分析报告
 
-> **版本** 1.24.2 ｜ **代码基线** commit `dfb3cf4`（1.24.2 S3/Sync 运维观测；版本号、文档与图谱在随后提交）｜ **分析日期** 2026-11-09
+> **版本** 1.24.3 ｜ **代码基线** commit `20be449`（1.24.3 卸载修复；版本号、文档与图谱在随后提交）｜ **分析日期** 2026-11-09
 > **分析对象** `/www/wwwroot/www.nboke.com/wp-content/plugins/sakura-tools`（生产副本；§6.8/§6.9 的代码变更已包含在基线提交中，其余阅读与运行期验证均为只读）
 > **测试环境** `/root/sio-e2e`（独立 WordPress + MariaDB 127.0.0.1:13316 + MinIO 127.0.0.1:19010），插件以软链方式挂载，行为与生产一致
-> **配套产物** 3D 图谱 `docs/graph-preview/index.html`（同源数据 `graph.json`）、生成器 `docs/tools/build-code-structure.mjs`、图谱说明 `docs/sakura-tools-图谱同步-1.24.2.md`
+> **配套产物** 3D 图谱 `docs/graph-preview/index.html`（同源数据 `graph.json`）、生成器 `docs/tools/build-code-structure.mjs`、图谱说明 `docs/sakura-tools-图谱同步-1.24.3.md`
 
 ---
 
@@ -32,8 +32,8 @@
 |---|---|---|
 | `文件:行` | 静态证据：结论直接来自该位置的代码 | `src/Plugin.php:83-86` |
 | **验证** | 运行证据：在测试站实际执行过，第 10 章有命令与输出 | 验证 §10.3 路由 11/11 |
-| **未验证** | 只有静态阅读，未在运行时复现 | 配额扣减（只读边界） |
-| **待确认** | 代码里存在歧义或超出本次范围，不下结论 | §12（当前清零，只保留边界） |
+| **未验证** | 只有静态阅读，未在运行时复现 | 生产环境写路径（生产保持只读） |
+| **待确认** | 代码里存在歧义或超出本次范围，不下结论 | §12（含已修复缺陷的复核与接受边界） |
 | **口径** | 统计方式说明，避免读者误读数字 | 入度/出度的计算方式 |
 
 ### 0.3 数字口径（先对齐，避免误读）
@@ -41,7 +41,7 @@
 | 指标 | 数值 | 口径 |
 |---|---:|---|
 | 生产 PHP 文件 | **178** | 不含 `tests/`(71 文件) `stubs/`(2) `vendor/` `assets/`(JS/CSS) |
-| 生产 PHP 行数 | **61,424** | 同上，含空行与注释 |
+| 生产 PHP 行数 | **61,425** | 同上，含空行与注释 |
 | 类 / 接口 | **163** | 含 7 个接口；另有 64 个全局函数未计入图谱节点 |
 | 钩子注册 | **191** | 仅生产代码中的 `add_action`/`add_filter`，不含 `do_action` 触发点 |
 | 自定义数据表 | **23** | 15 张 `{prefix}sufm_*` + 6 张 `{prefix}sio_sync_*` + 2 张 `{prefix}sio_s3_*`（`sio_s3_deletes`、`sio_s3_upload_events`） |
@@ -61,7 +61,7 @@
 4. **后台信息架构是静态声明的。** `src/Admin/Registry.php:41-101` 用一张常量数组声明「模块 → tab → 权限门 → renderer key」；`Menu` 只做建屏与分发，`Shell` 只画外壳。**加一个 tab = 改 Registry + 注册 renderer 两处**，不需要动菜单代码。
 5. **功能面是 5 个子系统 + 3 条横切。** 子系统：图片优化管线（§4）、缩略图 URL 重写（§5）、对象存储 S3（§6）、同步索引 Sync（§7）、用户文件空间 UserFiles（§8）。横切：数据落点（§9）、钩子索引（§9.2）、REST/CLI/Cron（§9.3）。
 6. **代码量集中在两处。** UserFiles（46 文件 / 21,838 行）与 S3（36 文件 / 10,902 行）合计占生产代码的 53.3%；两者也是自定义表、加密凭据与补偿队列最集中的部分。
-7. **运行时可访问性已验证。** 11 条后台路由全部 200 且标题正确、45 条 `/sufm/v1` REST 路由（51 个端点）全部注册、7 个插件 cron 事件已排程、12 项函数级探针结果符合预期（§10）。**未验证**的是生产环境的写路径（配额扣减、删除审核、卸载清理）——生产保持只读。测试站上补做的验证分四批：5 张并发上传（§10.6）跑通「上传 → 压缩 → S3 PUT → 索引落库」，4×200 条并发指标写入（§10.11）验证事件表零丢失，1.24.0 的对账失败退避与历史 grant 回填（§10.14）验证了退避序列、租约与字段白名单，1.24.1 的快捷多选（§10.15）在用户中心与编辑页分别通过 17/17、24/24 项浏览器断言，1.24.2 的运维观测（§10.16）在测试站验证 health、守卫分页/计数与 Prometheus gauge。
+7. **运行时可访问性已验证，生产写路径仍保持只读。** 11 条后台路由全部 200 且标题正确、45 条 `/sufm/v1` REST 路由（51 个端点）全部注册、7 个插件 cron 事件已排程、12 项函数级探针结果符合预期（§10）。**未验证**的是生产环境的写路径（配额扣减、删除审核、卸载清理）——生产保持只读。测试站上补做了六批：5 张并发上传（§10.6）跑通「上传 → 压缩 → S3 PUT → 索引落库」，4×200 条并发指标写入（§10.11）验证事件表零丢失，1.24.0 的对账失败退避与历史 grant 回填（§10.14）验证了退避序列、租约与字段白名单，1.24.1 的快捷多选（§10.15）在用户中心与编辑页分别通过 17/17、24/24 项浏览器断言，1.24.2 的运维观测（§10.16）验证 health、守卫分页/计数与 Prometheus gauge，以及 1.24.2 的三条空白补测（§10.17：Quota 提交/回滚、删除审核→Executor、卸载两轨、扫描游标三种损坏、编辑器覆盖与插入顺序）。**补测发现的一项缺陷已在 1.24.3 修复**：显式删除数据的卸载路径曾漏删 `file_tokens` 表；现在改为遍历 `Schema::tables()`，并在隔离环境复跑 15 张表→0，见 §12.7。
 8. **两张"文档"已经过期，不要当作事实源。** `DEVELOPMENT.md` 第 1 节的"当前文件结构"停留在 1.3.3 的 6 个文件；`/root/WordPress/docs/sakura-image-optimizer-代码分析报告.md`（本机历史报告，未随仓库分发） 停在 1.9.0 之前的命名。本报告与 3D 图谱是当前唯一同步的产物；`DECISIONS.md` 仍然有效（记录的是"为什么"，不是"现在有什么"）。
 9. **文档与图谱同源，不会再脱节。** 两者都由同一份扫描事实表（来自 `dsh-codegraph` 的 `lib/scanner.php`）经 `docs/tools/build-code-structure.mjs` 生成。改代码后重跑一次命令即可同时刷新表格与图谱（§13.6）。
 10. **上传指标已从单 option 改为事件表。** 旧实现每次 `record_batch()` 读改写同一个 option，4 进程各写 200 条只留下 202 条（丢 75%）；现在每条结果独立 INSERT 到 `{prefix}sio_s3_upload_events`（`src/S3/Upload_Metrics.php:79`、`:149`），`snapshot()` 用 SQL 聚合（`:204`），成功与失败分别由 `sakura_imgopt_s3_uploaded` / `sakura_imgopt_s3_upload_failed` 采集（`src/S3/Upload_Observer.php:30-31`）。返回结构不变，旧 option 只作为冻结基线读取。详见 §6.9 与 §10.11。
@@ -76,7 +76,11 @@
 
 **上一轮更新（2026-11-09，1.24.1 界面）**：用户中心与编辑页两套文件面板都支持快捷多选：Shift 连选、Ctrl/⌘ 点选、Ctrl/⌘A 全选、Esc 清空，网格视图补「全选/取消全选」按钮；Shift 范围只加不减、跳过锁定文件，编辑页插入条会随选区重建数量与顺序。改动只在 9 个前端、视图与文案文件（+536/−27），没有新增类、方法、钩子、REST 路由或数据表；当时生产 178 文件 / 163 类 / 180 节点 / 815 连线 / 191 钩子，总行数 61,227（UserFiles 21,838、`includes/views` 4,828）。图谱只更新 `meta.version` 与页面副标题，拓扑和边权不变。列表行复选框另加 14px 方框护栏，圆形样式只保留给网格卡。详见 §8.11、§10.15。
 
-**本轮更新（2026-11-09，1.24.2 S3/Sync 运维观测）**：新增只读 `wp sakura-s3 health`（16 项指标）、`remote-operations count` 与 `--limit/--offset` 分页、Prometheus 四个只读 gauge（`delete_dead`/`delete_stale`/`remote_uncertain`/`sync_jobs_dead`）；上传事件表**不自动裁剪**，顺序回滚不会重复计数（测试站 30+5+3=38），守卫 `uncertain` 行仍需人工 `release`。本轮改 9 个 PHP/测试/文档文件，没有新增类或钩子；生产仍 178 文件 / 163 类 / 180 节点 / **822** 连线（609 ref + 50 modref + 163 contains）/ 191 钩子，总行数 61,424（`includes` 6,097、S3 10,902）。图谱新增 7 条 `ref`，`S3_CLI` 与 `Remote_Operation_Guard` 的 `val` 变大。详见 §6.9.5、§7.7.1、§10.16、§13。
+**上一轮更新（2026-11-09，1.24.2 S3/Sync 运维观测）**：新增只读 `wp sakura-s3 health`（16 项指标）、`remote-operations count` 与 `--limit/--offset` 分页、Prometheus 四个只读 gauge（`delete_dead`/`delete_stale`/`remote_uncertain`/`sync_jobs_dead`）；上传事件表**不自动裁剪**，顺序回滚不会重复计数（测试站 30+5+3=38），守卫 `uncertain` 行仍需人工 `release`。该轮改 9 个 PHP/测试/文档文件，没有新增类或钩子；生产仍 178 文件 / 163 类 / 180 节点 / **822** 连线（609 ref + 50 modref + 163 contains）/ 191 钩子，总行数 61,424（`includes` 6,097、S3 10,902）。图谱新增 7 条 `ref`，`S3_CLI` 与 `Remote_Operation_Guard` 的 `val` 变大。详见 §6.9.5、§7.7.1、§10.16、§13。
+
+**上一轮补充（2026-11-09，1.24.2 运行验证回写）**：把 §12 原先三条「只有静态阅读」的空白补成运行证据：① `Quota::commit` 在测试站完成「预留 → 部分提交 → 重复提交拒绝 → 超配额回滚 → 释放」全序列；② `Requests::approve` → `Executor::preview/confirm/tick` 跑通从审核到附件删除、配额回冲、request/batch/job 全完成；③ `Uninstaller::run()` 在测试站分别跑「显式删除数据」与「保留数据」两轨；④ `Scan_Service` 的损坏 JSON、顶层目录被删、嵌套目录被删三种游标都自动重置重扫；⑤ 编辑页补测 TinyMCE、纯 `textarea` 与块编辑器，并确认插入顺序是「图片按勾选顺序在前、其余随后」，不是屏幕顺序。**此轮未改插件代码**，版本仍 1.24.2；补测同时发现卸载路径漏删 `{prefix}sufm_file_tokens`，当时登记为 §12.7，后由 1.24.3 修复。详见 §8.10.7、§10.17、§12.6–§12.7。
+
+**本轮更新（2026-11-09，1.24.3 卸载修复）**：把 §12.7 的已确认缺陷修掉。`src/Uninstaller.php:150-154` 的 `drop_sufm_tables()` 不再维护第二份硬编码清单，改为直接遍历 `Nboke\UserFiles\Schema::tables()`（15 张，含 `file_tokens`）；`tests/UninstallerTest.php:55-95` 新增回归测试，用 fake `$wpdb` 断言 DROP 语句数量等于 `Schema::tables()` 且显式包含 `t_sufm_file_tokens`。全量验证 427 tests / 1,296 assertions / 5 skipped、PHPStan 无错误、PHPCS 通过；隔离站 `/tmp/sio-uninstall-site` + 库 `sio_uninstall_probe` 复跑「显式删除数据」轨道，15 张 `t_sufm_*`（`t_sufm_file_tokens` 3,117 行）→ 0 张，`t_sio_*` 也 0，随后从 dump 恢复样本库。生产仍未执行卸载。该轮只加 1 行 `use`、替换删表循环并补测试，没有新增类、方法、钩子、REST 路由或数据表；生产总行数 61,425，图谱由 822 增至 **823** 连线（610 ref + 50 modref + 163 contains），新增 `Uninstaller → Schema` 一条 `ref`。详见 §10.17-C、§12.7、§13。
 
 ---
 
@@ -142,7 +146,7 @@ sakura-tools/
 | src/Thumbnail | 15 | 3764 | 15 | 缩略图 URL 重写策略：上下文、尺寸、供应商、探测、缓存 |
 | src/Image | 10 | 3177 | 10 | 图片处理管线：改名、备份、引擎选择、元数据、还原、尺寸目录 |
 | src/Admin | 7 | 1895 | 7 | 后台信息架构：Registry 路由表、Menu、Layout、Shell、Assets、环境自检 |
-| src | 4 | 759 | 4 | 组合根与生命周期：Plugin、Activation、Deactivation、Uninstaller |
+| src | 4 | 760 | 4 | 组合根与生命周期：Plugin、Activation、Deactivation、Uninstaller |
 | src/Oss | 2 | 505 | 2 | HTML 过滤器与 URL 重写工具（缩略图策略复用的纯函数） |
 | src/Backup | 2 | 459 | 2 | 原图备份仓储与公网暴露探测 |
 | src/Contracts | 5 | 392 | 5 | 五个接口：Module / Backup / File_System / Settings / Stats |
@@ -151,7 +155,7 @@ sakura-tools/
 | src/Support | 2 | 178 | 2 | Hook_Loader（延迟注册）与 UTF-8 截断工具 |
 | src/Filesystem | 1 | 97 | 1 | 文件系统仓储适配器 |
 | src/Stats | 1 | 73 | 1 | 统计仓储适配器 |
-| 合计 | 178 | 61424 | 163 | 生产代码；另有 tests 72 文件/8800 行、stubs 2 文件另计 |
+| 合计 | 178 | 61425 | 163 | 生产代码；另有 tests 72 文件/8800 行、stubs 2 文件另计 |
 
 **怎么读这张表**：行数不等于复杂度——`src/UserFiles` 20k 行里有 40% 是 REST 控制器与视图模板（重复度高、改动风险低）；`src/Sync` 只有 5.8k 行却包含状态机与 SQL 层，是改动风险最高的模块。
 
@@ -546,8 +550,8 @@ register() 之后调用     → 直接 add_action/add_filter 到 WP（不再入�
 | `Sync_Status` | src/S3/Sync_Status.php:23 |  | 23 / 23 | 30 / 5 |  | 用附件元数据保存同步状态、对象键与重试任务 |
 | `Synchronous_Uploader` | src/S3/Synchronous_Uploader.php:26 |  | 7 / 13 | 16 / 12 |  | 在创建附件的请求内完成其全部文件上传 |
 | `Upload_Capabilities` | src/S3/Upload_Capabilities.php:23 |  | 3 / 3 | 8 / 2 |  | 判定打包 SDK 能否并发多个 HTTP 请求 |
-| `Upload_Metrics` | src/S3/Upload_Metrics.php:27 |  | 10 / 18 | 14 / 2 |  | 把上传结果逐条追加到事件表并按 SQL 聚合快照 |
-| `Upload_Observer` | src/S3/Upload_Observer.php:20 | implements Module | 4 / 4 | 3 / 12 | 2 | 记录上传成功/失败事件并回写索引 MD5 |
+| `Upload_Metrics` | src/S3/Upload_Metrics.php:27 |  | 10 / 18 | 14 / 2 |  | 把上传结果聚合写入单个选项 |
+| `Upload_Observer` | src/S3/Upload_Observer.php:20 | implements Module | 4 / 4 | 3 / 12 | 2 | 独立记录上传指标与索引 MD5 |
 | `Upload_URL` | src/S3/Upload_URL.php:9 |  | 2 / 2 | 7 / 0 |  | 接管上传目录与地址选项的改写生命周期 |
 | `Upload_Verify` | src/S3/Upload_Verify.php:20 |  | 3 / 3 | 6 / 0 |  | 比对本地文件与 S3 对象上报的 ETag |`
 
@@ -975,7 +979,7 @@ d3AtY29udGVudC91cGxvYWRzL3Byb2JlLzA5OTkuYmluW21pbmlvX2NhY2hlOnYyLHJldHVybjpd
 | `Quota` | src/UserFiles/Services/Quota.php:28 |  | 8 / 8 | 15 / 9 |  | 以租约与短事务维护文件空间配额 |
 | `Rate_Limiter` | src/UserFiles/Services/Rate_Limiter.php:23 |  | 4 / 4 | 4 / 6 |  | 用独立数据表限制每日与每分钟请求 |
 | `Requests` | src/UserFiles/Repositories/Requests.php:28 |  | 20 / 28 | 13 / 15 |  | 驱动文件请求状态机并冻结请求项 |
-| `Schema` | src/UserFiles/Schema.php:24 |  | 5 / 7 | 38 / 2 |  | 创建并升级 sufm 数据表结构与版本标记 |
+| `Schema` | src/UserFiles/Schema.php:24 |  | 5 / 7 | 42 / 2 |  | 创建并升级 sufm 数据表结构与版本标记 |
 | `Settings` | src/UserFiles/Settings.php:21 |  | 14 / 16 | 33 / 4 |  | 读取并收敛 sufm_settings 与用户配额覆盖 |
 | `Space_Page` | src/UserFiles/Admin/Space_Page.php:27 |  | 5 / 6 | 1 / 22 | 5 | 注册 Zibll 标签页的设置组、资源与视图 |
 | `Space_Panel` | src/UserFiles/Space_Panel.php:23 |  | 10 / 11 | 2 / 10 | 3 | 服务端渲染前端空间面板并加载资源 |
@@ -1339,11 +1343,24 @@ Space_Panel::build_data()（src/UserFiles/Space_Panel.php:112）先取 $plans/$m
 
 **边界**：
 
-1. 只支持 TinyMCE iframe。面板准入的写作屏目前使用 iframe 版编辑器；块编辑器、纯 textarea 或没有 iframe 的构建不会显示投放层，`showDropzone()` 会直接返回，右键「插入」仍走 TinyMCE 的 `mceInsertContent`，在没有编辑器的页面上只会 toast。
+1. 面板只认 TinyMCE iframe。块编辑器 `/wp-admin/post-new.php` 根本不会加载 editor-picker 资源（`Context::is_screen()` 在 `is_admin()` 直接返回 false），不是「进入了但只 toast」；纯 textarea（`wp_editor` 的 `tinymce=false`）会挂载面板，但 `activeEditor()` 为空，插入只 toast「找不到编辑器，请点一下正文再试」，也不会出现拖入投放层。详见 §8.10.7。
 2. 投放层只覆盖 iframe。拖到页面其他区域不会插入，也不会移动文件；移动文件仍要把文件拖到文件夹行/面包屑上（`.is-drop-target`）。
-3. 多选顺序来自选中集合的枚举顺序，不是屏幕上的视觉顺序；插入时又按「图片优先、其余随后」分组，所以最终顺序可能与勾选顺序不完全一致。这是既有 `insert()` 的排序规则，本轮没有改。
+3. 多选插入不是屏幕视觉顺序。选择模型保留勾选顺序（Shift 连选仍按当前渲染顺序），但 `insert()` 先把图片按勾选顺序放前面，再把其余按勾选顺序放后面；因此「非图片先勾、图片后勾」时，最终正文顺序会与勾选顺序不同。详见 §8.10.7。
 4. 无头 Chrome 的鼠标事件无法触发真实 HTML5 `dragstart`；§10.13 的拖拽记录用合成 `DragEvent` 与 CDP `Input.dispatchDragEvent` 覆盖，真实鼠标拖拽由用户在测试站手动确认（m05324）。
 5. 本次没有改 REST、数据库、cron 或 PHP 类方法；新增的只是一个图标 symbol、三条文案键和前端逻辑。图谱不收录 JS 函数，因此节点/边/钩子都不变（§13）。
+
+#### 8.10.7 覆盖与插入顺序复核（1.24.2）
+
+2026-11-09 在测试站 `/newposts` 用真实附件补测。测试文件夹 7 个文件：文件行 424/423/422/421/420/419 分别对应附件 229/228/227/226/225/224（`conc-d`…`conc-s`），418 对应 ZIP 附件 222。
+
+| # | 场景 | 操作 | 结果 |
+|---:|---|---|---|
+| A | 两张图片反 DOM 顺序 | 正文只留 `<p>ORDER:</p>`；Ctrl 点 419（`conc-s`，附件 224）再点 424（`conc-d`，附件 229），点「插入 2 个」 | 正文为 `<p>ORDER:</p>` + `img data-edit-file-id=224` + `img data-edit-file-id=229`；顺序按勾选 419→424，不是 DOM 的 424→419 |
+| B | 图片 + ZIP 混选 | 正文只留 `<p>MIX:</p>`；Ctrl 依次点 419（图片）、418（ZIP，附件 222）、424（图片） | 正文为 `img 224` → `img 229` → ZIP 下载块 `data-download-file=222`；图片保持 224→229，非图片排最后，证明 `insert()` 的 `images.concat(others)` 分组生效 |
+| C | 纯 textarea | 临时 mu-plugin 把 `wp_editor_settings` 的 `tinymce`/`quicktags` 设为 false，访问 `/newposts?sufm_textarea=1` | 面板仍挂载（`window.SUFMPicker=true`、7 个文件），但 `tinymce.get('post_content')=false`、无 `#post_content_ifr`；勾选 424 后插入只 toast「找不到编辑器，请点一下正文再试」，textarea 值仍是 `TEXTAREA-BEFORE`；派发 `sufm:drag-files` 前后都没有 `.sufm-editor-drop` |
+| D | 块编辑器 | 打开 `/wp-admin/post-new.php` | `body` 有 `block-editor-page`，但 editor-picker 的 `script`/`link` 均未加载，`#sufm-picker` / `#sufm-app` 不存在；面板不可达，不是「只 toast」 |
+
+结论：**块编辑器不加载面板；纯 textarea 会加载面板但无法插入；TinyMCE 的插入顺序是「图片优先，组内保留勾选顺序」**。临时 mu-plugin 与 `?sufm_textarea=1` 参数已删除，`/newposts` 恢复 TinyMCE iframe；测试没有保存文章或写数据库。
 
 ### 8.11 文件面板快捷多选（1.24.1）
 
@@ -1536,7 +1553,7 @@ Space_Panel::build_data()（src/UserFiles/Space_Panel.php:112）先取 $plans/$m
 
 **边界声明**：生产环境为**只读验证**——只执行查询、纯函数调用与 GET 请求，没有触发任何写路径。日常命令都在测试站 `/root/sio-e2e` 执行，插件以软链挂载到 `/root/work/sakura-tools`（同一份代码）。测试站上另补做了一次写验证：2026-11-08 的 5 张并发上传（§10.6），数据只落在测试站自己的 MariaDB 与 MinIO，未触及生产。
 
-> **版本说明**：§10.1 的版本号已在 2026-11-09 复核为 1.24.2；§10.4–§10.12 的命令与输出仍记录于 1.22.8（2026-11-08），§10.13 记录于 1.23.0（提交 `2fec6a3`），§10.14 记录于 1.24.0（提交 `1f88ca8`），§10.15 记录于 1.24.1（提交 `427101c`），§10.16 记录于 1.24.2（代码基线 `dfb3cf4`，运行期版本随后提升）。1.24.0 相对 1.23.0 增加支付方式勾选、积分独立开关、对账退避与 `wp sufm grants`，改变的是 `src/UserFiles` 的方法与 CLI，不改变路由、钩子集合或数据表；写验证只覆盖对账与回填，没有重跑上传/删除/退款链路。1.24.1 只改文件面板的 JS/CSS/视图与文案，没有改 PHP 类方法、路由、钩子、表或 REST，因此 §10.4–§10.14 的历史记录无需重跑；1.24.2 只增加只读运维入口与指标，没有改上传、删除、同步的业务写路径。表格里出现的旧 `?ver=` 是当时观测值。
+> **版本说明**：§10.1 的版本号已在 2026-11-09 复核为 1.24.3；§10.4–§10.12 的命令与输出仍记录于 1.22.8（2026-11-08），§10.13 记录于 1.23.0（提交 `2fec6a3`），§10.14 记录于 1.24.0（提交 `1f88ca8`），§10.15 记录于 1.24.1（提交 `427101c`），§10.16 记录于 1.24.2（代码基线 `dfb3cf4`，运行期版本随后提升），§10.17 的三条验证补测同样记录于 1.24.2。1.24.3 只改卸载删表循环与回归测试，没有新增类、方法、钩子、REST 路由或数据表。1.24.0 相对 1.23.0 增加支付方式勾选、积分独立开关、对账退避与 `wp sufm grants`，改变的是 `src/UserFiles` 的方法与 CLI，不改变路由、钩子集合或数据表；写验证只覆盖对账与回填，没有重跑上传/删除/退款链路。1.24.1 只改文件面板的 JS/CSS/视图与文案，没有改 PHP 类方法、路由、钩子、表或 REST，因此 §10.4–§10.14 的历史记录无需重跑；1.24.2 只增加只读运维入口与指标，没有改上传、删除、同步的业务写路径。表格里出现的旧 `?ver=` 是当时观测值。
 
 ### 10.1 环境与激活状态
 
@@ -1544,7 +1561,7 @@ Space_Panel::build_data()（src/UserFiles/Space_Panel.php:112）先取 $plans/$m
 $ cd /root/sio-e2e && ./e2e.sh wp plugin get sakura-tools --fields=name,status,version
 name:      sakura-tools
 status:    active
-version:   1.24.2
+version:   1.24.3
 ```
 
 WordPress 核心与 PHP 版本、MariaDB 127.0.0.1:13316、MinIO 127.0.0.1:19010 均正常；后台 `admin` 可登录（用于 §10.4 的路由检查）。
@@ -1612,7 +1629,7 @@ sufm_routes=45 endpoints=51
 | 11 | `Uninstaller::monitoring_options()` | 3 | 3 | ✅ |
 | 12 | `Space_Rules::limit_for(1)` + `Quota::snapshot(1)` | 512 MB 档 | limit 536,870,912；used 22,389,628；quota 536,870,912；available 514,481,284 | ✅ used + available = quota |
 
-**未验证（受只读边界所限）**：配额扣减（`Quota::commit`）、删除审核（`Requests::approve` → `Executor::run`）、卸载清理（`Uninstaller`）。正文中凡涉及这三条路径的描述均为**静态阅读**。上传 → S3 PUT 已在测试站跑通（§10.6），但生产环境从未执行。
+**补测（2026-11-09）**：配额扣减（`Quota::commit`）、删除审核（`Requests::approve` → `Executor::run`）、卸载清理（`Uninstaller`）三条已在 §10.17 运行验证，不再是只有静态阅读；生产环境仍从未执行这三条写路径（生产只读）。上传 → S3 PUT 已在测试站跑通（§10.6），生产同样未执行。
 
 ### 10.6 并发上传与钩子消费方（补充验证，2026-11-08）
 
@@ -1929,9 +1946,9 @@ WHERE order_num = %s AND state = 'refund_pending' AND updated_at <= %s
 
 **F. 边界**
 
-- 只覆盖 TinyMCE iframe。块编辑器、纯 textarea 或无 iframe 的编辑器不会出现投放层；右键「插入」在那种页面上只会 toast。
+- 只覆盖 TinyMCE iframe。块编辑器 `/wp-admin/post-new.php` 不加载面板（不是「只 toast」）；纯 textarea 会加载面板，但插入只 toast「找不到编辑器，请点一下正文再试」，也不会出现投放层。详见 §8.10.7。
 - 投放层只覆盖 iframe。拖到页面其他区域不会插入，也不会移动文件；移动文件仍要拖到文件夹行或面包屑的 `.is-drop-target` 上。
-- 多选顺序来自选中集合的枚举顺序，不是屏幕上的视觉顺序；插入时又按「图片优先、其余随后」分组，所以最终顺序可能与勾选顺序不完全一致。这是既有 `insert()` 的排序规则，本轮没有改。
+- 多选插入不是屏幕视觉顺序。选择模型保留勾选顺序，但 `insert()` 先把图片按勾选顺序放前面，再把其余按勾选顺序放后面；因此「非图片先勾、图片后勾」时，最终正文顺序会与勾选顺序不同。这是既有 `insert()` 的排序规则，本轮没有改。
 - 本节没有执行真实上传、删除、REST 写或数据库写；所有验证只发生在测试站的前端 DOM 与编辑器内容里。
 - 批量条 `insertBefore` 异常是编辑页 fork 的既有 bug，不是 1.23.0 引入；它只在取消选择或插入后清空勾选时触发，修复见 §8.10.5。
 
@@ -2052,6 +2069,76 @@ WHERE order_num = %s AND state = 'refund_pending' AND updated_at <= %s
 
 **E. 清理与边界**：守卫探针行已删除，上传事件表保持 0 行；没有修改任何 option；测试站 Web 进程仅用于本次 HTTP 验证。验证时生产 `/www/wwwroot/www.nboke.com/.../sakura-tools` 仍停在 1.24.1 部署提交，未执行本轮代码；1.24.2 发布会把本节代码与版本号一并推送并部署，运行行为与本节记录的代码基线 `dfb3cf4` 一致。
 
+### 10.17 三条验证空白的运行期补测（1.24.2，2026-11-09）
+
+验证环境：测试站 `/root/sio-e2e`（站点 `https://demo.77il.cn`，插件软链 `/root/work/sakura-tools`，版本 1.24.2，管理员 ID 1，表前缀 `t_`）。生产站只读，未执行任何写操作。临时用户、附件、文件行、删除请求/批次/任务、扫描行、临时目录与 mu-plugin 均已在结束时清理；测试站文件面板原有文件保留。卸载轨道 A 在测试站执行后已恢复数据（15 张 `t_sufm_*`、`t_sufm_files` 222 行、`t_sufm_file_tokens` 3,107 行），主页、`/newposts`、`/user/files` 均返回 200。
+
+**A. `Quota::reserve` / `commit` / `release`**
+
+测试用户 ID 34，初始 `Quota::snapshot(1)` 为 used 0 / reserved 0 / revision 0 / quota 536,870,912。
+
+| 步骤 | 调用 | 结果 |
+|---:|---|---|
+| 1 预留 1 MiB | `reserve()` | 返回 `id=67`、`fence=1`、`bytes=1,048,576`；`reserved=1,048,576`、`available=535,822,336` |
+| 2 部分提交 | `commit(67, 800000)` | `true`；`used=800,000`、`reserved=0`、`revision=2`、`available=536,070,912`；reservation 为 `committed`、`bytes=800000` |
+| 3 重复提交 | 同 ID 再 `commit()` | `false`；ledger 仍是 `used=800000`、`revision=2`，没有二次扣减 |
+| 4 超配额提交 | 再预留 1 MiB，`commit(id, quota+1)` | `false`；`used=800000`、`reserved=1,048,576`、`revision=3`；reservation 仍为 `reserved`，整笔事务回滚 |
+| 5 释放 | `release()` | `reserved=0`、state `released`、`revision=4` |
+| 6 清理 | 删除 reservations / 重置 usage / 删用户 | 全部为 0 |
+
+结论：成功提交、部分计费、重复提交拒绝、超配额回滚与释放均与 `src/UserFiles/Services/Quota.php:168`、`:336`、`:418` 的静态行为一致。
+
+**B. `Requests::approve` → `Executor::preview/confirm/tick`**
+
+首次探针在 `wp_insert_attachment()` 后手工 `Files::create()` 触发 UNIQUE：`Media_Hooks::assign_uploaded()` 已自动 adopt 同一附件（`src/UserFiles/Media/Media_Hooks.php:933`）。给探针加 `sufm_skip_attachment_adoption` 过滤器后通过；这是探针与既有钩子的配合问题，不是产品缺陷。
+
+测试数据：临时用户 36、1×1 PNG 附件 236、`t_sufm_files` 行 433、`source=media`、`charged_bytes=123456`；手工 `Quota::adjust_used(36,123456)` 后 usage 为 `used=123456/revision=1`。
+
+| 步骤 | 结果 |
+|---|---|
+| `Requests::create(owner=36, requester=36, file 433, notice_version=2026-10-31, confirmed=true)` | request 1、`pending_review`；item 1；file 的 `pending_request_id=1` |
+| `Requests::approve(request, 1)` | `true`；request `approved`、`reviewer_id=1`、`approval_revision=1`；item 仍是 `pending_review`（审批只冻结 manifest，`confirm` 才 queued） |
+| `Executor::preview([1])` | hash `d6b5915c46057bcb005f46f6433df65609dd3a7a57af75ac1a5a4a7c299ebffb`；items 1、bytes 123456 |
+| `Executor::confirm([1],1,'删除',hash)` | batch 1、job 1；request `queued` |
+| `Executor::tick(10)` | processed 1；附件不存在；request `completed`；item `done/result=purged`；file `purged/deleted`；usage `used=0/reserved=0/revision=2`；batch `completed`；job `succeeded`；events 2 |
+| 清理 | request / file / attachment / 用户 36 全删；测试站 `t_sufm_files` 回到基线 |
+
+结论：审核 → 冻结 → 预览 hash → 确认 → 删除执行 → 配额回冲 → 请求/批次/任务收尾的整条链路在测试站跑通，与 `Requests.php:738`、`Executor.php:154`、`:441`、`:782` 的静态阅读一致。
+
+**C. `Uninstaller` 两轨**
+
+修复前 `src/Uninstaller.php:146-153` 的 `drop_sufm_tables()` 硬编码 14 张表：folders、files、usage、reservations、artifacts、delete_requests、delete_request_items、delete_batches、jobs、events、notifications、rate_limits、media_operations、space_grants；`src/UserFiles/Schema.php:41-60` 的 `tables()` 是 15 张，多出 `file_tokens`（定义在 `Schema.php:256-261`，字段只有 `file_id` 与文件名 bigram `token`）。
+
+| 轨道 | 预置 | 执行后 |
+|---|---|---|
+| A 显式删除数据（修复前） | `sakura_imgopt_delete_data_on_uninstall=1`；15 张 sufm 表，`t_sufm_file_tokens` 3,117 行 | `t_sio_*` 0；其余 14 张 sufm 表删除；**只剩 `t_sufm_file_tokens`，仍 3,117 行**；s3_options / version / sufm_settings / sufm_space_settings / sufm_schema_version 等删除；upload_url_path/upload_path 恢复；postmeta/usermeta/备份目录清空 |
+| B 默认保留数据 | 同一份 15 张表；`delete_data` 为 0 | 15 张 sufm 表保留；`t_sio_*` 0；持久 option、postmeta、usermeta、备份目录保留；cache/transient 清除；能力撤销；cron 清空 |
+
+轨道 A 的结果与静态清单完全对应：修复前**卸载的显式删除路径漏删 `file_tokens`**，3,117 条文件名搜索 token 留在库里。根因是删表清单与 `Schema::tables()` 各自维护、已经漂移。该缺陷登记在 §12.7，随后由 1.24.3 修复：`drop_sufm_tables()` 改为直接遍历 `Schema::tables()`（`src/Uninstaller.php:150-154`），并补 `tests/UninstallerTest.php:55-95` 的 fake-wpdb 回归测试。隔离站复跑结果：15 张 `t_sufm_*`（`t_sufm_file_tokens` 3,117 行）→ 0 张，`t_sio_*` 也 0；随后从 dump 恢复样本库。两轨最初都在测试站执行，生产未执行卸载。
+
+**D. `Scan_Service` 的损坏游标**
+
+临时扫描根 `/tmp/scan-probe-local` 有 4 个文件 26 字节：`a.txt`（3 B）、`b.jpg`（5 B）、`sub/c.png`（7 B）、`sub/d.txt`（11 B）。用 Reflection 直接调用私有 `local_phase()`，避免进入远端阶段；每个用例先插一条 `t_sio_sync_scans`（phase=local、state=running），跑完清理。
+
+| 用例 | 预置 scan_cursor | 结果 |
+|---:|---|---|
+| 1 JSON 损坏 | `{not-json`，processed=7、local_bytes=999 | 无 `WP_Error`；done=true、files=4、bytes=26；processed=4、local_bytes=26；cursor 变为 `{"d":["sub"],"a":"d.txt"}`；index 4 行合计 26 B |
+| 2 顶层目录被删 | `{"d":["gone"],"a":"x.txt"}`，processed=99、local_bytes=1234 | 同样 done=true/4/26，processed=4，cursor 正常 |
+| 3 嵌套目录被删 | `{"d":["sub","missing"],"a":"x.txt"}`，processed=55、local_bytes=777 | 同样 done=true/4/26，processed=4 |
+
+三种损坏都被 `local_phase()` 的第一次 `cursor_missing` 分支重置为空游标并从根重扫，不会把旧的 processed/local_bytes 叠加到新结果。**未构造出双失败分支**：如果重置后 `walk_local()` 仍失败，代码会返回 `WP_Error('sio_local_cursor')`；当前 root 环境无法让 `scandir` 失败，这一段仍只有静态阅读。
+
+**E. 编辑页覆盖与插入顺序**
+
+详细操作与 DOM 结果见 §8.10.7，摘要：TinyMCE 下按勾选 419→424 插入附件 224→229；勾选图片 419、ZIP 418、图片 424 时，正文为 224→229→ZIP 222，证明图片优先且组内保留勾选顺序。纯 textarea（临时 mu-plugin 设 `tinymce=false`）会挂载面板，但插入只 toast「找不到编辑器，请点一下正文再试」，textarea 不变，派发 `sufm:drag-files` 也没有投放层。块编辑器 `/wp-admin/post-new.php` 根本没有加载 editor-picker 的 script/link，`#sufm-picker` 不存在，属于不可达而非只 toast。临时 mu-plugin 已删除，页面恢复 TinyMCE iframe；没有保存文章或写库。
+
+**F. 边界**
+
+- 三条生产写路径（Quota 提交、删除审核执行、卸载）仍只在测试站运行；生产保持只读，不能把本节当作生产演练记录。
+- 扫描游标的“重置后再次失败”分支仍只有静态阅读；其余三种损坏路径已有运行证据。
+- 卸载漏删 `file_tokens` 是实测缺陷，已由 1.24.3 修复并在隔离环境复跑 15 张表→0；生产仍未执行卸载，不能把本节当作生产演练记录。
+- 1.24.2 补测轮没有改插件代码；1.24.3 只改卸载删表循环与测试，没有新增类、方法、钩子、REST 路由或数据表。
+
 ## 11. 依赖关系与图谱口径
 
 ### 11.1 模块依赖矩阵（类级引用边计数）
@@ -2066,7 +2153,7 @@ WHERE order_num = %s AND state = 'refund_pending' AND updated_at <= %s
 | Thumbnail |  | 1 |  |  |  |  |  |  |  | 2 |  |  |  |  |  |  |  |
 | Image |  |  | 9 |  |  |  |  |  |  |  |  | 22 |  | 9 |  | 2 |  |
 | Admin | 9 |  |  |  |  |  |  |  |  |  |  | 3 |  |  | 3 |  |  |
-| src | 7 | 24 | 10 | 20 |  | 1 |  | 7 |  |  | 1 |  |  | 2 | 3 | 1 | 1 |
+| src | 9 | 24 | 10 | 20 |  | 1 |  | 7 |  |  | 1 |  |  | 2 | 3 | 1 | 1 |
 | Oss |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |
 | Backup |  |  | 4 |  |  |  |  |  |  |  |  | 1 |  |  |  |  |  |
 | Contracts |  |  |  |  |  |  |  |  |  |  |  |  |  |  | 1 |  |  |
@@ -2121,7 +2208,7 @@ WHERE order_num = %s AND state = 'refund_pending' AND updated_at <= %s
 
 ## 12. 待确认项与已确认缺陷
 
-截至 2026-11-09（1.24.2），正文没有「只有结论、没有代码位置或运行证据」的待确认项，也没有未修复的高/中优先代码缺陷。1.24.0 关闭了三件事：支付方式改为后台勾选、积分入口有独立开关；每日对账改为租约 + 指数退避；历史 `order:` 授权提供手动审计/回填命令。1.24.1 完成文件面板快捷多选与列表复选框护栏，1.24.2 补充 S3/Sync 运维观测（health、守卫分页/计数、四个只读 Prometheus gauge）；两批都没有新增待确认项，也没有改变下面已接受的边界。`refund_failed` 仍坚持人工处理，这是有意保留的资金安全边界，不是遗漏。下面保留的是有意接受的边界。
+截至 2026-11-09（1.24.3），正文没有「只有结论、没有代码位置或运行证据」的待确认项，也没有未修复的高/中优先代码缺陷；1.24.2 补测发现的卸载漏删 `{prefix}sufm_file_tokens` 已在 1.24.3 修复（§12.7）。1.24.0 关闭了三件事：支付方式改为后台勾选、积分入口有独立开关；每日对账改为租约 + 指数退避；历史 `order:` 授权提供手动审计/回填命令。1.24.1 完成文件面板快捷多选与列表复选框护栏，1.24.2 补充 S3/Sync 运维观测（health、守卫分页/计数、四个只读 Prometheus gauge），并补测了三条验证空白（§12.6）；这些批次没有新增其它待确认项，也没有改变下面已接受的边界。`refund_failed` 仍坚持人工处理，这是有意保留的资金安全边界，不是遗漏。下面保留的是有意接受的边界。
 
 ### 12.1 1.24.0 关闭与核对
 
@@ -2172,6 +2259,28 @@ WHERE order_num = %s AND state = 'refund_pending' AND updated_at <= %s
 
 《图谱同步说明》§10.3 记录的「181 vs 178 文件数」是旧导出排除规则未留档造成的**图谱口径差异**，与当前插件代码行为无关；当前图谱数字以 §13 的最新扫描为准。它保留在图谱文档的已知局限中，不计入本节。
 
+### 12.6 三条验证空白已关闭（2026-11-09）
+
+| 原空白 | 补测方式 | 结果 |
+|---|---|---|
+| 生产写路径只有静态阅读：`Quota::commit`、`Requests::approve` → `Executor::run`、`Uninstaller` | 测试站执行；生产仍只读 | Quota 完成预留/部分提交/重复拒绝/超配额回滚/释放；删除审核→预览→确认→tick 全链路完成，附件删除、配额回冲、request/batch/job 收尾；卸载两轨（显式删数据、默认保留）均执行；显式删除轨道发现的 `file_tokens` 残留已在 1.24.3 修复 |
+| `Scan_Service.php:376-383` 的 cursor 损坏/目录被删分支未构造 | 临时扫描根 4 文件 26 B，三种损坏游标 | 损坏 JSON、顶层目录被删、嵌套目录被删都自动重置为空游标并从根重扫，结果 4 文件 26 B；重置后再次失败的分支仍只有静态阅读 |
+| 编辑页只覆盖 TinyMCE iframe；多选顺序不等于视觉顺序 | `/newposts` 真实附件 + 临时 textarea mu-plugin + 块编辑器 | TinyMCE 正常；纯 textarea 挂载面板但只 toast、无投放层；块编辑器不加载面板（不可达）；插入是「图片优先，组内保留勾选顺序」 |
+
+详细命令、数据与清理记录见 §10.17；编辑器 DOM 证据见 §8.10.7。三条空白不再是“只有静态阅读”，但生产环境的写路径仍未执行。
+
+### 12.7 已修复缺陷：卸载漏删 `file_tokens`（1.24.3）
+
+| 项 | 内容 |
+|---|---|
+| 现象（修复前） | `sakura_imgopt_delete_data_on_uninstall=1` 时，`Uninstaller::drop_sufm_tables()` 只删除 14 张 `{prefix}sufm_*`，`{prefix}sufm_file_tokens` 保留 |
+| 证据（修复前） | `src/Uninstaller.php:146-153` 的硬编码清单没有 `file_tokens`；`src/UserFiles/Schema.php:41-60` 的 `tables()` 有 15 张，其中 `file_tokens` 在 `:46`、建表语句在 `:256-261`。测试站轨道 A 执行前 15 张表、`t_sufm_file_tokens` 3,117 行；执行后只剩这一张表，仍 3,117 行，`t_sio_*` 为 0，其余 14 张已删 |
+| 影响 | 修复前，用户显式选择“卸载时删除数据”后，文件名 bigram 搜索 token 仍留在数据库；它不含附件正文，但属于未按预期删除的派生数据，可能泄露文件名片段。附件本体是否删除由 WordPress 媒体库流程决定，与本表无关 |
+| 根因 | 删表清单与 `Schema::tables()` 各自维护，新增 `file_tokens` 时只更新了 Schema，没有同步 Uninstaller |
+| 修复 | `drop_sufm_tables()` 改为遍历 `Nboke\UserFiles\Schema::tables()`（`src/Uninstaller.php:150-154`），不再维护第二份清单；新增 `tests/UninstallerTest.php:55-95`，用 fake `$wpdb` 断言 DROP 数量等于 `Schema::tables()` 并显式包含 `t_sufm_file_tokens`；代码提交 `20be449`（2 files +48/-1） |
+| 验证 | 全量 `427 tests / 1,296 assertions / 5 skipped`、PHPStan 无错误、PHPCS 通过；`UninstallerTest` 5 tests / 23 assertions；隔离站 `/tmp/sio-uninstall-site` + 库 `sio_uninstall_probe` 复跑轨道 A：15 张 `t_sufm_*`（3,117 token）→ 0 张，`t_sio_*` 也 0，随后从 dump 恢复样本库（§10.17-C） |
+| 当前状态 | **已修复并提交 `20be449`**，并入 1.24.3 发布；生产仍未执行卸载，因此没有已发生的生产残留。以后再新增 `sufm_*` 表时只需更新 `Schema::tables()`，卸载会跟随 |
+
 ---
 
 ## 13. 3D 图谱同步说明
@@ -2181,21 +2290,23 @@ WHERE order_num = %s AND state = 'refund_pending' AND updated_at <= %s
 | 项 | 本次结果 |
 |---|---|
 | 节点 | 180 = 163 类 + 17 模块（类集合未变） |
-| 连线 | **822** = 609 `ref` + 50 `modref` + 163 `contains` |
+| 连线 | **823** = 610 `ref` + 50 `modref` + 163 `contains` |
 | 钩子 | 191（面板显示，不建节点） |
 | 悬空边 | 0 |
-| 本轮变更 | **新增 7 条 `ref`**：`S3_CLI → Upload_Metrics`(1)、`S3_CLI → Delete_Jobs`(4)、`S3_CLI → Sync\Index_Repository`(1)、`S3_CLI → Sync\Metrics`(2)、`Prometheus → Delete_Jobs`(3)、`Prometheus → Sync\Index_Repository`(2)、`Prometheus → Remote_Operation_Guard`(2)；权重变化：`S3_CLI → Remote_Operation_Guard` 3→10，模块边 `includes → src/S3` 40→43、`includes → src/Sync` 4→7、`src/S3 → src/Sync` 33→35。`S3_CLI` 的 `val` 3.577708763999664→3.919183588453085（新增 1 个公开方法），`Remote_Operation_Guard` 的 `val` 3.577708763999664→4.233202097703345（新增 2 个公开方法），`Prometheus` 文件起始行 24→25（新增 `use`，`val` 不变） |
-| 数据来源 | 本轮重新扫描的 1.24.2 工作树事实表（codegraph `scanner.php` 输出，基线 `dfb3cf4`）——由 `docs/tools/collect-comments.php` 生成类注释，与本文所有表格同源 |
+| 本轮变更 | **新增 1 条 `ref`**：`Uninstaller → Schema`(2)；模块边 `src → src/UserFiles` 7→9。节点、类、钩子、表集合均未变；`Uninstaller` 只新增 1 行 `use` 并改写删表循环，公开方法数未变，`val` 不变 |
+| 数据来源 | 本轮重新扫描的 1.24.3 工作树事实表（codegraph `scanner.php` 输出，基线 `20be449`）——由 `docs/tools/collect-comments.php` 生成类注释，与本文所有表格同源 |
 
-本轮没有新增/删除类、模块或钩子，节点仍 180（163 类 + 17 模块）、钩子仍 191，连线由 815 增至 822。生产 PHP 文件 178 个 / 61,424 行，其中 `src/UserFiles` 21,838 行、`includes` 6,097 行、`src/S3` 10,902 行、`includes/views` 4,828 行；新增的公开方法在 `S3_CLI` 与 `Remote_Operation_Guard`，所以这两个节点 `val` 变大。编辑页 JS/CSS 不是图谱对象。
+1.24.3 没有新增/删除类、方法、模块或钩子，节点仍 180（163 类 + 17 模块）、钩子仍 191，连线由 822 增至 823。生产 PHP 文件 178 个 / 61,425 行（`src` 由 759 增至 760），其中 `src/UserFiles` 21,838 行、`includes` 6,097 行、`src/S3` 10,902 行、`includes/views` 4,828 行。新增边来自 `Uninstaller` 对 `Schema::tables()` 的直接调用；`Uninstaller` 的公开方法数未变，节点 `val` 不变。编辑页 JS/CSS 不是图谱对象。
 
 `fast-search.php` 是脚本型文件，本来就不进入图谱；`Space_Store` 的字段缺陷已在 §8.9 修复，不再是未修复缺陷。
+
+**2026-11-09 上一轮验证回写（1.24.2，无代码变化）**：那一轮只修改 §8.10.7、§10.17、§12.6–§12.7 与《图谱同步说明》，没有改插件代码、类、方法、钩子或数据表；图谱当时仍是 180 节点 / 822 连线（609 `ref` + 50 `modref` + 163 `contains`）/ 191 钩子 / 0 悬空边。
 
 **生成与注入脚本**（都在 `docs/tools/`，可重复执行）：`build-code-structure.mjs`（事实表 → 表格 + graph.json）、`graph-inject.mjs`（graph.json → index.html 内嵌 DATA，含悬空边校验）、`assemble-doc.py`（分章 + 表格 → 本文）。完整命令见《图谱同步说明》§7。
 
 **与文档的对应关系**：每个类节点在正文里都有一条同名记录——附录 A 给 `文件:行`，所属章节的表给职责与方法数；模块节点对应 §2.2 的模块总览。**改代码后重跑一次生成器，表格与图谱同时更新**，这是两者不脱节的机制保证。
 
-详细的操作步骤、本次新增/修改的节点与连线清单、一致性核对项，见配套文档 **`docs/sakura-tools-图谱同步-1.24.2.md`**。
+详细的操作步骤、本次新增/修改的节点与连线清单、一致性核对项，见配套文档 **`docs/sakura-tools-图谱同步-1.24.3.md`**。
 
 ---
 
@@ -2365,7 +2476,7 @@ WHERE order_num = %s AND state = 'refund_pending' AND updated_at <= %s
 | 160 | `Sakura\ImageOptimizer\Activation` | src/Activation.php:17 | 1 |
 | 161 | `Sakura\ImageOptimizer\Deactivation` | src/Deactivation.php:17 | 1 |
 | 162 | `Sakura\ImageOptimizer\Plugin` | src/Plugin.php:42 | 3 |
-| 163 | `Sakura\ImageOptimizer\Uninstaller` | src/Uninstaller.php:23 | 10 |
+| 163 | `Sakura\ImageOptimizer\Uninstaller` | src/Uninstaller.php:24 | 10 |
 
 ## 附录 B：钩子索引（191 条，按模块分组）
 
@@ -2741,7 +2852,7 @@ WHERE order_num = %s AND state = 'refund_pending' AND updated_at <= %s
 | src/Thumbnail/Stats.php | src/Thumbnail | 192 | `Stats` |
 | src/Thumbnail/Theme_Bridge.php | src/Thumbnail | 79 | `Theme_Bridge` |
 | src/Thumbnail/Theme_Cache.php | src/Thumbnail | 229 | `Theme_Cache` |
-| src/Uninstaller.php | src | 365 | `Uninstaller` |
+| src/Uninstaller.php | src | 366 | `Uninstaller` |
 | src/UserFiles/Admin/Page.php | src/UserFiles | 192 | `Page` |
 | src/UserFiles/Admin/Space_Page.php | src/UserFiles | 274 | `Space_Page` |
 | src/UserFiles/Capabilities.php | src/UserFiles | 155 | `Capabilities` |

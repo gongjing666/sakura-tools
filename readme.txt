@@ -4,7 +4,7 @@ Tags: image optimization, webp, avif, imagick, media library
 Requires at least: 6.4
 Tested up to: 7.1.4
 Requires PHP: 8.2
-Stable tag: 1.24.2
+Stable tag: 1.24.3
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -78,6 +78,11 @@ Access Key 和 Secret 会加密后存进数据库，页面和源码都不会显�
 插件目前没有接管这个跳转。等出现「既要防直链、又要保留购买校验」的需求时再研发，方向是在主题之前拦截下载请求，由插件代理输出或签发短时有效的预签名地址；若暂时需要这层保护，请关闭「上传后删除本地文件」，让文件保留在本地。
 
 == Changelog ==
+
+= 1.24.3 =
+* 修复：开启「卸载时删除数据」后，卸载会按 UserFiles\Schema 清空全部 15 张 sufm 表，不再残留文件名搜索 token 表 sufm_file_tokens。
+* 回归测试：新增由 Schema::tables() 驱动的卸载删表测试，覆盖 file_tokens。
+* 本次不改 REST、钩子、cron 或数据结构，只改卸载清理路径与测试。
 
 = 1.24.2 =
 * 对象存储/Sync 运维：新增只读 wp sakura-s3 health，汇总上传、删除队列、远端守卫与同步作业的 16 项指标。

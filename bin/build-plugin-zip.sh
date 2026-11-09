@@ -152,7 +152,7 @@ for required in \
 	includes/class-image-processor.php \
 	src/Plugin.php \
 	vendor/s3/vendor-prefixed/autoload.php; do
-	if ! printf '%s\n' "$LIST" | grep -qx "sakura-tools/$required"; then
+	if ! grep -qxF "sakura-tools/$required" <<< "$LIST"; then
 		echo "Package is missing required file: $required" >&2
 		exit 1
 	fi

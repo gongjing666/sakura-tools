@@ -4,7 +4,7 @@ Tags: image optimization, webp, avif, imagick, media library
 Requires at least: 6.4
 Tested up to: 7.1.4
 Requires PHP: 8.2
-Stable tag: 1.24.0
+Stable tag: 1.24.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -78,6 +78,12 @@ Access Key 和 Secret 会加密后存进数据库，页面和源码都不会显�
 插件目前没有接管这个跳转。等出现「既要防直链、又要保留购买校验」的需求时再研发，方向是在主题之前拦截下载请求，由插件代理输出或签发短时有效的预签名地址；若暂时需要这层保护，请关闭「上传后删除本地文件」，让文件保留在本地。
 
 == Changelog ==
+
+= 1.24.1 =
+* 文件面板：用户中心与编辑页都支持 Shift 连选、Ctrl/⌘ 点选、Ctrl/⌘A 全选与 Esc 清空；网格视图新增「全选 / 取消全选」按钮。
+* 文件面板：Shift 范围只加不减并跳过锁定文件；编辑页的插入条会随选区重建数量与顺序，不再与勾选状态脱节。
+* 修复 Shift/Ctrl 点击复选框时浏览器默认勾选状态覆盖选区的问题；列表行复选框固定为 14px 方框，圆形样式只保留给网格卡。
+* 本次只改前端、视图与文案，不改 REST、数据库、cron 或 PHP 类方法。
 
 = 1.24.0 =
 * 空间扩容：支付方式改为后台「支付方式」卡片显式勾选，默认只启用余额；未勾选的外部渠道不会出现在前台，也不能通过过滤器重新启用。积分入口改为独立开关，关闭后隐藏入口并拒绝兑换。

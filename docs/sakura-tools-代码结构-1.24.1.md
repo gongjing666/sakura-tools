@@ -1,9 +1,9 @@
 # 樱花工具箱（sakura-tools）代码结构分析报告
 
-> **版本** 1.24.0 ｜ **代码基线** commit `1f88ca8`（1.24.0 代码与测试；文档与图谱在随后提交）｜ **分析日期** 2026-11-09
+> **版本** 1.24.1 ｜ **代码基线** commit `427101c`（1.24.1 多选功能；版本号、文档与图谱在随后提交）｜ **分析日期** 2026-11-09
 > **分析对象** `/www/wwwroot/www.nboke.com/wp-content/plugins/sakura-tools`（生产副本；§6.8/§6.9 的代码变更已包含在基线提交中，其余阅读与运行期验证均为只读）
 > **测试环境** `/root/sio-e2e`（独立 WordPress + MariaDB 127.0.0.1:13316 + MinIO 127.0.0.1:19010），插件以软链方式挂载，行为与生产一致
-> **配套产物** 3D 图谱 `docs/graph-preview/index.html`（同源数据 `graph.json`）、生成器 `docs/tools/build-code-structure.mjs`、图谱说明 `docs/sakura-tools-图谱同步-1.24.0.md`
+> **配套产物** 3D 图谱 `docs/graph-preview/index.html`（同源数据 `graph.json`）、生成器 `docs/tools/build-code-structure.mjs`、图谱说明 `docs/sakura-tools-图谱同步-1.24.1.md`
 
 ---
 
@@ -41,7 +41,7 @@
 | 指标 | 数值 | 口径 |
 |---|---:|---|
 | 生产 PHP 文件 | **178** | 不含 `tests/`(71 文件) `stubs/`(2) `vendor/` `assets/`(JS/CSS) |
-| 生产 PHP 行数 | **61,215** | 同上，含空行与注释 |
+| 生产 PHP 行数 | **61,227** | 同上，含空行与注释 |
 | 类 / 接口 | **163** | 含 7 个接口；另有 64 个全局函数未计入图谱节点 |
 | 钩子注册 | **191** | 仅生产代码中的 `add_action`/`add_filter`，不含 `do_action` 触发点 |
 | 自定义数据表 | **23** | 15 张 `{prefix}sufm_*` + 6 张 `{prefix}sio_sync_*` + 2 张 `{prefix}sio_s3_*`（`sio_s3_deletes`、`sio_s3_upload_events`） |
@@ -60,8 +60,8 @@
 3. **模块契约极窄。** `src/Contracts/Module.php:23-31` 只有一个 `register_hooks(Hook_Loader): void`，且明确禁止在构造函数里挂 WP 钩子。所有钩子集中到 `src/Support/Hook_Loader.php`，先入队、`register()` 时一次性交付，**注册后新加的钩子立即生效**（`register_frontend` 依赖这个行为）。
 4. **后台信息架构是静态声明的。** `src/Admin/Registry.php:41-101` 用一张常量数组声明「模块 → tab → 权限门 → renderer key」；`Menu` 只做建屏与分发，`Shell` 只画外壳。**加一个 tab = 改 Registry + 注册 renderer 两处**，不需要动菜单代码。
 5. **功能面是 5 个子系统 + 3 条横切。** 子系统：图片优化管线（§4）、缩略图 URL 重写（§5）、对象存储 S3（§6）、同步索引 Sync（§7）、用户文件空间 UserFiles（§8）。横切：数据落点（§9）、钩子索引（§9.2）、REST/CLI/Cron（§9.3）。
-6. **代码量集中在两处。** UserFiles（46 文件 / 21,833 行）与 S3（36 文件 / 10,803 行）合计占生产代码的 53.3%；两者也是自定义表、加密凭据与补偿队列最集中的部分。
-7. **运行时可访问性已验证。** 11 条后台路由全部 200 且标题正确、45 条 `/sufm/v1` REST 路由（51 个端点）全部注册、7 个插件 cron 事件已排程、12 项函数级探针结果符合预期（§10）。**未验证**的是生产环境的写路径（配额扣减、删除审核、卸载清理）——生产保持只读。测试站上补做的写验证有三批：5 张并发上传（§10.6）跑通「上传 → 压缩 → S3 PUT → 索引落库」，4×200 条并发指标写入（§10.11）验证事件表零丢失，1.24.0 的对账失败退避与历史 grant 回填（§10.14）验证了退避序列、租约与字段白名单。
+6. **代码量集中在两处。** UserFiles（46 文件 / 21,838 行）与 S3（36 文件 / 10,803 行）合计占生产代码的 53.3%；两者也是自定义表、加密凭据与补偿队列最集中的部分。
+7. **运行时可访问性已验证。** 11 条后台路由全部 200 且标题正确、45 条 `/sufm/v1` REST 路由（51 个端点）全部注册、7 个插件 cron 事件已排程、12 项函数级探针结果符合预期（§10）。**未验证**的是生产环境的写路径（配额扣减、删除审核、卸载清理）——生产保持只读。测试站上补做的验证分四批：5 张并发上传（§10.6）跑通「上传 → 压缩 → S3 PUT → 索引落库」，4×200 条并发指标写入（§10.11）验证事件表零丢失，1.24.0 的对账失败退避与历史 grant 回填（§10.14）验证了退避序列、租约与字段白名单，1.24.1 的快捷多选（§10.15）在用户中心与编辑页分别通过 17/17、24/24 项浏览器断言。
 8. **两张"文档"已经过期，不要当作事实源。** `DEVELOPMENT.md` 第 1 节的"当前文件结构"停留在 1.3.3 的 6 个文件；`/root/WordPress/docs/sakura-image-optimizer-代码分析报告.md`（本机历史报告，未随仓库分发） 停在 1.9.0 之前的命名。本报告与 3D 图谱是当前唯一同步的产物；`DECISIONS.md` 仍然有效（记录的是"为什么"，不是"现在有什么"）。
 9. **文档与图谱同源，不会再脱节。** 两者都由同一份扫描事实表（来自 `dsh-codegraph` 的 `lib/scanner.php`）经 `docs/tools/build-code-structure.mjs` 生成。改代码后重跑一次命令即可同时刷新表格与图谱（§13.6）。
 10. **上传指标已从单 option 改为事件表。** 旧实现每次 `record_batch()` 读改写同一个 option，4 进程各写 200 条只留下 202 条（丢 75%）；现在每条结果独立 INSERT 到 `{prefix}sio_s3_upload_events`（`src/S3/Upload_Metrics.php:79`、`:149`），`snapshot()` 用 SQL 聚合（`:204`），成功与失败分别由 `sakura_imgopt_s3_uploaded` / `sakura_imgopt_s3_upload_failed` 采集（`src/S3/Upload_Observer.php:30-31`）。返回结构不变，旧 option 只作为冻结基线读取。详见 §6.9 与 §10.11。
@@ -72,7 +72,9 @@
 
 **上一轮更新（2026-11-09，1.23.0）**：编辑页文件面板新增拖拽跟手标签、拖到正文按落点插入、右键菜单「插入」。改动只落在编辑页 fork（`assets/editor-picker*.js/css`、`includes/views/editor-picker-app.php`、`src/UserFiles/Editor/Assets.php` 文案与图标）；用户中心 `assets/userfiles.*` 与 `Frontend/Tab.php` 的界面未改，只新增一个 `dragInsert` 文案键。没有新增类、路由、钩子或数据表，图谱拓扑仍 180 节点 / 814 连线 / 191 钩子；生产总行数 60,468，UserFiles 21,174。详见 §8.10、§10.13。
 
-**本轮更新（2026-11-09，1.24.0）**：空间扩容支付入口改为后台勾选（默认仅 `balance`，积分有独立开关，`sufm_space_allowed_payment_methods` 只能收窄）；每日对账改为租约 + 900/1800/3600/7200/14400/21600 秒指数退避，失败不再空等 24 小时；新增 `wp sufm grants` 历史 `order:` 授权审计/回填，默认 dry-run，`--apply` 才写。生产仍 178 文件 / 163 类 / 191 钩子 / 23 张表，但总行数 61,215（UserFiles 21,833、`includes/views` 4,821）；图谱 180 节点 / **815** 连线，新增 `CLI → Space_Store` 一条 `ref`，`Space_Store → Space_Settings` 权重 22、`Space_Store → Space_Rules` 权重 48。`refund_failed` 仍坚持人工处理，本轮没有自动复活。详见 §8.9、§10.14。
+**上一轮更新（2026-11-09，1.24.0）**：空间扩容支付入口改为后台勾选（默认仅 `balance`，积分有独立开关，`sufm_space_allowed_payment_methods` 只能收窄）；每日对账改为租约 + 900/1800/3600/7200/14400/21600 秒指数退避，失败不再空等 24 小时；新增 `wp sufm grants` 历史 `order:` 授权审计/回填，默认 dry-run，`--apply` 才写。生产仍 178 文件 / 163 类 / 191 钩子 / 23 张表，但总行数 61,215（UserFiles 21,833、`includes/views` 4,821）；图谱 180 节点 / **815** 连线，新增 `CLI → Space_Store` 一条 `ref`，`Space_Store → Space_Settings` 权重 22、`Space_Store → Space_Rules` 权重 48。`refund_failed` 仍坚持人工处理，该轮没有自动复活。详见 §8.9、§10.14。
+
+**本轮更新（2026-11-09，1.24.1）**：用户中心与编辑页两套文件面板都支持快捷多选：Shift 连选、Ctrl/⌘ 点选、Ctrl/⌘A 全选、Esc 清空，网格视图补「全选/取消全选」按钮；Shift 范围只加不减、跳过锁定文件，编辑页插入条会随选区重建数量与顺序。改动只在 9 个前端、视图与文案文件（+536/−27），没有新增类、方法、钩子、REST 路由或数据表；生产仍 178 文件 / 163 类 / 180 节点 / 815 连线 / 191 钩子，总行数 61,227（UserFiles 21,838、`includes/views` 4,828）。图谱只更新 `meta.version` 与页面副标题，拓扑和边权不变。列表行复选框另加 14px 方框护栏，圆形样式只保留给网格卡。详见 §8.11、§10.15。
 
 ---
 
@@ -100,7 +102,7 @@ sakura-tools/
 │   ├── class-thumbnail-optimizer-module.php 缩略图子系统唯一装配点
 │   ├── class-thumbnail-manager.php     按尺寸禁用缩略图生成
 │   └── class-s3-storage-module.php     对象存储设置页
-├── includes/views/             12 文件 / 4,821 行               ← 旧版页面模板
+├── includes/views/             12 文件 / 4,828 行               ← 旧版页面模板
 ├── src/                        4 文件 / 759 行                  ← 组合根
 │   ├── Plugin.php              启动、装配、注册 WP-CLI 命令
 │   ├── Activation.php          默认值、迁移、建表、排程
@@ -112,7 +114,7 @@ sakura-tools/
 ├── src/Thumbnail/              15 文件 / 3,764 行   缩略图策略、供应商、探测、统计、主题桥
 ├── src/S3/                     36 文件 / 10,803 行  凭据加密、上传、删除队列、同步中心、监控
 ├── src/Sync/                   17 文件 / 5,792 行   索引表、扫描状态机、动作队列、校验、CLI
-├── src/UserFiles/              46 文件 / 21,833 行  上传/配额/审核/执行/REST/空间套餐/Zibll 桥
+├── src/UserFiles/              46 文件 / 21,838 行  上传/配额/审核/执行/REST/空间套餐/Zibll 桥
 ├── src/Backup/                 2 文件 / 459 行
 ├── src/Contracts/              5 文件 / 392 行      5 个接口
 ├── src/Filesystem/ src/Settings/ src/Stats/ src/Support/   5 文件 / 633 行
@@ -130,11 +132,11 @@ sakura-tools/
 
 | 模块 | 文件数 | 代码行 | 类(含接口) | 说明 |
 |---|---:|---:|---:|---|
-| src/UserFiles | 46 | 21833 | 46 | 用户文件空间：上传、配额、审核执行、REST、Zibll 桥接 |
+| src/UserFiles | 46 | 21838 | 46 | 用户文件空间：上传、配额、审核执行、REST、Zibll 桥接 |
 | src/S3 | 36 | 10803 | 36 | 对象存储：配置/加密、上传同步、删除队列、同步中心、监控告警 |
 | includes | 14 | 5999 | 14 | 1.3–1.9 时代的旧类，仍在承重（媒体库、优化器、缩略图、S3、处理器） |
 | src/Sync | 17 | 5792 | 17 | 持久化同步索引：扫描、任务、校验、CLI、快速检索查询 |
-| includes/views | 12 | 4821 | 0 | 旧式页面模板（由 includes 类 require 渲染） |
+| includes/views | 12 | 4828 | 0 | 旧式页面模板（由 includes 类 require 渲染） |
 | src/Thumbnail | 15 | 3764 | 15 | 缩略图 URL 重写策略：上下文、尺寸、供应商、探测、缓存 |
 | src/Image | 10 | 3177 | 10 | 图片处理管线：改名、备份、引擎选择、元数据、还原、尺寸目录 |
 | src/Admin | 7 | 1895 | 7 | 后台信息架构：Registry 路由表、Menu、Layout、Shell、Assets、环境自检 |
@@ -147,7 +149,7 @@ sakura-tools/
 | src/Support | 2 | 178 | 2 | Hook_Loader（延迟注册）与 UTF-8 截断工具 |
 | src/Filesystem | 1 | 97 | 1 | 文件系统仓储适配器 |
 | src/Stats | 1 | 73 | 1 | 统计仓储适配器 |
-| 合计 | 178 | 61215 | 163 | 生产代码；另有 tests 72 文件/8800 行、stubs 2 文件另计 |
+| 合计 | 178 | 61227 | 163 | 生产代码；另有 tests 72 文件/8800 行、stubs 2 文件另计 |
 
 **怎么读这张表**：行数不等于复杂度——`src/UserFiles` 20k 行里有 40% 是 REST 控制器与视图模板（重复度高、改动风险低）；`src/Sync` 只有 5.8k 行却包含状态机与 SQL 层，是改动风险最高的模块。
 
@@ -913,7 +915,7 @@ d3AtY29udGVudC91cGxvYWRzL3Byb2JlLzA5OTkuYmluW21pbmlvX2NhY2hlOnYyLHJldHVybjpd
 
 ---
 
-## 8. 子系统 E：用户文件空间（src/UserFiles/，46 文件 / 21,833 行）
+## 8. 子系统 E：用户文件空间（src/UserFiles/，46 文件 / 21,838 行）
 
 ### 8.1 职责与边界
 
@@ -1325,6 +1327,110 @@ Space_Panel::build_data()（src/UserFiles/Space_Panel.php:112）先取 $plans/$m
 4. 无头 Chrome 的鼠标事件无法触发真实 HTML5 `dragstart`；§10.13 的拖拽记录用合成 `DragEvent` 与 CDP `Input.dispatchDragEvent` 覆盖，真实鼠标拖拽由用户在测试站手动确认（m05324）。
 5. 本次没有改 REST、数据库、cron 或 PHP 类方法；新增的只是一个图标 symbol、三条文案键和前端逻辑。图谱不收录 JS 函数，因此节点/边/钩子都不变（§13）。
 
+### 8.11 文件面板快捷多选（1.24.1）
+
+#### 8.11.1 目标与范围
+
+1.23.0 之前，两套文件面板（用户中心 `/user/files` 与编辑页右侧面板）都只能逐个点复选框；批量操作要么全选，要么一个个点。1.24.1 给两套面板补上同一套键盘多选：Shift 连选、Ctrl/⌘ 点选、Ctrl/⌘+A 全选、Esc 清空，并在网格视图补「全选/取消全选」按钮。
+
+这一版有意打破 1.23.0「只改编辑页、用户中心 UI 不变」的边界：用户中心也新增了路径栏提示和网格全选按钮。但两边共用的是同一套交互约定，没有复制出第三种选择模型；数据、REST、菜单、删除流程都没有改。
+
+| 面板 | 脚本 | 选择状态 | 渲染特点 |
+|---|---|---|---|
+| 用户中心 | `assets/userfiles.js` | `state.selection` 以文件 ID 为键 | 列表/网格可切换，桌面端有独立文件夹栏 |
+| 编辑页 | `assets/editor-picker-manager.js` + `assets/editor-picker.js` | manager 的 `state.selection`，外加编辑器侧 `state.checked` 顺序 | 永远 compact；列表/网格；选中项要同步到插入条 |
+
+编辑页是用户中心的 fork，但两边的选择状态并不共享：manager 负责文件行勾选，editor-picker 负责「已选文件按什么顺序插入正文」。因此本轮除了给 manager 加手势，还必须把选择变化回传给编辑器（8.11.4）。
+
+#### 8.11.2 选择模型
+
+两套脚本使用同一组函数名与语义：
+
+| 函数 | 用户中心 | 编辑页 | 作用 |
+|---|---|---|---|
+| `checkboxOf(target)` | `:807-812` | `:879-884` | 从事件目标找到复选框；支持直接点在 `.sufm-grid-check` / `.sufm-row-check` 包裹上 |
+| `selectableIds()` | `:833-847` | `:902-916` | 取当前 DOM 中所有 `[data-sufm-select]`，跳过 disabled，按 DOM 顺序去重 |
+| `isSelectable(id)` | `:849-851` | `:918-920` | 判断该文件是否在当前可选集合里 |
+| `selectRange(id)` | `:853-875` | `:922-943` | 从 anchor 到目标按 DOM 顺序连续选中 |
+| `toggleFile(id)` | `:877-889` | `:945-957` | 单项反转，并把 anchor 设为该项 |
+| `clearSelection()` | `:891-896` | `:959-964` | 清空选择与 anchor |
+| `allSelected()` | `:898-902` | `:966-970` | 当前可选集合是否已全选 |
+| `syncSelectAll()` | `:904-926` | `:972-992` | 同步网格按钮、表头复选框的文案与状态 |
+| `selectAll(on)` | `:949-958` | `:1038-1047` | 按 DOM 可选集合全选/取消 |
+
+选择模型有三条硬约束：
+
+1. **顺序来自 DOM，不来自对象键。** 两边的 `selectableIds()` 都用 `root.querySelectorAll('[data-sufm-select]')`，所以 Shift 连选的范围与屏幕顺序一致；搜索过滤、折叠、分页后不在 DOM 里的文件不会被选中。
+2. **Shift 只加不减。** `selectRange()` 只对区间内尚未选中的项赋值，已经选中的不会被反选；锚点保持不动（用户中心 `:872`、编辑页 `:940`）。如果 anchor 已经不在当前可选集合（切换文件夹、搜索、刷新列表），则以目标项为起点。
+3. **锁定项不可选。** 复选框本身带 `disabled`，`selectableIds()` 再过滤一次；Shift 区间跨过锁定文件时会跳过它，不会把它带进批量操作。
+
+普通点击复选框仍然走原来的 `change` 处理：用户中心 `:1700-1715`、编辑页 `:1796-1811`，在切换后把 anchor 设为该项。也就是说，先普通点一个文件，再 Shift 点另一个，范围从第一个算起。
+
+#### 8.11.3 手势与事件路径
+
+| 操作 | 用户中心 | 编辑页 | 行为 |
+|---|---|---|---|
+| Shift + 点复选框 | `click` 捕获 `:1732-1748` | `:1828-1844` | `selectRange(id)`；只加不减 |
+| Shift + 点文件行/卡片 | 行点击 `:1611-1620` | `:1707-1716` | 目标不是复选框/菜单/动作时，按该行文件 ID 连选 |
+| Ctrl/⌘ + 点复选框或行 | 同上 | 同上 | `toggleFile(id)`，并把 anchor 设为该项 |
+| Ctrl/⌘ + A | document `:1756-1778` | `:1850-1869` | 当前面板激活时全选可见文件 |
+| Esc | document `:1756-1778` | manager `:1850-1869` + editor-picker `:1174-1199` | 有选择时清空；编辑页第一次不关面板 |
+| 点「全选」按钮 | 网格工具栏/表头 | 网格工具栏 | `selectAll(!allSelected())` |
+| 普通点文件名 | 原有打开/预览逻辑 | 只 pick，不勾选 | 语义不变 |
+
+几个容易踩错的细节：
+
+- **复选框捕获必须在行点击之前。** 复选框的 `click` 用捕获阶段监听（`:1732` / `:1828`），因为行点击也会冒泡到同一个 root；捕获阶段先判断修饰键并 `preventDefault()/stopPropagation()`，避免一次手势被解释成两次选择。
+- **浏览器会在 `click` 前先翻转复选框。** 鼠标按下时浏览器已经做了 pre-click activation；即使 `preventDefault()` 会在事件结束后恢复 `checked`，它仍可能覆盖 `updateBatch()` 刚写入的状态。两个 fork 都在捕获分支末尾加了 `window.setTimeout(updateBatch, 0)`（用户中心 `:1747`、编辑页 `:1843`），等浏览器恢复完再按 `state.selection` 重绘一次。这是本轮修掉的真实缺陷，不是防御性代码。
+- **编辑页文件名有自己的捕获监听。** `editor-picker.js:1049-1068` 原来对文件名点击 `preventDefault()/stopPropagation()`；现在遇到 Shift/Ctrl/⌘ 直接 `return`，把事件让给 manager 的行点击逻辑，否则修饰键手势到不了选择层。普通单击仍然只 pick。
+- **Esc 分层。** 用户中心先关菜单，再清选择；编辑页 manager 的 Esc 只关菜单并给事件打 `__sufmMenuClosed`，editor-picker 看到这个标记就 `return`，否则在有选中项时清空选择并阻止默认行为，**不关面板**；第二次 Esc 才走原来的 `userClose()`。这样用户不会因为想取消选择而丢掉整个面板。
+- **Ctrl/⌘+A 的激活条件。** 只在指针最后落在面板内（`state.pointerInside`）或事件目标在面板内、且不在输入框/文本域/下拉/contenteditable/TinyMCE 里时接管；请求进行中（`requestsMode`）或有菜单打开时不抢快捷键。输入框里的全选仍然交给浏览器。
+
+#### 8.11.4 编辑器的选择同步
+
+编辑页面板有两份状态，必须保持一致：
+
+1. manager 的 `state.selection` 决定哪些行显示勾选、批量条显示多少项。
+2. editor-picker 的 `state.checked` 决定插入正文的顺序（数组顺序就是插入顺序）。
+
+同步机制是自定义事件：
+
+- manager 的 `updateBatch()` 在每次选择变化后触发 `sufm:selection-changed`（无批量条分支 `:996`，正常分支末尾 `:1035`）。
+- editor-picker 监听该事件（`:1284`），调用 `updatePicked()`，从 DOM 里已勾选的 `[data-sufm-select]` 重建 `state.checked`，再刷新插入条计数与顺序。
+- manager 监听 `sufm:file-picked`（`:1871-1874`）：编辑页普通单击某文件时，把 anchor 设为该文件，这样「先单击 A，再 Shift 点 B」也符合直觉。
+
+这样批量条的数字与实际插入内容不会脱节；用户中心没有编辑器，不需要这层同步。
+
+#### 8.11.5 界面与文案
+
+- 用户中心路径栏新增 `.sufm-path-tools`：提示「Shift 连选 · Ctrl/⌘ 点选 · Ctrl/⌘A 全选」和网格专用的「全选/取消全选」按钮（`includes/views/userfiles-tab.php:164-166`）。提示在 1199px 以下隐藏，按钮保留；窄屏仍可用复选框逐项选择。
+- 编辑页路径栏同样有 `.sufm-path-tools` 与全选按钮（`includes/views/editor-picker-app.php:165-166`），但不放长提示；提示语并入 `pickHint`：「单击选中，双击插入；Shift 连选，Ctrl/⌘ 点选」（`src/UserFiles/Editor/Assets.php:81-83`）。
+- 文案键：用户中心 `selectAllShort` / `selectNoneShort` / `selectHint`（`src/UserFiles/Frontend/Tab.php:390-392`），编辑页 `selectAllShort` / `selectNoneShort`（`src/UserFiles/Editor/Assets.php:81-82`）。
+- 批量态下编辑页隐藏 path-tools（`assets/editor-picker.css:5406`），把空间让给批量条。
+- 列表与网格的复选框样式不同：列表 14px 方框，网格 19px 圆形。1.24.1 在 `assets/userfiles.css:4594-4606` 与 `assets/editor-picker.css:5679-5690` 末尾加了高优先级护栏，把列表行/表头锁成 14px、3px 圆角；即使某行被误加 `.sufm-grid-check` 或旧缓存残留，也不会变成网格的圆形。网格仍保持 19px/50%。
+
+#### 8.11.6 验证与边界
+
+运行记录见 §10.15。摘要：
+
+| 检查 | 结果 |
+|---|---|
+| 用户中心手势 | 17/17：普通勾选、Shift 连选、跨锁定项跳过、Ctrl 点选、Ctrl+A、Esc、网格全选/取消、表头全选 |
+| 编辑页手势 | 24/24：列表/网格、行点击、文件名修饰键、菜单打开时的 Esc、选择同步到批量条 |
+| 响应式 | 用户中心 1440/1024/782/390 无横向溢出；提示在 1024/782 隐藏，按钮仍可用 |
+| 编辑页准入 | 面板只在 ≥1360px 挂载（`src/UserFiles/Editor/Assets.php:64`、`assets/editor-picker.js:37`）；1024/782 不显示面板，不涉及本功能 |
+| 样式护栏 | 列表 14x14/3px；人为给行加 `.sufm-grid-check` 仍 14/3；网格 19x19/50% |
+| 静态检查 | PHPUnit 423 tests / 1257 assertions / 5 skipped；PHPStan OK；PHPCS 177 files 0 error；`node --check` 三个 JS；`git diff --check` 无输出 |
+
+**边界**：
+
+1. 只对「当前已加载且可见」的文件生效。切换文件夹、搜索、折叠后，不在 DOM 里的文件不会被 Ctrl+A 或 Shift 区间带上；需要先回到对应列表。
+2. 不做框选、长按多选或触屏多选模式。框选会和拖到文件夹/拖到正文冲突；触屏第一版继续用复选框。Shift 连选依赖硬件键盘。
+3. 普通单击的语义没有改：用户中心点空白卡不选中，编辑页点文件仍然只 pick。修饰键手势只在复选框、行/卡片的非菜单非动作区域生效。
+4. 用户中心本轮也新增了提示和网格全选按钮，这是 1.24.1 有意扩大的范围；除此之外用户中心 UI 未改。两边的菜单、批量操作、删除审核流程都不受多选影响。
+5. 选择状态不持久化。刷新、重新打开面板、切换文件夹都会按新的 DOM 重建；anchor 只在当前列表生命周期内有效。
+6. 本次没有改 REST、数据库、cron 或 PHP 类方法；图谱不收录 JS 函数，节点/边/钩子都不变（§13）。
+
 ---
 
 ## 9. 横切：数据落点、钩子、REST、CLI 与 Cron
@@ -1412,7 +1518,7 @@ Space_Panel::build_data()（src/UserFiles/Space_Panel.php:112）先取 $plans/$m
 
 **边界声明**：生产环境为**只读验证**——只执行查询、纯函数调用与 GET 请求，没有触发任何写路径。日常命令都在测试站 `/root/sio-e2e` 执行，插件以软链挂载到 `/root/work/sakura-tools`（同一份代码）。测试站上另补做了一次写验证：2026-11-08 的 5 张并发上传（§10.6），数据只落在测试站自己的 MariaDB 与 MinIO，未触及生产。
 
-> **版本说明**：§10.1 的版本号已在 2026-11-09 复核为 1.24.0；§10.4–§10.12 的命令与输出仍记录于 1.22.8（2026-11-08），§10.13 记录于 1.23.0（提交 `2fec6a3`），§10.14 记录于 1.24.0（提交 `1f88ca8`）。1.24.0 相对 1.23.0 增加支付方式勾选、积分独立开关、对账退避与 `wp sufm grants`，改变的是 `src/UserFiles` 的方法与 CLI，不改变路由、钩子集合或数据表；写验证只覆盖对账与回填，没有重跑上传/删除/退款链路。表格里出现的旧 `?ver=` 是当时观测值。
+> **版本说明**：§10.1 的版本号已在 2026-11-09 复核为 1.24.1；§10.4–§10.12 的命令与输出仍记录于 1.22.8（2026-11-08），§10.13 记录于 1.23.0（提交 `2fec6a3`），§10.14 记录于 1.24.0（提交 `1f88ca8`），§10.15 记录于 1.24.1（提交 `427101c`）。1.24.0 相对 1.23.0 增加支付方式勾选、积分独立开关、对账退避与 `wp sufm grants`，改变的是 `src/UserFiles` 的方法与 CLI，不改变路由、钩子集合或数据表；写验证只覆盖对账与回填，没有重跑上传/删除/退款链路。1.24.1 只改文件面板的 JS/CSS/视图与文案，没有改 PHP 类方法、路由、钩子、表或 REST，因此 §10.4–§10.14 的历史记录无需重跑。表格里出现的旧 `?ver=` 是当时观测值。
 
 ### 10.1 环境与激活状态
 
@@ -1420,7 +1526,7 @@ Space_Panel::build_data()（src/UserFiles/Space_Panel.php:112）先取 $plans/$m
 $ cd /root/sio-e2e && ./e2e.sh wp plugin get sakura-tools --fields=name,status,version
 name:      sakura-tools
 status:    active
-version:   1.24.0
+version:   1.24.1
 ```
 
 WordPress 核心与 PHP 版本、MariaDB 127.0.0.1:13316、MinIO 127.0.0.1:19010 均正常；后台 `admin` 可登录（用于 §10.4 的路由检查）。
@@ -1865,6 +1971,55 @@ WHERE order_num = %s AND state = 'refund_pending' AND updated_at <= %s
 - 对账退避只改变「下一次自动对账什么时候跑」，不重放退款、不修复坏订单；告警仍是日志，不是自动修复。
 - `refund_failed` 没有在本节测试自动复活；1.24.0 明确保留人工处理。
 
+### 10.15 文件面板快捷多选（1.24.1）
+
+验证环境：测试站 `/root/sio-e2e`（站点 `https://demo.77il.cn`，后台 `admin`），插件以软链挂载 `/root/work/sakura-tools`，工作树在提交 `427101c`；浏览器用 Chrome CDP（127.0.0.1:9222，profile `/tmp/chrome-sio`）。生产环境只做只读核对，没有写任何文件或选项。
+
+**A. 用户中心（17/17）**
+
+| 场景 | 结果 |
+|---|---|
+| 普通点复选框 | 选中/取消正常，anchor 设为该文件 |
+| Shift 向下/向上连选 | 区间按 DOM 顺序连续选中；只加不减；anchor 不动 |
+| Shift 跨过锁定文件 | 锁定项保持未选，区间其余项正常选中 |
+| Ctrl/⌘ 点行或卡片 | 单项反转，anchor 移到该项 |
+| Ctrl/⌘+A | 选中当前 DOM 内全部非锁定文件；再按一次不反选 |
+| Esc | 先关闭已打开的菜单；没有菜单时清空选择 |
+| 网格「全选/取消全选」 | 文案随状态切换，选中的卡片显示勾选态 |
+| 表头复选框 | 与选择状态同步；全选/取消全选生效 |
+| 普通点空白卡 | 不选中，原有打开/预览语义不变 |
+| 刷新/切换文件夹/搜索 | 选择按新 DOM 重建，不残留旧 ID |
+
+**B. 编辑页（24/24）**
+
+| 场景 | 结果 |
+|---|---|
+| Shift 点复选框/行/卡片 | 连选；行与卡片走 manager 的行点击分支，复选框走捕获分支 |
+| Shift/Ctrl 点文件名 | 事件从 `editor-picker.js` 的文件名捕获监听让回 manager，连选/单项反转生效；普通单击仍只 pick |
+| 复选框 pre-click 恢复 | 捕获分支 `preventDefault()` 后，`setTimeout(updateBatch,0)` 把勾选态拉回选择模型；没有出现「刚选中又弹回」 |
+| Ctrl/⌘+A | 选中当前可见文件；输入框/文本域/contenteditable 内不拦截 |
+| Esc 第一次 | 清空选择并留在面板；菜单打开时只关菜单 |
+| Esc 第二次 | 走原 `userClose()` 关闭面板 |
+| 网格全选按钮 | 与列表选择一致；批量条数字同步 |
+| 选择同步到插入条 | manager 的 `sufm:selection-changed` 触发 editor-picker 的 `updatePicked()`，插入条数量/顺序与勾选一致 |
+| 批量条归位 | 取消选择后批量条回到 `.sufm-head`，没有 `NotFoundError` |
+| 菜单打开时选择 | 先 `closeAllMenus()`，不会把菜单点击误判为连选 |
+
+**C. 响应式与样式**
+
+| 检查 | 结果 |
+|---|---|
+| 用户中心 1440/1024/782/390 | 路径栏 `scrollWidth <= clientWidth`，无横向溢出；快捷提示在 ≤1199 隐藏，全选按钮仍可用 |
+| 编辑页面板准入 | 只在 ≥1360px 挂载（`src/UserFiles/Editor/Assets.php:64`、`assets/editor-picker.js:37`）；1024/782 不显示面板，不涉及本功能 |
+| 列表复选框 | 用户中心与编辑页均 14×14、border-radius 3px |
+| 网格复选框 | 用户中心与编辑页均 19×19、border-radius 50% |
+| 样式护栏 | 人为给列表行加 `.sufm-grid-check` 后仍为 14×14/3px；网格仍 19×19/50% |
+| 控制台 | 选择、拖拽、菜单、保存路径无 JS 异常 |
+
+**D. 静态与单测**：PHPUnit 423 tests / 1257 assertions / 5 skipped；PHPStan `[OK] No errors`；PHPCS 177 files 0 errors/0 warnings；`node --check` 三个 JS 通过；`git diff --check` 无输出。PHPCS 只扫 `sakura-tools.php`、`uninstall.php`、`src/`、`includes/`，不含 `assets/` 与 `tests/`，所以 JS 用 `node --check` 单独把关。
+
+**E. 清理**：为复现圆形复选框，曾用 `wp media import` 导入 5 张 64×64 PNG（附件 230–234），验证后已用 `wp post delete 230 231 232 233 234 --force --user=admin` 删除；测试文件夹原有文件未动；没有修改任何 option，没有触碰生产数据。
+
 ## 11. 依赖关系与图谱口径
 
 ### 11.1 模块依赖矩阵（类级引用边计数）
@@ -1934,7 +2089,7 @@ WHERE order_num = %s AND state = 'refund_pending' AND updated_at <= %s
 
 ## 12. 待确认项与已确认缺陷
 
-截至 2026-11-09（1.24.0），正文没有「只有结论、没有代码位置或运行证据」的待确认项，也没有未修复的高/中优先代码缺陷。1.24.0 关闭了三件事：支付方式改为后台勾选、积分入口有独立开关；每日对账改为租约 + 指数退避；历史 `order:` 授权提供手动审计/回填命令。`refund_failed` 仍坚持人工处理，这是有意保留的资金安全边界，不是遗漏。下面保留的是有意接受的边界。
+截至 2026-11-09（1.24.1），正文没有「只有结论、没有代码位置或运行证据」的待确认项，也没有未修复的高/中优先代码缺陷。1.24.0 关闭了三件事：支付方式改为后台勾选、积分入口有独立开关；每日对账改为租约 + 指数退避；历史 `order:` 授权提供手动审计/回填命令。1.24.1 是纯前端交互与样式版本（文件面板快捷多选、列表复选框护栏），没有新增待确认项，也没有改变下面已接受的边界。`refund_failed` 仍坚持人工处理，这是有意保留的资金安全边界，不是遗漏。下面保留的是有意接受的边界。
 
 ### 12.1 1.24.0 关闭与核对
 
@@ -1994,10 +2149,10 @@ WHERE order_num = %s AND state = 'refund_pending' AND updated_at <= %s
 | 连线 | **815** = 602 `ref` + 50 `modref` + 163 `contains` |
 | 钩子 | 191（面板显示，不建节点） |
 | 悬空边 | 0 |
-| 本轮变更 | 无节点/钩子增删；新增 `CLI → Space_Store` 一条 `ref`（静态调用，w=4），所以 `ref` 601→602、总连线 814→815；`Space_Store → Space_Settings` 权重 18→22，`Space_Store → Space_Rules` 权重 44→48；`CLI`、`Space_Settings`、`Space_Store` 的 `val` 随方法数变化。`meta.version` 改为 1.24.0，页面副标题同步 |
-| 数据来源 | 本轮重新扫描的 1.24.0 工作树事实表（codegraph `scanner.php` 输出）——由 `docs/tools/collect-comments.php` 生成类注释，与本文所有表格同源 |
+| 本轮变更 | **无节点/边/钩子/表/val 变化**。1.24.1 只改文件面板的 JS/CSS、两个视图模板与文案，不新增类、方法、钩子或数据表。可能变化的只有 `meta.version=1.24.1`、`generatedAt` 与页面副标题；1.24.0 的 815 连线、`Space_Store` 的 `val` 10.369185117452577 及两条权重 22/48 都保持不变 |
+| 数据来源 | 本轮重新扫描的 1.24.1 工作树事实表（codegraph `scanner.php` 输出，基线 `427101c`）——由 `docs/tools/collect-comments.php` 生成类注释，与本文所有表格同源 |
 
-本轮没有新增/删除类、模块或钩子，节点仍 180（163 类 + 17 模块）、钩子仍 191；变化集中在 `src/UserFiles` 的方法与行数（支付方式勾选、对账退避、授权审计/回填）和 `src/UserFiles/CLI.php` 的新命令。`Space_Store` 的 `val` 为 10.369185117452577（上一轮 10.119288512538816），`Space_Settings` 为 6.4，`CLI` 为 4.233202097703345。编辑页 JS/CSS 不是图谱对象。
+本轮没有新增/删除类、模块或钩子，节点仍 180（163 类 + 17 模块）、连线仍 815、钩子仍 191。生产 PHP 文件 178 个 / 61,227 行，其中 `src/UserFiles` 21,838 行、`includes/views` 4,828 行；新增的 9 个文件改动全部在 JS/CSS/视图/文案，没有新增 PHP 类方法，所以 `val` 与类级边权都不变。编辑页 JS/CSS 不是图谱对象。
 
 `fast-search.php` 是脚本型文件，本来就不进入图谱；`Space_Store` 的字段缺陷已在 §8.9 修复，不再是未修复缺陷。
 
@@ -2005,7 +2160,7 @@ WHERE order_num = %s AND state = 'refund_pending' AND updated_at <= %s
 
 **与文档的对应关系**：每个类节点在正文里都有一条同名记录——附录 A 给 `文件:行`，所属章节的表给职责与方法数；模块节点对应 §2.2 的模块总览。**改代码后重跑一次生成器，表格与图谱同时更新**，这是两者不脱节的机制保证。
 
-详细的操作步骤、本次新增/修改的节点与连线清单、一致性核对项，见配套文档 **`docs/sakura-tools-图谱同步-1.24.0.md`**。
+详细的操作步骤、本次新增/修改的节点与连线清单、一致性核对项，见配套文档 **`docs/sakura-tools-图谱同步-1.24.1.md`**。
 
 ---
 
@@ -2437,7 +2592,7 @@ WHERE order_num = %s AND state = 'refund_pending' AND updated_at <= %s
 | includes/class-thumbnail-manager.php | includes | 114 | `Thumbnail_Manager` |
 | includes/class-thumbnail-optimizer-module.php | includes | 399 | `Thumbnail_Optimizer_Module` |
 | includes/views/basic-settings.php | includes/views | 357 | — |
-| includes/views/editor-picker-app.php | includes/views | 308 | — |
+| includes/views/editor-picker-app.php | includes/views | 311 | — |
 | includes/views/media-progress.php | includes/views | 231 | — |
 | includes/views/s3-sync-center.php | includes/views | 756 | — |
 | includes/views/settings-backup.php | includes/views | 191 | — |
@@ -2447,7 +2602,7 @@ WHERE order_num = %s AND state = 'refund_pending' AND updated_at <= %s
 | includes/views/userfiles-admin.php | includes/views | 581 | — |
 | includes/views/userfiles-space-admin.php | includes/views | 1027 | — |
 | includes/views/userfiles-space-panel.php | includes/views | 276 | — |
-| includes/views/userfiles-tab.php | includes/views | 304 | — |
+| includes/views/userfiles-tab.php | includes/views | 308 | — |
 | sakura-tools.php | 根文件 | 109 | — |
 | src/Activation.php | src | 133 | `Activation` |
 | src/Admin/Assets.php | src/Admin | 223 | `Assets` |
@@ -2556,7 +2711,7 @@ WHERE order_num = %s AND state = 'refund_pending' AND updated_at <= %s
 | src/UserFiles/Admin/Space_Page.php | src/UserFiles | 274 | `Space_Page` |
 | src/UserFiles/Capabilities.php | src/UserFiles | 155 | `Capabilities` |
 | src/UserFiles/CLI.php | src/UserFiles | 487 | `CLI` |
-| src/UserFiles/Editor/Assets.php | src/UserFiles | 109 | `Assets` |
+| src/UserFiles/Editor/Assets.php | src/UserFiles | 111 | `Assets` |
 | src/UserFiles/Editor/Context.php | src/UserFiles | 66 | `Context` |
 | src/UserFiles/Editor/Module.php | src/UserFiles | 66 | `Module` |
 | src/UserFiles/Editor/Picker.php | src/UserFiles | 100 | `Picker` |
@@ -2564,7 +2719,7 @@ WHERE order_num = %s AND state = 'refund_pending' AND updated_at <= %s
 | src/UserFiles/Frontend/Provider.php | src/UserFiles | 60 | `Provider` |
 | src/UserFiles/Frontend/Providers/Generic.php | src/UserFiles | 186 | `Generic` |
 | src/UserFiles/Frontend/Providers/Zibll.php | src/UserFiles | 96 | `Zibll` |
-| src/UserFiles/Frontend/Tab.php | src/UserFiles | 551 | `Tab` |
+| src/UserFiles/Frontend/Tab.php | src/UserFiles | 554 | `Tab` |
 | src/UserFiles/Media/Library_Filter.php | src/UserFiles | 75 | `Library_Filter` |
 | src/UserFiles/Media/Media_Hooks.php | src/UserFiles | 2183 | `Media_Hooks` |
 | src/UserFiles/Module.php | src/UserFiles | 362 | `Module` |

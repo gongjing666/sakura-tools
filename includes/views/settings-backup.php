@@ -85,7 +85,7 @@ $usage = $backup->get_usage();
 					$probe_time  = is_array( $probe ) && isset( $probe['time'] ) ? (int) $probe['time'] : 0;
 					$probe_fresh = $probe_time > 0 && ( time() - $probe_time ) < DAY_IN_SECONDS;
 					$probe_state = $probe_fresh && isset( $probe['state'] ) ? (string) $probe['state'] : '';
-					$probe_color = 'exposed' === $probe_state ? '#b83f5c' : ( 'protected' === $probe_state ? '#2b8a64' : '#6b879b' );
+					$probe_color = 'exposed' === $probe_state ? 'var(--g-bad)' : ( 'protected' === $probe_state ? 'var(--g-ok)' : 'var(--g-muted)' );
 					if ( $probe_fresh && isset( $probe['message'] ) ) {
 						$probe_message = sprintf(
 							/* translators: 1: detection time, 2: detection result. */
@@ -146,20 +146,20 @@ $usage = $backup->get_usage();
 						$btn.addClass('is-busy');
 					} else {
 						$btn.prop('disabled', true);
-						$('#sakura-purge-msg').css('color', '#6b879b').text(<?php echo wp_json_encode( __( '处理中...', 'sakura-imgopt' ) ); ?>);
+						$('#sakura-purge-msg').css('color', 'var(--g-muted)').text(<?php echo wp_json_encode( __( '处理中...', 'sakura-imgopt' ) ); ?>);
 					}
 					$.post(ajaxurl, { action: action, _ajax_nonce: nonce }, function(res) {
 						if (isLink) { $btn.removeClass('is-busy'); } else { $btn.prop('disabled', false); }
 						if (res && res.success) {
 							$('#sakura-backup-size').text(res.data.size);
 							$('#sakura-backup-count, #sakura-backup-hero-count').text(res.data.count);
-							$('#sakura-purge-msg').css('color', '#2b8a64').text(res.data.message);
+							$('#sakura-purge-msg').css('color', 'var(--g-ok)').text(res.data.message);
 						} else {
-							$('#sakura-purge-msg').css('color', '#b83f5c').text((res && res.data) ? res.data : <?php echo wp_json_encode( __( '操作失败', 'sakura-imgopt' ) ); ?>);
+							$('#sakura-purge-msg').css('color', 'var(--g-bad)').text((res && res.data) ? res.data : <?php echo wp_json_encode( __( '操作失败', 'sakura-imgopt' ) ); ?>);
 						}
 					}).fail(function() {
 						$btn.prop('disabled', false);
-						$('#sakura-purge-msg').css('color', '#b83f5c').text(<?php echo wp_json_encode( __( '请求失败，请重试', 'sakura-imgopt' ) ); ?>);
+						$('#sakura-purge-msg').css('color', 'var(--g-bad)').text(<?php echo wp_json_encode( __( '请求失败，请重试', 'sakura-imgopt' ) ); ?>);
 					});
 				});
 			}
@@ -170,18 +170,18 @@ $usage = $backup->get_usage();
 			$('#sakura-probe-backup').on('click', function() {
 				var $btn = $(this);
 				$btn.prop('disabled', true);
-				$('#sakura-probe-msg').css('color', '#6b879b').text(<?php echo wp_json_encode( __( '检测中…', 'sakura-imgopt' ) ); ?>);
+				$('#sakura-probe-msg').css('color', 'var(--g-muted)').text(<?php echo wp_json_encode( __( '检测中…', 'sakura-imgopt' ) ); ?>);
 				$.post(ajaxurl, { action: 'sakura_probe_backup', _ajax_nonce: '<?php echo esc_js( wp_create_nonce( 'sakura_probe_backup' ) ); ?>' }, function(res) {
 					$btn.prop('disabled', false);
 					if (res && res.success) {
-						$('#sakura-probe-state').css('color', res.data.state === 'exposed' ? '#b83f5c' : (res.data.state === 'protected' ? '#2b8a64' : '#6b879b')).text(res.data.message);
+						$('#sakura-probe-state').css('color', res.data.state === 'exposed' ? 'var(--g-bad)' : (res.data.state === 'protected' ? 'var(--g-ok)' : 'var(--g-muted)')).text(res.data.message);
 						$('#sakura-probe-msg').text('');
 					} else {
-						$('#sakura-probe-msg').css('color', '#b83f5c').text((res && res.data) ? res.data : <?php echo wp_json_encode( __( '检测失败', 'sakura-imgopt' ) ); ?>);
+						$('#sakura-probe-msg').css('color', 'var(--g-bad)').text((res && res.data) ? res.data : <?php echo wp_json_encode( __( '检测失败', 'sakura-imgopt' ) ); ?>);
 					}
 				}).fail(function() {
 					$btn.prop('disabled', false);
-					$('#sakura-probe-msg').css('color', '#b83f5c').text(<?php echo wp_json_encode( __( '请求失败，请重试', 'sakura-imgopt' ) ); ?>);
+					$('#sakura-probe-msg').css('color', 'var(--g-bad)').text(<?php echo wp_json_encode( __( '请求失败，请重试', 'sakura-imgopt' ) ); ?>);
 				});
 			});
 		})(jQuery);

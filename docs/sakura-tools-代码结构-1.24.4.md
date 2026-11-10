@@ -947,7 +947,19 @@ d3AtY29udGVudC91cGxvYWRzL3Byb2JlLzA5OTkuYmluW21pbmlvX2NhY2hlOnYyLHJldHVybjpd
 
 **一句话**：给登录用户提供**私有文件/文件夹 + 上传配额 + 「申请—审核—执行」删除**的能力，并把 WordPress 媒体库、Zibll 主题用户中心、订单/积分扩容接进来；状态落 15 张自定义表，异步动作由 `sufm_tick` / `sufm_delete_tick` 驱动。
 
-这是全插件最大、也是唯一带**五层权限门**（`can_use_files` / `can_review` / `can_execute` / `can_manage_media` / `space_can_*`）的子系统。改它之前必须先读 `src/UserFiles/Capabilities.php` 与 `src/UserFiles/Schema.php`。
+这是全插件最大、也是唯一带**五层权限门**（`can_use_files` / `can_review` / `can_execute` / `can_manage_media` / `space_can_*`）的子系统。这里的 `space_can_*` 不是一个权限，而是 `space_can_use`、`space_can_review`、`space_can_manage` 三个不同门。改它之前必须先读 `src/UserFiles/Capabilities.php` 与 `src/UserFiles/Schema.php`。
+
+**权限与开关速查（当前 1.24.4）**：
+
+| 范围 | 当前判定 | `entry_enabled` 关闭时 |
+|---|---|---|
+| 用户自助文件空间 | `can_use_files`：登录用户 + `MANAGE_OWN`，且 `entry_enabled` 开启 | 自助 REST、前台入口和自助上传拒绝 |
+| 编辑器 picker | `can_pick`：登录用户 + `MANAGE_OWN` + `editor_enabled` | 不受 `entry_enabled` 影响；仍可只读选择自己的文件 |
+| 媒体库文件夹/转移/管理员 REST | `MANAGE_MEDIA`（另有管理员执行门） | 继续可用，不随前台入口开关关闭 |
+| 后台删除 | `REVIEW` 负责审核；`DELETE_FILES` 负责预览/执行；每个附件删除还需 WordPress `delete_post` | 继续可用 |
+| 空间扩容账本 | `space_can_review` 可读；`space_can_manage` 仅 `manage_options` 可写授权 | 账本/cron 继续运行 |
+
+`Capabilities.php` 中的持久能力名为 `MANAGE_OWN`、`REQUEST_DELETE`、`REVIEW`、`MANAGE_MEDIA`、`TRANSFER`、`DELETE_FILES`；不要把它们与 REST 方法名或后台 tab 名混用。`sufm_tick` 与空间账本处理独立于 `entry_enabled`。
 
 ### 8.2 类清单
 
@@ -1004,7 +1016,7 @@ d3AtY29udGVudC91cGxvYWRzL3Byb2JlLzA5OTkuYmluW21pbmlvX2NhY2hlOnYyLHJldHVybjpd
 
 | 方法 | 文件:行 | 职责 | 调用关系 |
 |---|---|---|---|
-| `Uploader::handle` | `src/UserFiles/Services/Uploader.php:109` | 上传全链路：校验→预留→落盘→记账→提交 | ⇐ `Controller::uploads`（`:1123`）；依赖 Quota/Files/Rate_Limiter |
+| `Uploader::handle` | `src/UserFiles/Services/Uploader.php:109` | 上传全链路：校验→预留→落盘→记账→提交 | ⇐ `Controller::uploads`（`:1113`）；依赖 Quota/Files/Rate_Limiter |
 | `Quota::reserve` | `src/UserFiles/Services/Quota.php:168` | 锁 usage 行 + 全站预算锁，写 reservations | ⇐ `Uploader.php:181` |
 | `Quota::commit` | `src/UserFiles/Services/Quota.php:336` | reserved→used，条件 UPDATE 防超卖 | ⇐ `Uploader.php:370` |
 | `Requests::create` | `src/UserFiles/Repositories/Requests.php:222` | 建申请、写 items、CAS 锁 files/folders | ⇐ `POST /delete-requests` |
@@ -1013,11 +1025,11 @@ d3AtY29udGVudC91cGxvYWRzL3Byb2JlLzA5OTkuYmluW21pbmlvX2NhY2hlOnYyLHJldHVybjpd
 | `Executor::run` | `src/UserFiles/Services/Executor.php:441` | 逐项 claim/删除/回写 items 与批次计数 | ⇐ tick→claim（`:389`） |
 | `Files::create` | `src/UserFiles/Repositories/Files.php:348` | 写 files 账本并同步 token 索引 | ⇐ `Uploader.php:322`、`Sync_Service::adopt`（`:267`） |
 | `Folders::write` | `src/UserFiles/Repositories/Folders.php:756` | usage 行锁 + 死锁重试的树写事务入口 | ⇐ create/rename/move/delete/reorder（`:740-744`） |
-| `Space_Store::grant_from_order` | `src/UserFiles/Services/Space_Store.php:861` | 订单→space_grants 幂等发放；按渠道写 `source/channel` 与订单字段 | ⇐ `on_payment_success`（`:800`）、`reconcile`（`:2017`） |
-| `Space_Store::filter_payment_methods` | `src/UserFiles/Services/Space_Store.php:248` | 按 `sufm_space_allowed_payment_methods` 白名单过滤主题返回的支付方式 | ⇐ `payment_methods`（`:195`）；空结果关闭现金收银台 |
-| `Space_Store::on_order_refunded` | `src/UserFiles/Services/Space_Store.php:1248` | 退款：先占位 `refund_pending`，再按渠道补偿钱包 | ⇐ `order_refunded`（`:2541`） |
-| `Space_Store::retry_refunds` | `src/UserFiles/Services/Space_Store.php:1652` | 重试 `refund_pending`，条件 UPDATE 抢占订单 | ⇐ `tick`（`:2394`） |
-| `Space_Store::reconcile` | `src/UserFiles/Services/Space_Store.php:2017` | 补发 paid-no-grant 订单；每日自动或手动 REST | ⇐ `maybe_reconcile`（`:1811`）、`POST /admin/space/reconcile` |
+| `Space_Store::grant_from_order` | `src/UserFiles/Services/Space_Store.php:881` | 订单→space_grants 幂等发放；按渠道写 `source/channel` 与订单字段 | ⇐ `on_payment_success`（`:800`）、`reconcile`（`:2173`） |
+| `Space_Store::filter_payment_methods` | `src/UserFiles/Services/Space_Store.php:249` | 按 `sufm_space_allowed_payment_methods` 白名单过滤主题返回的支付方式 | ⇐ `payment_methods`（`:194`）；空结果关闭现金收银台 |
+| `Space_Store::on_order_refunded` | `src/UserFiles/Services/Space_Store.php:1268` | 退款：先占位 `refund_pending`，再按渠道补偿钱包 | ⇐ `order_refunded`（`:3016`） |
+| `Space_Store::retry_refunds` | `src/UserFiles/Services/Space_Store.php:1672` | 重试 `refund_pending`，条件 UPDATE 抢占订单 | ⇐ `tick`（`:2869`） |
+| `Space_Store::reconcile` | `src/UserFiles/Services/Space_Store.php:2173` | 补发 paid-no-grant 订单；每日自动或手动 REST | ⇐ `maybe_reconcile`（`:1838`）、`POST /admin/space/reconcile` |
 | `Media_Hooks::guard_delete` | `src/UserFiles/Media/Media_Hooks.php:556` | 附件删除守卫（放行/收养/直删/拒绝） | ⇐ `pre_delete_attachment`（`:136`） |
 | `Notifier::deliver_due` | `src/UserFiles/Services/Notifier.php:165` | 领取到期通知并调 Zibll ZibMsg | ⇐ `sufm_tick`（`:330`）、`after`（`:120`） |
 
@@ -1037,26 +1049,28 @@ d3AtY29udGVudC91cGxvYWRzL3Byb2JlLzA5OTkuYmluW21pbmlvX2NhY2hlOnYyLHJldHVybjpd
 | `wp_handle_upload_prefilter`（50） | filter | `src/UserFiles/Media/Media_Hooks.php:126` |
 | `pre_delete_attachment` / `deleted_post` / `rest_pre_dispatch` | filter/action | `src/UserFiles/Media/Media_Hooks.php:136-138` |
 | `user_ctnter_main_tabs_array` / `main_user_tab_content_files` | filter/action | `src/UserFiles/Frontend/Tab.php:44`、`:46` |
-| `payment_order_success` / `order_refunded` | action | `src/UserFiles/Space_Panel.php:40`、`Space_Store.php:2541` |
+| `payment_order_success` / `order_refunded` | action | `src/UserFiles/Space_Panel.php:40`、`src/UserFiles/Services/Space_Store.php:3016` |
 
-### 8.5 REST（`sufm/v1`，45 条路由 / 51 个端点）
+### 8.5 REST（`sufm/v1`，45 条路径 / 51 个 HTTP 端点）
 
-命名空间注册见 `src/UserFiles/Rest/Controller.php:39`，路径集中在 `:550-607`，空间套餐由 `register_space_routes` 单独注册（`:48-148`）。按权限门分五组：
+命名空间注册见 `src/UserFiles/Rest/Controller.php:39`，主路径集中在 `:550-607`，空间套餐由 `register_space_routes` 单独注册（`:48-148`）。这里的 45 是运行时唯一路径数（包含 `/sufm/v1` 命名空间索引），51 是按 HTTP 方法展开的端点数；`/admin/sync` 与 `/admin/space/grants` 各自是一条路径下的 GET/POST 两个端点。
 
-| 权限门 | 端点（节选） | 判定函数 |
+| 权限门 | 完整端点 | 判定函数 |
 |---|---|---|
-| `can_use_files`（自助） | GET `/summary` `/capacity` `/items` `/folders` `/upload-policy` `/delete-requests` `/operations/{id}`；POST `/uploads` `/folders` `/delete-requests` `/batch`；PATCH `/files/{id}` `/folders/{id}` | `Controller.php:614-621` |
-| `can_review`（审核） | GET `/admin/delete-requests`；POST `/admin/delete-requests/{id}/review`、`/{id}/revoke` | `:628-630` |
-| `can_execute`（执行） | POST `/admin/delete-batches/preview`、`/admin/delete-batches`、`/{id}/stop`、`/admin/reconcile`、`/admin/reset-quotas`、`/admin/sync`；GET `/admin/delete-batches/{id}`、`/admin/users`、`/admin/events`；PATCH `/admin/users/{id}/quota` | `:637-639` |
-| `can_manage_media` | GET/POST `/admin/folders`；PATCH/DELETE `/admin/folders/{id}`；POST `/admin/folders/move`、`/reorder`、`/admin/transfers/preview`、`/admin/transfers`；GET `/admin/transfers/{id}` | `:1566` |
-| 空间（`space_can_use` / `space_can_review` / `space_can_manage`） | GET `/space/plans` `/space/grants`；POST `/space/orders` `/space/redeem`；GET `/space/orders/{num}/status`；GET/POST `/admin/space/grants`、POST `/{id}/revoke` `/extend` `/admin/space/reconcile` | `:158`、`:166`、`:186` |
+| `can_use_files`（自助） | GET `/summary` `/capacity` `/items` `/folders` `/upload-policy` `/delete-requests` `/delete-requests/{id}` `/operations/{id}`；POST `/uploads` `/folders` `/delete-requests` `/delete-requests/{id}/withdraw` `/batch`；PATCH `/files/{id}` `/folders/{id}` | `Controller.php:614-621` |
+| `can_review`（审核） | GET `/admin/delete-requests`；POST `/admin/delete-requests/{id}/review`、`/{id}/revoke` | `Controller.php:628-630` |
+| `can_execute`（执行） | POST `/admin/delete-batches/preview`、`/admin/delete-batches`、`/admin/delete-batches/{id}/stop`、`/admin/reconcile`、`/admin/reset-quotas`、`/admin/sync`；GET `/admin/delete-batches/{id}`、`/admin/users`、`/admin/events`、`/admin/sync`；PATCH `/admin/users/{id}/quota` | `Controller.php:637-639` |
+| `can_manage_media` | GET/POST `/admin/folders`；PATCH/DELETE `/admin/folders/{id}`；POST `/admin/transfers/preview`、`/admin/transfers`、`/admin/folders/move`、`/admin/folders/reorder`；GET `/admin/transfers/{id}` | `Controller.php:1566` |
+| 空间用户（`space_can_use`） | GET `/space/plans` `/space/grants` `/space/orders/{num}/status`；POST `/space/orders` `/space/redeem` | `Controller.php:155-159` |
+| 空间审核（`space_can_review`） | GET `/admin/space/grants`；POST `/admin/space/reconcile` | `Controller.php:166-175` |
+| 空间管理（`space_can_manage`） | POST `/admin/space/grants`、`/admin/space/grants/{id}/revoke`、`/admin/space/grants/{id}/extend` | `Controller.php:178-187` |
 | Picker（`can_pick`） | GET `/picker/items` `/picker/item` | `src/UserFiles/Rest/Picker_Controller.php:72-114` |
 
-> Picker 的判定是「登录 && MANAGE_OWN && editor_enabled」，**不查 `entry_enabled`**（`Picker_Controller.php:107-108`）——这是它与自助组的唯一差异。实测 REST 共注册 45 条路由、51 个端点（§10.4）。
+> Picker 的判定是「登录 && MANAGE_OWN && editor_enabled」，**不查 `entry_enabled`**（`Picker_Controller.php:105-114`）。它与自助组的关键差异是开关和只读用途，不能概括成唯一差异。运行时验证为 45 条路径、51 个 HTTP 端点（测试站 1.24.4，2026-11-10）。
 
 ### 8.6 数据落点
 
-- **option**：`sufm_settings`（`Settings.php:26`）、`sufm_schema_version`（`Schema.php:34`，当前 `1.6.0`）、`sufm_space_settings`（`Space_Settings.php:25`）、`sufm_sync_state`（`Sync_Service.php:31`）、`sufm_backfill_pending` / `sufm_tokens_pending`（`Schema.php:107` / `:117`）、`sufm_media_caps_version`（`Capabilities.php:120`）、`sufm_space_reconcile_last`（`Space_Store.php:49`，每日对账水位）；主题侧读 `zibll_options.brush_limit_upload`（`Theme_Limits.php:27`）。
+- **option**：`sufm_settings`（`Settings.php:26`）、`sufm_schema_version`（`Schema.php:34`，当前 `1.6.0`）、`sufm_space_settings`（`Space_Settings.php:25`）、`sufm_sync_state`（`Sync_Service.php:31`）、`sufm_backfill_pending` / `sufm_tokens_pending`（`Schema.php:107` / `:117`）、`sufm_media_caps_version`（`Capabilities.php:120`）、`sufm_space_reconcile_last`（`Space_Store.php:40`，每日对账水位）；主题侧读 `zibll_options.brush_limit_upload`（`Theme_Limits.php:27`）。
 - **usermeta**：`sufm_quota_bytes`（`Settings.php:31`，读取 `quota_for`（`:267-284`），写入 `Controller.php:1999-2002`）。
 - **transient**：`sufm_embed_page`（`Frontend/Providers/Generic.php:34`）。
 - **15 张表**（`src/UserFiles/Schema.php:41-59`）：`sufm_media_operations`、`sufm_folders`、`sufm_files`、`sufm_file_tokens`、`sufm_usage`、`sufm_reservations`、`sufm_artifacts`、`sufm_delete_requests`、`sufm_delete_request_items`、`sufm_delete_batches`、`sufm_jobs`、`sufm_events`、`sufm_notifications`、`sufm_rate_limits`、`sufm_space_grants`。
@@ -1088,7 +1102,7 @@ d3AtY29udGVudC91cGxvYWRzL3Byb2JlLzA5OTkuYmluW21pbmlvX2NhY2hlOnYyLHJldHVybjpd
 | 与 Admin IA | 向 Registry 的 `files` 模块注册 4 个 renderer（settings/users/queue/log） | `src/UserFiles/Admin/Page.php:71-78` |
 | 与 Zibll | 能力探测单例 `Zibll_Bridge`；tab、订单卡、空间面板都走它 | `src/UserFiles/Services/Zibll_Bridge.php:23` |
 
-### 8.9 空间扩容支付收口（2026-11-08 修复，2026-11-09 补对账退避与历史回填）
+### 8.9 空间扩容支付收口（历史变更记录；2026-11-08/09；当前代码以 1.24.4 为准）
 
 **结论：空间扩容的现金入口由管理员在后台显式勾选，默认只开放余额；积分入口有独立开关；订单按实际支付渠道记账；退款按渠道补偿；每日对账用租约 + 指数退避；历史 order: 授权提供手动审计/回填命令。** 退款失败（refund_failed）仍坚持人工核对，不自动复活——这是有意保留的资金安全边界，不是遗漏。
 
@@ -1216,7 +1230,9 @@ Space_Panel::build_data()（src/UserFiles/Space_Panel.php:112）先取 $plans/$m
 
 **积分开关已经独立**：1.24.0 之前 points_state() 的 enabled 只等于 per_gb > 0，后台的 points.enabled 没有读取点；现在 enabled = Space_Settings::points_enabled() && 0 < per_gb，关闭开关会隐藏入口并让 redeem_points() 返回 sufm_points_off。已售出的积分授权不受影响。
 
-#### 8.9.7 运行验证
+#### 8.9.7 运行验证（历史测试站快照；当前基线见下方）
+
+以下余额/积分/退款/对账探针记录属于当时测试站状态，不应当被当作所有部署的当前数据。
 
 - **余额退款**：测试站创建余额订单 + grant，触发 ZibPay::refund_order()；balance 100→130（+30），state=refunded；重复回调余额不再变化，balance_record 命中 1 条。
 - **积分退款**：积分订单 90 分；退款后 points 520→610（+90），balance 不变，points_record 命中 1 条。
@@ -1227,7 +1243,9 @@ Space_Panel::build_data()（src/UserFiles/Space_Panel.php:112）先取 $plans/$m
 - **退款重试占位**：fresh refund_pending（updated_at=now）不被抢占，retry_refunds 返回 0、余额不变；180 秒前的 stale 记录返回 1、余额 +30、state=refunded/attempts=1；第二次重试返回 0、余额不再增加。完整探针见 §10.12。
 - **每日对账（退避版）**：成功写 last_success 并排到 24 小时后；失败进入 failures=1/next=+900，第二次失败 failures=2/next=+1800；租约期间的重复 tick() 不改状态；告警只写一次。完整输出见 §10.14-A。
 - **历史授权回填**：合成 order: 空字段行 dry-run 为 pending，--apply --yes 后字段恢复为 purchase/balance/order_id=21/order_num=990.../price=30.00/points=0，bytes/state/label 不变；第二次运行 candidates=0。见 §10.14-B。
-- **单测**：phpunit --filter 'SpaceStoreReconcileTest|SpaceStoreRefundTest|SpaceStorePaymentTest|SpaceSettingsTest' 全绿；SpaceStoreReconcileTest 覆盖退避、租约、旧标量迁移、回填字段白名单与跳过原因（10 tests / 59 assertions）。
+- **单测（历史记录）**：当时的 `phpunit --filter 'SpaceStoreReconcileTest|SpaceStoreRefundTest|SpaceStorePaymentTest|SpaceSettingsTest'` 全绿；该记录中的 SpaceStoreReconcileTest 为 10 tests / 59 assertions。
+
+**1.24.4 当前基线（2026-11-10）**：当前同一过滤器在工作树运行结果为 **30 tests / 119 assertions，OK**；完整套件为 **437 tests / 1,315 assertions / 5 skipped**。测试站运行时注册 **45 条路径 / 51 个 HTTP 端点**；未认证 REST 返回 401，认证后 summary/capacity/items/picker 返回 200；用户 2/3 的文件、文件夹、picker 数据互不泄漏，交叉读取返回 404。以上是本次测试站和代码版本的证据，不是对所有站点配置的保证。
 
 测试后清理：t_sufm_space_grants 恢复为 1 行（原 points: 授权），t_zibpay_order 恢复为 1 行，临时订单/grant/事件已删；sufm_space_reconcile_last 恢复为测试前的标量 1794152631，wp sufm status 读回 recon_next=1794239031；sufm_space_settings 未留下临时值。
 
@@ -1333,7 +1351,7 @@ Space_Panel::build_data()（src/UserFiles/Space_Panel.php:112）先取 $plans/$m
 
 #### 8.10.6 验证与边界
 
-运行记录见 §10.13。摘要：
+运行记录见 §10.13（**历史 1.23.0 验证，不是当前 1.24.4 基线**）。摘要：
 
 | 检查 | 结果 |
 |---|---|
@@ -1450,7 +1468,7 @@ Space_Panel::build_data()（src/UserFiles/Space_Panel.php:112）先取 $plans/$m
 
 #### 8.11.6 验证与边界
 
-运行记录见 §10.15。摘要：
+运行记录见 §10.15（**历史 1.24.1 验证，不是当前 1.24.4 基线**）。摘要：
 
 | 检查 | 结果 |
 |---|---|

@@ -723,9 +723,16 @@ body.dark-theme .sakura-sync-app {
 .sakura-sync-app .sufm-space-grants .sufm-space-row,
 .sakura-sync-app .sufm-space-grants .sufm-space-row.is-head,
 .sakura-sync-app #sufm-space-grants .sufm-space-row {
-	grid-template-columns: minmax(88px, 100px) minmax(104px, 1fr) 60px minmax(88px, 96px) 56px 88px;
-	column-gap: 10px;
-	min-width: 558px;
+	grid-template-columns: 112px minmax(88px, 1fr) 54px 104px 56px 84px;
+	column-gap: 8px;
+	min-width: 548px;
+}
+
+/* Both dates are 16 characters wide; without nowrap the 100px tracks split
+ * them after the year. */
+.sakura-sync-app #sufm-space-grants .sufm-space-row > span:nth-child(1),
+.sakura-sync-app #sufm-space-grants .sufm-space-row > span:nth-child(4) {
+	white-space: nowrap;
 }
 
 .sakura-sync-app #sufm-space-grants .sufm-space-row {

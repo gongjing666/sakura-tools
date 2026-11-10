@@ -135,11 +135,10 @@ final class Assets {
 	}
 
 	/**
-	 * Load the graphite theme on the screens in the first redesign pass.
+	 * Load the graphite theme on every plugin screen.
 	 *
-	 * The theme is deliberately scoped by admin page slug instead of by module:
-	 * the system and file-space screens keep the previous visual layer until
-	 * their own pass lands.
+	 * The theme is scoped by admin page slug so it never touches other admin
+	 * screens; all four modules share the same visual layer.
 	 *
 	 * @return void
 	 */
@@ -151,7 +150,7 @@ final class Assets {
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only screen detection for asset loading.
 		$page = isset( $_GET['page'] ) ? sanitize_key( wp_unslash( (string) $_GET['page'] ) ) : '';
 
-		if ( ! in_array( $page, array( 'sakura-tools-image', 'sakura-tools-storage' ), true ) ) {
+		if ( ! in_array( $page, array( 'sakura-tools', 'sakura-tools-image', 'sakura-tools-storage', 'sakura-tools-files' ), true ) ) {
 			return;
 		}
 

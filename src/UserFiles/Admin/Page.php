@@ -160,6 +160,11 @@ final class Page {
 					'saved'     => __( '已保存', 'sakura-imgopt' ),
 					'quota'     => __( '容量（字节）', 'sakura-imgopt' ),
 					'items'     => __( '项', 'sakura-imgopt' ),
+					'col_user'    => __( '用户', 'sakura-imgopt' ),
+					'col_objects' => __( '对象', 'sakura-imgopt' ),
+					'col_status'  => __( '状态', 'sakura-imgopt' ),
+					'col_time'    => __( '提交时间', 'sakura-imgopt' ),
+					'col_actions' => __( '操作', 'sakura-imgopt' ),
 				),
 			)
 		);

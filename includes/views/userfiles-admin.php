@@ -69,6 +69,26 @@ $sufm_ledes = array(
 	'log'      => __( '只记录动作与结果，不记录文件路径、对象键或凭证。', 'sakura-imgopt' ),
 );
 $sufm_lede  = isset( $sufm_ledes[ $sufm_tab ] ) ? $sufm_ledes[ $sufm_tab ] : $sufm_ledes['queue'];
+
+$sufm_status_pills = array(
+	'settings' => array(
+		'label' => $enabled ? __( '前台入口已开启', 'sakura-imgopt' ) : __( '前台入口未开启', 'sakura-imgopt' ),
+		'tone'  => $enabled ? 'ok' : 'off',
+	),
+	'users'    => array(
+		'label' => __( '按用户配额', 'sakura-imgopt' ),
+		'tone'  => '',
+	),
+	'queue'    => array(
+		'label' => __( '删除申请审核', 'sakura-imgopt' ),
+		'tone'  => '',
+	),
+	'log'      => array(
+		'label' => __( '操作记录', 'sakura-imgopt' ),
+		'tone'  => '',
+	),
+);
+$sufm_status_pill  = isset( $sufm_status_pills[ $sufm_tab ] ) ? $sufm_status_pills[ $sufm_tab ] : $sufm_status_pills['queue'];
 ?>
 <div class="sakura-sync-app">
 	<div class="sky-layer" aria-hidden="true"></div>
@@ -79,8 +99,9 @@ $sufm_lede  = isset( $sufm_ledes[ $sufm_tab ] ) ? $sufm_ledes[ $sufm_tab ] : $su
 				'files',
 				$sufm_tab,
 				array(
-					'status'    => $enabled ? esc_html__( '正在读取队列', 'sakura-imgopt' ) : esc_html__( '前台入口未开启', 'sakura-imgopt' ),
-					'status_id' => 'sufm-link-state',
+					'status'      => esc_html( $sufm_status_pill['label'] ),
+					'status_tone' => $sufm_status_pill['tone'],
+					'status_id'   => 'sufm-link-state',
 				)
 			);
 			?>

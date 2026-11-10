@@ -125,24 +125,30 @@
 			tr.appendChild( el( 'td', 'sufm-mono', '#' + row.id ) );
 
 			var user = el( 'td' );
+			user.setAttribute( 'data-label', cfg.strings.col_user || '用户' );
 			user.appendChild( el( 'strong', '', row.owner_name || ( '#' + row.owner_id ) ) );
 			user.appendChild( el( 'span', 'sufm-muted', 'ID ' + row.owner_id ) );
 			tr.appendChild( user );
 
 			var objects = el( 'td' );
+			objects.setAttribute( 'data-label', cfg.strings.col_objects || '对象' );
 			objects.appendChild( el( 'span', '', ( row.item_count || 0 ) + ' ' + ( cfg.strings.items || '项' ) ) );
 			objects.appendChild( el( 'span', 'sufm-muted', bytes( row.bytes || 0 ) ) );
 			tr.appendChild( objects );
 
 			var status = el( 'td' );
+			status.setAttribute( 'data-label', cfg.strings.col_status || '状态' );
 			var pill = el( 'span' );
 			setPill( pill, row.status );
 			status.appendChild( pill );
 			tr.appendChild( status );
 
-			tr.appendChild( el( 'td', 'sufm-muted', row.created_at || '' ) );
+			var created = el( 'td', 'sufm-muted', row.created_at || '' );
+			created.setAttribute( 'data-label', cfg.strings.col_time || '提交时间' );
+			tr.appendChild( created );
 
 			var actions = el( 'td', 'sufm-col-actions' );
+			actions.setAttribute( 'data-label', cfg.strings.col_actions || '操作' );
 			actions.appendChild( buildActions( row ) );
 			tr.appendChild( actions );
 

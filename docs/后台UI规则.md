@@ -1,6 +1,6 @@
 # 后台 UI 规则
 
-适用范围：图片优化（`sakura-tools-image`）4 页与对象存储（`sakura-tools-storage`）3 页。文件空间、系统自检尚未迁移，改动时先确认加载的样式层。
+适用范围：图片优化（`sakura-tools-image`）4 页、对象存储（`sakura-tools-storage`）3 页、文件空间（`sakura-tools-files`）5 页与系统自检（`sakura-tools`）。这些页面都加载同一套主题；新增页面时必须同步扩展 `src/Admin/Assets.php` 的 `enqueue_theme` 白名单。
 
 ## 1. 样式分层与加载顺序
 
@@ -16,7 +16,7 @@
 
 - 新的视觉修改只写进 `assets/admin-theme.css`，不要回头改 `admin.css` 的旧色值。
 - 视图里不要再写内联颜色；确需运行时变色时用 `var(--g-*)`。
-- 主题只在上述两个 slug 加载；其他后台页面仍是旧样式，不能假设这些变量存在。
+- 主题在 `sakura-tools`、`sakura-tools-image`、`sakura-tools-storage`、`sakura-tools-files` 四个 slug 加载；不在白名单里的后台页面仍是旧样式，不能假设这些变量存在。
 - 覆盖旧规则时先看特异性。旧文件里有 ID 选择器（如 `#sakura-s3-save-form h2`）和带 `.form-table` 的高特异性规则，普通类选择器压不住。
 
 ## 2. 设计令牌
@@ -128,12 +128,15 @@
 - 焦点环统一为 3px `rgba(32,34,37,.09)`，边框变石墨；不要再使用蓝色 outline。
 - 主按钮石墨实心白字；次按钮白底描边；危险按钮只在确认场景实心 `--g-bad`。
 - 表格表头 12.5px、正文 14px；数字列可等宽字体，但不要用蓝色。
+- 多列勾选/选项网格里的说明文字必须 `grid-column: 1 / -1` 单独成行，不能作为网格项落在勾选项之间，避免被误读成某个选项的标签。
 
 ## 7. 移动端
 
 - ≤782px：卡片标题区换行，标题占满一行，操作按钮落到下一行并右对齐。
+- 页签保持单行：`gap: clamp(10px, 2.8vw, 18px)`、字号 13px；验收时 `.sakura-tabs` 的 `clientWidth == scrollWidth`，最后一个页签必须完整可见。≤360px 可再收到 `gap: 4px`、字号 12px，但不能裁切或让用户横向拖动才能看到页签。
 - 分段控件、日志筛选允许换行；不要用横向滚动藏按钮。
-- 表格用 `.table-wrap` 内部滚动，页面本身不横溢。
+- 表格用 `.sufm-table-wrap` / `.table-wrap` 内部滚动，页面本身不横溢。桌面的固定列宽在 ≤782px 必须重置为 `width:auto; min-width:0`，否则表头隐藏后表格仍会被旧列宽撑到 860px。
+- 内容型表格（审核队列、授权流水、套餐编辑器）在窄屏重排为带标签的行，而不是让用户横向滚动找字段：数据行用 `data-label` + `::before` 显示列名，表头隐藏；授权流水改为两列三行（时间/状态、用户/套餐 + 容量、到期/操作）；套餐行用 6 等分网格，ID 占一列、名称占其余五列，容量/价格/时长各占两列。
 - 顶栏在 ≤660px 收成「品牌 + 状态」一行，模块导航另起一行；≤340px 隐藏长状态胶囊，避免挤成三行。
 - 浮动保存条只在页头滚出视口且底部保存按钮不可见时出现；首屏不遮挡内容。
 
@@ -143,6 +146,8 @@
 - 旧 `admin.css` 的 `.sakura-sync-app tbody td`、`.form-table code`、`#sakura-s3-save-form h2` 特异性高，主题覆盖要带同等或更高特异性。
 - `admin-ext.css` 有 `background: transparent !important` 的 code 规则；不要在主题里跟它抢背景，保留透明即可。
 - 旧视图内联颜色不会被 `--blue` 映射自动收掉，必须逐个改成 `var(--g-*)`。
+- 窄屏重排用的 `data-label` 要加在真正承载列名的元素上，且只加一次；`::before { content: attr(data-label) }` 不会走翻译，当前后台仅中文，新增语言时需改为视图内可见标签。
+- `admin.css` 的 `.sakura-sync-app table { min-width: 860px }` 会把手机表格撑出卡片；重排表格时同时写 `width:100%; min-width:0`，否则只改 `width` 不生效。
 - 勾选框最容易出现「看着能点，但勾没勾一个样」：基础态 `.form-table input` 的特异性高于旧的 `:checked` 时，白底会把石墨勾选态盖掉；要在同一特异性补 `:checked`。
 - 改完至少验证 1440、1366、424、390、320 五个宽度，并检查 `document.scrollWidth == innerWidth` 与 console 无报错。
 
@@ -156,5 +161,7 @@
 - [ ] 勾选/未勾选状态在 1:1 截图下可分，且没有蓝色原生控件。
 - [ ] 状态胶囊/hero 标签语义正确。
 - [ ] 移动端标题区换行、按钮不挤、页面不横溢。
+- [ ] 页签单行完整，最后一个页签在 320px 也不被裁切。
+- [ ] 窄屏内容型表格已重排为带 `data-label` 的行，没有 860px 宽的隐藏溢出。
 - [ ] 浮动保存条首屏隐藏、滚过页头且底部按钮不可见时才出现。
 - [ ] `php -l`、`node --check`、CSS 花括号计数、`git diff --check` 通过。

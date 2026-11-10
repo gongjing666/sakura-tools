@@ -33,6 +33,8 @@ $sufm_space_caps = array(
 
 $sufm_space_theme   = $sufm_space_diag['theme'];
 $sufm_space_caps_ok = $sufm_space_diag['capabilities'];
+$sufm_space_ready   = count( array_filter( array_intersect_key( $sufm_space_caps_ok, $sufm_space_caps ) ) );
+$sufm_space_total   = count( $sufm_space_caps );
 
 $sufm_space_theme_methods  = is_array( $sufm_space_diag['payment_methods'] ) ? $sufm_space_diag['payment_methods'] : array();
 $sufm_space_allowed        = \Nboke\UserFiles\Space_Settings::allowed_methods();
@@ -88,7 +90,32 @@ $sufm_space_rule      = \Nboke\UserFiles\Space_Settings::level_rule();
 	<div class="sky-layer" aria-hidden="true"></div>
 	<div class="sakura-layer" aria-hidden="true"></div>
 	<div class="app">
-		<?php \Sakura\ImageOptimizer\Admin\Shell::header( 'files', 'zibll' ); ?>
+		<?php
+		\Sakura\ImageOptimizer\Admin\Shell::header(
+			'files',
+			'zibll',
+			array(
+				'status'      => ! empty( $entry_status['enabled'] ) ? esc_html__( '前台入口已开启', 'sakura-imgopt' ) : esc_html__( '前台入口未开启', 'sakura-imgopt' ),
+				'status_tone' => ! empty( $entry_status['enabled'] ) ? 'ok' : 'off',
+			)
+		);
+		?>
+
+		<section class="hero">
+			<div class="hero-copy">
+				<p class="eyebrow"><?php esc_html_e( 'ZIBLL BRIDGE', 'sakura-imgopt' ); ?></p>
+				<h1><?php esc_html_e( '子比专属', 'sakura-imgopt' ); ?></h1>
+				<p class="lede"><?php esc_html_e( '主题能力、支付通道、前台入口与等级加成集中在这里；所有数值都在运行时从 zibll 读取，不写死主题侧的名称或价格。', 'sakura-imgopt' ); ?></p>
+			</div>
+			<aside class="hero-status">
+				<div class="hero-status-top">
+					<span class="hero-status-label<?php echo $sufm_space_ready < $sufm_space_total ? ' is-warn' : ''; ?>"><span class="dot"></span> <?php echo esc_html( $sufm_space_ready < $sufm_space_total ? __( '部分能力缺失', 'sakura-imgopt' ) : __( '主题能力可用', 'sakura-imgopt' ) ); ?></span>
+					<small><?php echo esc_html( '' !== $sufm_space_theme['name'] ? $sufm_space_theme['name'] : __( '未识别主题', 'sakura-imgopt' ) ); ?></small>
+				</div>
+				<div class="hero-status-main"><strong><?php echo esc_html( (string) $sufm_space_ready ); ?> / <?php echo esc_html( (string) $sufm_space_total ); ?></strong><span> <?php esc_html_e( '项能力可用', 'sakura-imgopt' ); ?></span></div>
+				<div class="hero-status-sub"><?php esc_html_e( '缺失的通道会自动关闭，其余功能不受影响。', 'sakura-imgopt' ); ?></div>
+			</aside>
+		</section>
 
 		<?php if ( empty( $entry_status['enabled'] ) ) : ?>
 			<section class="card sakura-space-notice" role="status">
@@ -704,24 +731,24 @@ $sufm_space_rule      = \Nboke\UserFiles\Space_Settings::level_rule();
 						ob_start();
 						?>
 						<div class="sufm-space-row<?php echo $is_new ? ' is-new' : ''; ?>" data-sufm-pkg-row>
-							<span class="sufm-space-row-key">
+							<span class="sufm-space-row-key" data-label="<?php esc_attr_e( '套餐 ID', 'sakura-imgopt' ); ?>">
 								<input type="text" class="sufm-space-input sufm-space-input--id" data-sufm-pkg-id readonly="readonly"
 									name="<?php echo esc_attr( $field . '[id]' ); ?>" value="<?php echo esc_attr( $id ); ?>" />
 							</span>
-							<span>
+							<span data-label="<?php esc_attr_e( '名称', 'sakura-imgopt' ); ?>">
 								<input type="text" class="sufm-space-input" data-sufm-pkg-label
 									placeholder="<?php esc_attr_e( '如 10GB 扩容包', 'sakura-imgopt' ); ?>"
 									name="<?php echo esc_attr( $field . '[label]' ); ?>" value="<?php echo esc_attr( $label ); ?>" />
 							</span>
-							<span>
+							<span data-label="<?php esc_attr_e( '容量 (GB)', 'sakura-imgopt' ); ?>">
 								<input type="number" min="0.1" step="0.1" class="sufm-space-input"
 									name="<?php echo esc_attr( $field . '[bytes_gb]' ); ?>" value="<?php echo esc_attr( (string) $gb ); ?>" />
 							</span>
-							<span>
+							<span data-label="<?php esc_attr_e( '价格 (元)', 'sakura-imgopt' ); ?>">
 								<input type="number" min="0" step="0.01" class="sufm-space-input"
 									name="<?php echo esc_attr( $field . '[price]' ); ?>" value="<?php echo esc_attr( $price ); ?>" />
 							</span>
-							<span>
+							<span data-label="<?php esc_attr_e( '时长 (天)', 'sakura-imgopt' ); ?>">
 								<input type="number" min="0" step="1" class="sufm-space-input"
 									name="<?php echo esc_attr( $field . '[days]' ); ?>" value="<?php echo esc_attr( (string) $days ); ?>" />
 							</span>
@@ -759,24 +786,24 @@ $sufm_space_rule      = \Nboke\UserFiles\Space_Settings::level_rule();
 						ob_start();
 						?>
 						<div class="sufm-space-row<?php echo $is_new ? ' is-new' : ''; ?>" data-sufm-pkg-row>
-							<span class="sufm-space-row-key">
+							<span class="sufm-space-row-key" data-label="<?php esc_attr_e( '套餐 ID', 'sakura-imgopt' ); ?>">
 								<input type="text" class="sufm-space-input sufm-space-input--id" data-sufm-pkg-id readonly="readonly"
 									name="<?php echo esc_attr( $field . '[id]' ); ?>" value="<?php echo esc_attr( $id ); ?>" />
 							</span>
-							<span>
+							<span data-label="<?php esc_attr_e( '名称', 'sakura-imgopt' ); ?>">
 								<input type="text" class="sufm-space-input" data-sufm-pkg-label data-sufm-plan-field="label"
 									placeholder="<?php esc_attr_e( '如 10GB 扩容包', 'sakura-imgopt' ); ?>"
 									name="<?php echo esc_attr( $field . '[label]' ); ?>" value="<?php echo esc_attr( $label ); ?>" />
 							</span>
-							<span>
+							<span data-label="<?php esc_attr_e( '容量 (GB)', 'sakura-imgopt' ); ?>">
 								<input type="number" min="0.5" step="0.5" class="sufm-space-input" data-sufm-plan-field="gb"
 									name="<?php echo esc_attr( $field . '[gb]' ); ?>" value="<?php echo esc_attr( $gb ); ?>" />
 							</span>
-							<span>
+							<span data-label="<?php esc_attr_e( '所需积分', 'sakura-imgopt' ); ?>">
 								<input type="number" min="1" step="1" class="sufm-space-input"
 									name="<?php echo esc_attr( $field . '[points]' ); ?>" value="<?php echo esc_attr( $points ); ?>" />
 							</span>
-							<span>
+							<span data-label="<?php esc_attr_e( '时长 (天)', 'sakura-imgopt' ); ?>">
 								<input type="number" min="0" step="1" class="sufm-space-input" data-sufm-plan-field="days"
 									name="<?php echo esc_attr( $field . '[days]' ); ?>" value="<?php echo esc_attr( (string) $days ); ?>" />
 							</span>

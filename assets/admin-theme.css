@@ -3640,3 +3640,1373 @@ body .sakura-layout-reset:hover {
 body .sakura-layout-hint {
 	color: #8b8d8a;
 }
+
+/* ============================================================
+ * 19. File space and system readout
+ *
+ * The file space screens and the environment readout were still using the
+ * old blue-on-white skin. They now share the paper canvas, graphite accent
+ * and responsive spacing tokens above. File-space styles load before this
+ * file, so one late layer can re-skin every surface without touching PHP.
+ * ============================================================ */
+
+.sakura-sync-app {
+	--sufm-state-ok: var(--g-ok);
+	--sufm-state-bad: var(--g-bad);
+	--focus-color: #202225;
+}
+
+/* Five Chinese tab labels must stay words, not one character per line.
+ * The strip scrolls horizontally when it cannot fit. */
+.sakura-sync-app .sakura-tabs {
+	flex-wrap: nowrap;
+	overflow-x: auto;
+	overflow-y: hidden;
+	scrollbar-width: none;
+	-ms-overflow-style: none;
+}
+
+.sakura-sync-app .sakura-tabs::-webkit-scrollbar {
+	display: none;
+}
+
+.sakura-sync-app .sakura-tab {
+	flex: 0 0 auto;
+	white-space: nowrap;
+}
+
+/* File-space cards used a taller, 18px heading with an extra divider under
+ * the head. The shared card rhythm is the source of truth. */
+.sakura-sync-app .card-head {
+	padding: var(--g-card-pad-top) var(--g-card-pad-x) var(--g-head-gap);
+	border-bottom: 0;
+	gap: var(--g-head-gap);
+}
+
+.sakura-sync-app .card-head h2 {
+	font-size: 17px;
+}
+
+.sakura-sync-app .card-head p {
+	font-size: 13.5px;
+}
+
+.sakura-sync-app .card-head .section-kicker {
+	margin-bottom: 5px;
+	font-size: 11.5px;
+	letter-spacing: .14em;
+}
+
+/* ---------------------------------------------------------- tables */
+
+.sakura-sync-app .sufm-table {
+	font-size: 13.5px;
+}
+
+.sakura-sync-app .sufm-table thead th {
+	padding: var(--g-tight) 10px;
+	border-bottom: 1px solid var(--g-line);
+	background: var(--g-wash);
+	color: var(--g-muted);
+	font-size: 12.5px;
+	font-weight: 600;
+	letter-spacing: .015em;
+}
+
+.sakura-sync-app .sufm-table tbody td {
+	padding: var(--g-row-pad) 10px;
+	border-bottom: 1px solid var(--g-line-soft);
+	color: var(--g-ink-soft);
+}
+
+.sakura-sync-app .sufm-table thead th:first-child,
+.sakura-sync-app .sufm-table tbody td:first-child {
+	padding-left: 0;
+}
+
+.sakura-sync-app .sufm-table thead th:last-child,
+.sakura-sync-app .sufm-table tbody td:last-child {
+	padding-right: 0;
+}
+
+.sakura-sync-app .sufm-table tbody tr:hover {
+	background: var(--g-wash);
+}
+
+.sakura-sync-app .sufm-table tbody td strong {
+	color: var(--g-ink);
+	font-weight: 600;
+}
+
+.sakura-sync-app .sufm-table .sufm-muted {
+	font-size: 12.5px;
+	color: var(--g-muted);
+}
+
+.sakura-sync-app .sufm-muted {
+	font-size: 13px;
+	color: var(--g-muted);
+}
+
+.sakura-sync-app .sufm-mono {
+	font-size: 12.5px;
+	color: var(--g-muted);
+}
+
+.sakura-sync-app .sufm-hint {
+	margin-top: 8px;
+	color: var(--g-muted);
+	font-size: 12.5px;
+	line-height: 1.65;
+}
+
+.sakura-sync-app .sufm-empty {
+	padding: 26px 12px;
+	color: var(--g-muted);
+	font-size: 13.5px;
+}
+
+.sakura-sync-app .sufm-status {
+	padding: 3px 9px;
+	border: 1px solid transparent;
+	font-size: 12px;
+	font-weight: 600;
+}
+
+.sakura-sync-app .sufm-status--approved,
+.sakura-sync-app .sufm-status--queued,
+.sakura-sync-app .sufm-status--executing {
+	border-color: var(--g-line);
+	background: var(--g-accent-soft);
+	color: var(--g-ink-soft);
+}
+
+.sakura-sync-app .sufm-status--withdrawn,
+.sakura-sync-app .sufm-status--revoked,
+.sakura-sync-app .sufm-status--stopped {
+	background: var(--g-accent-soft);
+	color: var(--g-muted);
+}
+
+/* ---------------------------------------------------- pager and controls */
+
+.sakura-sync-app .sufm-pager {
+	gap: var(--g-inset-gap);
+	margin-top: var(--g-inset-gap);
+	padding-top: var(--g-inset-gap);
+	border-top-color: var(--g-line-soft);
+}
+
+.sakura-sync-app .sufm-page-size,
+.sakura-sync-app .sufm-page-summary,
+.sakura-sync-app .sufm-page-nav {
+	color: var(--g-muted);
+	font-size: 12.5px;
+}
+
+.sakura-sync-app .sufm-pager .sufm-size-btn,
+.sakura-sync-app .sufm-pager .sufm-page-btn {
+	height: 30px;
+	min-height: 30px;
+	border: 1px solid var(--g-line-strong);
+	border-radius: var(--r-sm);
+	background: #fff;
+	color: var(--g-ink-soft);
+	font-size: 12.5px;
+}
+
+.sakura-sync-app .sufm-pager .sufm-size-btn:hover,
+.sakura-sync-app .sufm-pager .sufm-page-btn:hover:not(:disabled) {
+	border-color: var(--g-accent);
+	color: var(--g-ink);
+}
+
+.sakura-sync-app .sufm-pager .sufm-size-btn.is-active {
+	border-color: var(--g-accent);
+	background: var(--g-accent);
+	color: #fff;
+}
+
+.sakura-sync-app .sufm-page-btn {
+	font-size: 15px;
+}
+
+.sakura-sync-app .sufm-toolbar input[type="search"],
+.sakura-sync-app .sufm-toolbar input[type="text"],
+.sakura-sync-app .sufm-toolbar select,
+.sakura-sync-app .sufm-form input[type="text"],
+.sakura-sync-app .sufm-quota-input,
+.sakura-sync-app .sufm-field > input,
+.sakura-sync-app .sufm-space-input {
+	border: 1px solid var(--g-line-strong);
+	border-radius: var(--r-sm);
+	background: #fff;
+	color: var(--g-ink);
+	font-size: 13px;
+	box-shadow: none;
+}
+
+.sakura-sync-app .sufm-toolbar input:focus,
+.sakura-sync-app .sufm-form input:focus,
+.sakura-sync-app .sufm-field > input:focus,
+.sakura-sync-app .sufm-quota-input:focus,
+.sakura-sync-app .sufm-space-input:focus {
+	border-color: var(--g-accent);
+	box-shadow: 0 0 0 3px rgba(32, 34, 37, .12);
+	outline: none;
+}
+
+.sakura-sync-app .sufm-quota-input {
+	min-height: 32px;
+	font-size: 12.5px;
+}
+
+/* file-space controls are selected by attribute in userfiles-admin.css
+ * (0,2,1), which outranks the class-only rules above and keeps the old
+ * blue border and 10px radius. Same specificity, later in the cascade. */
+.sakura-sync-app input[type="text"],
+.sakura-sync-app input[type="search"],
+.sakura-sync-app input[type="number"],
+.sakura-sync-app input[type="url"],
+.sakura-sync-app input[type="email"],
+.sakura-sync-app input[type="password"],
+.sakura-sync-app select,
+.sakura-sync-app textarea {
+	border-color: var(--g-line-strong);
+	border-radius: var(--r-sm);
+	color: var(--g-ink);
+}
+
+.sakura-sync-app .sufm-space-icon-cell .sufm-space-input--icon {
+	font-size: 12.5px;
+}
+
+.sakura-sync-app .sufm-user-search,
+.sakura-sync-app #sufm-user-search,
+.sakura-sync-app #sufm-search {
+	font-size: 13px;
+}
+
+.sakura-sync-app .sufm-usage-line {
+	font-size: 13px;
+}
+
+.sakura-sync-app .sufm-usage-track {
+	height: 5px;
+	background: var(--g-accent-soft);
+}
+
+.sakura-sync-app .sufm-usage-fill {
+	background: var(--g-ink-soft);
+}
+
+.sakura-sync-app .sufm-usage-fill.is-high {
+	background: var(--g-warn);
+}
+
+/* --------------------------------------------------- review and execute */
+
+.sakura-sync-app .sufm-exec {
+	gap: var(--g-stack);
+}
+
+.sakura-sync-app .sufm-step {
+	padding: var(--g-panel-pad);
+	border: 1px solid var(--g-line);
+	border-radius: var(--r-md);
+	background: var(--g-wash);
+}
+
+.sakura-sync-app .sufm-step--confirm {
+	border-color: #e8d7d2;
+	background: #fdf8f7;
+}
+
+.sakura-sync-app .sufm-step-head h3 {
+	font-size: 14px;
+	color: var(--g-ink);
+}
+
+.sakura-sync-app .sufm-step-head p {
+	font-size: 13px;
+	line-height: 1.6;
+	color: var(--g-muted);
+}
+
+.sakura-sync-app .sufm-step-no {
+	background: var(--g-accent-soft);
+	color: var(--g-ink-soft);
+}
+
+.sakura-sync-app .sufm-step--confirm .sufm-step-no {
+	background: var(--g-bad-bg);
+	color: var(--g-bad);
+}
+
+.sakura-sync-app .sufm-step-meta {
+	font-size: 12.5px;
+	color: var(--g-muted);
+}
+
+.sakura-sync-app .sufm-checklist {
+	gap: var(--g-tight);
+	margin-top: var(--g-inset-gap);
+}
+
+.sakura-sync-app .sufm-checklist .sufm-check {
+	padding: 10px 12px;
+	border-color: var(--g-line);
+	background: #fff;
+}
+
+.sakura-sync-app .sufm-checklist .sufm-check:hover {
+	border-color: var(--g-line-strong);
+}
+
+.sakura-sync-app .sufm-check strong {
+	color: var(--g-ink);
+	font-size: 13px;
+}
+
+.sakura-sync-app .sufm-preview {
+	padding: var(--g-panel-pad);
+	border: 1px dashed var(--g-line-strong);
+	border-radius: var(--r-sm);
+	background: var(--g-wash);
+}
+
+.sakura-sync-app .sufm-preview-head,
+.sakura-sync-app .sufm-preview-head strong {
+	color: var(--g-ink);
+}
+
+.sakura-sync-app .sufm-preview-head strong {
+	font-size: 14px;
+}
+
+.sakura-sync-app .sufm-batch {
+	padding: var(--g-panel-pad);
+	border-color: var(--g-line);
+	background: var(--g-wash);
+}
+
+.sakura-sync-app .sufm-batch p {
+	font-size: 13px;
+}
+
+.sakura-sync-app .sufm-confirm-row {
+	gap: var(--g-tight);
+	margin-top: var(--g-inset-gap);
+}
+
+/* -------------------------------------------------------- appearance */
+
+.sakura-sync-app .sufm-styles,
+.sakura-sync-app .sufm-accents {
+	margin: 0 0 var(--g-stack);
+	padding: 0 0 var(--g-stack);
+	border: 0;
+	border-bottom: 1px solid var(--g-line-soft);
+	border-radius: 0;
+	background: transparent;
+}
+
+.sakura-sync-app .sufm-accents {
+	margin-bottom: 0;
+	padding-bottom: 0;
+	border-bottom: 0;
+}
+
+.sakura-sync-app .sufm-styles legend,
+.sakura-sync-app .sufm-accents legend {
+	display: block;
+	width: 100%;
+	margin: 0 0 10px;
+	padding: 0;
+	color: var(--g-ink);
+	font-size: 13.5px;
+	font-weight: 600;
+}
+
+.sakura-sync-app .sufm-style-grid {
+	gap: var(--g-inset-gap);
+	margin: 0 0 10px;
+}
+
+.sakura-sync-app .sufm-style {
+	padding: var(--g-panel-pad);
+	border-color: var(--g-line);
+	border-radius: var(--r-md);
+	background: #fff;
+}
+
+.sakura-sync-app .sufm-style:hover {
+	border-color: var(--g-line-strong);
+}
+
+.sakura-sync-app .sufm-style:has(input:checked) {
+	border-color: var(--g-accent);
+	box-shadow: 0 0 0 1px var(--g-accent) inset;
+}
+
+.sakura-sync-app .sufm-style:focus-within {
+	outline: 2px solid rgba(32, 34, 37, .35);
+	outline-offset: 2px;
+}
+
+.sakura-sync-app .sufm-style-preview {
+	padding: 10px 12px;
+	border-radius: var(--r-sm);
+	background: var(--g-wash);
+}
+
+.sakura-sync-app .sufm-style-demo-row b {
+	background: #dedcd6;
+}
+
+.sakura-sync-app .sufm-style-demo-row em {
+	background: #ecebe6;
+}
+
+.sakura-sync-app .sufm-style-demo-row.is-open b {
+	background: #c9c7c0;
+}
+
+.sakura-sync-app .sufm-style-demo-row i svg {
+	stroke: var(--g-faint);
+	fill: var(--g-accent-soft);
+}
+
+.sakura-sync-app .sufm-style[data-style="mac"] .sufm-style-demo-row i svg {
+	stroke: var(--g-faint);
+	fill: none;
+}
+
+.sakura-sync-app .sufm-style[data-style="windows"] .sufm-style-demo-row.is-open,
+.sakura-sync-app .sufm-style[data-style="mac"] .sufm-style-demo-row.is-open {
+	background: var(--g-accent-soft);
+}
+
+.sakura-sync-app .sufm-style[data-style="windows"] .sufm-style-demo-row.is-open i svg {
+	stroke: var(--g-ink-soft);
+}
+
+.sakura-sync-app .sufm-style-demo-row.is-open b {
+	background: var(--g-line-strong);
+}
+
+.sakura-sync-app .sufm-style-copy strong {
+	color: var(--g-ink);
+	font-size: 13.5px;
+}
+
+.sakura-sync-app .sufm-style-copy em {
+	color: var(--g-muted);
+	font-size: 12.5px;
+	line-height: 1.55;
+}
+
+.sakura-sync-app .sufm-swatches {
+	gap: 8px;
+	margin: 0 0 10px;
+}
+
+.sakura-sync-app .sufm-swatch {
+	padding: 6px 12px 6px 9px;
+	border-color: var(--g-line);
+	border-radius: 999px;
+	background: #fff;
+	color: var(--g-ink-soft);
+	font-size: 12.5px;
+}
+
+.sakura-sync-app .sufm-swatch:hover {
+	border-color: var(--g-line-strong);
+}
+
+.sakura-sync-app .sufm-swatch:has(input:checked) {
+	border-color: var(--g-accent);
+	box-shadow: 0 0 0 1px var(--g-accent) inset;
+	color: var(--g-ink);
+}
+
+.sakura-sync-app .sufm-swatch:focus-within {
+	outline: 2px solid rgba(32, 34, 37, .35);
+	outline-offset: 2px;
+}
+
+/* ---------------------------------------------------------- policy */
+
+.sakura-sync-app .sufm-group + .sufm-group {
+	margin-top: var(--g-stack);
+	padding-top: var(--g-stack);
+	border-top: 1px solid var(--g-line-soft);
+}
+
+.sakura-sync-app .sufm-group-head {
+	margin-bottom: var(--g-inset-gap);
+}
+
+.sakura-sync-app .sufm-group-head h3 {
+	color: var(--g-ink);
+	font-size: 14px;
+	font-weight: 600;
+}
+
+.sakura-sync-app .sufm-group-head p {
+	margin-top: 4px;
+	color: var(--g-muted);
+	font-size: 13px;
+}
+
+.sakura-sync-app .sufm-form-grid {
+	gap: var(--g-inset-gap) 18px;
+}
+
+.sakura-sync-app .sufm-field {
+	gap: 6px;
+}
+
+.sakura-sync-app .sufm-field > span {
+	color: var(--g-ink);
+	font-size: 13px;
+	font-weight: 600;
+}
+
+.sakura-sync-app .sufm-field > input {
+	min-height: 36px;
+	padding: 0 12px;
+}
+
+.sakura-sync-app .sufm-field em,
+.sakura-sync-app .sufm-field small {
+	color: var(--g-muted);
+	font-size: 12.5px;
+	font-style: normal;
+	line-height: 1.55;
+}
+
+.sakura-sync-app .sufm-theme-limits {
+	margin: var(--g-stack) 0 0;
+	padding: var(--g-panel-pad);
+	border: 1px solid var(--g-line);
+	border-radius: var(--r-md);
+	background: var(--g-wash);
+}
+
+.sakura-sync-app .sufm-theme-limits legend {
+	padding: 0 6px;
+	color: var(--g-ink);
+	font-size: 13.5px;
+	font-weight: 600;
+}
+
+.sakura-sync-app .sufm-badge {
+	padding: 2px 9px;
+	background: var(--g-accent-soft);
+	color: var(--g-ink-soft);
+	font-size: 12px;
+	font-weight: 500;
+}
+
+.sakura-sync-app .sufm-theme-limits .sufm-hint {
+	margin: 0 0 var(--g-inset-gap);
+}
+
+.sakura-sync-app .sufm-types {
+	gap: 6px 14px;
+	margin-top: 8px;
+}
+
+.sakura-sync-app .sufm-types li {
+	color: var(--g-muted);
+	font-size: 12.5px;
+}
+
+.sakura-sync-app .sufm-types .sufm-hint {
+	grid-column: 1 / -1;
+	margin-top: 2px;
+}
+
+.sakura-sync-app .sufm-hint--moved {
+	margin: 0 0 var(--g-stack);
+	padding: 9px 12px;
+	border-left: 3px solid var(--g-line-strong);
+	background: var(--g-wash);
+	border-radius: 0 var(--r-sm) var(--r-sm) 0;
+	color: var(--g-muted);
+	font-size: 12.5px;
+	line-height: 1.65;
+}
+
+/* ------------------------------------------------------------- log */
+
+.sakura-sync-app .sufm-events {
+	gap: 0;
+}
+
+.sakura-sync-app .sufm-events li {
+	gap: 10px;
+	padding: var(--g-row-pad) 0;
+	border-bottom: 1px solid var(--g-line-soft);
+	border-radius: 0;
+	background: transparent;
+	color: var(--g-muted);
+	font-size: 13px;
+}
+
+.sakura-sync-app .sufm-events li:last-child {
+	border-bottom: 0;
+}
+
+.sakura-sync-app .sufm-events .sufm-event-action {
+	color: var(--g-ink);
+	font-size: 12.5px;
+}
+
+.sakura-sync-app .sufm-events .sufm-event-detail {
+	color: var(--g-muted);
+	font-size: 13px;
+}
+
+.sakura-sync-app .sufm-events .sufm-event-result {
+	padding: 2px 8px;
+	background: var(--g-ok-bg);
+	color: var(--g-ok);
+	font-size: 12px;
+}
+
+.sakura-sync-app .sufm-events time,
+.sakura-sync-app .sufm-events .sufm-event-time {
+	color: var(--g-faint);
+	font-size: 12.5px;
+}
+
+.sakura-sync-app .sufm-card-note {
+	color: var(--g-muted);
+	font-size: 13px;
+}
+
+/* -------------------------------------------------- gates and switches */
+
+.sakura-sync-app .sufm-gate-list li {
+	padding: var(--g-panel-pad);
+	border-color: var(--g-line);
+	border-radius: var(--r-sm);
+	background: var(--g-wash);
+}
+
+.sakura-sync-app .sufm-gate-list span {
+	color: var(--g-muted);
+	font-size: 12.5px;
+}
+
+.sakura-sync-app .sufm-gate-list strong {
+	color: var(--g-ink);
+	font-size: 13px;
+}
+
+.sakura-sync-app .sufm-switch {
+	gap: var(--g-inset-gap);
+	padding: var(--g-panel-pad);
+	border-color: var(--g-line);
+	border-radius: var(--r-md);
+	background: var(--g-wash);
+}
+
+.sakura-sync-app .sufm-switch strong {
+	color: var(--g-ink);
+	font-size: 13.5px;
+}
+
+.sakura-sync-app .sufm-switch em {
+	color: var(--g-muted);
+	font-size: 12.5px;
+	line-height: 1.55;
+}
+
+/* ------------------------------------------------- card-head actions */
+
+.sakura-sync-app [data-sakura-card="users"] .card-head-actions,
+.sakura-sync-app [data-sakura-card="queue"] .card-head-actions {
+	flex-wrap: wrap;
+	justify-content: flex-end;
+}
+
+.sakura-sync-app [data-sakura-card="users"] .card-head-actions .btn {
+	padding: 0 11px;
+	font-size: 12.5px;
+}
+
+/* ------------------------------------------------------ system page */
+
+.sakura-sync-app .dashboard-grid {
+	gap: var(--g-stack);
+	margin-bottom: var(--g-stack);
+}
+
+.sakura-sync-app .side-stack,
+.sakura-sync-app .main-stack {
+	gap: var(--g-stack);
+}
+
+.sakura-sync-app .basic-value {
+	color: var(--g-ink);
+	font-size: 13px;
+	font-weight: 500;
+}
+
+.sakura-sync-app .basic-muted {
+	margin-left: 8px;
+	color: var(--g-muted);
+	font-size: 12.5px;
+}
+
+.sakura-sync-app .basic-notes {
+	padding-left: 18px;
+	color: var(--g-muted);
+	font-size: 13px;
+	line-height: 1.7;
+}
+
+.sakura-sync-app .basic-footnote {
+	margin-top: var(--g-inset-gap);
+	color: var(--g-muted);
+	font-size: 12.5px;
+}
+
+.sakura-sync-app .basic-empty {
+	font-size: 12.5px;
+}
+
+.sakura-sync-app .ext-grid {
+	gap: 7px;
+}
+
+.sakura-sync-app .ext-grid .badge {
+	padding: 3px 9px;
+	font-size: 12.5px;
+}
+
+.sakura-sync-app .health-row {
+	padding: 9px 0;
+	border-bottom: 1px solid var(--g-line-soft);
+}
+
+.sakura-sync-app .health-row dt {
+	color: var(--g-muted);
+	font-size: 12.5px;
+}
+
+.sakura-sync-app .health-row dd {
+	color: var(--g-ink-soft);
+	font-size: 12.5px;
+}
+
+.sakura-sync-app .health-row dd.mono {
+	font-size: 12px;
+}
+
+.sakura-sync-app .basic-gap-field > label {
+	color: var(--g-ink);
+	font-size: 13px;
+}
+
+.sakura-sync-app .basic-gap-field > .description {
+	color: var(--g-muted);
+	font-size: 12.5px;
+	line-height: 1.55;
+}
+
+.sakura-sync-app .basic-gap-control input[type="number"] {
+	border-color: var(--g-line-strong);
+	color: var(--g-ink);
+	font-size: 13px;
+}
+
+.sakura-sync-app .basic-gap-control input[type="number"]:focus {
+	border-color: var(--g-accent);
+	box-shadow: 0 0 0 3px rgba(32, 34, 37, .12);
+}
+
+.sakura-sync-app .basic-gap-unit {
+	color: var(--g-muted);
+	font-size: 12.5px;
+}
+
+/* ------------------------------------------------------ zibll page */
+
+.sakura-sync-app .sakura-space-notice {
+	margin: 0 0 var(--g-stack);
+	border-left: 3px solid var(--g-line-strong);
+	background: var(--g-wash);
+}
+
+.sakura-sync-app .sakura-space-notice .card-body {
+	gap: 4px 10px;
+	padding: var(--g-panel-pad);
+}
+
+.sakura-sync-app .sakura-space-notice strong {
+	color: var(--g-ink);
+	font-size: 13.5px;
+}
+
+.sakura-sync-app .sakura-space-notice span {
+	color: var(--g-muted);
+	font-size: 13px;
+}
+
+.sakura-sync-app .sufm-space-diag {
+	gap: var(--g-stack) 28px;
+}
+
+.sakura-sync-app .sufm-space-subtitle {
+	margin-bottom: 10px;
+	color: var(--g-muted);
+	font-size: 12px;
+	font-weight: 600;
+	letter-spacing: .08em;
+}
+
+.sakura-sync-app .sufm-space-kv {
+	gap: 6px 14px;
+}
+
+.sakura-sync-app .sufm-space-kv dt {
+	color: var(--g-muted);
+	font-size: 12.5px;
+	line-height: 1.55;
+}
+
+.sakura-sync-app .sufm-space-kv dd {
+	color: var(--g-ink-soft);
+	font-size: 13px;
+	line-height: 1.55;
+}
+
+.sakura-sync-app .sufm-space-caps__row {
+	gap: 9px;
+	padding: 5px 0;
+	border-bottom: 1px solid var(--g-line-soft);
+	font-size: 12.5px;
+}
+
+.sakura-sync-app .sufm-space-caps__label {
+	line-height: 1.55;
+}
+
+.sakura-sync-app .sufm-space-methods li {
+	padding: 3px 9px;
+	border-color: var(--g-line);
+	background: var(--g-wash);
+	font-size: 12.5px;
+}
+
+.sakura-sync-app .sufm-space-methods code {
+	font-size: 11.5px;
+}
+
+.sakura-sync-app .sufm-space-muted,
+.sakura-sync-app .sufm-space-switch-row em {
+	color: var(--g-muted);
+	font-size: 12.5px;
+	line-height: 1.6;
+}
+
+.sakura-sync-app .sufm-space-paygrid {
+	gap: var(--g-stack) 36px;
+}
+
+.sakura-sync-app .sufm-space-paygroup + .sufm-space-paygroup {
+	border-left-color: var(--g-line-soft);
+}
+
+.sakura-sync-app .sufm-space-paylist {
+	gap: var(--g-tight);
+}
+
+.sakura-sync-app .sufm-space-pay-row {
+	gap: var(--g-tight);
+	padding: var(--g-panel-pad);
+	border-color: var(--g-line);
+	border-radius: var(--r-sm);
+	background: var(--g-wash);
+}
+
+.sakura-sync-app .sufm-space-pay-row:hover,
+.sakura-sync-app .sufm-space-pay-row:focus-within {
+	border-color: var(--g-line-strong);
+}
+
+.sakura-sync-app .sufm-space-pay-name {
+	font-size: 13px;
+	line-height: 1.5;
+}
+
+.sakura-sync-app .sufm-space-pay-name code {
+	color: var(--g-faint);
+	font-size: 11.5px;
+}
+
+.sakura-sync-app .sufm-space-pay-text em {
+	color: var(--g-muted);
+	font-size: 12.5px;
+	line-height: 1.55;
+}
+
+.sakura-sync-app .sufm-space-switch-row {
+	gap: 8px 14px;
+	padding: var(--g-row-pad) 0;
+	border-bottom-color: var(--g-line-soft);
+}
+
+.sakura-sync-app .sufm-space-mode {
+	margin: var(--g-stack) 0 var(--g-tight);
+}
+
+.sakura-sync-app .sufm-space-mode legend {
+	padding-bottom: 8px;
+	color: var(--g-muted);
+	font-size: 12.5px;
+}
+
+.sakura-sync-app .sufm-space-mode label {
+	padding: 4px 0;
+	font-size: 13px;
+}
+
+.sakura-sync-app .sufm-space-input {
+	text-align: right;
+}
+
+.sakura-sync-app .sufm-space-row {
+	gap: 10px;
+	padding: var(--g-row-pad) 0;
+	border-bottom: 1px solid var(--g-line-soft);
+	font-size: 13px;
+}
+
+.sakura-sync-app .sufm-space-row.is-head {
+	padding: 4px 0 var(--g-tight);
+	color: var(--g-muted);
+	font-size: 12px;
+	letter-spacing: .04em;
+}
+
+.sakura-sync-app .sufm-space-row-key {
+	color: var(--g-ink);
+	font-size: 13px;
+}
+
+.sakura-sync-app .sufm-space-row-meta {
+	color: var(--g-muted);
+	font-size: 12.5px;
+	line-height: 1.55;
+}
+
+.sakura-sync-app .sufm-space-row .sufm-space-input {
+	height: 34px;
+	min-height: 34px;
+	padding: 0 10px;
+	font-size: 13px;
+	line-height: 32px;
+	border-radius: var(--r-sm);
+}
+
+.sakura-sync-app .sufm-space-grants .sufm-space-row,
+.sakura-sync-app #sufm-space-grants .sufm-space-row {
+	font-size: 12.5px;
+	line-height: 1.55;
+}
+
+.sakura-sync-app .sufm-space-grants .sufm-space-row span {
+	font-size: 12.5px;
+	line-height: 1.55;
+}
+
+.sakura-sync-app .sufm-space-total,
+.sakura-sync-app .sufm-space-plan-summary,
+.sakura-sync-app .sufm-space-reconcile-summary {
+	color: var(--g-muted);
+	font-size: 12.5px;
+}
+
+.sakura-sync-app .sufm-space-tiles {
+	gap: var(--g-inset-gap);
+}
+
+.sakura-sync-app .sufm-space-tile {
+	padding: var(--g-panel-pad);
+	border-color: var(--g-line);
+	border-radius: var(--r-md);
+	background: var(--g-wash);
+}
+
+.sakura-sync-app .sufm-space-tile:focus-within {
+	border-color: var(--g-accent);
+}
+
+.sakura-sync-app .sufm-space-tile__key {
+	color: var(--g-muted);
+	font-size: 12px;
+}
+
+.sakura-sync-app .sufm-space-tile__name {
+	color: var(--g-ink);
+	font-size: 13.5px;
+	white-space: nowrap;
+}
+
+.sakura-sync-app .sufm-space-tile {
+	gap: 2px 10px;
+}
+
+.sakura-sync-app .sufm-space-tile__field .sufm-space-input {
+	width: 76px;
+}
+
+.sakura-sync-app .sufm-space-tile__unit {
+	color: var(--g-muted);
+	font-size: 12px;
+}
+
+.sakura-sync-app .sufm-space-block {
+	margin-top: var(--g-stack);
+	padding-top: var(--g-stack);
+	border-top-color: var(--g-line-soft);
+}
+
+.sakura-sync-app .sufm-space-block-head {
+	margin-bottom: var(--g-tight);
+}
+
+.sakura-sync-app .sufm-space-block-head h3 {
+	color: var(--g-ink);
+	font-size: 13.5px;
+}
+
+.sakura-sync-app .sufm-space-block-head p {
+	color: var(--g-muted);
+	font-size: 12.5px;
+	line-height: 1.6;
+}
+
+.sakura-sync-app .sufm-space-rule {
+	font-size: 12.5px;
+}
+
+.sakura-sync-app .sufm-space-rule > span {
+	color: var(--g-muted);
+}
+
+.sakura-sync-app .sufm-space-rule em {
+	color: var(--g-muted);
+	font-size: 12px;
+	line-height: 1.55;
+}
+
+.sakura-sync-app .sufm-space-rulebar {
+	gap: 8px 20px;
+	margin-bottom: var(--g-stack);
+	padding: var(--g-panel-pad);
+	border-color: var(--g-line);
+	border-radius: var(--r-md);
+	background: var(--g-wash);
+	font-size: 13px;
+	line-height: 1.55;
+}
+
+.sakura-sync-app .sufm-space-rulebar__item,
+.sakura-sync-app .sufm-space-rulebar__item .sufm-space-input {
+	font-size: 13px;
+}
+
+.sakura-sync-app .sufm-space-rulebar__item .sufm-space-input {
+	height: 34px;
+	min-height: 34px;
+	line-height: 32px;
+	border-radius: var(--r-sm);
+}
+
+.sakura-sync-app .sufm-space-icon-global {
+	padding: var(--g-panel-pad);
+	border-color: var(--g-line);
+	border-radius: var(--r-md);
+	background: var(--g-wash);
+}
+
+.sakura-sync-app .sufm-space-icon-global-label {
+	color: var(--g-ink);
+	font-size: 13px;
+}
+
+.sakura-sync-app .sufm-space-icon-pick {
+	height: 34px;
+	border-color: var(--g-line-strong);
+	border-radius: var(--r-sm);
+	background: #fff;
+	color: var(--g-ink-soft);
+	font-size: 12.5px;
+}
+
+.sakura-sync-app .sufm-space-icon-pick:hover {
+	border-color: var(--g-accent);
+}
+
+.sakura-sync-app .sufm-space-icon-clear {
+	color: var(--g-faint);
+}
+
+.sakura-sync-app .sufm-space-icon-clear:hover {
+	color: var(--g-bad);
+}
+
+.sakura-sync-app .sufm-space-hint {
+	margin-top: var(--g-tight);
+	color: var(--g-muted);
+	font-size: 12.5px;
+	line-height: 1.6;
+}
+
+.sakura-sync-app .sufm-space-pkg-flags {
+	font-size: 12px;
+	line-height: 1.55;
+}
+
+.sakura-sync-app .sufm-space-grant-actions .btn {
+	height: 28px;
+	line-height: 26px;
+	font-size: 12px;
+}
+
+/* ------------------------------------------------------- responsive */
+
+@media (max-width: 782px) {
+	.sakura-sync-app .sakura-tabs {
+		gap: clamp(10px, 2.8vw, 18px);
+	}
+
+	.sakura-sync-app .sakura-tab {
+		font-size: 13px;
+	}
+
+	.sakura-sync-app .sufm-table {
+		font-size: 13.5px;
+	}
+
+	.sakura-sync-app .sufm-table tbody tr {
+		gap: 4px 12px;
+		padding: var(--g-inset-gap) 0;
+	}
+
+	.sakura-sync-app .sufm-table tbody td {
+		padding: 2px 0;
+	}
+
+	.sakura-sync-app [data-sakura-card="users"] .card-head-actions {
+		display: grid;
+		grid-template-columns: repeat(3, minmax(0, 1fr));
+		gap: 8px;
+		width: 100%;
+		justify-content: stretch;
+	}
+
+	.sakura-sync-app [data-sakura-card="users"] .card-head-actions .btn {
+		width: 100%;
+	}
+
+	.sakura-sync-app [data-sakura-card="users"] #sufm-user-search {
+		grid-column: 1 / -1;
+		order: -1;
+		width: 100%;
+	}
+
+	.sakura-sync-app [data-sakura-card="queue"] .card-head-actions {
+		display: grid;
+		grid-template-columns: minmax(0, 1fr) auto;
+		gap: 8px;
+		width: 100%;
+	}
+
+	.sakura-sync-app [data-sakura-card="queue"] #sufm-status {
+		grid-column: 1 / -1;
+		width: 100%;
+	}
+
+	.sakura-sync-app [data-sakura-card="queue"] #sufm-refresh {
+		grid-column: 2;
+	}
+
+	.sakura-sync-app .sufm-styles,
+	.sakura-sync-app .sufm-accents {
+		padding-bottom: var(--g-stack);
+	}
+
+	.sakura-sync-app .sufm-theme-limits {
+		padding: var(--g-panel-pad);
+	}
+
+	.sakura-sync-app .basic-value {
+		font-size: 12.5px;
+	}
+
+	.sakura-sync-app .sufm-space-mode label {
+		min-height: 32px;
+	}
+}
+
+/* Package editors and the grant ledger keep six columns on desktop. At
+ * phone widths those tracks can only be read by scrolling sideways with the
+ * first column clipped, so each row becomes a labelled two-line block. */
+@media (max-width: 640px) {
+	.sakura-sync-app .sufm-space-packages .sufm-space-row.is-head,
+	.sakura-sync-app .sufm-space-grants .sufm-space-row.is-head,
+	.sakura-sync-app .sufm-space-ppkgs .sufm-space-row.is-head {
+		display: none;
+	}
+
+	.sakura-sync-app .sufm-space-packages .sufm-space-row:not(.is-head),
+	.sakura-sync-app .sufm-space-ppkgs .sufm-space-row:not(.is-head) {
+		grid-template-columns: repeat(6, minmax(0, 1fr));
+		gap: 10px 8px;
+		padding: var(--g-row-pad) 0;
+		align-items: start;
+	}
+
+	.sakura-sync-app .sufm-space-packages .sufm-space-row:not(.is-head) > span[data-label],
+	.sakura-sync-app .sufm-space-ppkgs .sufm-space-row:not(.is-head) > span[data-label] {
+		display: flex;
+		min-width: 0;
+		flex-direction: column;
+		gap: 4px;
+	}
+
+	.sakura-sync-app .sufm-space-packages .sufm-space-row:not(.is-head) > span[data-label]::before,
+	.sakura-sync-app .sufm-space-ppkgs .sufm-space-row:not(.is-head) > span[data-label]::before {
+		content: attr(data-label);
+		color: var(--g-muted);
+		font-size: 10.5px;
+		font-weight: 600;
+		line-height: 1.4;
+		letter-spacing: .03em;
+	}
+
+	.sakura-sync-app .sufm-space-packages .sufm-space-row:not(.is-head) .sufm-space-input,
+	.sakura-sync-app .sufm-space-ppkgs .sufm-space-row:not(.is-head) .sufm-space-input {
+		width: 100%;
+		max-width: 100%;
+		margin: 0;
+	}
+
+	.sakura-sync-app .sufm-space-packages .sufm-space-row:not(.is-head) > span:nth-child(1),
+	.sakura-sync-app .sufm-space-ppkgs .sufm-space-row:not(.is-head) > span:nth-child(1) {
+		grid-column: 1;
+	}
+
+	.sakura-sync-app .sufm-space-packages .sufm-space-row:not(.is-head) > span:nth-child(2),
+	.sakura-sync-app .sufm-space-ppkgs .sufm-space-row:not(.is-head) > span:nth-child(2) {
+		grid-column: 2 / -1;
+	}
+
+	.sakura-sync-app .sufm-space-packages .sufm-space-row:not(.is-head) > span:nth-child(3),
+	.sakura-sync-app .sufm-space-ppkgs .sufm-space-row:not(.is-head) > span:nth-child(3) {
+		grid-column: 1 / span 2;
+	}
+
+	.sakura-sync-app .sufm-space-packages .sufm-space-row:not(.is-head) > span:nth-child(4),
+	.sakura-sync-app .sufm-space-ppkgs .sufm-space-row:not(.is-head) > span:nth-child(4) {
+		grid-column: 3 / span 2;
+	}
+
+	.sakura-sync-app .sufm-space-packages .sufm-space-row:not(.is-head) > span:nth-child(5),
+	.sakura-sync-app .sufm-space-ppkgs .sufm-space-row:not(.is-head) > span:nth-child(5) {
+		grid-column: 5 / span 2;
+	}
+
+	.sakura-sync-app .sufm-space-packages .sufm-space-row:not(.is-head) > span:nth-child(6),
+	.sakura-sync-app .sufm-space-ppkgs .sufm-space-row:not(.is-head) > span:nth-child(6) {
+		display: flex;
+		grid-column: 1 / -1;
+		flex-direction: row;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 8px 16px;
+		padding-top: 2px;
+	}
+
+	.sakura-sync-app [data-sakura-card="space_grants"] .card-body {
+		overflow-x: visible;
+	}
+
+	.sakura-sync-app #sufm-space-grants .sufm-space-row {
+		grid-template-columns: minmax(0, 1fr) auto;
+		gap: 4px 12px;
+		min-width: 0;
+		padding: var(--g-row-pad) 0;
+		align-items: start;
+	}
+
+	.sakura-sync-app #sufm-space-grants .sufm-space-row > span:nth-child(1) {
+		grid-column: 1;
+		grid-row: 1;
+		color: var(--g-muted);
+		font-size: 12px;
+		line-height: 1.5;
+	}
+
+	.sakura-sync-app #sufm-space-grants .sufm-space-row > span:nth-child(2) {
+		grid-column: 1;
+		grid-row: 2;
+		color: var(--g-ink);
+		overflow-wrap: anywhere;
+	}
+
+	.sakura-sync-app #sufm-space-grants .sufm-space-row > span:nth-child(3) {
+		grid-column: 2;
+		grid-row: 2;
+		color: var(--g-muted);
+		font-size: 12.5px;
+		text-align: right;
+	}
+
+	.sakura-sync-app #sufm-space-grants .sufm-space-row > span:nth-child(4) {
+		grid-column: 1;
+		grid-row: 3;
+		color: var(--g-muted);
+		font-size: 12px;
+		line-height: 1.5;
+	}
+
+	.sakura-sync-app #sufm-space-grants .sufm-space-row > span:nth-child(5) {
+		grid-column: 2;
+		grid-row: 1;
+		justify-self: end;
+		font-size: 12px;
+	}
+
+	.sakura-sync-app #sufm-space-grants .sufm-space-row > span:nth-child(6) {
+		grid-column: 2;
+		grid-row: 3;
+		justify-self: end;
+	}
+
+	.sakura-sync-app #sufm-space-grants .sufm-space-grant-actions {
+		display: flex;
+		gap: 6px;
+	}
+}
+
+@media (max-width: 360px) {
+	.sakura-sync-app .sakura-tabs {
+		gap: 4px;
+	}
+
+	.sakura-sync-app .sakura-tab {
+		font-size: 12px;
+	}
+
+	.sakura-sync-app [data-sakura-card="users"] .card-head-actions {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+}

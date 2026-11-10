@@ -1,6 +1,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
+import { execFileSync } from 'node:child_process';
 
 const SCAN = process.argv[2] || '/tmp/scan.json';
 const OUTDIR = process.argv[3] || '/tmp/docparts';
@@ -11,6 +12,29 @@ const k = (s) => BT + s + BT;
 
 const scan = JSON.parse(fs.readFileSync(SCAN, 'utf8'));
 const docsArr = JSON.parse(fs.readFileSync(DOCS, 'utf8'));
+const here = path.dirname(new URL(import.meta.url).pathname);
+const ROOT = scan.root || path.resolve(here, '../..');
+const collector = path.join(here, 'collect-hooks.php');
+const hooksData = JSON.parse(
+  execFileSync(process.env.PHP_BIN || 'php', [collector, ROOT], {
+    encoding: 'utf8',
+    maxBuffer: 16 * 1024 * 1024,
+  })
+);
+const hookList = hooksData.hooks;
+const testFiles = [];
+const walkTests = (dir) => {
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    const full = path.join(dir, entry.name);
+    if (entry.isDirectory()) walkTests(full);
+    else if (entry.name.endsWith('.php')) testFiles.push(path.relative(ROOT, full));
+  }
+};
+walkTests(path.join(ROOT, 'tests'));
+const testLines = testFiles.reduce((sum, f) => {
+  const text = fs.readFileSync(path.join(ROOT, f), 'utf8');
+  return sum + (text.endsWith('\n') ? text.split('\n').length - 1 : text.split('\n').length);
+}, 0);
 fs.mkdirSync(OUTDIR, { recursive: true });
 fs.mkdirSync(path.join(OUTDIR, 'classes'), { recursive: true });
 
@@ -24,7 +48,6 @@ const firstSentence = (s, max = 110) => {
   return base.length > max ? base.slice(0, max - 1) + '…' : base;
 };
 // 中文职责表：优先取环境变量，其次 /tmp 工作副本，最后取与本脚本同目录的版本
-const here = path.dirname(new URL(import.meta.url).pathname);
 const zhCandidates = [process.env.PURPOSES_ZH, '/tmp/docparts/purposes.zh.json', path.join(here, 'purposes.zh.json')].filter(Boolean);
 const zhPath = zhCandidates.find((p) => fs.existsSync(p));
 const ZH = zhPath ? JSON.parse(fs.readFileSync(zhPath, 'utf8')) : {};
@@ -44,7 +67,7 @@ for (const e of scan.edges) if (e.kind === 'implements') {
   implOf.set(e.from, arr);
 }
 const hooksOf = new Map();
-for (const h of scan.hooks) {
+for (const h of hookList) {
   const arr = hooksOf.get(h.owner) || [];
   arr.push(h);
   hooksOf.set(h.owner, arr);
@@ -86,7 +109,7 @@ for (const m of modStat) md += '| ' + m.module + ' | ' + m.files + ' | ' + m.lin
 const totFiles = modStat.reduce((a, m) => a + m.files, 0);
 const totLines = modStat.reduce((a, m) => a + m.lines, 0);
 const totCls = modStat.reduce((a, m) => a + m.classes, 0);
-md += '| 合计 | ' + totFiles + ' | ' + totLines + ' | ' + totCls + ' | 生产代码；另有 tests 72 文件/8800 行、stubs 2 文件另计 |\n';
+md += '| 合计 | ' + totFiles + ' | ' + totLines + ' | ' + totCls + ' | 生产代码；另有 tests ' + testFiles.length + ' 文件/' + testLines + ' 行、stubs 2 文件另计 |\n';
 fs.writeFileSync(path.join(OUTDIR, 'modules.md'), md);
 
 for (const m of mods) {
@@ -107,7 +130,7 @@ for (const m of mods) {
 
 const byModule = new Map();
 let hookTotal = 0;
-for (const h of scan.hooks) {
+for (const h of hookList) {
   const owner = cls.find((c) => c.fqn === h.owner);
   if (owner && !PROD(owner.module)) continue;
   const m = owner ? owner.module : '未归属';
@@ -116,6 +139,8 @@ for (const h of scan.hooks) {
   byModule.set(m, arr);
   hookTotal++;
 }
+const actionTotal = hookList.filter((h) => h.kind === 'add_action').length;
+const filterTotal = hookList.filter((h) => h.kind === 'add_filter').length;
 let hm = '# 钩子索引\n\n';
 for (const m of [...byModule.keys()].sort()) {
   const rows = byModule.get(m).sort((a, b) => (a.hook + a.line).localeCompare(b.hook + b.line));
@@ -126,7 +151,7 @@ for (const m of [...byModule.keys()].sort()) {
   }
   hm += '\n';
 }
-hm += '合计 ' + hookTotal + ' 条钩子（已排除 tests/stubs 中的注册）。\n';
+hm += '合计 ' + hookTotal + ' 条具名钩子（add_action ' + actionTotal + ' + add_filter ' + filterTotal + '；已排除 tests/stubs、add_submenu_page 与 Hook_Loader 通用转发）。\n';
 fs.writeFileSync(path.join(OUTDIR, 'hooks.md'), hm);
 
 let ci = '| # | 类 | 文件:行 | 方法数 |\n|---:|---|---|---:|\n';
@@ -246,7 +271,7 @@ for (const [key, w] of modPair) {
 }
 const maxR = Math.max(...nodes.map((n) => Math.hypot(n.x, n.y, n.z)));
 // 版本号从插件主文件头读取，避免图谱与文档版本脱节
-let pluginVersion = '1.24.3';
+let pluginVersion = '1.24.4';
 try {
   const rootDir = scan.root || '';
   const main = fs.readdirSync(rootDir).find((f) => /\.php$/.test(f) && /Plugin Name:/i.test(fs.readFileSync(path.join(rootDir, f), 'utf8').slice(0, 2000)));

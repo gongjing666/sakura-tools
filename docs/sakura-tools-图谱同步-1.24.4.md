@@ -1,37 +1,40 @@
-# sakura-tools 3D 图谱同步说明（v1.24.3）
+# sakura-tools 3D 图谱同步说明（v1.24.4）
 
-> 配套文档：[sakura-tools 代码结构 1.24.3](sakura-tools-代码结构-1.24.3.md) ｜ **代码基线** commit `20be449`（1.24.3 卸载修复提交；版本号、文档与图谱随发布提交）。本文只回答三件事：**图谱变了什么、怎么和文档对上、以后怎么重建**。
+> 配套文档：[sakura-tools 代码结构 1.24.4](sakura-tools-代码结构-1.24.4.md) ｜ **代码基线** commit `1660b4c`（1.24.3 发布；1.24.4 覆盖升级与文档修正随本次发布提交），图谱按 1.24.4 工作树生成。本文只回答三件事：**图谱变了什么、怎么和文档对上、以后怎么重建**。
 
 ## 0. 结论
 
 - 图谱由同一份扫描事实表与文档同时产出，不是手工对齐的副产物；上一轮（2026-11-09 1.24.2 S3/Sync 运维观测）新增 7 条 `ref`、3 条模块边权与 2 个类节点的 `val`，节点、类、钩子集合不变（§2.9）。
 - 2026-11-09 晚间的三条验证空白补测（Quota、删除审核→Executor、卸载、扫描游标、编辑器覆盖与顺序）没有改插件代码（§2.10）；本轮 1.24.3 修复卸载漏删 `file_tokens`，新增 1 条 `ref` 与 1 条模块边权，节点、类、钩子集合不变（§2.11）。
-- 规模：**178 个生产 PHP 文件 / 163 个类 / 17 个模块 / 180 个节点 / 823 条连线**（610 `ref` + 163 `contains` + 50 `modref`）/ **191 个钩子** / **0 悬空边**。
-- 与上一轮相比：节点仍 180，连线 822→823；新增 Uninstaller → Schema 一条 `ref`（w=2），模块边 `src` → `src/UserFiles` 7→9；没有 `val` 变化（§2.11）。页面四角为 178 / 180 / 823 / 191。
-- 页面四角数字由 `graph.json` 的 `stats` 注入，不再手写；页面显示 178 / 180 / 823 / 191，与文档附录计数一致。
+- 规模：**179 个生产 PHP 文件 / 164 个类 / 17 个模块 / 181 个节点 / 826 条连线**（612 `ref` + 164 `contains` + 50 `modref`）/ **199 个具名钩子** / **0 悬空边**。
+- 本轮（2026-11-10）新增 `src/Upgrade_Guard.php` 并在 `Plugin::boot()` 接线，节点 180→181、连线 823→826（`ref` +2、`contains` +1）；钩子由 191 修正为 **199**：补扫出 11 条此前漏记的具名注册，同时剔除 2 条通用转发和 1 条 `add_submenu_page`，净 +8；代码本身没有新增钩子（§2.12）。页面四角为 179 / 181 / 826 / 199。
+- 1.24.4 发布只提升版本号、同步文档与图谱标题，节点 / 连线 / 钩子集合不变；页面副标题与 `meta.version` 更新为 1.24.4。
+- 页面四角数字由 `graph.json` 的 `stats` 注入，不再手写；页面显示 179 / 181 / 826 / 199，与文档附录计数一致。
 - 生成、注入、组装三个脚本已固化到 `docs/tools/`，可在任意机器重跑（§7）。
 
 ## 1. 数据管线：谁生成谁
 
 ```
 scanner.php（token_get_all 三趟静态扫描）
-        │  /tmp/scan.json        178 文件 / 163 类 / 191 钩子 / 全部边
-        ├── collect-comments.php → /tmp/comments.json   163 条类注释（"职责"列的依据）
+        │  /tmp/scan.json        179 文件 / 164 类 / 199 钩子 / 全部边
+        ├── collect-hooks.php → 199 条具名钩子（含常量与拼接解析）
+        ├── collect-comments.php → /tmp/comments.json   164 条类注释（"职责"列的依据）
         ▼
 build-code-structure.mjs
         ├── modules.md  class-index.md  file-index.md  hooks.md  module-matrix.md  top-edges.md
-        ├── classes/<模块>.md   15 个分类表
-        └── graph.json          180 节点 / 823 连线 / 确定性坐标
+        ├── classes/<模块>.md   16 个分类表
+        └── graph.json          181 节点 / 826 连线 / 确定性坐标
         ▼
 graph-inject.mjs ──► docs/graph-preview/index.html（内嵌 DATA）+ graph.json
         ▼
-assemble-doc.py  ──► sakura-tools-代码结构-1.24.3.md（分章正文 + 上述表格）
+assemble-doc.py  ──► sakura-tools-代码结构-1.24.4.md（分章正文 + 上述表格）
 ```
 
 | 步骤 | 命令（在插件根目录下执行） | 产物 |
 |---|---|---|
 | 1 扫描 | `php /root/DSH/plugins/dsh-codegraph/lib/scanner.php . > /tmp/scan.json` | 事实表 |
-| 2 注释 | `php docs/tools/collect-comments.php . > /tmp/comments.json` | 163 条类 docblock |
+| 1b 钩子补扫 | 构建脚本自动调用 `php docs/tools/collect-hooks.php .` | 199 条具名钩子（解析常量、`self::`/`Class::` 与字符串拼接；排除 `add_submenu_page` 与 `Hook_Loader` 通用转发） |
+| 2 注释 | `php docs/tools/collect-comments.php . > /tmp/comments.json` | 164 条类 docblock |
 | 3 生成 | `node docs/tools/build-code-structure.mjs /tmp/scan.json /tmp/docparts /tmp/comments.json` | 表格 + graph.json |
 | 4 注入 | `node docs/tools/graph-inject.mjs /tmp/docparts/graph.json docs/graph-preview --write` | index.html + graph.json |
 | 5 组装 | `python3 docs/tools/assemble-doc.py --parts /tmp/docparts --chapters docs/tools/chapters` | 代码结构文档 |
@@ -42,12 +45,12 @@ assemble-doc.py  ──► sakura-tools-代码结构-1.24.3.md（分章正文 + 
 ## 2. 与上一版导出的对比
 
 | 项 | 旧导出（`/tmp/graph.json.bak`） | 当前导出 | 说明 |
-| 文件数 | 181 | 178 | 口径改为"生产 PHP"，排除 `tests/`、`stubs/`、`.dsh-ops/`；上一轮删 `Upload_Queue.php` 再 -1 |
+| 文件数 | 181 | 179 | 口径为"生产 PHP"，排除 `tests/`、`stubs/`、`.dsh-ops/`；本轮新增 `src/Upgrade_Guard.php` |
 | 模块 | 15 | 17 | 根文件统一命名 `根文件`、`src` 单列、`includes` 与 `includes/views` 分开 |
-| 类 | 147 | 163 | 清理前 164，删 `Upload_Queue` 后 163；见下方 id 规则变更 |
-| 节点 | 162 | 180 | 163 类 + 17 模块 |
-| 连线 | 761 | 823 | 旧 559 ref + 147 contains + 55 modref → 610 + 163 + 50 |
-| 钩子 | 未收录（页脚写死 111） | 191（`stats.hooks`） | 现在页脚数字来自数据 |
+| 类 | 147 | 164 | 本轮新增 `Upgrade_Guard`；见下方 id 规则变更 |
+| 节点 | 162 | 181 | 164 类 + 17 模块 |
+| 连线 | 761 | 826 | 旧 559 ref + 147 contains + 55 modref → 612 + 164 + 50 |
+| 钩子 | 未收录（页脚写死 111） | 199（`stats.hooks`） | 本轮改为 `collect-hooks.php` 补扫；见 §2.12 |
 | 布局 | 力导向 320 次迭代，radius 1699.4 | 确定性球面，radius 1710，`iterations: 0` | 同数据每次坐标一致，可 diff |
 | 节点 id | 短类名，如 `cls:Alerting` | FQCN，如 `cls:Sakura\ImageOptimizer\S3\Alerting` | 见下方说明 |
 
@@ -62,7 +65,7 @@ assemble-doc.py  ──► sakura-tools-代码结构-1.24.3.md（分章正文 + 
 
 > 删类同时删除了 `tests/UploadQueueTest.php` 与 `tests/bootstrap.php` 的 require；`tests/` 本来不进图，故不产生节点变化。
 
-**为什么改 id 规则**：当前 163 个类里，只有 140 个类的短名是唯一的；**10 组短名重复、共 23 个类**（`Assets`×3、`Module`×3、`CLI`×3，`Stats`/`Size_Catalog`/`Schema`/`Context`/`Generic`/`Provider`/`Settings` 各 ×2）。用短名做 id，这些类会落到同一个节点上、边也会被合并。旧导出只有 147 个类，**无法据此证明当年发生过合并**（旧时点的代码库本身就更小），但这个风险在新方案里已经不存在。
+**为什么改 id 规则**：当时 163 个类里，只有 140 个类的短名是唯一的；**10 组短名重复、共 23 个类**（`Assets`×3、`Module`×3、`CLI`×3，`Stats`/`Size_Catalog`/`Schema`/`Context`/`Generic`/`Provider`/`Settings` 各 ×2）。用短名做 id，这些类会落到同一个节点上、边也会被合并。旧导出只有 147 个类，**无法据此证明当年发生过合并**（旧时点的代码库本身就更小），但这个风险在新方案里已经不存在。
 
 **代价**：新旧节点无法逐 id 对齐，所以不提供"从 162 到 180"的逐节点清单，只给可复核的计数与行数核对（§6、§8）。上一轮清理的增量已在 §2.1 单列；以后逐版追踪请保留每版 `graph.json`，`meta.version` 已写入版本号。
 
@@ -196,6 +199,27 @@ assemble-doc.py  ──► sakura-tools-代码结构-1.24.3.md（分章正文 + 
 
 已重新扫描工作树并重建 `docs/graph-preview/`：`index.html` 167,825 字节、md5 `0c2e22e9df6b19d55a403c536d6daae7`；`graph.json` 205,026 字节、md5 `2b64d1cf5f2284dbfc01d86e1216ba22`；注入后 dry-run 为 `changed:false`、`dangling:0`。副标题与 `meta.version` 均为 1.24.3。隔离环境复跑卸载的显式删除轨道：15 张 `t_sufm_*`（`t_sufm_file_tokens` 3,117 行）→ 0 张，`t_sio_*` 也 0；测试后从 dump 恢复样本库。
 
+### 2.12 本轮增量（2026-11-10 覆盖升级自愈与钩子计数修正）
+
+| 变更 | 图谱对象 | 计数影响 | 文档对应 |
+|---|---|---|---|
+| 新增类节点 | `cls:Sakura\ImageOptimizer\Upgrade_Guard`（`src/Upgrade_Guard.php:23`，`val` 2.2627） | 文件 178→179、类 163→164、节点 180→181 | §3.2、§10.18 |
+| 新增 `contains` | `mod:src` → `cls:…\Upgrade_Guard` | `contains` 163→164；连线 823→824 | §13 |
+| 新增 `ref` | `Plugin` → `Upgrade_Guard`（`static`+`call`，w=2） | `ref` 610→611；连线 824→825 | §3.2 |
+| 新增 `ref` | `Plugin` → `Activation`（`static`+`call`，w=2） | `ref` 611→612；连线 825→826 | §3.2 |
+| 钩子计数 | `stats.hooks` | 191→199 | §9.2 |
+| 不变 | `modref` 50、其余 163 个类节点、17 个模块；0 悬空边 | — | §13 |
+
+代码差异只有新增 `Upgrade_Guard`、在 `Plugin::boot()` 调用 `maybe_upgrade()`，以及 `tests/UpgradeGuardTest.php`、`tests/bootstrap.php` 的 shim 调整。没有改现有类的方法或删除任何边，所以旧节点 `val` 不变；`src` 模块的文件数 4→5，但模块 `val` 取 `max(4, 文件数×0.8)`，仍为 4。1.24.4 发布提交只把版本号提升并同步文档/图谱，不再改变拓扑；发布前的覆盖升级运行验证见 §2.13。
+
+钩子变化不是新增接线，而是计数口径修正。旧图谱直接使用 `scanner.php` 的 `scan.hooks`：它只认第一个字符串字面量，遇到 `self::HOOK`、`Class::CONST`、`'update_option_' . Settings::OPTION` 这类常量/拼接会漏记。`docs/tools/collect-hooks.php` 用 `token_get_all` 重新解析生产代码，得到 203 次 `add_action`/`add_filter` 调用，其中 4 次是 `Hook_Loader` 的通用转发（`$hook`/`$entry['hook']`，不是具名注册），其余 **199 条具名注册**。旧附录 191 条里，190 条是 action/filter，其中 2 条是 `Hook_Loader` 的通用转发（只解析出字面量 `hook`），实际具名 **188** 条；另有 1 条 `add_submenu_page` 被误算成钩子。相对旧的 188 条，新增 11 条此前完全漏记的具名注册；另 10 条旧扫描只解析到 `update_option_`、`add_option_`、`delete_option_`、`admin_post_` 等前缀，2 条是行号漂移，属于同一注册的重解析，不改变总数。因此 191 − 1（submenu）− 2（通用转发）+ 11（新具名）= **199**，相对旧总数净增 8（action/filter +9，submenu −1）。
+
+### 2.13 1.24.4 发布与覆盖升级运行验证
+
+1.24.4 的代码差异只有版本号、`Upgrade_Guard` 接线与测试/文档，拓扑已在 §2.12 固定。发布前在测试站 `/root/sio-e2e` 用工作树软链把 `sakura_imgopt_version` 回退到 1.24.3、清掉每日清理 cron，再请求 `/wp-login.php`：HTTP 200（9,197 字节），读回版本 1.24.4、cron 恢复、锁与错误 transient 均不存在；10 个并发请求全部返回 302，`cleanup_events=1`，没有重复排程或残留锁。验证后测试站已恢复 1.24.3 软链与 option。细节见主文档 §10.18。
+
+重建产物：主文档 `sakura-tools-代码结构-1.24.4.md` 298,733 字节（md5 `d4be0a7939a44153c187f04c4a485839`）；页面 `index.html` 168,449 字节（md5 `7705a556669d6287798f6ec04417748e`）；`graph.json` 205,832 字节（md5 `a63b6e4312932923938f79f9108afd53`）。页面副标题与 `meta.version` 均为 1.24.4，四角仍为 179 / 181 / 826 / 199。
+
 ## 3. 节点与连线的定义
 
 **节点字段**
@@ -207,7 +231,7 @@ assemble-doc.py  ──► sakura-tools-代码结构-1.24.3.md（分章正文 + 
 | `type` | `class` | `module` | 渲染样式与颜色 |
 | `module` | 所属模块 | 自身 | 模块列表与配色 |
 | `file` / `line` | 文件与行号 | — | 详情面板定位到源码 |
-| `val` | `1 + log` 方法数 | 文件数 | 球体大小 |
+| `val` | `sqrt(公开方法数) × 1.6`（至少 1.2） | `max(4, 文件数 × 0.8)` | 球体大小 |
 | `color` | 跟随模块 | 固定 17 色 | 视觉分组 |
 | `x`/`y`/`z` | 预计算坐标 | 预计算坐标 | 同数据布局一致 |
 
@@ -215,8 +239,8 @@ assemble-doc.py  ──► sakura-tools-代码结构-1.24.3.md（分章正文 + 
 
 | `type` | 数量 | `w` 含义 | 语义 | 示例 |
 |---|---:|---|---|---|
-| `contains` | 163 | 固定 1 | 模块 → 类（归属） | `mod:src/S3` → `cls:…\S3\Options` |
-| `ref` | 609 | 静态引用次数 | 类 → 类 | `Executor` → `Time`（w=50） |
+| `contains` | 164 | 固定 1 | 模块 → 类（归属） | `mod:src/S3` → `cls:…\S3\Options` |
+| `ref` | 612 | 静态引用次数 | 类 → 类 | `Executor` → `Time`（w=50） |
 | `modref` | 50 | 跨模块引用边数 | 模块 → 模块 | `includes` → `src/S3`（w=43） |
 
 `ref` 的 `kinds` 数组记录了引用形态（`use` / `type` / `call` / `static` / `new` / `implements` / `callback`），鼠标点开详情可看到"引用/被引用"两侧。
@@ -234,7 +258,7 @@ assemble-doc.py  ──► sakura-tools-代码结构-1.24.3.md（分章正文 + 
 | `src/Image` | 10 | 10 | 图片处理 |
 | `src/Admin` | 7 | 7 | 菜单、路由与布局 |
 | `src/Contracts` | 5 | 5 | 5 个接口 |
-| `src` | 4 | 4 | 插件入口与运行时 |
+| `src` | 5 | 5 | 插件入口、运行时与升级守卫 |
 | `根文件` | 3 | 0 | 主文件、`uninstall.php`、`fast-search.php` |
 | `src/Backup` | 2 | 2 | 备份仓储 |
 | `src/Oss` | 2 | 2 | 阿里云 OSS 适配 |
@@ -242,7 +266,7 @@ assemble-doc.py  ──► sakura-tools-代码结构-1.24.3.md（分章正文 + 
 | `src/Filesystem` | 1 | 1 | 文件系统契约实现 |
 | `src/Settings` | 1 | 1 | 设置仓储 |
 | `src/Stats` | 1 | 1 | 统计仓储 |
-| **合计** | **178** | **163** | 与 §2.2、附录 C 一致 |
+| **合计** | **179** | **164** | 与 §2.2、附录 C 一致 |
 
 ## 5. 最粗的六条模块连线
 
@@ -262,11 +286,10 @@ assemble-doc.py  ──► sakura-tools-代码结构-1.24.3.md（分章正文 + 
 | 图谱元素 | 数量 | 文档中的对应条目 | 共同的生成来源 |
 |---|---:|---|---|
 | 模块节点 | 17 | §2.2 模块总览表（17 行） | `scan.files` 按模块聚合 |
-| 类节点 | 163 | 附录 A 类索引（163 行，每行给 `文件:行`） | `scan.nodes(kind=class)` |
-| `ref` 边 | 610 | §11.1 矩阵、§11.3 最粗 12 条边 | `scan.edges` |
-| `ref` 边 | 609 | §11.1 矩阵、§11.3 最粗 12 条边 | `scan.edges` |
+| 类节点 | 164 | 附录 A 类索引（164 行，每行给 `文件:行`） | `scan.nodes(kind=class)` |
+| `ref` 边 | 612 | §11.1 矩阵、§11.3 最粗 12 条边 | `scan.edges` |
 | `modref` 边 | 50 | §11.1 矩阵的非零格（17×17） | 类边按模块聚合 |
-| 钩子 | 191 | 附录 B（191 行）+ §9.2 分布表 | `scan.hooks` |
+| 钩子 | 199 | 附录 B（199 行）+ §9.2 分布表 | `collect-hooks.php`（构建时合并） |
 | 23 张自定义表 | — | §9.1（图谱不建表节点，避免图噪） | 测试站 `SHOW TABLES` |
 
 ## 7. 重建步骤（可直接复制执行）
@@ -300,24 +323,24 @@ google-chrome --headless=new --no-sandbox --user-data-dir=/tmp/chrome-graph \
   file://$PWD/docs/graph-preview/index.html
 ```
 
-**改代码后必须做的事**：重跑 1–5。只要有一步跳过，图表与正文的数字就可能不一致——这正是旧版页面出现"178 / 706 / 111"的原因。
+**改代码后必须做的事**：重跑 1–5。只要有一步跳过，图表与正文的数字就可能不一致——这正是旧版页面出现"178 / 706 / 111"的原因。第 3 步会在 Node 内自动调用 `docs/tools/collect-hooks.php` 补扫钩子；如果 PHP 不在 `PATH`，用 `PHP_BIN=/path/to/php` 指定。补扫器按文件 `use` 别名、命名空间和类常量解析第一参数，覆盖 `self::CONST`、`Class::CONST` 与字符串拼接；无法解析的通用转发（如 `$hook`）会排除，不会被算成具名钩子。
 
-**维护中文职责**：`docs/tools/purposes.zh.json` 是 163 条"一句话职责"的人工译述表（键为 FQCN）。新增类若缺条目，表的职责列会退回源码注释原文，不会空着；建议补一条中文，便于中文读者扫读。
+**维护中文职责**：`docs/tools/purposes.zh.json` 是 164 条"一句话职责"的人工译述表（键为 FQCN）。新增类若缺条目，表的职责列会退回源码注释原文，不会空着；建议补一条中文，便于中文读者扫读。
 
 ## 8. 一致性核对（本次已执行）
 
 | # | 检查项 | 方法 | 结果 |
 |---:|---|---|---|
-| 1 | 类节点数 = 附录 A 行数 | 解析 graph.json 与 Markdown 表格 | 163 = 163 ✅ |
+| 1 | 类节点数 = 附录 A 行数 | 解析 graph.json 与 Markdown 表格 | 164 = 164 ✅ |
 | 2 | 模块节点数 = §2.2 行数 | 同上 | 17 = 17 ✅ |
-| 3 | 钩子数 = 附录 B 行数 | 同上 | 191 = 191 ✅ |
-| 4 | 连线数 = 三类之和 | `610 + 163 + 50` | 823 ✅ |
+| 3 | 钩子数 = 附录 B 行数 | 同上 | 199 = 199 ✅ |
+| 4 | 连线数 = 三类之和 | `612 + 164 + 50` | 826 ✅ |
 | 5 | 悬空边 | `graph-inject.mjs` 每次注入前校验 | 0 ✅ |
-| 6 | 同源重建 | 分章 `p1–p6` + `build-code-structure.mjs` 生成块重新组装，与仓库正文比对 | §6.8 清理后 `1c82079ea7777f5d5beeaf6b8a18e6bf`；§7.7 改写后 `f2948e675caf9dbdb3cf58d0395623c9`；§12 三项回写后 `b479d3fb379c695a2c8ce2eac2a1f02b`；上传指标修复稿 `affe363d81b6325cbe739b54aac28446`；删除预览图后 `971f0c3996a10bffb207fe7f6d4dccc6`；空间支付收口稿 `5eb2bf875d00d1e776cf89089e41ae6f`（219,712 字节）；1.22.9 版本稿 `1aba478232bdbb9b1d196eebee1f794e`（220,481 字节）；1.23.0 编辑页面板稿 `4a801b137efc0bc3805f765df8eac822`（238,153 字节）；1.24.0 支付方式/对账/回填稿 `0979157c31883875e25e2b12922f9050`（250,746 字节）；1.24.1 快捷多选稿 `48e0369200f4ea9d2227c63f476aaacd`（266,095 字节）；1.24.2 运维观测稿 `13485930f8e997e0529bca0951c7c238`（274,169 字节）；1.24.2 验证回写稿 `f65d07350edf37b11609c2abccafb546`（288,928 字节）；1.24.3 卸载修复稿 `3325b5e0ce8a359a9a46396fd595c6f6`（290,562 字节）✅ |
+| 6 | 同源重建 | 分章 `p1–p6` + `build-code-structure.mjs` 生成块重新组装，与仓库正文比对 | §6.8 清理后 `1c82079ea7777f5d5beeaf6b8a18e6bf`；§7.7 改写后 `f2948e675caf9dbdb3cf58d0395623c9`；§12 三项回写后 `b479d3fb379c695a2c8ce2eac2a1f02b`；上传指标修复稿 `affe363d81b6325cbe739b54aac28446`；删除预览图后 `971f0c3996a10bffb207fe7f6d4dccc6`；空间支付收口稿 `5eb2bf875d00d1e776cf89089e41ae6f`（219,712 字节）；1.22.9 版本稿 `1aba478232bdbb9b1d196eebee1f794e`（220,481 字节）；1.23.0 编辑页面板稿 `4a801b137efc0bc3805f765df8eac822`（238,153 字节）；1.24.0 支付方式/对账/回填稿 `0979157c31883875e25e2b12922f9050`（250,746 字节）；1.24.1 快捷多选稿 `48e0369200f4ea9d2227c63f476aaacd`（266,095 字节）；1.24.2 运维观测稿 `13485930f8e997e0529bca0951c7c238`（274,169 字节）；1.24.2 验证回写稿 `f65d07350edf37b11609c2abccafb546`（288,928 字节）；1.24.3 卸载修复稿 `3325b5e0ce8a359a9a46396fd595c6f6`（290,562 字节）；2026-11-10 覆盖升级稿 `7b457df0269b6ce3e97a4e8c1325a04a`（295,120 字节）；1.24.4 发布稿 `d4be0a7939a44153c187f04c4a485839`（298,733 字节）✅ |
 | 7 | 注入幂等 | `graph-inject.mjs` dry-run 与页面 `DATA` 比对 | 本轮 `--write` 后 dry-run 报 `changed:false`、`dangling:0`，页面 `DATA` 与 `graph.json` 的结构与计数完全一致 ✅ |
-| 8 | 文档可重装 | `python3 docs/tools/assemble-doc.py --parts /tmp/docparts-1243 --chapters docs/tools/chapters --out /tmp/verify-sakura-1243.md` | 与仓库正文逐字节一致，md5 `3325b5e0ce8a359a9a46396fd595c6f6`（290,562 字节）✅ |
-| 9 | 渲染 | Chrome headless + SwiftShader 打开页面核对（截图只写 `/tmp`，不落仓库） | 星簇正常；副标题 `sakura-tools v1.24.3`；四角 178 / 180 / 823 / 191；S3 详情 36 文件 ✅ |
-| 10 | 文件数一致 | `stats.files` = 附录 C 行数 | 178 = 178 ✅ |
+| 8 | 文档可重装 | `python3 docs/tools/assemble-doc.py --parts /tmp/docparts-wt4 --chapters docs/tools/chapters --out /tmp/verify-sakura-1244.md` | 与仓库正文逐字节一致，md5 `d4be0a7939a44153c187f04c4a485839`（298,733 字节）✅ |
+| 9 | 渲染 | Chrome headless + SwiftShader 打开页面核对（截图只写 `/tmp`，不落仓库） | 星簇正常；副标题 `sakura-tools v1.24.4`、164 类 / 17 模块；四角 179 / 181 / 826 / 199；S3 详情 36 文件 ✅ |
+| 10 | 文件数一致 | `stats.files` = 附录 C 行数 | 179 = 179 ✅ |
 
 > 第 9 项是必要的：DSH 内置浏览器没有 WebGL，页面会渲染成空白 canvas，用它"看图谱"会得出错误结论。从 2026-11-08 起仓库不再保存渲染截图，核对用截图只写到临时目录。第 7 项的幂等判据是页面 `DATA` 与 `graph.json` 的结构、计数、悬空边一致，不是 HTML 文件字节不变；`meta.generatedAt` 会随生成时间变化，重建时以 dry-run 的 `changed`、节点/连线计数和悬空边为准。
 
@@ -346,7 +369,7 @@ google-chrome --headless=new --no-sandbox --user-data-dir=/tmp/chrome-graph \
 | 单击类节点 | 右上角显示文件、行号、方法数、入度/出度、所属模块，以及"被引用/引用出"两组邻居 |
 | 左侧模块行 | 选中该模块并把镜头推近（`focusNode`） |
 | 连线亮度 | 与 `w` 成正比：越亮表示引用次数越多 |
-| 球体大小 | 模块 = 文件数；类 = 方法数（对数缩放） |
+| 球体大小 | 模块 = `max(4, 文件数×0.8)`；类 = `sqrt(公开方法数)×1.6`（至少 1.2） |
 | 颜色 | 类的颜色 = 所属模块（与左侧列表一致） |
 
 页面加载后约 1.5 秒会自动选中 `src/S3` 作为示例（便于第一次打开就有内容可看），可用左侧列表切换。
@@ -355,9 +378,9 @@ google-chrome --headless=new --no-sandbox --user-data-dir=/tmp/chrome-graph \
 
 | # | 项 | 说明 |
 |---:|---|---|
-| 1 | 不收录全局函数与模板 | 64 个全局函数、12 个视图模板、`fast-search.php` / `uninstall.php` 不进图，只在附录 C 与正文出现。它们是"没有类的文件"，硬塞进类图会误导结构判断 |
+| 1 | 不收录全局函数与模板 | `scan.json` 的 64 个 function 节点含 tests/stubs；生产代码只有 `fast-search.php:27` 的 `sakura_fast_search_fail()`。12 个视图模板、`fast-search.php` / `uninstall.php` 不进图，只在附录 C 与正文出现。它们是"没有类的文件"，硬塞进类图会误导结构判断 |
 | 2 | 入度/出度是静态引用 | token 级（`use` / `new` / 静态调用 / 类型声明），不是运行时调用次数；`call_user_func`、反射、字符串钩子都统计不到 |
-| 3 | 181 vs 178 文件 | 旧导出 181、清理前 179、上一轮重建 178；上一轮删除 `Upload_Queue.php` 可解释 -1，剩余 2 个文件的旧排除规则未记录、未逐个比对 → **待确认** |
+| 3 | 181 vs 179 文件 | 旧导出 181、清理前 179、本轮 179；早期删除 `Upload_Queue.php` 可解释一次 -1，剩余差异的旧排除规则未记录、未逐个比对 → **待确认** |
 | 4 | 新旧节点无法逐一对齐 | id 规则从短名改为 FQCN，见 §2；若要历史对比，请保留每版 `graph.json` |
 | 5 | 图谱是静态快照 | 不含时间维度与 git 历史；"谁最近改的"仍要查 git |
 | 6 | 布局不是力导向结果 | 坐标为确定性生成（模块球面 + 模块内错位），因此视觉上的"聚拢"只反映归属，不反映连接强度 |
@@ -367,15 +390,16 @@ google-chrome --headless=new --no-sandbox --user-data-dir=/tmp/chrome-graph \
 
 | 文件 | 大小 | 作用 |
 |---|---:|---|
-| `docs/sakura-tools-代码结构-1.24.3.md` | 284 KB | 正文：§0–§13 + 附录 A–D（2026-11-09 1.24.3：卸载漏删 file_tokens 修复 + 1.24.2 三条验证空白补测；含 1.24.1 文件面板快捷多选；生产 61,425 行） |
-| `docs/sakura-tools-图谱同步-1.24.3.md` | 本文 | 图谱变更与重建说明 |
-| `docs/graph-preview/index.html` | 164 KB | 单文件 3D 图谱（数据内嵌；3d-force-graph 库走 CDN，需联网） |
-| `docs/graph-preview/graph.json` | 200 KB | 同数据，供脚本消费 |
-| `docs/tools/build-code-structure.mjs` | 15 KB | 事实表 → 表格 + graph.json |
-| `docs/tools/graph-inject.mjs` | 3.2 KB | graph.json → index.html（含悬空边校验、幂等） |
-| `docs/tools/assemble-doc.py` | 2.6 KB | 分章 + 表格 → 正文 |
-| `docs/tools/collect-comments.php` | 3.1 KB | 类 docblock 提取 |
-| `docs/tools/purposes.zh.json` | 16 KB | 163 条中文职责 |
-| `docs/tools/chapters/p1–p6.md` | 217 KB | 正文源片段（改正文改这里，再重组装；当前 221,786 字节） |
+| `docs/sakura-tools-代码结构-1.24.4.md` | 292 KB（298,733 字节） | 正文：§0–§13 + 附录 A–D（2026-11-10：覆盖升级自愈 + 计数复核；生产 61,562 行） |
+| `docs/sakura-tools-图谱同步-1.24.4.md` | 42 KB（43,081 字节） | 图谱变更与重建说明 |
+| `docs/graph-preview/index.html` | 165 KB（168,449 字节） | 单文件 3D 图谱（数据内嵌；3d-force-graph 库走 CDN，需联网） |
+| `docs/graph-preview/graph.json` | 201 KB（205,832 字节） | 同数据，供脚本消费 |
+| `docs/tools/build-code-structure.mjs` | 16 KB（16,036 字节） | 事实表 → 表格 + graph.json |
+| `docs/tools/graph-inject.mjs` | 3.1 KB（3,180 字节） | graph.json → index.html（含悬空边校验、幂等） |
+| `docs/tools/collect-hooks.php` | 17 KB（17,673 字节） | 补扫 `add_action`/`add_filter` 的常量与拼接钩子，输出 hooks.json |
+| `docs/tools/assemble-doc.py` | 2.5 KB（2,591 字节） | 分章 + 表格 → 正文 |
+| `docs/tools/collect-comments.php` | 3.0 KB（3,098 字节） | 类 docblock 提取 |
+| `docs/tools/purposes.zh.json` | 15 KB（15,802 字节） | 163 条中文职责（Upgrade_Guard 走类注释回退） |
+| `docs/tools/chapters/p1–p6.md` | 220 KB（224,895 字节） | 正文源片段（改正文改这里，再重组装） |
 
 > 图谱可视化只交付 `index.html`（数据内嵌）与 `graph.json`；从 2026-11-08 起不再保存 `preview.png` 或其他渲染截图。

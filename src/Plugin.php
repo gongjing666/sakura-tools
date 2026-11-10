@@ -76,6 +76,15 @@ final class Plugin {
 		Credential_Cipher::migrate_legacy_option();
 		Options::migrate_legacy_profile();
 
+		// In-place updates never fire register_activation_hook(); replay the
+		// activation routine when the database still carries an older version.
+		Upgrade_Guard::maybe_upgrade(
+			SAKURA_TOOLS_VERSION,
+			static function (): void {
+				Activation::run();
+			}
+		);
+
 		if ( is_admin() || ( defined( 'WP_CLI' ) && WP_CLI ) ) {
 			\Sakura\ImageOptimizer\Sync\Schema::maybe_install();
 		}

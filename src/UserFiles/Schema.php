@@ -73,7 +73,7 @@ final class Schema {
 	/**
 	 * Install or upgrade the schema.
 	 *
-	 * Version-gated so the front end never runs dbDelta. Safe to re-run.
+	 * Version-gated; Upgrade_Guard may replay it once after an in-place update.
 	 */
 	public static function maybe_install(): void {
 		if ( self::VERSION === (string) get_option( self::VERSION_OPTION, '' ) ) {

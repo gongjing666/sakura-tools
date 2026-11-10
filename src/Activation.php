@@ -115,17 +115,17 @@ final class Activation {
 		\Sakura\ImageOptimizer\S3\Alerting::schedule();
 		\Sakura\ImageOptimizer\S3\Prometheus::token();
 
-		// 记录版本，供后续升级流程判断；激活本身不修改媒体 URL 等运行时配置。
+		// 注册每日备份清理定时任务（按「备份管理」页策略执行）。
+		if ( ! wp_next_scheduled( 'sakura_imgopt_daily_backup_cleanup' ) ) {
+			wp_schedule_event( time() + HOUR_IN_SECONDS, 'daily', 'sakura_imgopt_daily_backup_cleanup' );
+		}
+
+		// 版本号最后写：前面的建表/排程任一步失败时，Upgrade_Guard 下次请求仍会重跑。
 		$installed_version = get_option( 'sakura_imgopt_version', '' );
 		if ( '' === $installed_version ) {
 			add_option( 'sakura_imgopt_version', SAKURA_TOOLS_VERSION, '', false );
 		} elseif ( $installed_version !== SAKURA_TOOLS_VERSION ) {
 			update_option( 'sakura_imgopt_version', SAKURA_TOOLS_VERSION, false );
-		}
-
-		// 注册每日备份清理定时任务（按「备份管理」页策略执行）。
-		if ( ! wp_next_scheduled( 'sakura_imgopt_daily_backup_cleanup' ) ) {
-			wp_schedule_event( time() + HOUR_IN_SECONDS, 'daily', 'sakura_imgopt_daily_backup_cleanup' );
 		}
 
 	}

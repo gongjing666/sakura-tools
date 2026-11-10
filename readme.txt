@@ -4,7 +4,7 @@ Tags: image optimization, webp, avif, imagick, media library
 Requires at least: 6.4
 Tested up to: 7.1.4
 Requires PHP: 8.2
-Stable tag: 1.24.3
+Stable tag: 1.24.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -78,6 +78,12 @@ Access Key 和 Secret 会加密后存进数据库，页面和源码都不会显�
 插件目前没有接管这个跳转。等出现「既要防直链、又要保留购买校验」的需求时再研发，方向是在主题之前拦截下载请求，由插件代理输出或签发短时有效的预签名地址；若暂时需要这层保护，请关闭「上传后删除本地文件」，让文件保留在本地。
 
 == Changelog ==
+
+= 1.24.4 =
+* 修复：覆盖升级（不经过插件启用流程）时不再漏跑激活例程；首次前台请求会检测版本并补创建表、排程与索引回填。
+* 升级检测使用原子锁；同版本或降级时跳过，失败只记录 transient 并触发 `sakura_imgopt_upgrade_failed`，不阻塞站点，下次请求继续重试。
+* 激活例程改为最后写入版本号：建表或排程失败时，下次请求仍会重跑。
+* 文档与图谱：修正钩子、类、测试与文件计数，补扫后具名钩子由 191 修正为 199。
 
 = 1.24.3 =
 * 修复：开启「卸载时删除数据」后，卸载会按 UserFiles\Schema 清空全部 15 张 sufm 表，不再残留文件名搜索 token 表 sufm_file_tokens。

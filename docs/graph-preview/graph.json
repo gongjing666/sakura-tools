@@ -1,21 +1,21 @@
 {
  "meta": {
   "plugin": "sakura-tools",
-  "version": "1.24.3",
-  "generatedAt": "2026-11-09T15:45:29.492Z",
+  "version": "1.24.4",
+  "generatedAt": "2026-11-10T02:43:23.661Z",
   "source": "dsh-codegraph lib/scanner.php（token_get_all 三趟静态扫描）",
-  "doc": "sakura-tools-代码结构-1.24.3.md"
+  "doc": "sakura-tools-代码结构-1.24.4.md"
  },
  "stats": {
-  "files": 178,
+  "files": 179,
   "modules": 17,
-  "classes": 163,
-  "nodes": 180,
-  "links": 823,
-  "refLinks": 610,
+  "classes": 164,
+  "nodes": 181,
+  "links": 826,
+  "refLinks": 612,
   "modrefLinks": 50,
-  "containsLinks": 163,
-  "hooks": 191
+  "containsLinks": 164,
+  "hooks": 199
  },
  "layout": {
   "radius": 1710,
@@ -128,6 +128,19 @@
    "z": -1276.7
   },
   {
+   "id": "mod:src",
+   "label": "src",
+   "type": "module",
+   "module": "src",
+   "val": 4,
+   "files": 5,
+   "classes": 5,
+   "color": "#9ad1ff",
+   "x": 1362,
+   "y": 0,
+   "z": 497.4
+  },
+  {
    "id": "mod:src/Contracts",
    "label": "src/Contracts",
    "type": "module",
@@ -136,19 +149,6 @@
    "files": 5,
    "classes": 5,
    "color": "#c9a7ff",
-   "x": 1362,
-   "y": 0,
-   "z": 497.4
-  },
-  {
-   "id": "mod:src",
-   "label": "src",
-   "type": "module",
-   "module": "src",
-   "val": 4,
-   "files": 4,
-   "classes": 4,
-   "color": "#9ad1ff",
    "x": -1329.8,
    "y": -181.3,
    "z": 548.9
@@ -576,9 +576,9 @@
    "line": 20,
    "val": 4.800000000000001,
    "color": "#c9a7ff",
-   "x": 1362,
-   "y": 91,
-   "z": 497.4
+   "x": -1329.8,
+   "y": -90.3,
+   "z": 548.9
   },
   {
    "id": "cls:Sakura\\ImageOptimizer\\Contracts\\File_System_Interface",
@@ -590,9 +590,9 @@
    "line": 17,
    "val": 4.233202097703345,
    "color": "#c9a7ff",
-   "x": 1303.9,
-   "y": 45.5,
-   "z": 550.6
+   "x": -1387.9,
+   "y": -135.8,
+   "z": 602.2
   },
   {
    "id": "cls:Sakura\\ImageOptimizer\\Contracts\\Module",
@@ -604,9 +604,9 @@
    "line": 23,
    "val": 1.6,
    "color": "#c9a7ff",
-   "x": 1370,
-   "y": 0,
-   "z": 406.8
+   "x": -1321.8,
+   "y": -181.3,
+   "z": 458.3
   },
   {
    "id": "cls:Sakura\\ImageOptimizer\\Contracts\\Settings_Repository_Interface",
@@ -618,9 +618,9 @@
    "line": 17,
    "val": 6.788225099390856,
    "color": "#c9a7ff",
-   "x": 1410,
-   "y": -45.5,
-   "z": 559.9
+   "x": -1281.8,
+   "y": -226.8,
+   "z": 611.5
   },
   {
    "id": "cls:Sakura\\ImageOptimizer\\Contracts\\Stats_Repository_Interface",
@@ -632,9 +632,9 @@
    "line": 17,
    "val": 3.577708763999664,
    "color": "#c9a7ff",
-   "x": 1362,
-   "y": -91,
-   "z": 497.4
+   "x": -1329.8,
+   "y": -272.3,
+   "z": 548.9
   },
   {
    "id": "cls:Sakura\\ImageOptimizer\\Filesystem\\File_System_Repository",
@@ -2480,9 +2480,9 @@
    "line": 17,
    "val": 1.6,
    "color": "#9ad1ff",
-   "x": -1329.8,
-   "y": -94.5,
-   "z": 548.9
+   "x": 1362,
+   "y": 91,
+   "z": 497.4
   },
   {
    "id": "cls:Sakura\\ImageOptimizer\\Deactivation",
@@ -2494,9 +2494,9 @@
    "line": 17,
    "val": 1.6,
    "color": "#9ad1ff",
-   "x": -1390.1,
-   "y": -152.3,
-   "z": 604.2
+   "x": 1303.9,
+   "y": 45.5,
+   "z": 550.6
   },
   {
    "id": "cls:Sakura\\ImageOptimizer\\Plugin",
@@ -2508,9 +2508,9 @@
    "line": 42,
    "val": 2.2627416997969525,
    "color": "#9ad1ff",
-   "x": -1322.6,
-   "y": -210.2,
-   "z": 467.4
+   "x": 1370,
+   "y": 0,
+   "z": 406.8
   },
   {
    "id": "cls:Sakura\\ImageOptimizer\\Uninstaller",
@@ -2522,9 +2522,23 @@
    "line": 24,
    "val": 2.7712812921102037,
    "color": "#9ad1ff",
-   "x": -1329.8,
-   "y": -268.1,
-   "z": 548.9
+   "x": 1410,
+   "y": -45.5,
+   "z": 559.9
+  },
+  {
+   "id": "cls:Sakura\\ImageOptimizer\\Upgrade_Guard",
+   "label": "Upgrade_Guard",
+   "type": "class",
+   "module": "src",
+   "kind": "class",
+   "file": "src/Upgrade_Guard.php",
+   "line": 23,
+   "val": 2.2627416997969525,
+   "color": "#9ad1ff",
+   "x": 1362,
+   "y": -91,
+   "z": 497.4
   }
  ],
  "links": [
@@ -4310,6 +4324,26 @@
     "new"
    ],
    "w": 3
+  },
+  {
+   "source": "cls:Sakura\\ImageOptimizer\\Plugin",
+   "target": "cls:Sakura\\ImageOptimizer\\Upgrade_Guard",
+   "type": "ref",
+   "kinds": [
+    "static",
+    "call"
+   ],
+   "w": 2
+  },
+  {
+   "source": "cls:Sakura\\ImageOptimizer\\Plugin",
+   "target": "cls:Sakura\\ImageOptimizer\\Activation",
+   "type": "ref",
+   "kinds": [
+    "static",
+    "call"
+   ],
+   "w": 2
   },
   {
    "source": "cls:Sakura\\ImageOptimizer\\Plugin",
@@ -9504,6 +9538,12 @@
   {
    "source": "mod:src",
    "target": "cls:Sakura\\ImageOptimizer\\Uninstaller",
+   "type": "contains",
+   "w": 1
+  },
+  {
+   "source": "mod:src",
+   "target": "cls:Sakura\\ImageOptimizer\\Upgrade_Guard",
    "type": "contains",
    "w": 1
   },

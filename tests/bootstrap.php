@@ -435,6 +435,7 @@ if ( ! function_exists( 'current_time' ) ) {
 	}
 }
 
+require_once dirname( __DIR__ ) . '/src/Upgrade_Guard.php';
 require_once dirname( __DIR__ ) . '/src/Support/Text.php';
 require_once dirname( __DIR__ ) . '/src/Support/Hook_Loader.php';
 require_once dirname( __DIR__ ) . '/src/Contracts/Module.php';
@@ -554,11 +555,17 @@ if ( ! function_exists( 'add_option' ) ) {
 	/**
 	 * Minimal add_option shim backed by a test global.
 	 *
+	 * Mirrors WordPress: an existing option is not overwritten and false is
+	 * returned, which is what the upgrade lock relies on.
+	 *
 	 * @param string $name  Option name.
 	 * @param mixed  $value Value.
 	 * @return bool
 	 */
 	function add_option( $name, $value ) {
+		if ( array_key_exists( $name, $GLOBALS['sakura_test_options'] ?? array() ) ) {
+			return false;
+		}
 		$GLOBALS['sakura_test_options'][ $name ] = $value;
 		return true;
 	}

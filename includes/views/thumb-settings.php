@@ -85,9 +85,10 @@ $cache_note = ! empty( $cache_report['group_flush'] )
 			'image',
 			'thumb',
 			array(
-				'status' => ! empty( $options['enabled'] )
+				'status'      => ! empty( $options['enabled'] )
 					? __( '规则已开启', 'sakura-imgopt' )
 					: __( '规则未开启', 'sakura-imgopt' ),
+				'status_tone' => ! empty( $options['enabled'] ) ? 'ok' : 'off',
 			)
 		);
 		?>
@@ -109,7 +110,7 @@ $cache_note = ! empty( $cache_report['group_flush'] )
 			</div>
 			<aside class="hero-status">
 				<div class="hero-status-top">
-					<span class="hero-status-label"><span class="dot"></span> <?php echo esc_html( $status->is_ok() ? __( '连接正常', 'sakura-imgopt' ) : __( '等待测试', 'sakura-imgopt' ) ); ?></span>
+					<span class="hero-status-label<?php echo $status->is_ok() ? '' : ' is-warn'; ?>"><span class="dot"></span> <?php echo esc_html( $status->is_ok() ? __( '连接正常', 'sakura-imgopt' ) : __( '等待测试', 'sakura-imgopt' ) ); ?></span>
 					<span class="badge <?php echo esc_attr( $probe_class ); ?>"><?php echo esc_html( $probe_label ); ?></span>
 				</div>
 				<div class="hero-status-main">
@@ -483,72 +484,3 @@ $cache_note = ! empty( $cache_report['group_flush'] )
 		</div>
 	</div>
 </div>
-<style>
-.sakura-sync-app .sakura-thumb-main{display:grid;gap:20px;min-width:0}
-.sakura-sync-app .sakura-thumb-checkgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px 18px}
-.sakura-sync-app .sakura-thumb-checkgrid--wide{grid-template-columns:repeat(2,minmax(0,1fr))}
-.sakura-sync-app .sakura-thumb-check{display:flex;align-items:flex-start;gap:8px;padding:7px 9px;border:1px solid #e8f2f8;border-radius:10px;background:#fbfdff;color:#35576d;font-size:12.5px;line-height:1.45;cursor:pointer}
-.sakura-sync-app .sakura-thumb-check:hover{border-color:#cfe5f2;background:#f7fcff}
-.sakura-sync-app .sakura-thumb-check input[type="checkbox"]{flex:0 0 auto;margin-top:1px}
-.sakura-sync-app .sakura-thumb-check span{min-width:0}
-.sakura-sync-app .sakura-thumb-size-table{min-width:0;table-layout:fixed}
-.sakura-sync-app .sakura-thumb-size-table thead th{padding:8px 6px}
-.sakura-sync-app .sakura-thumb-size-table thead th:first-child{padding-left:10px}
-.sakura-sync-app .sakura-thumb-size-table thead th:last-child{padding-right:10px;text-align:left}
-.sakura-sync-app .sakura-thumb-size-table tbody td{padding:8px 6px;vertical-align:middle}
-.sakura-sync-app .sakura-thumb-size-table tbody td:first-child{padding-left:10px;white-space:normal}
-.sakura-sync-app .sakura-thumb-size-table tbody td:last-child{padding-right:10px;text-align:left}
-.sakura-sync-app .sakura-thumb-size-table thead th:nth-child(1){width:20%}
-.sakura-sync-app .sakura-thumb-size-table thead th:nth-child(2),
-.sakura-sync-app .sakura-thumb-size-table thead th:nth-child(3){width:9%}
-.sakura-sync-app .sakura-thumb-size-table thead th:nth-child(4){width:17%}
-.sakura-sync-app .sakura-thumb-size-table thead th:nth-child(5){width:12%}
-.sakura-sync-app .sakura-thumb-size-table thead th:nth-child(6){width:9%}
-.sakura-sync-app .sakura-thumb-size-table thead th:nth-child(7){width:24%}
-.sakura-sync-app .sakura-thumb-size-table tbody td:first-child strong{display:block;font-size:11.5px;line-height:1.35}
-.sakura-sync-app .sakura-thumb-size-table tbody td:first-child code{display:block;margin-top:3px;width:max-content;max-width:100%;overflow:hidden;text-overflow:ellipsis}
-.sakura-sync-app .sakura-thumb-size-table input[type="number"]{-moz-appearance:textfield;appearance:textfield}
-.sakura-sync-app .sakura-thumb-size-table input[type="number"]::-webkit-inner-spin-button,
-.sakura-sync-app .sakura-thumb-size-table input[type="number"]::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
-.sakura-sync-app .sakura-thumb-size-table input[type="number"],
-.sakura-sync-app .sakura-thumb-size-table input[type="text"],
-.sakura-sync-app .sakura-thumb-size-table select{box-sizing:border-box;width:100%;min-width:0;min-height:32px;padding:5px 7px;border:1px solid #d9e8f2;border-radius:8px;background:#fbfdff;color:#1f4157;font-size:11.5px;box-shadow:none}
-.sakura-sync-app .sakura-thumb-size-table select{padding-right:24px}
-.sakura-sync-app .sakura-thumb-size-table input:focus,
-.sakura-sync-app .sakura-thumb-size-table select:focus{outline:2px solid rgba(43,111,159,.18);border-color:#9fc9df;background:#fff}
-.sakura-sync-app .sakura-thumb-field{display:grid;gap:6px;margin-top:14px}
-.sakura-sync-app .sakura-thumb-field > label{color:#47657a;font-size:12.5px;font-weight:650}
-.sakura-sync-app .sakura-thumb-field textarea{width:100%;min-height:78px;padding:9px 11px;border:1px solid #d9e8f2;border-radius:9px;background:#fbfdff;color:#1f4157;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;line-height:1.55;resize:vertical}
-.sakura-sync-app .sakura-thumb-stat-text{display:block;margin-top:3px;color:#1b425d;font-size:13px;font-weight:700;line-height:1.35;overflow-wrap:anywhere}
-.sakura-sync-app .sakura-thumb-evidence{margin-top:12px;padding:10px 11px;border:1px solid #e3eff6;border-radius:10px;background:#f8fcff;color:#426b83;font-size:11.5px}
-.sakura-sync-app .sakura-thumb-probe-form{margin-top:12px}
-.sakura-sync-app .sakura-thumb-list{margin:12px 0 0;padding:0;list-style:none;display:grid;gap:6px}
-.sakura-sync-app .sakura-thumb-list li{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:6px 8px;border-bottom:1px dashed #e9f1f6;color:#35576d;font-size:12px}
-.sakura-sync-app .sakura-thumb-list li:last-child{border-bottom:0}
-@media (max-width:782px){
-	.sakura-sync-app .sakura-thumb-checkgrid,.sakura-sync-app .sakura-thumb-checkgrid--wide{grid-template-columns:1fr}
-	.sakura-sync-app .hero-status-main strong{font-size:16px}
-	.sakura-sync-app .sakura-thumb-size-table{min-width:680px}
-	.sakura-sync-app .sakura-thumb-size-table thead th:nth-child(1){width:170px}
-	.sakura-sync-app .sakura-thumb-size-table thead th:nth-child(2),
-	.sakura-sync-app .sakura-thumb-size-table thead th:nth-child(3){width:60px}
-	.sakura-sync-app .sakura-thumb-size-table thead th:nth-child(4){width:122px}
-	.sakura-sync-app .sakura-thumb-size-table thead th:nth-child(5){width:86px}
-	.sakura-sync-app .sakura-thumb-size-table thead th:nth-child(6){width:60px}
-	.sakura-sync-app .sakura-thumb-size-table thead th:nth-child(7){width:150px}
-}
-.sakura-sync-app .notice{margin:0 0 18px;border-radius:12px;border-left-width:4px;box-shadow:0 6px 18px rgba(31,78,110,.06)}
-.sakura-sync-app .notice p{margin:.55em 0;font-size:12px}
-.sakura-sync-app .sakura-thumb-main .card-actions{
-	display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;
-	margin:20px 0 0;padding:16px 20px 18px;
-	border-top:1px solid #e7f1f7;border-radius:0 0 16px 16px;
-	background:linear-gradient(180deg,#fbfdff,#f7fbfe);
-}
-.sakura-sync-app .sakura-thumb-main .card-actions .description{margin:0;color:#6b8799;font-size:11.5px;line-height:1.5}
-.sakura-sync-app .sakura-thumb-main .card-actions .btn{flex:0 0 auto;margin-left:auto}
-@media (max-width:782px){
-	.sakura-sync-app .sakura-thumb-main .card-actions{justify-content:flex-end;padding:14px 15px 16px}
-	.sakura-sync-app .sakura-thumb-main .card-actions .description{width:100%;margin:0 0 2px}
-}
-</style>

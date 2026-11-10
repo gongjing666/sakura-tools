@@ -491,8 +491,11 @@ final class Sync_Center_Module implements Module {
 		}
 
 		$notices = array();
-		foreach ( $this->options->configuration_errors() as $error ) {
-			$notices[] = array( 'error', sprintf( /* translators: %s: configuration error. */ __( 'S3 配置不可用：%s', 'sakura-imgopt' ), $error ) );
+		$config_errors = $this->options->configuration_errors();
+		if ( $config_errors ) {
+			/* One notice for the whole set: four missing fields used to push four
+			 * separate red boxes above the page and bury the actual screen. */
+			$notices[] = array( 'error', sprintf( /* translators: %s: missing or invalid configuration fields. */ __( 'S3 配置不可用：%s', 'sakura-imgopt' ), implode( ' / ', $config_errors ) ) );
 		}
 		$profile = (string) $this->options->active_profile_id();
 		if ( '' !== $profile ) {

@@ -148,10 +148,11 @@ final class Delete_Queue_Panel {
 					'storage',
 					'deletes',
 					array(
-						'status' => (int) $counts['queued'] > 0
+						'status'      => (int) $counts['queued'] > 0
 							/* translators: %d: queued rows. */
 							? sprintf( __( '排队 %d', 'sakura-imgopt' ), (int) $counts['queued'] )
 							: __( '队列空闲', 'sakura-imgopt' ),
+						'status_tone' => (int) $counts['queued'] > 0 ? 'warn' : 'ok',
 					)
 				);
 

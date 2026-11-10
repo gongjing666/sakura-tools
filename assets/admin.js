@@ -1483,20 +1483,24 @@
             button.hidden = false;
             return;
         }
-        if (!('IntersectionObserver' in window)) {
-            var update = function () {
-                var rect = anchor.getBoundingClientRect();
-                button.hidden = rect.bottom > 0 && rect.top < window.innerHeight;
-            };
-            window.addEventListener('scroll', update, { passive: true });
-            window.addEventListener('resize', update);
-            update();
-            return;
-        }
-        var observer = new IntersectionObserver(function (entries) {
-            button.hidden = entries[0].isIntersecting;
-        }, { threshold: 0 });
-        observer.observe(anchor);
+        var hero = document.querySelector('.sakura-sync-app .hero');
+        var queued = false;
+        var update = function () {
+            queued = false;
+            var heroPassed = hero ? hero.getBoundingClientRect().bottom < 0 : window.scrollY > 280;
+            var anchorVisible = anchor.getBoundingClientRect().top < window.innerHeight - 24;
+            button.hidden = !heroPassed || anchorVisible;
+        };
+        var queue = function () {
+            if (queued) {
+                return;
+            }
+            queued = true;
+            window.requestAnimationFrame(update);
+        };
+        window.addEventListener('scroll', queue, { passive: true });
+        window.addEventListener('resize', queue);
+        update();
     });
 })();
 /* ── 优化统计：服务端分页 ───────────── */

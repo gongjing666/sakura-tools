@@ -119,7 +119,7 @@ $upload_url     = '' !== $upload_url ? $upload_url : $upload_base;
 $upload_url     = (string) preg_replace( '#^https?://#', '', untrailingslashit( $upload_url ) );
 $cloud_types    = isset( $snapshot['cloud']['types'] ) && is_array( $snapshot['cloud']['types'] ) ? $snapshot['cloud']['types'] : array();
 $mix_total      = array_sum( array_map( 'intval', $cloud_types ) );
-$mix_colors     = array( 'image' => '#4d9fc1', 'video' => '#70c0d4', 'archive' => '#e9a7b9', 'other' => '#dce9f0' );
+$mix_colors     = array( 'image' => '#2b2d30', 'video' => '#5f6265', 'archive' => '#9a9b96', 'other' => '#dcdad3' );
 $mix            = array();
 $mix_stops      = array();
 $mix_cursor     = 0.0;
@@ -132,7 +132,7 @@ foreach ( $mix_colors as $mix_type => $mix_color ) {
 		$mix_cursor += $mix_pct;
 	}
 }
-$mix_gradient = $mix_stops ? 'conic-gradient(' . implode( ', ', $mix_stops ) . ')' : 'conic-gradient(#dcecf6 0 100%)';
+$mix_gradient = $mix_stops ? 'conic-gradient(' . implode( ', ', $mix_stops ) . ')' : 'conic-gradient(#e9e7e1 0 100%)';
 $cloud_value  = $cloud_bytes >= 1073741824 ? $cloud_bytes / 1073741824 : $cloud_bytes / 1048576;
 $cloud_unit   = $cloud_bytes >= 1073741824 ? 'GB' : 'MB';
 
@@ -227,7 +227,8 @@ $summary_text = sprintf( /* translators: 1: start, 2: end, 3: total. */ __( '显
 			'storage',
 			'sync',
 			array(
-				'status' => esc_html( $status_text ) . ' <small>· ' . esc_html( $is_configured ? __( '配置完整', 'sakura-imgopt' ) : __( '请检查设置', 'sakura-imgopt' ) ) . '</small>',
+				'status'      => esc_html( $status_text ) . ' <small>· ' . esc_html( $is_configured ? __( '配置完整', 'sakura-imgopt' ) : __( '请检查设置', 'sakura-imgopt' ) ) . '</small>',
+				'status_tone' => $is_configured ? 'ok' : 'warn',
 			)
 		);
 		?>
@@ -253,7 +254,7 @@ $summary_text = sprintf( /* translators: 1: start, 2: end, 3: total. */ __( '显
 			</div>
 			<aside class="hero-status" aria-label="<?php esc_attr_e( '连接摘要', 'sakura-imgopt' ); ?>">
 				<div class="hero-status-top">
-					<span class="hero-status-label"><span class="dot"></span> <?php echo esc_html( $status_text ); ?></span>
+					<span class="hero-status-label<?php echo $is_configured ? '' : ' is-warn'; ?>"><span class="dot"></span> <?php echo esc_html( $status_text ); ?></span>
 					<small><?php echo esc_html( sprintf( /* translators: %s: scan time. */ __( '最近核对 %s', 'sakura-imgopt' ), $scan_label ) ); ?></small>
 				</div>
 				<div class="hero-status-main">
@@ -403,7 +404,7 @@ $summary_text = sprintf( /* translators: 1: start, 2: end, 3: total. */ __( '显
 									<span class="badge <?php echo esc_attr( $scan_badge ); ?>"><span class="dot"></span> <?php echo esc_html( $scan_state_label ); ?></span>
 									<small id="sakura-sync-scan-meta" data-state="<?php echo esc_attr( $scan_state ); ?>"><?php echo esc_html( sprintf( /* translators: 1: scan time, 2: phase. */ __( '同步记录表 %1$s · %2$s', 'sakura-imgopt' ), $scan_label, $scan_running && $scan_phase_label ? sprintf( '%s %s', $scan_phase_label, number_format_i18n( $scan_processed ) ) : __( '实时读取', 'sakura-imgopt' ) ) ); ?></small>
 								</div>
-								<p style="margin:6px 0 0;color:var(--muted);font-size:11.5px"><?php esc_html_e( '读取本地图片目录和云端文件清单；不移动文件，可随时刷新。', 'sakura-imgopt' ); ?></p>
+								<p style="margin:6px 0 0;color:var(--muted);font-size:13.5px"><?php esc_html_e( '读取本地图片目录和云端文件清单；不移动文件，可随时刷新。', 'sakura-imgopt' ); ?></p>
 							</div>
 							<div class="task-percent"><?php echo esc_html( number_format_i18n( $coverage, 1 ) ); ?>%</div>
 						</div>
@@ -464,7 +465,7 @@ $summary_text = sprintf( /* translators: 1: start, 2: end, 3: total. */ __( '显
 						</div>
 					</div>
 					<div class="health">
-						<div class="health-status">
+						<div class="health-status<?php echo $is_configured ? '' : ' is-warn'; ?>">
 							<div class="health-status-main"><span class="dot"></span> <?php echo esc_html( $is_configured ? __( '配置可用', 'sakura-imgopt' ) : __( '配置不完整', 'sakura-imgopt' ) ); ?></div>
 							<small id="sakura-sync-latency"><?php esc_html_e( '凭据已加密', 'sakura-imgopt' ); ?></small>
 						</div>
@@ -513,7 +514,7 @@ $summary_text = sprintf( /* translators: 1: start, 2: end, 3: total. */ __( '显
 				<div>
 					<p class="section-kicker"><?php esc_html_e( 'Reconciliation', 'sakura-imgopt' ); ?></p>
 					<h2 id="recon-title"><?php esc_html_e( '文件核对', 'sakura-imgopt' ); ?> <span class="count"><?php echo esc_html( sprintf( /* translators: %d: total. */ __( '%d 项差异', 'sakura-imgopt' ), $total ) ); ?></span></h2>
-					<p style="margin:4px 0 0;color:var(--muted);font-size:12px"><?php esc_html_e( '按文件名、大小和修改时间比对本地与云端；删除操作始终二次确认。', 'sakura-imgopt' ); ?></p>
+					<p style="margin:4px 0 0;color:var(--muted);font-size:13px"><?php esc_html_e( '按文件名、大小和修改时间比对本地与云端；删除操作始终二次确认。', 'sakura-imgopt' ); ?></p>
 				</div>
 				<div class="recon-actions">
 					<button class="btn btn--small btn--primary" type="button" id="sakura-sync-scan-7" data-nonce="<?php echo esc_attr( $scan_nonce ); ?>"><svg class="icon" aria-hidden="true"><use href="#i-refresh"></use></svg> <?php esc_html_e( '重新核对（本地 + 云端）', 'sakura-imgopt' ); ?></button>
@@ -695,7 +696,7 @@ $summary_text = sprintf( /* translators: 1: start, 2: end, 3: total. */ __( '显
 							</div>
 						<?php endforeach; ?>
 					<?php else : ?>
-						<p style="padding:12px 22px;color:var(--muted);font-size:12px"><?php esc_html_e( '暂无同步事件。', 'sakura-imgopt' ); ?></p>
+						<p style="padding:12px 22px;color:var(--muted);font-size:13px"><?php esc_html_e( '暂无同步事件。', 'sakura-imgopt' ); ?></p>
 					<?php endif; ?>
 				</div>
 				<div class="logs-more"<?php echo count( $logs ) > 6 ? '' : ' hidden'; ?>>
@@ -713,12 +714,12 @@ $summary_text = sprintf( /* translators: 1: start, 2: end, 3: total. */ __( '显
 						<p><?php esc_html_e( '页面显示的是差异，不直接等于“未同步”。', 'sakura-imgopt' ); ?></p>
 					</div>
 				</div>
-				<div class="storage-card" style="color:#668195;font-size:11.5px;line-height:1.8">
-					<p style="margin:0 0 9px"><strong style="color:#2c526a"><?php esc_html_e( '已同步：', 'sakura-imgopt' ); ?></strong><?php esc_html_e( '本地与云端 Key 存在，且大小/修改时间在容差内。', 'sakura-imgopt' ); ?></p>
-					<p style="margin:0 0 9px"><strong style="color:#2c526a"><?php esc_html_e( '待上传：', 'sakura-imgopt' ); ?></strong><?php esc_html_e( '本地有、云端无；包含排队中的任务。', 'sakura-imgopt' ); ?></p>
-					<p style="margin:0 0 9px"><strong style="color:#2c526a"><?php esc_html_e( '仅云端：', 'sakura-imgopt' ); ?></strong><?php esc_html_e( '云端有、本地无；不会自动删除，避免误删 CDN 回源文件。', 'sakura-imgopt' ); ?></p>
-					<p style="margin:0 0 9px"><strong style="color:#2c526a"><?php esc_html_e( '内容不一致：', 'sakura-imgopt' ); ?></strong><?php esc_html_e( 'Key 相同但大小或内容（MD5/ETag）不一致，需重新上传或人工核对。', 'sakura-imgopt' ); ?></p>
-					<p style="margin:0"><strong style="color:#2c526a"><?php esc_html_e( '危险操作：', 'sakura-imgopt' ); ?></strong><?php esc_html_e( '删除云端文件必须二次确认；批量删除要求输入 DELETE 并勾选风险确认。', 'sakura-imgopt' ); ?></p>
+				<div class="storage-card storage-card--notes">
+					<p style="margin:0 0 9px"><strong><?php esc_html_e( '已同步：', 'sakura-imgopt' ); ?></strong><?php esc_html_e( '本地与云端 Key 存在，且大小/修改时间在容差内。', 'sakura-imgopt' ); ?></p>
+					<p style="margin:0 0 9px"><strong><?php esc_html_e( '待上传：', 'sakura-imgopt' ); ?></strong><?php esc_html_e( '本地有、云端无；包含排队中的任务。', 'sakura-imgopt' ); ?></p>
+					<p style="margin:0 0 9px"><strong><?php esc_html_e( '仅云端：', 'sakura-imgopt' ); ?></strong><?php esc_html_e( '云端有、本地无；不会自动删除，避免误删 CDN 回源文件。', 'sakura-imgopt' ); ?></p>
+					<p style="margin:0 0 9px"><strong><?php esc_html_e( '内容不一致：', 'sakura-imgopt' ); ?></strong><?php esc_html_e( 'Key 相同但大小或内容（MD5/ETag）不一致，需重新上传或人工核对。', 'sakura-imgopt' ); ?></p>
+					<p style="margin:0"><strong><?php esc_html_e( '危险操作：', 'sakura-imgopt' ); ?></strong><?php esc_html_e( '删除云端文件必须二次确认；批量删除要求输入 DELETE 并勾选风险确认。', 'sakura-imgopt' ); ?></p>
 				</div>
 			</section>
 		</div>

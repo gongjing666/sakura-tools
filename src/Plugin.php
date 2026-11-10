@@ -100,6 +100,9 @@ final class Plugin {
 
 			// Unified visual layer prints after every other plugin stylesheet.
 			\add_action( 'admin_enqueue_scripts', array( \Sakura\ImageOptimizer\Admin\Assets::class, 'enqueue_unify' ), 999 );
+
+			// Graphite theme: only the image and storage screens in this pass.
+			\add_action( 'admin_enqueue_scripts', array( \Sakura\ImageOptimizer\Admin\Assets::class, 'enqueue_theme' ), 1000 );
 		}
 
 		if ( defined( 'WP_CLI' ) && WP_CLI ) {

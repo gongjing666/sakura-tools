@@ -135,6 +135,46 @@ final class Assets {
 	}
 
 	/**
+	 * Load the graphite theme on the screens in the first redesign pass.
+	 *
+	 * The theme is deliberately scoped by admin page slug instead of by module:
+	 * the system and file-space screens keep the previous visual layer until
+	 * their own pass lands.
+	 *
+	 * @return void
+	 */
+	public static function enqueue_theme(): void {
+		if ( ! wp_style_is( 'sakura-imgopt-admin', 'enqueued' ) ) {
+			return;
+		}
+
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only screen detection for asset loading.
+		$page = isset( $_GET['page'] ) ? sanitize_key( wp_unslash( (string) $_GET['page'] ) ) : '';
+
+		if ( ! in_array( $page, array( 'sakura-tools-image', 'sakura-tools-storage' ), true ) ) {
+			return;
+		}
+
+		wp_enqueue_style(
+			'sakura-imgopt-theme',
+			SAKURA_TOOLS_URL . 'assets/admin-theme.css',
+			array( 'sakura-imgopt-unify' ),
+			self::theme_version()
+		);
+	}
+
+	/**
+	 * Version the graphite theme by file modification time.
+	 *
+	 * @return string
+	 */
+	public static function theme_version(): string {
+		$path = SAKURA_TOOLS_PATH . 'assets/admin-theme.css';
+
+		return is_readable( $path ) ? SAKURA_TOOLS_VERSION . '.' . (string) filemtime( $path ) . '.' . (string) filesize( $path ) : SAKURA_TOOLS_VERSION;
+	}
+
+	/**
 	 * Version the unified visual layer by file modification time.
 	 *
 	 * @return string

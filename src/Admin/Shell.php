@@ -41,8 +41,9 @@ final class Shell {
 	 * @param string              $module  Active module id.
 	 * @param string              $tab     Active tab id.
 	 * @param array<string,mixed> $args    {
-	 *     @type string $status  Status pill markup, shown on the right.
-	 *     @type array  $actions Extra top-bar buttons: array of [ label, url ].
+	 *     @type string $status       Status pill markup, shown on the right.
+	 *     @type string $status_tone  Optional pill tone: ok, off, warn or error.
+	 *     @type array  $actions      Extra top-bar buttons: array of [ label, url ].
 	 * }
 	 * @return void
 	 */
@@ -53,10 +54,12 @@ final class Shell {
 			return;
 		}
 
-		$current   = $modules[ $module ];
-		$status    = isset( $args['status'] ) ? (string) $args['status'] : '';
-		$status_id = isset( $args['status_id'] ) ? (string) $args['status_id'] : '';
-		$actions   = isset( $args['actions'] ) && is_array( $args['actions'] ) ? $args['actions'] : array();
+		$current     = $modules[ $module ];
+		$status      = isset( $args['status'] ) ? (string) $args['status'] : '';
+		$status_id   = isset( $args['status_id'] ) ? (string) $args['status_id'] : '';
+		$status_tone = isset( $args['status_tone'] ) ? (string) $args['status_tone'] : '';
+		$status_tone = in_array( $status_tone, array( 'ok', 'off', 'warn', 'error' ), true ) ? $status_tone : '';
+		$actions     = isset( $args['actions'] ) && is_array( $args['actions'] ) ? $args['actions'] : array();
 		?>
 		<header class="topbar sakura-topbar">
 			<div class="brand">
@@ -75,7 +78,7 @@ final class Shell {
 
 			<div class="top-actions">
 				<?php if ( '' !== $status ) : ?>
-					<span class="conn-pill"<?php echo '' !== $status_id ? ' id="' . esc_attr( $status_id ) . '"' : ''; ?>><span class="dot"></span><span><?php echo wp_kses_post( $status ); ?></span></span>
+					<span class="conn-pill<?php echo '' !== $status_tone ? ' is-' . esc_attr( $status_tone ) : ''; ?>"<?php echo '' !== $status_id ? ' id="' . esc_attr( $status_id ) . '"' : ''; ?>><span class="dot"></span><span><?php echo wp_kses_post( $status ); ?></span></span>
 				<?php endif; ?>
 				<?php foreach ( $actions as $action ) : ?>
 					<?php if ( empty( $action['label'] ) || empty( $action['url'] ) ) : ?>

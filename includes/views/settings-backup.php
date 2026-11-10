@@ -65,7 +65,7 @@ $usage = $backup->get_usage();
 						<div class="card-actions" style="padding-left:0;padding-right:0;padding-bottom:0;">
 							<button type="button" id="sakura-clean-expired" class="btn btn--small"><?php esc_html_e( '立即清理过期备份', 'sakura-imgopt' ); ?></button>
 							<button type="button" id="sakura-purge-backup" class="btn btn--small btn--danger"><?php esc_html_e( '清空全部备份', 'sakura-imgopt' ); ?></button>
-							<span id="sakura-purge-msg" style="font-size:12px;"></span>
+							<span id="sakura-purge-msg" style="font-size:12.5px;"></span>
 						</div>
 					</div>
 				</div>
@@ -105,13 +105,13 @@ $usage = $backup->get_usage();
 						<span><?php echo esc_html( $probe_server['reads_htaccess'] ? __( '会自动拦截', 'sakura-imgopt' ) : __( '不会自动拦截，需要在站点配置里加规则', 'sakura-imgopt' ) ); ?></span>
 					</p>
 					<p id="sakura-probe-state" style="color:<?php echo esc_attr( $probe_color ); ?>;margin:0 0 10px;"><?php echo esc_html( $probe_message ); ?></p>
-					<p style="margin:0 0 10px;color:#6b879b;font-size:12px;">
+					<p style="margin:0 0 10px;color:var(--muted);font-size:13px;">
 						<?php esc_html_e( 'Nginx、OpenResty、IIS、Caddy 等服务器，请在站点配置里拒绝这个路径：', 'sakura-imgopt' ); ?>
 						<code>location ^~ <?php echo esc_html( $backup_path ); ?>/ { deny all; }</code>
 					</p>
 					<div class="card-actions" style="padding-left:0;padding-right:0;padding-bottom:0;">
 						<button type="button" id="sakura-probe-backup" class="btn btn--small"><?php esc_html_e( '检测是否可被公网访问', 'sakura-imgopt' ); ?></button>
-						<span id="sakura-probe-msg" style="font-size:12px;"></span>
+						<span id="sakura-probe-msg" style="font-size:12.5px;"></span>
 					</div>
 				</div>
 			</section>

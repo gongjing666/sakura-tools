@@ -46,9 +46,10 @@ final class S3_Storage_Page {
 					'storage',
 					'connection',
 					array(
-						'status' => $this->options->is_enabled()
+						'status'      => $this->options->is_enabled()
 							? esc_html__( '同步已启用', 'sakura-imgopt' )
 							: esc_html__( '同步已停用', 'sakura-imgopt' ),
+						'status_tone' => $this->options->is_enabled() ? 'ok' : 'off',
 					)
 				);
 				?>
@@ -62,7 +63,7 @@ final class S3_Storage_Page {
 						</div>
 					</div>
 					<aside class="hero-status">
-						<div class="hero-status-top"><span class="hero-status-label"><span class="dot"></span> <?php echo $this->options->is_configured() ? esc_html__( '配置可用', 'sakura-imgopt' ) : esc_html__( '等待配置', 'sakura-imgopt' ); ?></span></div>
+						<div class="hero-status-top"><span class="hero-status-label<?php echo $this->options->is_configured() ? '' : ' is-warn'; ?>"><span class="dot"></span> <?php echo $this->options->is_configured() ? esc_html__( '配置可用', 'sakura-imgopt' ) : esc_html__( '等待配置', 'sakura-imgopt' ); ?></span></div>
 						<div class="hero-status-main"><strong><?php echo esc_html( '' !== (string) $options['bucket'] ? (string) $options['bucket'] : __( '未配置', 'sakura-imgopt' ) ); ?></strong><span>· <?php echo esc_html( \Sakura\ImageOptimizer\S3\Providers::all()[ $options['provider'] ] ?? 'S3' ); ?></span></div>
 						<div class="hero-status-sub"><?php echo $this->options->is_enabled() ? esc_html__( '已启用 · 上传后自动同步', 'sakura-imgopt' ) : esc_html__( '已停用', 'sakura-imgopt' ); ?></div>
 					</aside>

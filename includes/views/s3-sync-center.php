@@ -753,4 +753,5 @@ $summary_text = sprintf( /* translators: 1: start, 2: end, 3: total. */ __( '显
 			<span>樱花工具箱 · S3 同步中心</span>
 		</footer>
 	</div>
+	<?php echo \Sakura\ImageOptimizer\S3\Config_Notice::modal_html( $options, 'sync' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- generated with escaped values. ?>
 </div>

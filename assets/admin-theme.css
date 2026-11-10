@@ -26,6 +26,14 @@
 	--g-accent: #202225;
 	--g-accent-hover: #000000;
 	--g-accent-soft: #efeee9;
+	/* Selection controls: soft graphite on warm ivory, never pure black
+	 * on pure white; the inner dot carries the warmth of the canvas. */
+	--g-select: #2f3134;
+	--g-select-dot: #f6f4ed;
+	--g-select-surface: #fffdfa;
+	--g-select-border: #c3c0b7;
+	--g-select-border-hover: #9b978d;
+	--g-select-focus: rgba(47, 49, 52, .16);
 	--g-ok: #35734f;
 	--g-ok-bg: #edf5f0;
 	--g-warn: #8f6a1f;
@@ -1163,10 +1171,6 @@
 	font-size: 13.5px;
 }
 
-.sakura-sync-app .col-select input[type="checkbox"] {
-	width: 15px;
-	height: 15px;
-}
 
 /* ============================================================
  * 9. Metrics, badges, status
@@ -5008,5 +5012,427 @@ body .sakura-layout-hint {
 
 	.sakura-sync-app [data-sakura-card="users"] .card-head-actions {
 		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+}
+
+
+/* ============================================================
+ * 20. Unified selection controls
+ * ============================================================ */
+
+/* Every checkbox and radio becomes the same round graphite marker:
+ * warm ivory fill when idle, soft graphite fill with an ivory core when
+ * checked. The .form-table variants restate the selector at the same
+ * specificity used by section 7 and 18 so neither older skin survives. */
+.sakura-sync-app input[type="checkbox"],
+.sakura-sync-app input[type="radio"],
+.sakura-sync-app .form-table input[type="checkbox"],
+.sakura-sync-app .form-table input[type="radio"] {
+	position: relative;
+	flex: none;
+	width: 18px;
+	height: 18px;
+	margin: 0 8px 0 0;
+	border: 1.5px solid var(--g-select-border);
+	border-radius: 50%;
+	background: var(--g-select-surface);
+	box-shadow: 0 1px 1px rgba(28, 29, 31, .04);
+	appearance: none;
+	-webkit-appearance: none;
+	accent-color: var(--g-select);
+	vertical-align: -4px;
+	cursor: pointer;
+	transition: border-color .15s ease, background-color .15s ease, box-shadow .15s ease;
+}
+
+/* Two legacy rules set 15/16px for the sync/delete table select column and
+ * the payment-method rows. Restate the size at the same specificity so the
+ * whole admin keeps one 18px marker. */
+.sakura-sync-app .col-select input[type="checkbox"] {
+	width: 18px;
+	height: 18px;
+}
+
+.sakura-sync-app .sufm-space-pay-row input[type="checkbox"] {
+	flex: 0 0 18px;
+	width: 18px;
+	height: 18px;
+}
+
+.sakura-sync-app input[type="checkbox"]:hover,
+.sakura-sync-app input[type="radio"]:hover,
+.sakura-sync-app .form-table input[type="checkbox"]:hover,
+.sakura-sync-app .form-table input[type="radio"]:hover {
+	border-color: var(--g-select-border-hover);
+}
+
+.sakura-sync-app input[type="checkbox"]:checked,
+.sakura-sync-app input[type="radio"]:checked,
+.sakura-sync-app .form-table input[type="checkbox"]:checked,
+.sakura-sync-app .form-table input[type="radio"]:checked {
+	border-color: var(--g-select);
+	background: var(--g-select);
+	box-shadow: 0 0 0 1px rgba(47, 49, 52, .08) inset;
+}
+
+.sakura-sync-app input[type="checkbox"]:checked::before,
+.sakura-sync-app input[type="radio"]:checked::before,
+.sakura-sync-app .form-table input[type="checkbox"]:checked::before,
+.sakura-sync-app .form-table input[type="radio"]:checked::before {
+	content: "";
+	position: absolute;
+	top: 50%;
+	left: 50%;
+	display: block;
+	width: 6px;
+	height: 6px;
+	margin: 0;
+	border: 0;
+	border-radius: 50%;
+	background: var(--g-select-dot);
+	transform: translate(-50%, -50%);
+}
+
+.sakura-sync-app input[type="checkbox"]:focus-visible,
+.sakura-sync-app input[type="radio"]:focus-visible,
+.sakura-sync-app .form-table input[type="checkbox"]:focus-visible,
+.sakura-sync-app .form-table input[type="radio"]:focus-visible {
+	outline: 3px solid var(--g-select-focus);
+	outline-offset: 2px;
+}
+
+.sakura-sync-app input[type="checkbox"]:disabled,
+.sakura-sync-app input[type="radio"]:disabled,
+.sakura-sync-app .form-table input[type="checkbox"]:disabled,
+.sakura-sync-app .form-table input[type="radio"]:disabled {
+	border-color: #dedbd3;
+	background: #f4f3ef;
+	cursor: not-allowed;
+	opacity: .8;
+}
+
+.sakura-sync-app input[type="checkbox"]:checked:disabled,
+.sakura-sync-app input[type="radio"]:checked:disabled,
+.sakura-sync-app .form-table input[type="checkbox"]:checked:disabled,
+.sakura-sync-app .form-table input[type="radio"]:checked:disabled {
+	border-color: #b8b5ac;
+	background: #b8b5ac;
+	opacity: 1;
+}
+
+.sakura-sync-app input[type="checkbox"]:checked:disabled::before,
+.sakura-sync-app input[type="radio"]:checked:disabled::before,
+.sakura-sync-app .form-table input[type="checkbox"]:checked:disabled::before,
+.sakura-sync-app .form-table input[type="radio"]:checked:disabled::before {
+	background: var(--g-select-dot);
+}
+
+/* The folder-style cards put the radio first in a flex column. Older CSS
+ * absolutely positioned it over the preview; keep it in normal flow at
+ * the card's top-left so it reads as a control, not as artwork. */
+.sakura-sync-app .sufm-style > input[type="radio"] {
+	position: static;
+	inset: auto;
+	align-self: flex-start;
+	flex: 0 0 auto;
+	margin: 0;
+}
+
+/* The layout toolbar sits outside .sakura-sync-app; give it the same
+ * round marker instead of the legacy square check. */
+body .sakura-layout-check input[type="checkbox"] {
+	position: relative;
+	width: 18px;
+	height: 18px;
+	margin: 0;
+	border: 1.5px solid var(--g-select-border);
+	border-radius: 50%;
+	background: var(--g-select-surface);
+	box-shadow: none;
+	appearance: none;
+	-webkit-appearance: none;
+	vertical-align: -4px;
+	cursor: pointer;
+	transition: border-color .15s ease, background-color .15s ease;
+}
+
+body .sakura-layout-check input[type="checkbox"]:hover {
+	border-color: var(--g-select-border-hover);
+}
+
+body .sakura-layout-check input[type="checkbox"]:checked {
+	border-color: var(--g-select);
+	background: var(--g-select);
+}
+
+body .sakura-layout-check input[type="checkbox"]:checked::before {
+	content: "";
+	position: absolute;
+	top: 50%;
+	left: 50%;
+	display: block;
+	width: 6px;
+	height: 6px;
+	border: 0;
+	border-radius: 50%;
+	background: var(--g-select-dot);
+	transform: translate(-50%, -50%);
+}
+
+body .sakura-layout-check input[type="checkbox"]:focus-visible {
+	outline: 3px solid var(--g-select-focus);
+	outline-offset: 2px;
+}
+
+
+/* ============================================================
+ * 21. S3 configuration dialog
+ * ============================================================ */
+
+body.sakura-modal-open {
+	overflow: hidden;
+}
+
+/* .app is a stacking context (z-index: 1), which would trap fixed modals
+ * under the WordPress admin bar and menu. Drop it while a modal is open so
+ * the backdrop covers the whole viewport. */
+body.sakura-modal-open .sakura-sync-app .app {
+	z-index: auto;
+}
+
+.sakura-sync-app .sakura-modal--config {
+	padding: clamp(16px, 4vw, 32px);
+}
+
+.sakura-sync-app .sakura-modal--config .sakura-modal__backdrop {
+	background: rgba(24, 25, 27, .4);
+	backdrop-filter: blur(4px);
+	animation: sakura-config-fade .18s ease both;
+}
+
+.sakura-sync-app .sakura-modal--config .sakura-modal__card {
+	width: min(560px, 100%);
+	max-height: calc(100vh - 32px);
+	max-height: calc(100dvh - 32px);
+	padding: clamp(26px, 3.4vw, 34px) clamp(22px, 3.6vw, 34px) clamp(20px, 2.8vw, 26px);
+	overflow-y: auto;
+	border: 1px solid var(--g-line);
+	border-radius: 18px;
+	background: var(--g-card);
+	box-shadow: 0 36px 100px -42px rgba(20, 21, 23, .58), 0 2px 6px rgba(20, 21, 23, .06);
+	animation: sakura-config-in .24s cubic-bezier(.2, .7, .3, 1) both;
+}
+
+.sakura-sync-app .sakura-modal--config .sakura-modal__close {
+	position: absolute;
+	top: 14px;
+	right: 14px;
+	display: grid;
+	place-items: center;
+	width: 32px;
+	height: 32px;
+	padding: 0;
+	border: 0;
+	border-radius: 50%;
+	background: transparent;
+	color: var(--g-faint);
+	cursor: pointer;
+	transition: background-color .15s ease, color .15s ease;
+}
+
+.sakura-sync-app .sakura-modal--config .sakura-modal__close:hover {
+	background: var(--g-accent-soft);
+	color: var(--g-ink);
+}
+
+.sakura-sync-app .sakura-modal--config .sakura-modal__close:focus-visible {
+	outline: 3px solid var(--g-select-focus);
+	outline-offset: 1px;
+}
+
+.sakura-sync-app .sakura-modal--config .sakura-modal__icon {
+	width: 50px;
+	height: 50px;
+	margin-bottom: 16px;
+	border: 1px solid var(--g-line);
+	background: var(--g-wash);
+	color: var(--g-ink-soft);
+}
+
+.sakura-sync-app .sakura-modal--config .sakura-modal__card .section-kicker {
+	margin: 0 0 7px;
+	color: var(--g-faint);
+	font-size: 12px;
+	letter-spacing: .14em;
+}
+
+.sakura-sync-app .sakura-modal--config .sakura-modal__card h2 {
+	margin: 0 0 10px;
+	font-size: clamp(20px, 2.4vw, 23px);
+	line-height: 1.35;
+	letter-spacing: -.015em;
+}
+
+.sakura-sync-app .sakura-modal--config .sakura-modal__card h2:focus {
+	outline: 0;
+}
+
+.sakura-sync-app .sakura-modal--config .sakura-modal__card > p {
+	max-width: 48ch;
+	margin: 0 0 18px;
+	color: var(--g-muted);
+	font-size: 13.5px;
+	line-height: 1.75;
+}
+
+.sakura-sync-app .sakura-config-missing {
+	display: block;
+	margin: 0 0 22px;
+	padding: 14px 16px;
+	border: 1px solid var(--g-line);
+	border-radius: var(--r-sm);
+	background: var(--g-wash);
+}
+
+.sakura-sync-app .sakura-config-missing-label {
+	display: block;
+	margin-bottom: 8px;
+	color: var(--g-faint);
+	font-size: 12px;
+	font-weight: 500;
+	letter-spacing: .03em;
+}
+
+.sakura-sync-app .sakura-config-chips {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+}
+
+.sakura-sync-app .sakura-config-chip {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	min-height: 26px;
+	padding: 4px 10px;
+	border: 1px solid var(--g-line-strong);
+	border-radius: 999px;
+	background: var(--g-select-surface);
+	color: var(--g-ink-soft);
+	font-size: 12.5px;
+	line-height: 1.4;
+}
+
+.sakura-sync-app .sakura-config-chip::before {
+	content: "";
+	width: 5px;
+	height: 5px;
+	border-radius: 50%;
+	background: var(--g-warn);
+}
+
+.sakura-sync-app .sakura-modal--config .sakura-modal__actions.sakura-config-actions {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 18px;
+	margin: 0;
+	padding-top: 18px;
+	border-top: 1px solid var(--g-line-soft);
+}
+
+.sakura-sync-app .sakura-config-remember {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	margin: 0;
+	color: var(--g-muted);
+	font-size: 13px;
+	line-height: 1.5;
+	cursor: pointer;
+}
+
+.sakura-sync-app .sakura-config-remember input[type="checkbox"] {
+	flex: 0 0 auto;
+	margin: 0;
+}
+
+.sakura-sync-app .sakura-config-buttons {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	margin-left: auto;
+}
+
+.sakura-sync-app .sakura-config-buttons .btn {
+	min-height: 38px;
+	padding: 0 16px;
+	font-size: 13px;
+}
+
+@keyframes sakura-config-fade {
+	from { opacity: 0; }
+	to { opacity: 1; }
+}
+
+@keyframes sakura-config-in {
+	from { opacity: 0; transform: translateY(12px) scale(.985); }
+	to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@media (max-width: 520px) {
+	.sakura-sync-app .sakura-modal--config .sakura-modal__card {
+		padding: 26px 20px 20px;
+		border-radius: 16px;
+	}
+
+	.sakura-sync-app .sakura-modal--config .sakura-modal__icon {
+		width: 46px;
+		height: 46px;
+		margin-bottom: 14px;
+	}
+
+	.sakura-sync-app .sakura-modal--config .sakura-modal__card > p {
+		margin-bottom: 16px;
+	}
+
+	/* Keep the full selector used above: otherwise its align-items:center
+	 * wins and the remember row floats in the middle of the card. */
+	.sakura-sync-app .sakura-modal--config .sakura-modal__actions.sakura-config-actions {
+		flex-direction: column;
+		align-items: stretch;
+		gap: 14px;
+	}
+
+	.sakura-sync-app .sakura-modal--config .sakura-config-buttons {
+		width: 100%;
+		margin-left: 0;
+		flex-direction: column;
+		align-items: stretch;
+		gap: 8px;
+	}
+
+	.sakura-sync-app .sakura-modal--config .sakura-config-remember {
+		width: 100%;
+	}
+
+	/* A full-width text-only ghost action reads like a stray label on
+	 * mobile; give it a quiet surface so its hit area is visible. */
+	.sakura-sync-app .sakura-modal--config .sakura-config-buttons .btn--ghost {
+		border-color: var(--g-line);
+		background: var(--g-select-surface);
+		color: var(--g-ink-soft);
+	}
+
+	.sakura-sync-app .sakura-modal--config .sakura-config-buttons .btn {
+		width: 100%;
+		justify-content: center;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.sakura-sync-app .sakura-modal--config .sakura-modal__backdrop,
+	.sakura-sync-app .sakura-modal--config .sakura-modal__card {
+		animation: none;
 	}
 }

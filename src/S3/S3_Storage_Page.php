@@ -29,7 +29,6 @@ final class S3_Storage_Page {
 		$effective        = Upload_Capabilities::effective( $concurrency );
 		$constants_locked = defined( 'S3_UPLOADS_USE_CONSTANTS' ) && true === S3_UPLOADS_USE_CONSTANTS;
 		$notice           = $this->notice();
-		$config_errors    = $this->options->configuration_errors();
 		$credentials_bad  = $this->options->credentials_unreadable();
 		$saved_profiles   = $this->options->saved_profiles();
 		$provider_counts  = $this->options->provider_saved_counts();
@@ -70,9 +69,6 @@ final class S3_Storage_Page {
 				</section>
 			<?php echo $notice; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- generated with escaped values. ?>
 
-			<?php if ( $this->options->is_enabled() && array() !== $config_errors ) : ?>
-				<div class="notice notice-error inline"><p><?php echo esc_html( sprintf( /* translators: %s: missing fields. */ __( '云存储已启用，但配置还不完整（%s）。在补全之前，插件会暂停图片上传、地址接管和同步；补全后自动恢复。', 'sakura-imgopt' ), implode( ', ', $config_errors ) ) ); ?></p></div>
-			<?php endif; ?>
 			<?php if ( $credentials_bad ) : ?>
 				<div class="notice notice-error inline"><p><?php esc_html_e( '已保存的访问密钥无法解密（可能更换了固定密钥或站点安全密钥）。请重新填写 Access Key 和 Secret；旧密钥不会显示出来。', 'sakura-imgopt' ); ?></p></div>
 			<?php endif; ?>
@@ -243,6 +239,7 @@ final class S3_Storage_Page {
 				<button id="sakura-s3-floating-save" class="btn btn--primary" type="submit" form="sakura-s3-save-form"><?php esc_html_e( '保存 S3 配置', 'sakura-imgopt' ); ?></button>
 			</div>
 			</div>
+			<?php echo Config_Notice::modal_html( $this->options, 'connection' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- generated with escaped values. ?>
 		</div>
 		<?php
 	}

@@ -108,6 +108,7 @@ final class Sync_Center_Module implements Module {
 		$hooks->add_action( 'wp_ajax_sakura_s3_sync_action', array( $this, 'ajax_action' ) );
 		$hooks->add_action( 'wp_ajax_sakura_s3_sync_refresh', array( $this, 'ajax_refresh' ) );
 		$hooks->add_action( 'wp_ajax_sakura_s3_sync_toggle_index', array( $this, 'ajax_toggle_index' ) );
+		$hooks->add_action( 'wp_ajax_sakura_s3_config_notice', array( $this, 'ajax_dismiss_config_notice' ) );
 		$hooks->add_action( 'admin_notices', array( $this, 'admin_notices' ) );
 		$hooks->add_action( 'admin_post_sakura_s3_sync_export', array( $this, 'export_csv' ) );
 		$hooks->add_action( 'admin_post_sakura_s3_ignored_save', array( $this, 'save_ignored_paths' ) );
@@ -482,7 +483,22 @@ final class Sync_Center_Module implements Module {
 	}
 
 	/**
-	 * Admin notice for failed scans, dead jobs, unreadable credentials and compat mode.
+	 * AJAX: remember that this operator opted out of the setup dialog.
+	 */
+	public function ajax_dismiss_config_notice(): void {
+		check_ajax_referer( 'sakura_s3_config_notice', 'nonce' );
+
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_send_json_error( array( 'message' => __( '权限不足。', 'sakura-imgopt' ) ), 403 );
+		}
+
+		update_user_meta( get_current_user_id(), Config_Notice::META_KEY, '1' );
+
+		wp_send_json_success( array( 'dismissed' => true ) );
+	}
+
+	/**
+	 * Admin notice for failed scans, dead jobs and compat mode.
 	 */
 	public function admin_notices(): void {
 		$screen = function_exists( 'get_current_screen' ) ? get_current_screen() : null;
@@ -491,12 +507,6 @@ final class Sync_Center_Module implements Module {
 		}
 
 		$notices = array();
-		$config_errors = $this->options->configuration_errors();
-		if ( $config_errors ) {
-			/* One notice for the whole set: four missing fields used to push four
-			 * separate red boxes above the page and bury the actual screen. */
-			$notices[] = array( 'error', sprintf( /* translators: %s: missing or invalid configuration fields. */ __( 'S3 配置不可用：%s', 'sakura-imgopt' ), implode( ' / ', $config_errors ) ) );
-		}
 		$profile = (string) $this->options->active_profile_id();
 		if ( '' !== $profile ) {
 			$scan = $this->index->latest_scan( $profile );

@@ -320,6 +320,7 @@ final class Delete_Queue_Panel {
 					</section>
 				</div>
 			</div>
+			<?php echo Config_Notice::modal_html( new Options(), 'deletes' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- generated with escaped values. ?>
 		</div>
 		<script>
 		( function () {

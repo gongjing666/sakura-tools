@@ -1624,3 +1624,152 @@
         initStatsHistory();
     }
 })();
+
+
+/* S3 setup dialog: centered, dismissible per user, and skipped once after
+ * the operator follows its primary action to the connection screen. */
+(function () {
+    var modal = document.getElementById('sakura-s3-config-modal');
+    if (!modal) { return; }
+
+    var card = modal.querySelector('.sakura-modal__card');
+    var focusTarget = modal.querySelector('[data-config-focus]');
+    var primary = modal.querySelector('[data-config-primary]');
+    var dontRemind = modal.querySelector('[data-config-dont-remind]');
+    var lastFocus = null;
+    var sent = false;
+    var skipKey = 'sakuraS3ConfigSkipOnce';
+    var skip = false;
+
+    try {
+        skip = window.sessionStorage.getItem(skipKey) === '1';
+        if (skip) { window.sessionStorage.removeItem(skipKey); }
+    } catch (e) {}
+
+    function rememberDismissal() {
+        if (!dontRemind || !dontRemind.checked || sent) { return; }
+        sent = true;
+
+        var params = new URLSearchParams();
+        params.set('action', 'sakura_s3_config_notice');
+        params.set('nonce', modal.getAttribute('data-nonce') || '');
+        params.set('dismiss', '1');
+
+        var url = modal.getAttribute('data-ajax-url') || '';
+        var body = params.toString();
+        var queued = false;
+
+        if (window.navigator && typeof window.navigator.sendBeacon === 'function') {
+            try {
+                queued = window.navigator.sendBeacon(url, new Blob([body], { type: 'application/x-www-form-urlencoded;charset=UTF-8' }));
+            } catch (e) {}
+        }
+
+        if (!queued && window.fetch) {
+            window.fetch(url, {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
+                body: body,
+                keepalive: true
+            }).catch(function () {});
+        }
+    }
+
+    function close() {
+        if (modal.hidden) { return; }
+        rememberDismissal();
+        modal.hidden = true;
+        modal.setAttribute('aria-hidden', 'true');
+        document.body.classList.remove('sakura-modal-open');
+        if (lastFocus && typeof lastFocus.focus === 'function') {
+            lastFocus.focus();
+        }
+    }
+
+    function open() {
+        if (!modal.hidden) { return; }
+        lastFocus = document.activeElement;
+        modal.hidden = false;
+        modal.setAttribute('aria-hidden', 'false');
+        document.body.classList.add('sakura-modal-open');
+        window.setTimeout(function () {
+            if (focusTarget) { focusTarget.focus(); }
+        }, 40);
+    }
+
+    function focusFirstEmptyField() {
+        var target;
+        try { target = document.querySelector(primary.getAttribute('href')); } catch (e) { return; }
+        if (!target) { return; }
+
+        window.setTimeout(function () {
+            var fields = target.querySelectorAll('input:not([type="hidden"]):not([disabled]), select:not([disabled]), textarea:not([disabled])');
+            var field = null;
+            for (var i = 0; i < fields.length; i++) {
+                if (fields[i].type !== 'checkbox' && fields[i].type !== 'radio' && !fields[i].value) {
+                    field = fields[i];
+                    break;
+                }
+            }
+            if (!field) { field = fields[0]; }
+            if (field) { field.focus({ preventScroll: true }); }
+        }, 360);
+    }
+
+    modal.addEventListener('click', function (event) {
+        var node = event.target && event.target.nodeType === 1 ? event.target : event.target.parentElement;
+        if (!node) { return; }
+
+        if (node.closest('[data-config-close]')) {
+            event.preventDefault();
+            close();
+            return;
+        }
+
+        if (node.closest('[data-config-primary]')) {
+            var href = primary.getAttribute('href') || '';
+            if (href.charAt(0) === '#') {
+                event.preventDefault();
+                close();
+                var section = document.querySelector(href);
+                if (section) {
+                    section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    focusFirstEmptyField();
+                }
+                return;
+            }
+
+            if (dontRemind && dontRemind.checked) { rememberDismissal(); }
+            try { window.sessionStorage.setItem(skipKey, '1'); } catch (e) {}
+        }
+    });
+
+    document.addEventListener('keydown', function (event) {
+        if (modal.hidden) { return; }
+
+        if (event.key === 'Escape') {
+            event.preventDefault();
+            close();
+            return;
+        }
+
+        if (event.key !== 'Tab') { return; }
+        var focusable = card.querySelectorAll('a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])');
+        if (!focusable.length) { return; }
+
+        var first = focusable[0];
+        var last = focusable[focusable.length - 1];
+        if (event.shiftKey && document.activeElement === first) {
+            event.preventDefault();
+            last.focus();
+        } else if (!event.shiftKey && document.activeElement === last) {
+            event.preventDefault();
+            first.focus();
+        }
+    });
+
+    if (!skip) {
+        window.setTimeout(open, 220);
+    }
+})();

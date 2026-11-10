@@ -276,7 +276,9 @@ register() 之后调用     → 直接 add_action/add_filter 到 WP（不再入�
 | 必须在 S3 与缩略图之前 | `wp_handle_upload` 用 `PHP_INT_MAX`；`wp_generate_attachment_metadata` 用 `99` | `includes/class-image-processor.php:149`、`:156` |
 | 动图不处理 | 文件头识别后按 skipped 返回 | `includes/class-animation-detector.php:28-57`、`src/Image/File_Processor.php:131` |
 
-> 为什么要抢在 S3 之前：S3 上传钩子也挂在 `wp_handle_upload` 上，若图片压缩排在后面，推到对象存储的会是未压缩版本（`includes/class-image-processor.php:149` 显式使用 `PHP_INT_MAX` + 2 参数）。
+> 为什么要抢在 S3 之前：本插件的 S3 模块在 `wp_update_attachment_metadata` 上以 `PHP_INT_MAX` 执行最终上传（`src/S3/Storage.php:140`、`:191`），子尺寸压缩在 `wp_generate_attachment_metadata@99` 完成（`includes/class-image-processor.php:156`）。如果图片处理排在后面，推到对象存储的会是未压缩版本；主文件也必须在 `wp_handle_upload@PHP_INT_MAX` 完成替换（`:149`），否则后续 metadata 记录的还是旧文件。
+>
+> 注：`includes/class-image-processor.php:144-148` 的注释仍按旧的 S3 uploads 钩子描述；1.24.4 的 S3 模块实际不使用 `wp_handle_upload`，以 `src/S3/Storage.php:140` 为准。
 
 ### 4.2 类清单（`src/Image/`）
 
@@ -342,7 +344,7 @@ register() 之后调用     → 直接 add_action/add_filter 到 WP（不再入�
 - **option `sakura_imgopt_crop_scan` / `sakura_imgopt_crop_scan_names`**：裁剪配置扫描结果（`src/Image/Crop_Config_Scanner.php:114-121`）。
 - **postmeta `_sakura_imgopt_backup`** = `{backup_rel, origin_rel, converted_rel, time}`（`includes/class-backup.php:237-246`）。
 - **postmeta `sakura_imgopt_log`**：每附件最多 10 条明细（`includes/class-stats.php:24`、`:96-108`）。
-- **目录 `uploads/sakura-imgopt-backup/{年}/{月}/`**：含 `index.php` 与 `.htaccess` 拒绝规则（`includes/class-backup.php:30`、`:125-153`）。
+- **目录 `uploads/sakura-imgopt-backup/{年}/{月}/`**：含 `index.php` 与 `.htaccess`（`Require all denied` + Apache 2.2 兼容分支；`includes/class-backup.php:38-39`、`:125-153`）。**`.htaccess` 只对 Apache 生效**；Nginx/Caddy/IIS/PHP 内置服务器必须在站点层显式 deny（`src/Backup/Exposure_Probe.php:5-7`）。后台探测用 `wp_upload_dir()['baseurl']` 拼 URL（`:64`、`:89`），若 `upload_url_path` 配错会探测到错误路径而误报 `protected`；以实际公网 URL 为准（§4.7 第 5 条）。
 - **transient**：`sakura_imgopt_backup_usage`（5 分钟缓存，`includes/class-backup.php:323`）；媒体库批处理队列 `sakura_queue_{user_id}`（1 小时，`includes/class-media-library-module.php:337-349`）。
 - **本子系统不建表**。
 
@@ -363,8 +365,9 @@ register() 之后调用     → 直接 add_action/add_filter 到 WP（不再入�
 
 1. **"不变小就保留原图"是唯一的质量底线**。`No_Gain_Guard` 里"任一为 0 视为可替换"是个例外分支，意味着拿不到体积信息时会覆盖原图（`src/Image/No_Gain_Guard.php:39-58`）。
 2. **子尺寸压缩有 20 秒预算**，超时只记 skipped 并 `break`，本请求不补做、也没有后续队列（`src/Image/Metadata_Processor.php:136-141`、`:193-212`）。大相册站点的首张上传可能只压了一部分尺寸。
-3. **统计与备份 meta 依赖"待写记录"匹配**：待写记录以最终文件路径为键（`src/Image/Metadata_Processor.php:99-101`），flush 时先精确匹配、再匹配 `-scaled` 变体，只有在"恰好剩 1 条记录且文件名同干"时才走启发式兜底（`:222-251`）。**并发上传不会命中这个兜底分支**：`pending_records` 是实例属性（`:32`），每个 HTTP 请求都会重新构造一份 `Metadata_Processor`（`includes/class-image-processor.php:123`），进程之间不共享；`async-upload.php` 一次也只处理一个文件。2026-11-08 在测试站用本地 MinIO 做 5 张并发上传，5/5 的 `_sakura_imgopt_backup`、`sakura_imgopt_log`、S3 同步记录齐全（§10.6）。真正会丢 meta 的是"同一进程一次处理多张、路径又都对不上"的构造场景，标准媒体库上传路径不可达。
+3. **统计与备份 meta 依赖"待写记录"匹配**：待写记录以最终文件路径为键（`src/Image/Metadata_Processor.php:99-101`），flush 时先精确匹配、再匹配 `-scaled` 变体，只有在"恰好剩 1 条记录且文件名同干"时才走启发式兜底（`:222-251`）。**并发上传不会命中这个兜底分支**：`pending_records` 是实例属性（`:32`），每个 HTTP 请求都会重新构造一份 `Metadata_Processor`（`src/Image/Upload_Handler.php:72`），进程之间不共享；`async-upload.php` 一次也只处理一个文件。2026-11-08 在测试站用本地 MinIO 做 5 张并发上传，5/5 的 `_sakura_imgopt_backup`、`sakura_imgopt_log`、S3 同步记录齐全（§10.6）。真正会丢 meta 的是"同一进程一次处理多张、路径又都对不上"的构造场景，标准媒体库上传路径不可达。
 4. 备份写入失败会中止整条链路（`src/Image/Upload_Handler.php:141-145`），这是刻意的"宁可不压，也不丢原图"。
+5. **备份目录的 `.htaccess` 不是跨服务器保证**。插件只写 Apache 规则；Nginx/Caddy/IIS/PHP 内置服务器需站点配置显式 deny（`src/Backup/Exposure_Probe.php:5-7`）。2026-11-10 在测试站（`/root/sio-e2e`）复核：`.htaccess` 内容为 `Require all denied`，但 `https://demo.77il.cn/wp-content/uploads/sakura-imgopt-backup/2026/11/backup-test.png` 返回 HTTP 200；同一次探测却报 `protected`，因为站点 `upload_url_path=https://demo.77il.cn` 使探测 URL 变成 `https://demo.77il.cn/sakura-imgopt-backup/...`，打到了不存在的路径。生产 nginx 已在站点配置显式 `location ^~ /wp-content/uploads/sakura-imgopt-backup/ { return 403; }`（`/www/server/panel/vhost/nginx/www.nboke.com.conf:136-140`），但这是部署配置，不是插件保证。
 
 ### 4.8 待确认（已清零）
 
@@ -495,7 +498,7 @@ register() 之后调用     → 直接 add_action/add_filter 到 WP（不再入�
 | 整页闸门 | `:97-121` | engine=html（`:99`）→ `can_filter()`（`:103`）→ 非 `is_admin`（`:107`）→ 非 `is_feed`（`:110`）→ 非 `is_trackback`（`:113`）→ 非 `wp_doing_ajax`（`:116`）→ `ob_start`（`:120`） |
 | 侧栏闸门 | `:126-141` | engine=html（`:128`）→ `can_filter()` 且 `scopes.sidebar` 非空（`:132`）→ 请求的 widget 确在侧栏（`:136`）→ `ob_start`（`:140`） |
 | 侧栏判定 | `:186-205` | 读 `$_REQUEST['id']`/`['index']` 拼 `id-index`，在 `wp_get_sidebars_widgets()` 中找「侧栏名含 sidebar 且包含该 widget」 |
-| 实际门槛 | `:177-181` + `Settings::legacy_options()` `:986-1035` | `legacy_options()` 强制 `enabled ← v2 enabled`、`oss_host ← media_host()`、`sidebar_enabled ← scopes.sidebar`（`:1022-1025`），旧 `legacy.enabled/oss_host` 存什么都不生效；真正条件是 v2 `enabled=1` 且 `s3 upload_url_path` 能解析出 host |
+| 实际门槛 | `:177-181` + `Settings::legacy_options()`（`src/Thumbnail/Settings.php:986-1035`） | `legacy_options()` 强制 `enabled ← v2 enabled`、`oss_host ← media_host()`、`sidebar_enabled ← scopes.sidebar`（`src/Thumbnail/Settings.php:1022-1025`），旧 `legacy.enabled/oss_host` 存什么都不生效；真正条件是 v2 `enabled=1` 且 `s3 upload_url_path` 能解析出 host |
 | 回调 | `:149-172` | `filter_list_html(force=false)` / `filter_sidebar_ajax_html(force=true)` → `new Html_Filter(Settings::legacy_options())->filter($html, $force)` |
 | 解析与改写 | `src/Oss/Html_Filter.php:43-156` | host 为空或全文不含 host 直接返回（`:46`）；需 `WP_HTML_Processor`（`:50`）；有 `<html`/`<!doctype` 走整页解析，否则片段（`:54-57`）；按 sidebar/row/post/thumb 类名维护作用域栈；`force_sidebar` 时绕过作用域全量改写 |
 | 改写目标 | `src/Oss/Html_Filter.php:181-207` | `IMG` 的 src/data-src/switch-src/white-src/dark-src、`IMG`/`SOURCE` 的 srcset/data-srcset、`VIDEO` 的 poster；suffix 由 `Url_Rewriter::build_scope_suffix()`（`src/Oss/Url_Rewriter.php:155`）生成，形如 `?w=250&h=250&mode=crop&pos=auto` |
@@ -514,7 +517,7 @@ register() 之后调用     → 直接 add_action/add_filter 到 WP（不再入�
 
 ### 6.1 职责与边界
 
-**一句话**：把媒体库附件在**产生它的同一请求内**同步到 S3 兼容对象存储（`src/S3/Synchronous_Uploader.php:180`），用 postmeta 记附件状态（`src/S3/Sync_Status.php:25-49`）、用自定义表做远端删除补偿（`src/S3/Delete_Jobs.php:109`），并提供只读同步中心、Prometheus 指标与 webhook 告警（`src/S3/Prometheus.php:107`、`src/S3/Alerting.php:267`）。
+**一句话**：把媒体库附件在**产生它的同一请求内**同步到 S3 兼容对象存储（`src/S3/Synchronous_Uploader.php:180`），用 postmeta 记附件状态（`src/S3/Sync_Status.php:25-49`）、用自定义表做远端删除补偿（`src/S3/Delete_Jobs.php:109`），并提供只读同步中心、Prometheus 指标与 webhook 告警（`src/S3/Prometheus.php:137`、`src/S3/Alerting.php:244`）。
 
 这也是全插件**唯一接触凭据**的子系统：`s3_options` 里的 key/secret 以 `sio1s:` 前缀密文存储（`src/S3/Credential_Cipher.php:21`，实测 `Credential_Cipher` roundtrip 通过，见 §10.5）。
 
@@ -568,7 +571,7 @@ register() 之后调用     → 直接 add_action/add_filter 到 WP（不再入�
 | `Options::__construct` | `src/S3/Options.php:50` | 读 `s3_options`、常量覆盖、逐字段解密 | 被 `Storage` 与 `Storage_Adapter` 构造时调用 |
 | `Settings_Saver::save` | `src/S3/Settings_Saver.php:44` | 校验 provider/endpoint/upload_path、加密、归档旧 target 后写 option | ⇐ `admin_post_sakura_s3_save`（`includes/class-s3-storage-module.php:87`） |
 | `Credential_Cipher::encrypt` / `decrypt` | `src/S3/Credential_Cipher.php:65` / `:102` | Sodium 优先、OpenSSL 回落；无前缀按旧明文处理 | `Settings_Saver.php:130-141`、`Options.php:77-89` |
-| `Profile_Manager::switch_profile` | `src/S3/Profile_Manager.php:31` | 复制已存配置（密文原样）并接管 `upload_url_path` | ⇐ `admin_post_sakura_s3_switch` |
+| `Profile_Manager::switch_profile` | `src/S3/Profile_Manager.php:31` | 复制已存配置（密文原样）；启用时应用 profile 的 `upload_url_path`，停用时尝试还原 | ⇐ `admin_post_sakura_s3_switch` |
 | `Synchronous_Uploader::finalize` | `src/S3/Synchronous_Uploader.php:180` | 版本比对 → 并发上传 → 写状态 → 条件删本地 | ⇐ `Storage.php:191`、`Sync_Center_Module.php:814` |
 | `Storage::delete_remote_attachment` | `src/S3/Storage.php:212` | 附件删除时把仍存在的 key 入删除队列 | ⇐ `delete_attachment`（`src/S3/Storage.php:144`） |
 | `Delete_Jobs::enqueue` | `src/S3/Delete_Jobs.php:188` | 幂等批量入队，dead 行可复活 | ⇐ `Storage.php:229` |
@@ -580,6 +583,8 @@ register() 之后调用     → 直接 add_action/add_filter 到 WP（不再入�
 | `Upload_Metrics::record_batch` / `snapshot` | `src/S3/Upload_Metrics.php:149` / `:204` | 每条结果独立 INSERT；快照用 SQL 聚合 totals/days 并合并旧 option 基线 | ⇐ `Upload_Observer`；⇒ 后台卡片、Prometheus、Alerting、`wp sakura-sync stats` |
 | `Remote_Operation_Guard::execute` | `src/S3/Remote_Operation_Guard.php:61` | 逐 key 预约，失败转 uncertain 阻断后续 | 所有远端写入（`src/S3/Storage_Adapter.php:136`、`:179`、`:346`） |
 | `Sync_Center_Module::ajax_action` | `src/S3/Sync_Center_Module.php:586` | 单条/批量 upload、download、delete、adopt 分发 | ⇐ `wp_ajax_sakura_s3_sync_action` |
+
+> `switch_profile()` 只把 profile 里的 `upload_url_path` 原样写入 WP option，不校验它是否包含 `/wp-content/uploads` 前缀（`src/S3/Profile_Manager.php:67-91`、`src/S3/Upload_URL.php:15-30`）。若保存的 URL 少了前缀，附件 URL 会稳定指向错误路径；2026-11-10 复核时测试站的 `upload_url_path=https://demo.77il.cn` 即导致 `wp_get_attachment_url()` 返回 404，而 `/wp-content/uploads/...` 文件本身可访问。
 
 ### 6.4 入口钩子
 
@@ -597,12 +602,12 @@ register() 之后调用     → 直接 add_action/add_filter 到 WP（不再入�
 | `sakura_imgopt_s3_uploaded` | action（成功观测） | `src/S3/Upload_Observer.php:30`（`Object_Store.php:182` 触发） |
 | `sakura_imgopt_s3_upload_failed` | action（失败观测） | `src/S3/Upload_Observer.php:31`（`src/S3/Storage_Adapter.php:72` 触发） |
 | `sakura_imgopt_s3_delete_tick`（60 秒） / `sakura_imgopt_s3_alert_check`（15 分钟） | cron | `src/S3/Delete_Worker.php:46-51`、`src/S3/Alerting.php:375-377` |
-| `sakura_imgopt_metrics` | init / query var | `src/S3/Prometheus.php:26-30`、`:73-77` |
-| `wp sakura-s3` | WP-CLI | `includes/class-s3-cli.php:501` |
+| `sakura_imgopt_metrics` | init / query var | `src/S3/Prometheus.php:27-31`、`:74-78` |
+| `wp sakura-s3` | WP-CLI | `includes/class-s3-cli.php:599` |
 
 ### 6.5 数据落点
 
-- **option `s3_options`**：`enabled`、`provider`、`bucket`、`region`、`endpoint`、key/secret（密文）、`upload_path`、`upload_url_path`、`profiles`、`retired_targets`、`active_profile_id`（`src/S3/Options.php:24`、`:97-114`；写入 `Settings_Saver.php:165-189`）。实测 14 键、`enabled=true`、`provider=minio`（§10.4）。
+- **option `s3_options`**：`enabled`、`provider`、`bucket`、`region`、`endpoint`、key/secret（密文）、`upload_path`、`upload_url_path`、`profiles`、`retired_targets`、`active_profile_id`（`src/S3/Options.php:24`、`:97-114`；写入 `Settings_Saver.php:165-189`）。2026-11-08 的测试站快照为 `enabled=true`、`provider=minio`（§10.5 第 8/10 项）；2026-11-10 复核时已变为 11 键、`enabled=false`、`provider=cloudflare`、`upload_url_path=''`，不要把具体值当成固定环境。
 - 其余 option：`sakura_imgopt_upload_concurrency`（`src/S3/Settings_Saver.php:106`）、`sakura_imgopt_sync_ignored`（`Ignored_Paths.php:25`）、`sakura_imgopt_s3_upload_metrics`（`Upload_Metrics.php:32`，**冻结基线，只读**；升级前的累计值原样保留用于合并，不再写入）、`sakura_imgopt_s3_upload_schema`（`Upload_Metrics.php:37`，事件表建表标记，实测 `2.0.0`）、`sakura_imgopt_s3_prometheus_token`（`Prometheus.php:26`，实测 32 hex）、`sakura_imgopt_s3_alerts`（`Alerting.php:26`）、`sakura_imgopt_s3_delete_schema`（`Delete_Jobs.php:32`，实测 `1.2.2`）、`sakura_imgopt_s3_migrate_state`（`History_Migrator.php:21`）、`upload_url_path` 与旧值 `sakura_imgopt_previous_upload_url_path`（`Upload_URL.php:11`）。
 - **自定义表 3 张**：`{prefix}sio_s3_deletes`（`src/S3/Delete_Jobs.php:109`，建表 `:109-129`）、`{prefix}sio_sync_operations`（`src/S3/Remote_Operation_Guard.php:26-39`）、`{prefix}sio_s3_upload_events`（`src/S3/Upload_Metrics.php:52`，建表 `:79-115`）。
 - **postmeta 8 个**：`_sakura_imgopt_s3_status` / `_error` / `_objects` / `_synced_at` / `_jobs` / `_target` / `_failures` / `_object_versions`（`src/S3/Sync_Status.php:25-49`）。
@@ -650,13 +655,13 @@ register() 之后调用     → 直接 add_action/add_filter 到 WP（不再入�
 
 - 事实：`src/S3/Upload_Queue.php` 共 231 行，`src/` 内 **0 实例化**；唯一引用方是 `tests/UploadQueueTest.php:49`、`:84`。`src/S3/Storage.php:135-137` 的注释已经写明「所有附件都在产生它的请求内完成上传与校验……不再有 shutdown 兜底或后台首传」。
 - 历史：`DEVELOPMENT.md` §14.31 记录 1.12.0 已移除异步上传队列（`sio_s3_uploads` 表、`Upload_Worker`、每分钟 cron、看门狗、`async_upload` 过滤器全部删除）；该类是 Phase 2D 拆分后没有一并删掉的工具类（`readme.txt:638` 可追到拆分记录）。
-- 处置：删除 `src/S3/Upload_Queue.php` 与 `tests/UploadQueueTest.php`，并移除 `tests/bootstrap.php:464` 的 `require_once`。S3 模块类数 37 → 36，图谱节点 181 → 180。
+- 处置：删除 `src/S3/Upload_Queue.php` 与 `tests/UploadQueueTest.php`，并移除 `tests/bootstrap.php` 中对应的 `require_once`。S3 模块类数 37 → 36，图谱节点 181 → 180。
 
 **② `Upload_Metrics::snapshot()` 的 `counts` / `backlog`：生产者已不存在，已移除。**
 
 - 事实：清理前的 `snapshot( ?array $counts = null )` 的 `$counts` 只用于合并 `queued/running/retrying/dead/due/backlog/oldest`（清理前 `src/S3/Upload_Metrics.php:162-175`），而生产调用方**全部无参**（清理前位置）：`src/S3/Prometheus.php:124`、`src/S3/Alerting.php:254/:331`、`src/S3/Sync_Center_Panel.php:29`、`src/Sync/CLI.php:155`。
 - 历史：`DEVELOPMENT.md` §14.35 说明该参数是 1.6.4 为 `Upload_Jobs::counts()` 预留的注入口；1.12.0 删除异步队列后 `Upload_Jobs` 已不存在，文档原话是「后台卡片的积压现在恒为 0，不再代表上传队列」。所以不是「忘记传参」，而是**生产者被删后接口没跟着收口**。
-- 处置：`snapshot()` 改为无参（`src/S3/Upload_Metrics.php:143`），删除 `$counts` 合并块与返回值里的 `backlog`；连带清掉下游恒零消费端——`Prometheus::format` 去掉 `queue_depth{state=…}`（6 个 state）与 `queue_oldest_seconds`（清理前 `src/S3/Prometheus.php:135`）；`Alerting` 去掉 `max_dead` 配置、`dead` 告警分支与 payload 里的队列字段（清理前 `src/S3/Alerting.php:152-215`，现 `evaluate()` 位于 `:152-169`）；`Monitoring_Panel` 去掉「死信阈值（0 关闭）」输入与 POST 处理（清理前 `src/S3/Monitoring_Panel.php:81-128`）；`Sync\CLI::stats` 去掉 Backlog 行（清理前 `src/Sync/CLI.php:154-184`）。相应测试改为 `snapshot()` 无参并断言不存在 `backlog` 键。
+- 处置：`snapshot()` 改为无参（`src/S3/Upload_Metrics.php:204`），删除 `$counts` 合并块与返回值里的 `backlog`；连带清掉下游恒零消费端——`Prometheus::format` 去掉 `queue_depth{state=…}`（6 个 state）与 `queue_oldest_seconds`（清理前 `src/S3/Prometheus.php:135`）；`Alerting` 去掉 `max_dead` 配置、`dead` 告警分支与 payload 里的队列字段（清理前 `src/S3/Alerting.php:152-215`，现 `evaluate()` 位于 `:152-169`）；`Monitoring_Panel` 去掉「死信阈值（0 关闭）」输入与 POST 处理（清理前 `src/S3/Monitoring_Panel.php:81-128`）；`Sync\CLI::stats` 去掉 Backlog 行（清理前 `src/Sync/CLI.php:154-184`）。相应测试改为 `snapshot()` 无参并断言不存在 `backlog` 键。
 - 结果：`vendor/bin/phpunit` 391 tests / 1120 assertions / 5 skipped 全绿（清理前基线 395/1124/5 skipped）；PHPStan `[OK] No errors`；phpcs 改动文件 exit 0。测试站 `wp sakura-sync stats --format=table` 已不再输出 Backlog 行（§10.8）。
 
 **③ 两套 `target_hash`：语义不同，不需要一致，已互相注明。**
@@ -670,7 +675,7 @@ register() 之后调用     → 直接 add_action/add_filter 到 WP（不再入�
 
 - `Sync_Status::enqueue()` / `jobs()` / `fail_job()`（`src/S3/Sync_Status.php:299`、`:328`、`:342`）是 1.12.0 之前异步上传的重试簿记：写 `JOBS_META=_sakura_imgopt_s3_jobs`，退避 `min(3600, 60*2^min(5,attempts))`，8 次置 `dead`。`src/` 内除定义外**无调用方**，但 `Storage::maybe_migrate`（`src/S3/Storage.php:464-516`）仍直接读同一份 postmeta，把老站遗留任务迁移成 `record_failures` 后删除，所以 `JOBS_META` 常量不能删。
 - 处置：三个方法**保留**并加 `@deprecated 1.12.0`，docblock 写明只服务于遗留数据迁移、新代码不要调用（公开 API，测试仍覆盖）；`Storage::maybe_migrate` 保留。
-- `Upload_URL::PREVIOUS_PATH_OPTION`（`src/S3/Upload_URL.php:12`，值 `sakura_imgopt_previous_upload_path`）原先「声明未使用」，但清理前 `Uninstaller::cleanup_persistent_data()` 一直用**字面量**读/删这个 option 来还原老站的 `upload_path`。处置：`Uninstaller` 引入 `use Sakura\ImageOptimizer\S3\Upload_URL;`，把读/还原/删除 `upload_url_path` 与 `upload_path` 旧值的三处逻辑改用 `Upload_URL::PREVIOUS_URL_OPTION` / `PREVIOUS_PATH_OPTION`（现 `src/Uninstaller.php:209`、`:215`、`:217`、`:226`）。常量由此获得真实引用，字面量消失；行为不变（探针里 `previous_upload_path=NULL`、`previous_upload_url_path` 为空，说明本站没有可还原的旧值）。
+- `Upload_URL::PREVIOUS_PATH_OPTION`（`src/S3/Upload_URL.php:12`，值 `sakura_imgopt_previous_upload_path`）原先「声明未使用」，但清理前 `Uninstaller::cleanup_persistent_data()` 一直用**字面量**读/删这个 option 来还原老站的 `upload_path`。处置：`Uninstaller` 引入 `use Sakura\ImageOptimizer\S3\Upload_URL;`，把读/还原/删除 `upload_url_path` 与 `upload_path` 旧值的三处逻辑改用 `Upload_URL::PREVIOUS_URL_OPTION` / `PREVIOUS_PATH_OPTION`（现 `src/Uninstaller.php:205-228`）。常量由此获得真实引用，字面量消失；行为不变（探针里 `previous_upload_path=NULL`、`previous_upload_url_path` 为空，说明本站没有可还原的旧值）。
 
 ### 6.9 上传指标的并发修复（2026-11-08）
 
@@ -714,7 +719,7 @@ register() 之后调用     → 直接 add_action/add_filter 到 WP（不再入�
 
 - **旧 option 不迁移、不删除**：`sakura_imgopt_s3_upload_metrics` 作为冻结基线被 `legacy()`（`:322`）读取，升级后生产已有的 91 条成功立即出现在快照里，不会清零。`record_batch()` 不再写它。
 - **reset 清两层**：`reset()`（`:308`）执行 `DELETE FROM` 事件表并 `delete_option(OPTION)`，但保留 `sakura_imgopt_s3_upload_schema`，避免下一次写表又触发建表。
-- **卸载**：`src/Uninstaller.php:111` 的删表清单已加入 `sio_s3_upload_events`，`:121` 删除 `sakura_imgopt_s3_upload_schema`；旧 option 仍在 `monitoring_options()`（`:161`）里，按原有监控数据策略清理。
+- **卸载**：`src/Uninstaller.php:112` 的删表清单已加入 `sio_s3_upload_events`，`:122` 删除 `sakura_imgopt_s3_upload_schema`；旧 option 仍在 `monitoring_options()`（`:161`）里，按原有监控数据策略清理。
 - **已知边界**：① 事件表不做 TTL 裁剪，`totals` 是自安装以来的全量，表会随上传量增长；因此**不自动裁剪**——删除事件会让 `sakura_imgopt_upload_attempts_total` 回退，与 Prometheus counter 语义冲突。若确需控制体积，只能走“归档表 + `archived_through_id` + 只读 CLI”的独立方案，不能直接 DELETE；② 顺序回滚（旧版只写 option）不会重复计数：旧版看到的是冻结基线，事件行只在升级后由 `snapshot()` 叠加。测试站基线 30 + 事件 5 + 旧版写入 3，快照 38 = 30+5+3（`tests/UploadMetricsTest.php` 的 `test_old_version_option_write_is_added_once_after_upgrade` 固化这条口径）。真正风险是旧版看不到事件行导致短期低估，升级后恢复；只有人工把事件累计写回旧 option 才会重复；③ `upload_many()` 的合法 key + 缺失文件会在进入存储前被 `Remote_Operation_Guard` 拦截，留下 `sio_sync_operations` 的 uncertain 行，同时仍写一条 `sio_remote_uncertain` 失败事件；前者需要操作员处理，后者只是观测记录（运维入口见 §6.9.5）。
 
 #### 6.9.4 验证结果（摘要）

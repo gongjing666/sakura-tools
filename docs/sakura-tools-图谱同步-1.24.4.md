@@ -218,7 +218,7 @@ assemble-doc.py  ──► sakura-tools-代码结构-1.24.4.md（分章正文 + 
 
 1.24.4 的代码差异只有版本号、`Upgrade_Guard` 接线与测试/文档，拓扑已在 §2.12 固定。发布前在测试站 `/root/sio-e2e` 用工作树软链把 `sakura_imgopt_version` 回退到 1.24.3、清掉每日清理 cron，再请求 `/wp-login.php`：HTTP 200（9,197 字节），读回版本 1.24.4、cron 恢复、锁与错误 transient 均不存在；10 个并发请求全部返回 302，`cleanup_events=1`，没有重复排程或残留锁。验证后测试站已恢复 1.24.3 软链与 option。细节见主文档 §10.18。
 
-重建产物：主文档 `sakura-tools-代码结构-1.24.4.md` 298,733 字节（md5 `d4be0a7939a44153c187f04c4a485839`）；页面 `index.html` 168,449 字节（md5 `7705a556669d6287798f6ec04417748e`）；`graph.json` 205,832 字节（md5 `a63b6e4312932923938f79f9108afd53`）。页面副标题与 `meta.version` 均为 1.24.4，四角仍为 179 / 181 / 826 / 199。
+重建产物：主文档 `sakura-tools-代码结构-1.24.4.md` 303,711 字节（md5 `6769bbdc5b704c4275d66199f90285fd`）；页面 `index.html` 168,449 字节（md5 `7705a556669d6287798f6ec04417748e`）；`graph.json` 205,832 字节（md5 `a63b6e4312932923938f79f9108afd53`）。页面副标题与 `meta.version` 均为 1.24.4，四角仍为 179 / 181 / 826 / 199。
 
 ## 3. 节点与连线的定义
 
@@ -336,9 +336,9 @@ google-chrome --headless=new --no-sandbox --user-data-dir=/tmp/chrome-graph \
 | 3 | 钩子数 = 附录 B 行数 | 同上 | 199 = 199 ✅ |
 | 4 | 连线数 = 三类之和 | `612 + 164 + 50` | 826 ✅ |
 | 5 | 悬空边 | `graph-inject.mjs` 每次注入前校验 | 0 ✅ |
-| 6 | 同源重建 | 分章 `p1–p6` + `build-code-structure.mjs` 生成块重新组装，与仓库正文比对 | §6.8 清理后 `1c82079ea7777f5d5beeaf6b8a18e6bf`；§7.7 改写后 `f2948e675caf9dbdb3cf58d0395623c9`；§12 三项回写后 `b479d3fb379c695a2c8ce2eac2a1f02b`；上传指标修复稿 `affe363d81b6325cbe739b54aac28446`；删除预览图后 `971f0c3996a10bffb207fe7f6d4dccc6`；空间支付收口稿 `5eb2bf875d00d1e776cf89089e41ae6f`（219,712 字节）；1.22.9 版本稿 `1aba478232bdbb9b1d196eebee1f794e`（220,481 字节）；1.23.0 编辑页面板稿 `4a801b137efc0bc3805f765df8eac822`（238,153 字节）；1.24.0 支付方式/对账/回填稿 `0979157c31883875e25e2b12922f9050`（250,746 字节）；1.24.1 快捷多选稿 `48e0369200f4ea9d2227c63f476aaacd`（266,095 字节）；1.24.2 运维观测稿 `13485930f8e997e0529bca0951c7c238`（274,169 字节）；1.24.2 验证回写稿 `f65d07350edf37b11609c2abccafb546`（288,928 字节）；1.24.3 卸载修复稿 `3325b5e0ce8a359a9a46396fd595c6f6`（290,562 字节）；2026-11-10 覆盖升级稿 `7b457df0269b6ce3e97a4e8c1325a04a`（295,120 字节）；1.24.4 发布稿 `d4be0a7939a44153c187f04c4a485839`（298,733 字节）✅ |
+| 6 | 同源重建 | 分章 `p1–p6` + `build-code-structure.mjs` 生成块重新组装，与仓库正文比对 | §6.8 清理后 `1c82079ea7777f5d5beeaf6b8a18e6bf`；§7.7 改写后 `f2948e675caf9dbdb3cf58d0395623c9`；§12 三项回写后 `b479d3fb379c695a2c8ce2eac2a1f02b`；上传指标修复稿 `affe363d81b6325cbe739b54aac28446`；删除预览图后 `971f0c3996a10bffb207fe7f6d4dccc6`；空间支付收口稿 `5eb2bf875d00d1e776cf89089e41ae6f`（219,712 字节）；1.22.9 版本稿 `1aba478232bdbb9b1d196eebee1f794e`（220,481 字节）；1.23.0 编辑页面板稿 `4a801b137efc0bc3805f765df8eac822`（238,153 字节）；1.24.0 支付方式/对账/回填稿 `0979157c31883875e25e2b12922f9050`（250,746 字节）；1.24.1 快捷多选稿 `48e0369200f4ea9d2227c63f476aaacd`（266,095 字节）；1.24.2 运维观测稿 `13485930f8e997e0529bca0951c7c238`（274,169 字节）；1.24.2 验证回写稿 `f65d07350edf37b11609c2abccafb546`（288,928 字节）；1.24.3 卸载修复稿 `3325b5e0ce8a359a9a46396fd595c6f6`（290,562 字节）；2026-11-10 覆盖升级稿 `7b457df0269b6ce3e97a4e8c1325a04a`（295,120 字节）；1.24.4 发布稿 `d4be0a7939a44153c187f04c4a485839`（298,733 字节）；2026-11-10 p2/p5 修正稿 `6769bbdc5b704c4275d66199f90285fd`（303,711 字节）✅ |
 | 7 | 注入幂等 | `graph-inject.mjs` dry-run 与页面 `DATA` 比对 | 本轮 `--write` 后 dry-run 报 `changed:false`、`dangling:0`，页面 `DATA` 与 `graph.json` 的结构与计数完全一致 ✅ |
-| 8 | 文档可重装 | `python3 docs/tools/assemble-doc.py --parts /tmp/docparts-wt4 --chapters docs/tools/chapters --out /tmp/verify-sakura-1244.md` | 与仓库正文逐字节一致，md5 `d4be0a7939a44153c187f04c4a485839`（298,733 字节）✅ |
+| 8 | 文档可重装 | `python3 docs/tools/assemble-doc.py --parts /tmp/docparts-wt3 --chapters docs/tools/chapters --out /tmp/verify-sakura-1244.md` | 与仓库正文逐字节一致，md5 `6769bbdc5b704c4275d66199f90285fd`（303,711 字节）✅ |
 | 9 | 渲染 | Chrome headless + SwiftShader 打开页面核对（截图只写 `/tmp`，不落仓库） | 星簇正常；副标题 `sakura-tools v1.24.4`、164 类 / 17 模块；四角 179 / 181 / 826 / 199；S3 详情 36 文件 ✅ |
 | 10 | 文件数一致 | `stats.files` = 附录 C 行数 | 179 = 179 ✅ |
 
@@ -390,8 +390,8 @@ google-chrome --headless=new --no-sandbox --user-data-dir=/tmp/chrome-graph \
 
 | 文件 | 大小 | 作用 |
 |---|---:|---|
-| `docs/sakura-tools-代码结构-1.24.4.md` | 292 KB（298,733 字节） | 正文：§0–§13 + 附录 A–D（2026-11-10：覆盖升级自愈 + 计数复核；生产 61,562 行） |
-| `docs/sakura-tools-图谱同步-1.24.4.md` | 42 KB（43,081 字节） | 图谱变更与重建说明 |
+| `docs/sakura-tools-代码结构-1.24.4.md` | 297 KB（303,711 字节） | 正文：§0–§13 + 附录 A–D（2026-11-10：覆盖升级自愈 + 计数复核；生产 61,562 行） |
+| `docs/sakura-tools-图谱同步-1.24.4.md` | 42 KB（43,165 字节） | 图谱变更与重建说明 |
 | `docs/graph-preview/index.html` | 165 KB（168,449 字节） | 单文件 3D 图谱（数据内嵌；3d-force-graph 库走 CDN，需联网） |
 | `docs/graph-preview/graph.json` | 201 KB（205,832 字节） | 同数据，供脚本消费 |
 | `docs/tools/build-code-structure.mjs` | 16 KB（16,036 字节） | 事实表 → 表格 + graph.json |
@@ -400,6 +400,6 @@ google-chrome --headless=new --no-sandbox --user-data-dir=/tmp/chrome-graph \
 | `docs/tools/assemble-doc.py` | 2.5 KB（2,591 字节） | 分章 + 表格 → 正文 |
 | `docs/tools/collect-comments.php` | 3.0 KB（3,098 字节） | 类 docblock 提取 |
 | `docs/tools/purposes.zh.json` | 15 KB（15,802 字节） | 163 条中文职责（Upgrade_Guard 走类注释回退） |
-| `docs/tools/chapters/p1–p6.md` | 220 KB（224,895 字节） | 正文源片段（改正文改这里，再重组装） |
+| `docs/tools/chapters/p1–p6.md` | 228 KB（233,486 字节） | 正文源片段（改正文改这里，再重组装） |
 
 > 图谱可视化只交付 `index.html`（数据内嵌）与 `graph.json`；从 2026-11-08 起不再保存 `preview.png` 或其他渲染截图。

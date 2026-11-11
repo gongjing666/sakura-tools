@@ -9,6 +9,7 @@ declare( strict_types=1 );
 
 namespace Sakura\ImageOptimizer\Admin\UI;
 
+use Sakura\ImageOptimizer\Admin\Page_Assets;
 use Sakura\ImageOptimizer\Admin\Shell;
 
 defined( 'ABSPATH' ) || exit;
@@ -31,7 +32,12 @@ final class Page {
 		$tab    = isset( $args['tab'] ) ? sanitize_key( (string) $args['tab'] ) : '';
 		$chrome = isset( $args['chrome'] ) && is_array( $args['chrome'] ) ? $args['chrome'] : array();
 
-		echo '<div class="sakura-admin"';
+		$classes = 'sakura-admin';
+		if ( Page_Assets::has_layout( $id ) ) {
+			$classes .= ' sakura-layout-enabled';
+		}
+
+		echo '<div class="' . esc_attr( $classes ) . '"';
 		if ( '' !== $id ) {
 			echo ' data-sakura-page="' . esc_attr( $id ) . '"';
 		}

@@ -360,7 +360,7 @@
 	function freeLayout( group ) {
 		if ( ! group || ! desktops.matches ) {
 			if ( group ) {
-				group.classList.remove( 'is-free' );
+				group.classList.remove( 'is-free', 'is-initializing' );
 				group.style.removeProperty( 'height' );
 			}
 			return;
@@ -369,6 +369,17 @@
 		var cards = cardsOf( group );
 		if ( ! cards.length ) {
 			return;
+		}
+
+		/* The first placement is not a motion: the cards are still in normal
+		 * document flow until this call, so the 0.18s left/top transition would
+		 * animate them from the canvas origin and read as a pile unfolding. */
+		var initial = ! group.classList.contains( 'is-free' );
+		if ( initial ) {
+			group.classList.add( 'is-initializing' );
+			window.requestAnimationFrame( function () {
+				group.classList.remove( 'is-initializing' );
+			} );
 		}
 
 		group.classList.add( 'is-free' );

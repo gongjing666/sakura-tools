@@ -57,6 +57,19 @@ final class Page_Assets {
 	}
 
 	/**
+	 * Whether a page gets the card layout engine and its docked toolbar.
+	 *
+	 * The page shell needs this before render so the right-hand gutter is
+	 * reserved in the first paint instead of being added by JavaScript later.
+	 *
+	 * @param string $page Page id.
+	 * @return bool
+	 */
+	public static function has_layout( string $page ): bool {
+		return isset( self::LAYOUT_PAGES[ $page ] );
+	}
+
+	/**
 	 * Enqueue the stack for one page.
 	 *
 	 * @param string $page Page id.

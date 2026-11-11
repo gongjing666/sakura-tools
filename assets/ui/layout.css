@@ -281,6 +281,12 @@
 	transition: none;
 }
 
+/* First placement happens before the page is painted: without this the cards
+ * start at the canvas origin and the 0.18s transition makes them fly apart. */
+.sakura-admin .sakura-layout-grid.is-free.is-initializing > [data-sakura-card] {
+	transition: none;
+}
+
 .sakura-admin .sakura-layout-grid.is-free > [data-sakura-card].is-dragging {
 	opacity: 0;
 }

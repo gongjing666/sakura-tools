@@ -116,12 +116,17 @@ final class S3_Storage_Page {
 						'description' => __( '点击已保存的配置就能切换，不用重新填写密钥。同一服务商可保存多个账户：填好新的 Access Key 和 Secret，勾选「另存为新配置」后保存。', 'sakura-imgopt' ),
 						'anchor'      => 'sakura-s3-profiles',
 						'class'       => 'card--wide',
+						'actions'     => array(
+							array(
+								'label'   => __( '新增账户配置', 'sakura-imgopt' ),
+								'button'  => true,
+								'id'      => 'sakura-s3-add-profile',
+								'variant' => 'ghost',
+								'attrs'   => array( 'data-sakura-action' => 'add-profile' ),
+							),
+						),
 					),
 					function () use ( $saved_profiles ) {
-						echo '<div class="button-row profile-toolbar">';
-						echo '<button type="button" class="btn btn--ghost" id="sakura-s3-add-profile" data-sakura-action="add-profile">' . esc_html__( '新增账户配置', 'sakura-imgopt' ) . '</button>';
-						echo '</div>';
-
 						$visible = array();
 						foreach ( $saved_profiles as $profile_id => $profile ) {
 							if ( ! empty( $profile['saved'] ) ) {

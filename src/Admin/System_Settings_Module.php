@@ -1,6 +1,6 @@
 <?php
 /**
- * Basic settings page: the first module of the Sakura Tools menu.
+ * System settings page: environment readout plus the shared layout style.
  *
  * @package Sakura_Image_Optimizer
  */
@@ -16,12 +16,12 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 /**
  * Registers the top-level menu, renders the environment sheet and owns the
- * global card-gap setting.
+ * global card-gap and appearance settings.
  *
- * The page owns the `sakura-tools` slug so the plugin's first screen is a
- * stable overview; the image optimizer moved to `sakura-tools-optimize`.
+ * The page owns the `sakura-tools` slug so the plugin's first screen stays at
+ * a stable address; the image optimizer moved to `sakura-tools-optimize`.
  */
-class Basic_Settings_Module implements Module {
+class System_Settings_Module implements Module {
 
 	/**
 	 * Top-level menu slug.
@@ -39,7 +39,7 @@ class Basic_Settings_Module implements Module {
 	}
 
 	/**
-	 * Register the one writable setting on this page: card gaps.
+	 * Register the writable settings on this page: card gaps and appearance.
 	 */
 	public function register_settings(): void {
 		register_setting(
@@ -52,6 +52,24 @@ class Basic_Settings_Module implements Module {
 				'show_in_rest'      => false,
 			)
 		);
+
+		register_setting(
+			'sakura_imgopt_basic',
+			Appearance::OPTION,
+			array(
+				'type'              => 'array',
+				'sanitize_callback' => array( Appearance::class, 'sanitize' ),
+				'default'           => Appearance::DEFAULTS,
+				'show_in_rest'      => false,
+			)
+		);
+
+		Card_Form::guard_options(
+			'sakura_imgopt_basic',
+			array(
+				'layout' => array( Layout::GAPS_OPTION, Appearance::OPTION ),
+			)
+		);
 	}
 
 	// The menu is registered by Admin\Menu from Admin\Registry; this module only
@@ -61,7 +79,7 @@ class Basic_Settings_Module implements Module {
 	/**
 	 * Render the page.
 	 */
-	public function render_page(): void {
+	public function render_system_settings(): void {
 		if ( ! current_user_can( 'manage_options' ) ) {
 			return;
 		}
@@ -72,7 +90,15 @@ class Basic_Settings_Module implements Module {
 		$gaps_option = Layout::GAPS_OPTION;
 		$gaps_max    = Layout::MAX_GAP;
 
-		require SAKURA_TOOLS_INC . 'views/basic-settings.php';
+		$appearance            = Appearance::get();
+		$appearance_option     = Appearance::OPTION;
+		$appearance_defaults   = Appearance::DEFAULTS;
+		$appearance_width_min  = Appearance::MIN_WIDTH;
+		$appearance_width_max  = Appearance::MAX_WIDTH;
+		$appearance_border_max = Appearance::MAX_BORDER;
+		$appearance_radius_max = Appearance::MAX_RADIUS;
+
+		require SAKURA_TOOLS_INC . 'views/system-settings.php';
 	}
 
 	/**

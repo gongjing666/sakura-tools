@@ -21,6 +21,8 @@
 	--g-paper: #f6f5f1;
 	--g-paper-deep: #efeee9;
 	--g-card: #ffffff;
+	--g-card-surface: #ffffff;
+	--g-card-border-width: 1px;
 	--g-wash: #fbfaf7;
 	--g-overlay: rgba(24, 25, 26, .38);
 

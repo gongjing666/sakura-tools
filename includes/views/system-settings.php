@@ -1,8 +1,8 @@
 <?php
 /**
- * Basic settings view: environment readout and the shared card-gap setting.
+ * System settings view: environment readout and shared layout/appearance settings.
  *
- * Included from Basic_Settings_Module::render_page().
+ * Included from System_Settings_Module::render_system_settings().
  *
  * @package Sakura_Image_Optimizer
  *
@@ -10,6 +10,13 @@
  * @var array{gapX:int,gapY:int} $gaps Current site-wide card gaps.
  * @var string $gaps_option Option name used by the gap form.
  * @var int $gaps_max Maximum accepted gap in pixels.
+ * @var array<string, int|string> $appearance Current page/card appearance.
+ * @var string $appearance_option Option name used by the appearance fields.
+ * @var array<string, int|string> $appearance_defaults Default appearance values.
+ * @var int $appearance_width_min Minimum page width.
+ * @var int $appearance_width_max Maximum page width.
+ * @var int $appearance_border_max Maximum card border width.
+ * @var int $appearance_radius_max Maximum card radius.
  */
 
 use Sakura\ImageOptimizer\Admin\UI;
@@ -226,12 +233,12 @@ $kpis = array(
 
 UI::page(
 	array(
-		'id'      => 'system-overview',
+		'id'      => 'system-settings',
 		'module'  => 'system',
-		'tab'     => 'overview',
+		'tab'     => 'settings',
 		'eyebrow' => 'SYSTEM READOUT / ' . SAKURA_TOOLS_VERSION,
-		'title'   => __( '基础设置', 'sakura-imgopt' ),
-		'lede'    => __( '服务器运行参数、PHP 扩展与图像引擎能力，一页看清；卡片间隔在这里统一设置。', 'sakura-imgopt' ),
+		'title'   => __( '系统设置', 'sakura-imgopt' ),
+		'lede'    => __( '服务器运行参数、PHP 扩展与图像引擎能力在这里核对；卡片间隔、页面宽度与卡片样式也在这里统一设置。', 'sakura-imgopt' ),
 		'status'  => array(
 			'label' => __( '环境自检', 'sakura-imgopt' ),
 			'value' => (string) $summary['pass'] . '/' . (string) $total_checks,
@@ -257,7 +264,7 @@ UI::page(
 			),
 		),
 	),
-	static function () use ( $score, $kpis, $runtime_rows, $engine_rows, $engine, $checks, $summary, $total_checks, $state_labels, $state_tone, $extensions, $gaps, $gaps_option, $gaps_max ) {
+	static function () use ( $score, $kpis, $runtime_rows, $engine_rows, $engine, $checks, $summary, $total_checks, $state_labels, $state_tone, $extensions, $gaps, $gaps_option, $gaps_max, $appearance, $appearance_option, $appearance_defaults, $appearance_width_min, $appearance_width_max, $appearance_border_max, $appearance_radius_max ) {
 		settings_errors();
 		?>
 		<section class="kpis" aria-label="<?php echo esc_attr__( '环境评分', 'sakura-imgopt' ); ?>">
@@ -278,7 +285,7 @@ UI::page(
 			<?php endforeach; ?>
 		</section>
 
-		<div class="card-grid">
+		<div class="card-grid" data-sakura-layout="system-settings" data-sakura-group="main">
 			<?php
 			UI::card(
 				array(
@@ -423,20 +430,22 @@ UI::page(
 
 			UI::card(
 				array(
-					'id'          => 'spacing',
-					'kicker'      => 'Layout rhythm',
-					'title'       => __( '卡片间隔', 'sakura-imgopt' ),
-					'description' => __( '所有插件页面共用一组间隔；保存后刷新页面生效。', 'sakura-imgopt' ),
+					'id'          => 'layout',
+					'kicker'      => 'Layout & style',
+					'title'       => __( '布局设置', 'sakura-imgopt' ),
+					'description' => __( '所有插件页面共用页面宽度、背景与卡片样式；保存后刷新页面生效。', 'sakura-imgopt' ),
 					'form'        => array(
 						'option_group' => 'sakura_imgopt_basic',
 						'markers'      => 'fields',
-						'marker_card'  => 'spacing',
+						'marker_card'  => 'layout',
 					),
-					'save'        => __( '保存间隔', 'sakura-imgopt' ),
+					'save'        => __( '保存布局设置', 'sakura-imgopt' ),
 				),
-				static function () use ( $gaps, $gaps_option, $gaps_max ) {
+				static function () use ( $gaps, $gaps_option, $gaps_max, $appearance, $appearance_option, $appearance_defaults, $appearance_width_min, $appearance_width_max, $appearance_border_max, $appearance_radius_max ) {
+					$page_bg_value = '' !== (string) $appearance['page_bg'] ? (string) $appearance['page_bg'] : '#f6f5f1';
 					?>
 					<div class="field-list">
+						<p class="system-field-group"><?php echo esc_html__( '卡片间隔', 'sakura-imgopt' ); ?></p>
 						<?php
 						UI::field(
 							array(
@@ -476,8 +485,121 @@ UI::page(
 							)
 						);
 						?>
+						<p class="system-field-group"><?php echo esc_html__( '页面与卡片样式', 'sakura-imgopt' ); ?></p>
+						<?php
+						UI::field(
+							array(
+								'type'  => 'number',
+								'id'    => 'sakura-page-width',
+								'name'  => $appearance_option . '[page_width]',
+								'label' => __( '页面宽度', 'sakura-imgopt' ),
+								'hint'  => sprintf(
+									/* translators: 1: minimum width, 2: maximum width, 3: default width. */
+									__( '内容区最大宽度 · %1$d–%2$d px（默认 %3$d）', 'sakura-imgopt' ),
+									(int) $appearance_width_min,
+									(int) $appearance_width_max,
+									(int) $appearance_defaults['page_width']
+								),
+								'value' => (string) $appearance['page_width'],
+								'min'   => (int) $appearance_width_min,
+								'max'   => (int) $appearance_width_max,
+								'step'  => 10,
+								'attrs' => array( 'inputmode' => 'numeric' ),
+							)
+						);
+
+						UI::field(
+							array(
+								'type'    => 'checkbox',
+								'id'      => 'sakura-page-bg-default',
+								'name'    => $appearance_option . '[page_bg_default]',
+								'label'   => __( '页面背景', 'sakura-imgopt' ),
+								'text'    => __( '使用默认暖白渐变', 'sakura-imgopt' ),
+								'hint'    => __( '勾选时忽略下面的自定义颜色；取消勾选后按所选颜色覆盖。', 'sakura-imgopt' ),
+								'value'   => '1',
+								'checked' => '' === (string) $appearance['page_bg'],
+							)
+						);
+
+						UI::field(
+							array(
+								'type'  => 'color',
+								'id'    => 'sakura-page-bg',
+								'name'  => $appearance_option . '[page_bg]',
+								'label' => __( '自定义页面背景色', 'sakura-imgopt' ),
+								'hint'  => __( '建议选择浅色，深色背景会降低正文对比度。', 'sakura-imgopt' ),
+								'value' => $page_bg_value,
+							)
+						);
+
+						UI::field(
+							array(
+								'type'  => 'color',
+								'id'    => 'sakura-card-bg',
+								'name'  => $appearance_option . '[card_bg]',
+								'label' => __( '卡片背景色', 'sakura-imgopt' ),
+								'hint'  => __( '只影响卡片表面，输入框与按钮仍保持白色。', 'sakura-imgopt' ),
+								'value' => (string) $appearance['card_bg'],
+							)
+						);
+
+						UI::field(
+							array(
+								'type'  => 'number',
+								'id'    => 'sakura-card-border',
+								'name'  => $appearance_option . '[border_width]',
+								'label' => __( '边框粗细', 'sakura-imgopt' ),
+								'hint'  => sprintf(
+									/* translators: %d: maximum border width in pixels. */
+									__( '0–%d px，0 表示无边框。', 'sakura-imgopt' ),
+									(int) $appearance_border_max
+								),
+								'value' => (string) $appearance['border_width'],
+								'min'   => 0,
+								'max'   => (int) $appearance_border_max,
+								'step'  => 1,
+								'attrs' => array( 'inputmode' => 'numeric' ),
+							)
+						);
+
+						UI::field(
+							array(
+								'type'  => 'number',
+								'id'    => 'sakura-card-radius',
+								'name'  => $appearance_option . '[radius]',
+								'label' => __( '圆角大小', 'sakura-imgopt' ),
+								'hint'  => sprintf(
+									/* translators: %d: maximum card radius in pixels. */
+									__( '0–%d px。', 'sakura-imgopt' ),
+									(int) $appearance_radius_max
+								),
+								'value' => (string) $appearance['radius'],
+								'min'   => 0,
+								'max'   => (int) $appearance_radius_max,
+								'step'  => 1,
+								'attrs' => array( 'inputmode' => 'numeric' ),
+							)
+						);
+
+						UI::field(
+							array(
+								'type'    => 'select',
+								'id'      => 'sakura-card-shadow',
+								'name'    => $appearance_option . '[shadow]',
+								'label'   => __( '边框阴影', 'sakura-imgopt' ),
+								'hint'    => __( '只表达层级，不改变卡片边框。', 'sakura-imgopt' ),
+								'value'   => (string) $appearance['shadow'],
+								'options' => array(
+									'default' => __( '默认', 'sakura-imgopt' ),
+									'none'    => __( '无', 'sakura-imgopt' ),
+									'soft'    => __( '轻', 'sakura-imgopt' ),
+									'strong'  => __( '强', 'sakura-imgopt' ),
+								),
+							)
+						);
+						?>
 					</div>
-					<p class="system-note"><?php echo esc_html__( '只保存这两个数值，不会清理缓存，也不改动其它页面布局。', 'sakura-imgopt' ); ?></p>
+					<p class="system-note"><?php echo esc_html__( '页面宽度、背景和卡片样式在所有插件页面生效；间隔只影响桌面多列网格，不会清理缓存。', 'sakura-imgopt' ); ?></p>
 					<?php
 				}
 			);

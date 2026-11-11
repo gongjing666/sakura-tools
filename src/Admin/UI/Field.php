@@ -28,7 +28,7 @@ final class Field {
 	 */
 	public static function render( array $args ): void {
 		$type = isset( $args['type'] ) ? sanitize_key( (string) $args['type'] ) : 'text';
-		$type = in_array( $type, array( 'text', 'number', 'url', 'password', 'email', 'select', 'textarea', 'checkbox', 'radio', 'toggle', 'hidden', 'custom' ), true ) ? $type : 'text';
+		$type = in_array( $type, array( 'text', 'number', 'url', 'password', 'email', 'color', 'select', 'textarea', 'checkbox', 'radio', 'toggle', 'hidden', 'custom' ), true ) ? $type : 'text';
 
 		if ( 'hidden' === $type ) {
 			self::hidden( $args );
@@ -119,7 +119,7 @@ final class Field {
 			return;
 		}
 
-		$input_type = in_array( $type, array( 'text', 'number', 'url', 'password', 'email' ), true ) ? $type : 'text';
+		$input_type = in_array( $type, array( 'text', 'number', 'url', 'password', 'email', 'color' ), true ) ? $type : 'text';
 		echo '<input' . self::attributes( $args, $id, $hint_id, true, $input_type ) . ' />';
 	}
 

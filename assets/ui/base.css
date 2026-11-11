@@ -82,12 +82,26 @@
 }
 
 .sakura-admin > .sakura-topbar {
-	display: flex;
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
 	align-items: center;
-	justify-content: space-between;
 	gap: 18px;
 	padding-top: var(--g-app-top);
 	margin-bottom: 0;
+}
+
+/* Keep the module switcher on the true page centre: both side tracks are equal
+ * fractions, so the auto track sits in the middle regardless of brand width. */
+.sakura-admin > .sakura-topbar > .brand {
+	justify-self: start;
+}
+
+.sakura-admin > .sakura-topbar > .sakura-mods {
+	justify-self: center;
+}
+
+.sakura-admin > .sakura-topbar > .top-actions {
+	justify-self: end;
 }
 
 .sakura-admin .brand {
@@ -491,6 +505,7 @@
 
 @media (max-width: 1100px) {
 	.sakura-admin > .sakura-topbar {
+		display: flex;
 		flex-wrap: wrap;
 		gap: 12px 14px;
 	}

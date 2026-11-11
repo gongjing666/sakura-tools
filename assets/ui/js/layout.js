@@ -33,7 +33,8 @@
 		backup: { usage: 4, policy: 4, access: 4 },
 		s3: { upload: 6, behaviour: 6, connection: 12, test: 6, migrate: 6 },
 		sync: { ignored: 12, tasks: 12, health: 6, storage: 6, reconcile: 12, logs: 8, notes: 4 },
-		'files-space': { space_diag: 12, space_entry: 12, space_gate: 5, space_level: 7, space_vip: 5, space_plans: 12, space_grants: 7, space_reconcile: 5 }
+		'files-space': { space_diag: 12, space_entry: 12, space_gate: 5, space_level: 7, space_vip: 5, space_plans: 12, space_grants: 7, space_reconcile: 5 },
+		'system-settings': { runtime: 6, engine: 6, checks: 12, extensions: 6, layout: 6 }
 	};
 	var saveTimers = {};
 

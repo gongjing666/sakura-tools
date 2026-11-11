@@ -84,7 +84,7 @@ final class Card {
 		$description = isset( $args['description'] ) ? (string) $args['description'] : '';
 		$actions     = isset( $args['actions'] ) && is_array( $args['actions'] ) ? $args['actions'] : array();
 
-		echo '<header class="card__head">';
+		echo '<header class="card__head' . ( '' !== $kicker ? ' card__head--kicker' : '' ) . '">';
 		echo '<div class="card__heading">';
 		if ( '' !== $kicker ) {
 			echo '<p class="card__kicker">' . esc_html( $kicker ) . '</p>';
@@ -100,14 +100,25 @@ final class Card {
 		if ( ! empty( $actions ) ) {
 			echo '<div class="card__actions">';
 			foreach ( $actions as $action ) {
-				if ( ! is_array( $action ) || empty( $action['label'] ) || empty( $action['url'] ) ) {
+				if ( ! is_array( $action ) || empty( $action['label'] ) ) {
 					continue;
 				}
+
+				$is_button = ! empty( $action['button'] );
+				if ( ! $is_button && empty( $action['url'] ) ) {
+					continue;
+				}
+
 				$variant = isset( $action['variant'] ) ? sanitize_key( (string) $action['variant'] ) : 'ghost';
 				$variant = in_array( $variant, array( 'primary', 'ghost', 'quiet', 'danger' ), true ) ? $variant : 'ghost';
 				$action_id = isset( $action['id'] ) ? sanitize_key( (string) $action['id'] ) : '';
+				$tag = $is_button ? 'button' : 'a';
 
-				echo '<a class="btn btn--' . esc_attr( $variant ) . ' btn--small" href="' . esc_url( (string) $action['url'] ) . '"';
+				if ( $is_button ) {
+					echo '<button type="button" class="btn btn--' . esc_attr( $variant ) . ' btn--small"';
+				} else {
+					echo '<a class="btn btn--' . esc_attr( $variant ) . ' btn--small" href="' . esc_url( (string) $action['url'] ) . '"';
+				}
 				if ( '' !== $action_id ) {
 					echo ' id="' . esc_attr( $action_id ) . '"';
 				}
@@ -119,7 +130,7 @@ final class Card {
 						}
 					}
 				}
-				echo '>' . esc_html( (string) $action['label'] ) . '</a>';
+				echo '>' . esc_html( (string) $action['label'] ) . '</' . $tag . '>';
 			}
 			echo '</div>';
 		}

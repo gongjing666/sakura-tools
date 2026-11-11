@@ -128,18 +128,18 @@ final class Plugin {
 		$settings  = new Settings_Repository();
 		$processor = new Image_Processor( $backup, null, null, $stats, $files, $settings );
 
-		$basic_settings  = null;
+		$system_settings = null;
 		$image_optimizer = null;
 
 		if ( is_admin() ) {
-			$basic_settings  = new Admin\Basic_Settings_Module();
+			$system_settings = new Admin\System_Settings_Module();
 			$image_optimizer = new Image_Optimizer_Module( $stats, $backup, $settings );
-			$modules[]       = $basic_settings;
+			$modules[]       = $system_settings;
 			$modules[]       = $image_optimizer;
 
 			// Routes and their renderers: the menu, tabs and breadcrumb are
 			// derived from the registry, so screens only register a callable.
-			Admin\Registry::register_renderer( 'system', 'overview', array( $basic_settings, 'render_page' ) );
+			Admin\Registry::register_renderer( 'system', 'settings', array( $system_settings, 'render_system_settings' ) );
 			Admin\Registry::register_renderer( 'image', 'rules', array( $image_optimizer, 'render_page' ) );
 			Admin\Registry::register_renderer( 'image', 'backup', array( $image_optimizer, 'render_backup_page' ) );
 			Admin\Registry::register_renderer( 'image', 'stats', array( $image_optimizer, 'render_stats_page' ) );

@@ -9,12 +9,12 @@ declare( strict_types=1 );
 
 use PHPUnit\Framework\TestCase;
 use Sakura\ImageOptimizer\Admin\Environment_Report;
-use Sakura\ImageOptimizer\Admin\Basic_Settings_Module;
+use Sakura\ImageOptimizer\Admin\System_Settings_Module;
 
 /**
- * The overview is read-only, so its pure aggregation is tested directly.
+ * The environment sheet is read-only, so its pure aggregation is tested directly.
  */
-final class BasicSettingsTest extends TestCase {
+final class SystemSettingsTest extends TestCase {
 
 	/**
 	 * Check rows use ok/warn/fail, the hero meter uses pass/warn/fail.
@@ -42,6 +42,6 @@ final class BasicSettingsTest extends TestCase {
 	 * The first module owns the stable top-level address.
 	 */
 	public function test_menu_slug_is_top_level(): void {
-		$this->assertSame( 'sakura-tools', Basic_Settings_Module::MENU_SLUG );
+		$this->assertSame( 'sakura-tools', System_Settings_Module::MENU_SLUG );
 	}
 }

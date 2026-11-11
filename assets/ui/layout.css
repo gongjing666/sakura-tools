@@ -112,9 +112,10 @@
 }
 
 /* Toolbar: a slim tab docked to the right gutter while idle. Editing expands
- * it into a panel to the left, keeping the tab in place. The idle label is
- * rotated instead of using vertical writing-mode: some CJK fallback fonts
- * report no vertical metrics, which collapses the label to a clipped smudge. */
+ * it into a panel to the left, keeping the tab in place. The idle label uses a
+ * one-character-wide block and natural CJK wrapping so the four characters read
+ * top to bottom; vertical writing mode is avoided because some CJK fallback
+ * fonts report near-zero vertical advance here and collapse the label. */
 .sakura-admin .sakura-layout-tools {
 	position: fixed;
 	right: 0;
@@ -168,9 +169,12 @@
 
 .sakura-admin .sakura-layout-tools-toggle .sakura-layout-tools-label {
 	display: block;
-	white-space: nowrap;
-	transform: rotate(90deg);
-	transform-origin: center;
+	width: 1.1em;
+	white-space: normal;
+	word-break: break-all;
+	line-height: 1.34;
+	text-align: center;
+	letter-spacing: 0;
 }
 
 .sakura-admin .sakura-layout-tools-toggle:hover {
@@ -188,7 +192,11 @@
 }
 
 .sakura-admin.sakura-layout-edit .sakura-layout-tools-toggle .sakura-layout-tools-label {
-	transform: none;
+	width: auto;
+	white-space: nowrap;
+	word-break: normal;
+	line-height: inherit;
+	letter-spacing: .12em;
 }
 
 .sakura-admin .sakura-layout-panel {

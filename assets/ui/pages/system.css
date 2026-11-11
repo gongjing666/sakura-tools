@@ -1,17 +1,17 @@
 /**
- * System overview page: environment readout.
+ * System settings page: environment readout plus shared layout/appearance.
  *
- * Scoped to the system-overview page; shared card, table, badge, KPI and field
+ * Scoped to the system-settings page; shared card, table, badge, KPI and field
  * primitives come from assets/ui/components.css.
  */
 
-.sakura-admin[data-sakura-page="system-overview"] .system-value {
+.sakura-admin[data-sakura-page="system-settings"] .system-value {
 	color: var(--g-ink);
 	font-variant-numeric: tabular-nums;
 	font-weight: 600;
 }
 
-.sakura-admin[data-sakura-page="system-overview"] .system-muted {
+.sakura-admin[data-sakura-page="system-settings"] .system-muted {
 	display: inline-block;
 	max-width: 100%;
 	margin-inline-start: 8px;
@@ -22,28 +22,28 @@
 	vertical-align: baseline;
 }
 
-.sakura-admin[data-sakura-page="system-overview"] .table td .badge {
+.sakura-admin[data-sakura-page="system-settings"] .table td .badge {
 	margin: 2px 6px 2px 0;
 	vertical-align: middle;
 }
 
-.sakura-admin[data-sakura-page="system-overview"] .table td:first-child {
+.sakura-admin[data-sakura-page="system-settings"] .table td:first-child {
 	width: 30%;
 }
 
-.sakura-admin[data-sakura-page="system-overview"] .system-check-note {
+.sakura-admin[data-sakura-page="system-settings"] .system-check-note {
 	color: var(--g-muted);
 	font-size: 12.5px;
 	line-height: 1.55;
 }
 
-.sakura-admin[data-sakura-page="system-overview"] .system-ext-grid {
+.sakura-admin[data-sakura-page="system-settings"] .system-ext-grid {
 	display: flex;
 	flex-wrap: wrap;
 	gap: 8px;
 }
 
-.sakura-admin[data-sakura-page="system-overview"] .progress {
+.sakura-admin[data-sakura-page="system-settings"] .progress {
 	display: block;
 	width: 100%;
 	appearance: none;
@@ -51,22 +51,37 @@
 	border: 0;
 }
 
-.sakura-admin[data-sakura-page="system-overview"] .progress::-webkit-progress-bar {
+.sakura-admin[data-sakura-page="system-settings"] .progress::-webkit-progress-bar {
 	border-radius: inherit;
 	background: var(--g-accent-soft);
 }
 
-.sakura-admin[data-sakura-page="system-overview"] .progress::-webkit-progress-value {
+.sakura-admin[data-sakura-page="system-settings"] .progress::-webkit-progress-value {
 	border-radius: inherit;
 	background: var(--g-accent);
 }
 
-.sakura-admin[data-sakura-page="system-overview"] .progress::-moz-progress-bar {
+.sakura-admin[data-sakura-page="system-settings"] .progress::-moz-progress-bar {
 	border-radius: inherit;
 	background: var(--g-accent);
 }
 
-.sakura-admin[data-sakura-page="system-overview"] .system-note {
+.sakura-admin[data-sakura-page="system-settings"] .system-field-group {
+	grid-column: 1 / -1;
+	margin: 2px 0 -2px;
+	color: var(--g-faint);
+	font-size: 11px;
+	font-weight: 650;
+	letter-spacing: .1em;
+}
+
+.sakura-admin[data-sakura-page="system-settings"] .system-field-group:not(:first-child) {
+	margin-top: 10px;
+	padding-top: 12px;
+	border-top: 1px solid var(--g-line-soft);
+}
+
+.sakura-admin[data-sakura-page="system-settings"] .system-note {
 	margin: 14px 0 0;
 	color: var(--g-muted);
 	font-size: 12.5px;
@@ -74,17 +89,17 @@
 }
 
 @media (max-width: 900px) {
-	.sakura-admin[data-sakura-page="system-overview"] .kpis {
+	.sakura-admin[data-sakura-page="system-settings"] .kpis {
 		grid-template-columns: repeat(2, minmax(0, 1fr));
 	}
 }
 
 @media (max-width: 782px) {
-	.sakura-admin[data-sakura-page="system-overview"] .table td:first-child {
+	.sakura-admin[data-sakura-page="system-settings"] .table td:first-child {
 		width: auto;
 	}
 
-	.sakura-admin[data-sakura-page="system-overview"] .system-muted {
+	.sakura-admin[data-sakura-page="system-settings"] .system-muted {
 		display: block;
 		margin-inline-start: 0;
 		margin-top: 2px;

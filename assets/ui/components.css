@@ -33,9 +33,9 @@
 	max-width: none;
 	margin: 0;
 	padding: 0;
-	border: 1px solid var(--g-line);
+	border: var(--g-card-border-width, 1px) solid var(--g-line);
 	border-radius: var(--g-radius-card);
-	background: var(--g-card);
+	background: var(--g-card-surface, var(--g-card));
 	box-shadow: var(--g-shadow-card);
 	overflow: clip;
 }
@@ -83,6 +83,12 @@
 	align-items: center;
 	gap: 8px;
 	flex: 0 0 auto;
+}
+
+/* A kicker sits above the title, so the action row is nudged down by the
+ * kicker's line box plus its margin to share the title's first baseline. */
+.sakura-admin .card__head--kicker .card__actions {
+	margin-top: 20px;
 }
 
 .sakura-admin .card__body {
@@ -249,6 +255,7 @@
 .sakura-admin input[type="email"],
 .sakura-admin input[type="search"],
 .sakura-admin input[type="tel"],
+.sakura-admin input[type="color"],
 .sakura-admin select,
 .sakura-admin textarea {
 	width: 100%;
@@ -286,6 +293,25 @@
 	background-size: 5px 5px, 5px 5px;
 }
 
+.sakura-admin input[type="color"] {
+	padding: 4px;
+	cursor: pointer;
+}
+
+.sakura-admin input[type="color"]::-webkit-color-swatch-wrapper {
+	padding: 0;
+}
+
+.sakura-admin input[type="color"]::-webkit-color-swatch {
+	border: 1px solid var(--g-line);
+	border-radius: calc(var(--g-radius-sm) - 4px);
+}
+
+.sakura-admin input[type="color"]::-moz-color-swatch {
+	border: 1px solid var(--g-line);
+	border-radius: calc(var(--g-radius-sm) - 4px);
+}
+
 .sakura-admin input[type="text"]:hover,
 .sakura-admin input[type="number"]:hover,
 .sakura-admin input[type="url"]:hover,
@@ -293,6 +319,7 @@
 .sakura-admin input[type="email"]:hover,
 .sakura-admin input[type="search"]:hover,
 .sakura-admin input[type="tel"]:hover,
+.sakura-admin input[type="color"]:hover,
 .sakura-admin select:hover,
 .sakura-admin textarea:hover {
 	border-color: var(--g-select-border-hover);
@@ -305,6 +332,7 @@
 .sakura-admin input[type="email"]:focus,
 .sakura-admin input[type="search"]:focus,
 .sakura-admin input[type="tel"]:focus,
+.sakura-admin input[type="color"]:focus,
 .sakura-admin select:focus,
 .sakura-admin textarea:focus {
 	border-color: var(--g-accent);

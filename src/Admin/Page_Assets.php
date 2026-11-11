@@ -39,6 +39,7 @@ final class Page_Assets {
 		'files-queue'        => 'files-queue',
 		'files-log'          => 'files-log',
 		'files-zibll'        => 'files-space',
+		'system-settings'    => 'system-settings',
 	);
 
 	/**

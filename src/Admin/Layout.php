@@ -212,6 +212,21 @@ final class Layout implements Module {
 			),
 			'grid' => 1,
 		),
+		'system-settings' => array(
+			'groups' => array(
+				'main' => array(
+					'order' => array( 'runtime', 'engine', 'checks', 'extensions', 'layout' ),
+					'cards' => array(
+						'runtime'    => array( 'span' => 6, 'minH' => 0, 'h' => 0, 'col' => 1, 'top' => 0 ),
+						'engine'     => array( 'span' => 6, 'minH' => 0, 'h' => 0, 'col' => 7, 'top' => 0 ),
+						'checks'     => array( 'span' => 12, 'minH' => 0, 'h' => 0, 'col' => 1, 'top' => 0 ),
+						'extensions' => array( 'span' => 6, 'minH' => 0, 'h' => 0, 'col' => 1, 'top' => 0 ),
+						'layout'     => array( 'span' => 6, 'minH' => 0, 'h' => 0, 'col' => 7, 'top' => 0 ),
+					),
+				),
+			),
+			'grid' => 1,
+		),
 		'backup' => array(
 			'groups' => array(
 				'main' => array(

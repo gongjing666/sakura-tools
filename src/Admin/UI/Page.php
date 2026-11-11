@@ -9,6 +9,7 @@ declare( strict_types=1 );
 
 namespace Sakura\ImageOptimizer\Admin\UI;
 
+use Sakura\ImageOptimizer\Admin\Appearance;
 use Sakura\ImageOptimizer\Admin\Page_Assets;
 use Sakura\ImageOptimizer\Admin\Shell;
 
@@ -37,9 +38,14 @@ final class Page {
 			$classes .= ' sakura-layout-enabled';
 		}
 
+		$style = Appearance::inline_style();
+
 		echo '<div class="' . esc_attr( $classes ) . '"';
 		if ( '' !== $id ) {
 			echo ' data-sakura-page="' . esc_attr( $id ) . '"';
+		}
+		if ( '' !== $style ) {
+			echo ' style="' . esc_attr( $style ) . '"';
 		}
 		echo '>';
 

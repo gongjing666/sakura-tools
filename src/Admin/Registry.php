@@ -41,11 +41,11 @@ final class Registry {
 	public static function modules(): array {
 		return array(
 			'system'  => array(
-				'label' => __( '系统', 'sakura-imgopt' ),
+				'label' => __( '系统设置', 'sakura-imgopt' ),
 				'slug'  => self::PARENT,
 				'caps'  => 'manage_options',
 				'tabs'  => array(
-					'overview' => array( 'label' => __( '环境自检', 'sakura-imgopt' ) ),
+					'settings' => array( 'label' => __( '环境自检', 'sakura-imgopt' ) ),
 				),
 			),
 			'image'   => array(

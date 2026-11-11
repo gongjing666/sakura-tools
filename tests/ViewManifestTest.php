@@ -20,7 +20,7 @@ final class ViewManifestTest extends TestCase {
 	 * Add a view here when adding it to includes/views/.
 	 */
 	private const VIEWS = array(
-		'basic-settings.php',
+		'system-settings.php',
 		'editor-picker-app.php',
 		'media-progress.php',
 		's3-sync-center.php',

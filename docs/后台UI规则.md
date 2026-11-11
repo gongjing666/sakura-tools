@@ -1,6 +1,6 @@
 # 后台 UI 规则
 
-适用范围：图片优化（`sakura-tools-image`）4 页、对象存储（`sakura-tools-storage`）3 页、文件空间（`sakura-tools-files`）5 页、系统自检（`sakura-tools`）与批量处理页。后台只有一套样式栈，全部页面加载 `assets/ui/`；旧的 `admin*.css`、`admin.js`、`admin-layout.js`、`userfiles-admin.*`、`userfiles-space-admin.*` 已删除，不要再引用，也不要新造第二套皮肤。
+适用范围：图片优化（`sakura-tools-image`）4 页、对象存储（`sakura-tools-storage`）3 页、文件空间（`sakura-tools-files`）5 页、系统设置（`sakura-tools`）与批量处理页。后台只有一套样式栈，全部页面加载 `assets/ui/`；旧的 `admin*.css`、`admin.js`、`admin-layout.js`、`userfiles-admin.*`、`userfiles-space-admin.*` 已删除，不要再引用，也不要新造第二套皮肤。
 
 ## 1. 样式分层与加载顺序
 
@@ -37,7 +37,8 @@
 | `--g-line-soft` | `#eeece5` | 卡片内分隔线 |
 | `--g-line-strong` | `#d2cfc6` | 输入框边框 |
 | `--g-paper` | `#f6f5f1` | 页面底色 |
-| `--g-card` | `#ffffff` | 卡片 |
+| `--g-card` | `#ffffff` | 卡片内控件（输入、按钮）白底 |
+| `--g-card-surface` | `#ffffff` | 卡片表面；系统设置可改，只作用于 `.card` |
 | `--g-wash` | `#fbfaf7` | 弱底、嵌套面板 |
 | `--g-accent` | `#232528` | 唯一强调色（石墨） |
 | `--g-accent-soft` | `#efeee9` | 强调色弱底 |
@@ -53,7 +54,8 @@
 
 | 变量 | 值 |
 | --- | --- |
-| `--g-radius-card` | 18px（卡片） |
+| `--g-radius-card` | 18px（卡片；系统设置可设 0–40px） |
+| `--g-card-border-width` | 1px（卡片边框；系统设置可设 0–6px） |
 | `--g-radius-md` | 14px（嵌套面板、缩略图外框） |
 | `--g-radius-sm` | 10px（输入框、按钮） |
 | `--g-radius-xs` | 7px（行内 code 等） |
@@ -82,7 +84,7 @@
 | `--g-gutter` | `clamp(16px, 2.4vw, 30px)` | 页面左右留白 |
 | `--g-app-top` | `clamp(14px, 1.7vw, 22px)` | 页面顶部留白 |
 | `--g-app-bottom` | `clamp(56px, 5vw, 80px)` | 页面底部留白 |
-| `--g-page-max` | 1480px | 内容最大宽度 |
+| `--g-page-max` | 1480px（系统设置可设 960–1920px） | 内容最大宽度 |
 | `--g-card-pad-x` | `clamp(17px, 2.1vw, 24px)` | 卡片左右内边距 |
 | `--g-card-pad-top` | `clamp(18px, 1.9vw, 22px)` | 卡片顶部 |
 | `--g-card-pad-bottom` | `clamp(18px, 2vw, 24px)` | 卡片底部 |
@@ -93,7 +95,7 @@
 硬性下限：
 
 - 文字到卡片边框至少 16px；嵌套面板内至少 12px。
-- 相邻卡片之间至少 16px；卡片网格读取系统页保存的 `Layout::gaps()`，由 `Page_Assets` 写成 `.sakura-admin` 的 `--g-grid-gap-x` / `--g-grid-gap-y` 行内变量。
+- 相邻卡片之间至少 16px；卡片网格读取系统设置页「布局设置」保存的 `Layout::gaps()`，由 `Page_Assets` 写成 `.sakura-admin` 的 `--g-grid-gap-x` / `--g-grid-gap-y` 行内变量。
 - 同一条竖直内容线：卡片标题/正文、KPI、页头状态卡、页面级面板都使用 `--g-card-pad-x`；只有卡片内部的嵌套框降一级。
 - 不允许再引入 13/15/17/19px 这类一次性内边距；嵌套框统一用 `--g-space-3`，行内上下用 `--g-space-2`，紧凑网格用 `--g-space-2`。
 - 页面上下留白用 `--g-app-top` / `--g-app-bottom`，不要在断点里写死 18/20/60。
@@ -104,7 +106,7 @@
 
 ## 4. 边框与层级
 
-- 一张卡片只有一层可见边框：`1px var(--g-line)` + 18px 圆角 + `--g-shadow-card`。
+- 一张卡片只有一层可见边框：`var(--g-card-border-width, 1px) solid var(--g-line)` + `var(--g-radius-card)` 圆角 + `var(--g-shadow-card)`。默认是 1px / 18px / 三层柔和阴影；系统设置可以整体改细、改圆或去掉阴影，但不要在同一页对单张卡片另写一套。
 - 卡片内部的分组用分隔线（`--g-line-soft`），不要再套一张带边框的卡。
 - 表单行在移动端是「分隔线分隔的块」，不是第二张卡。
 - 嵌套结构（缩略图尺寸表、开关列表）只保留最外层一个框，内部用 `border-top` 分隔。
@@ -117,11 +119,18 @@
 - 服务端必须按卡片合并已存值：`options.php` 多 option 用 `Card_Form::guard_options()` 保护未提交字段；单数组 option / 自定义 saver 按卡片标记只更新本卡字段。未提交字段保持原值，未知卡片直接返回旧值，不能清空。
 - checkbox 组要有 hidden `0`；保存本卡时未勾选必须能写回 0。
 - 保存按钮由组件输出在 `.card__savebar`，靠右；移动端按钮整宽。按钮文案说明保存范围（如「保存连接配置」「保存清理策略」），单卡内可统一写「保存设置」。
-- 只读卡、纯操作卡（清理、探测、刷新、删除队列）不传 `form` / `save`，动作按钮留在卡内的 `.card__actions` 或 `.card__savebar`，不要再造页面级操作条。
+- 只读卡、纯操作卡（清理、探测、刷新、删除队列）不传 `form` / `save`，动作按钮留在卡内的 `.card__actions` 或 `.card__savebar`，不要再造页面级操作条。卡头按钮用 `actions`：链接传 `label` + `url`；需要 JS 绑定的普通按钮传 `label` + `button => true`，可再传 `id` / `attrs` / `variant`。有 `kicker` 时 `.card__actions` 会自动下沉 20px，让按钮顶边与标题首行齐平。
 - 以「行/项」为保存单位的列表卡（如用户容量）把保存按钮放在对应行内，这是唯一例外。
 - 不再使用整页 `.page-savebar`，也不再使用浮动保存条。新增页面直接照本节写，不要回到「多卡共享一个表单、按钮提交整组」的旧模式。
 
-### 4.2 表格与分组
+### 4.2 布局与外观设置
+
+- 系统设置页「布局设置」卡同时保存卡片间隔与全局外观，写入 `sakura_imgopt_layout_gaps` 和 `sakura_imgopt_ui_style` 两个 option。改外观后刷新页面生效。
+- 可调项与范围：页面宽度 960–1920px（默认 1480）、页面背景色（默认暖白渐变）、卡片背景色（默认 `#ffffff`）、边框粗细 0–6px、圆角 0–40px、阴影 默认/无/轻/强。
+- 外观值由 `Appearance::inline_style()` 只在非默认时输出到 `.sakura-admin` 根节点：`--g-page-max`、`--g-card-surface`、`--g-card-border-width`、`--g-radius-card`、`--g-shadow-card`，自定义页面背景用 `background` 覆盖默认渐变。默认状态下不输出行内样式，令牌表保持唯一来源。
+- 卡片背景只改 `--g-card-surface`；`--g-card` 继续给输入框、按钮、下拉使用，否则卡片一换色，控件也会跟着变色。页面背景换成深色时要检查正文对比度，系统设置里已有提示，不能为了「个性」牺牲可读性。
+
+### 4.3 表格与分组
 
 - 一张表只允许一个 `<thead>`。不要把同一组数据 `array_chunk()` 成两张表各自带表头；等级加成曾因此出现两遍「等级 / 门槛积分 / 加成（MB）」。
 - 需要分栏或分组时，用单表 + 分组行，或两个不带 `<thead>` 的面板并排；只有打印或固定表头场景才重复表头，且必须是有意为之。
@@ -129,7 +138,7 @@
 ## 5. 页头与状态
 
 - 页头由 `UI::page()` 输出：上方眉标（`.page-head__eyebrow`）、标题、1–2 行说明（`.page-head__lede`），右侧一张状态卡；底部一条 `--g-line` 分隔线。不要再使用粉蓝渐变、樱花插画或高对比大面积色块。
-- 背景只允许暖白底 + 柔和云雾径向渐变（`base.css` 的 `.sakura-admin` 画布）；禁止贴图。
+- 背景默认是暖白底 + 柔和云雾径向渐变（`base.css` 的 `.sakura-admin` 画布）；系统设置可以换成单一纯色，但默认值必须保持这套暖白渐变，禁止贴图。
 - 顶栏状态胶囊支持 `ok / off / warn / error`：未传 tone 时是中性灰点；`ok` 绿点，`off` 灰字，`warn` 琥珀，`error` 淡红。不要所有状态都用绿点。
 - 页头状态卡与页头内的小状态标签同样遵循语义，不要用绿色表示「等待配置」。
 
@@ -152,6 +161,7 @@
 ## 6. 控件
 
 - 输入框、下拉、文本域：38px 高、10px 圆角、1px `--g-line-strong` 边框、白底、14px 字。文本域最小高度 88px，可纵向拉伸。
+- 颜色字段用 `UI::field( 'type' => 'color' )`：与输入框同高、同边框，内层 swatch 留 1px 暖灰内描边并跟随 10px 圆角（纯白卡片底色也要能看出色块边界）；不要手写 `<input type="color">` 绕过组件。`::-webkit-color-swatch` 与 `::-moz-color-swatch` 必须拆成两条规则：合并后 Chrome 不认识 Mozilla 伪元素，会把整条规则丢弃（实测边框不生效）。
 - 勾选框/单选框统一 18px 圆形，不再区分方框与圆圈。基础态为暖白底 `#fffdfa` + 1.5px `#c3c0b7` 边框；hover 边框 `#9b978d`。
 - 勾选态必须改变填充，不能只换边框：统一为柔石墨底 `#2f3134` + 6px 暖白圆点 `#f6f4ed`。勾选/未勾选在 1:1 截图里必须一眼可分；禁止再出现黑色方框 + 白勾。
 - 白点必须相对控件绝对居中：`::before` 用 `position:absolute; top:50%; left:50%; margin:0; transform: translate(-50%, -50%) scale(...)`。WordPress 后台 `forms.css` 的 `input[type=checkbox]:checked::before` 会残留 `margin:-3px 0 0 -4px`；若改用 grid/flex 居中而不清 margin，6px 白点会被推到左上角。`margin:0` 不是冗余声明。
@@ -172,7 +182,7 @@
 - 分段控件、日志筛选允许换行；不要用横向滚动藏按钮。
 - 表格用 `.table-wrap` 内部滚动，页面本身不横溢。桌面的固定列宽在 ≤782px 必须重置为 `width:auto; min-width:0`。
 - 内容型表格（审核队列、授权流水、套餐编辑器）在窄屏重排为带标签的行：数据行用 `data-label` + `::before` 显示列名，表头隐藏；空标签 `data-label=""` 的单元格保持块级，不加冒号。
-- 顶栏在 ≤660px 收成「品牌 + 状态」一行，模块导航另起一行；≤340px 隐藏长状态胶囊，避免挤成三行。
+- 桌面顶栏是三列 grid：品牌左、模块导航绝对居中、状态/动作右；导航中心必须等于页面内容中心，不能被左侧品牌文字宽度推偏。≤1100px 回到 flex-wrap，品牌与状态一行、模块导航整行另起。≤660px 收成「品牌 + 状态」一行；≤340px 隐藏长状态胶囊，避免挤成三行。
 
 ## 8. 常见坑
 
@@ -184,7 +194,8 @@
 - 勾选框最容易出现「看着能点，但勾没勾一个样」：基础态选择器特异性高于 `:checked` 时，白底会把石墨勾选态盖掉；要在同一特异性补 `:checked`。
 - 勾选框白点跑到左上角：先看 `::before` 的计算样式。根因通常是 WP 后台 `forms.css` 的 `checked::before` 负 margin 与 grid/flex 居中冲突；按第 6 节改成绝对定位 + `margin:0`，不要用 `!important` 硬盖。
 - 支付方式少了支付宝：页面只渲染主题实际启用的通道。测试站先查 `zibll_options['pay_alipay_sdk_options']` 是否为 `null`；生产为 `official_alipay` 且 `pay_sdk_order.alipay=1`。这是主题数据差异，不要把支付宝开关硬编码进视图。
-- 右侧「布局修改」消失：按顺序查 `data-sakura-layout` 属性、`Page_Assets::LAYOUT_PAGES` 登记、布局 id 是否等于生产已存组名；三者缺一都不会加载 `layout.css` 和工具栏。
+- 右侧「布局修改」消失：按顺序查 `data-sakura-layout` 属性、`Page_Assets::LAYOUT_PAGES` 登记、布局 id 是否等于生产已存组名；三者缺一都不会加载 `layout.css` 和工具栏。系统设置页的页面 id 与布局 id 都是 `system-settings`。
+- 布局工具条文案竖排用「一字宽块 + 自然换行」：`width:1.1em; white-space:normal; word-break:break-all; line-height:1.34; text-align:center`，不要用 `writing-mode: vertical-rl`。部分 CJK 回退字体在这里上报的纵向步进只有约 4px，四字会叠成一团（实测标签高 4.17px）；编辑态恢复 `width:auto; white-space:nowrap; word-break:normal`。改完在 1440 和 1101 截图检查四字完整。
 - 改完至少验证 1440、1366、1101、782、424、390、320 七个宽度，覆盖全部 13 个后台路由；检查 `document.documentElement.scrollWidth == clientWidth`、`.page-body` 相邻块间距 ≥16px、同一卡片无 `.switch` 与 `.check` 混用、每张表只有一个 `<thead>`，并确认 console 无报错。
 
 ## 9. 组件层与静态资源
@@ -192,7 +203,7 @@
 ### 9.1 PHP 组件
 
 - 页面用 `UI::page( $args, $body )`。`$args`：`id`（页面 id，写入 `data-sakura-page`）、`module`、`tab`、`eyebrow`、`title`、`lede`、`status`、`actions`、`chrome`。
-- 卡片用 `UI::card( $args, $body )`。`$args`：`id`、`kicker`、`title`、`description`、`actions`、`wide`、`class`、`anchor`、`form`、`save`。
+- 卡片用 `UI::card( $args, $body )`。`$args`：`id`、`kicker`、`title`、`description`、`actions`、`wide`、`class`、`anchor`、`form`、`save`。`actions` 的每一项：`label`、`url`（链接）或 `button => true`（按钮）、`variant`、`id`、`attrs`。
 - 表单用 `form` 参数：
   - `id`：表单 id，默认 `sakura-card-form-{card}`；
   - `action`：默认 `options.php`；自定义 saver 传 `admin-post.php`；
@@ -200,7 +211,7 @@
   - `markers`：`fields`（默认）、`option_fields`、`none`；
   - `option`：`markers=option_fields` 时的 option 名；
   - `hidden`：额外 hidden 字段。
-- 字段用 `UI::field( $args )`，类型支持 `text/number/url/password/email/select/textarea/checkbox/radio/toggle/hidden/custom`；复杂控件用 `custom` + `control` 回调，只外包标签与间距。
+- 字段用 `UI::field( $args )`，类型支持 `text/number/url/password/email/color/select/textarea/checkbox/radio/toggle/hidden/custom`；复杂控件用 `custom` + `control` 回调，只外包标签与间距。
 - `toggle` 仅为历史兼容保留；后台卡片不要使用，布尔项统一 `checkbox`（见第 6 节）。
 - 反馈用 `UI::badge()`、`UI::alert()`、`UI::notice()`、`UI::empty_state()`。
 - 新页面不要手写 `section.card > .card__head > .card__body` 骨架，也不要在视图里重复 nonce、卡片标记和保存按钮。特殊版式通过 `wide` / `class` 传给组件，不改组件结构。
@@ -211,7 +222,7 @@
 - 在 `src/Admin/Registry.php` 注册页面与 tab；页面 id 同时决定 CSS/JS 文件名。默认 tab 可以省略 `t`。
 - 渲染前把该页需要的运行时数据交给 `Page_Assets::set_data( $page, $data )`，再调用 `Assets::enqueue_page()`。数据会进入前端 `SakuraAdmin.data`。
 - 页面 CSS 命名：`assets/ui/pages/{module}.css` 是模块共享样式，`assets/ui/pages/{page}.css` 是可选页面样式；JS 只加载 `assets/ui/js/pages/{page}.js`。
-- 需要卡片拖拽布局的页面，在 `Page_Assets::LAYOUT_PAGES` 登记 `页面 id => 布局 id`；布局根节点输出 `data-sakura-ready`、`data-sakura-layout`，每张卡同时带 `data-sakura-card`。
+- 需要卡片拖拽布局的页面，在 `Page_Assets::LAYOUT_PAGES` 登记 `页面 id => 布局 id`；布局根节点输出 `data-sakura-ready`、`data-sakura-layout`，每张卡同时带 `data-sakura-card`。系统设置页也走同一套，5 张卡（runtime / engine / checks / extensions / layout）默认为 6/6/12/6/6 跨列。
 - 映射右侧的布局 id 必须是生产已存的布局组名。改页面 id 或文件名时不要顺手改布局 id：文件空间-子比专属的页面 id 是 `files-zibll`，布局 id 必须保持 `files-space`，否则旧布局丢失，右侧「布局修改」工具栏也不会出现。
 - 布局页的 46px 右侧留白由 `Page_Assets::has_layout()` 在服务端输出 `sakura-layout-enabled`，首屏就预留，不能等 `layout.js` 到页尾再补类，否则内容区会在加载后突然变窄。`freeLayout()` 第一次把卡片改成绝对定位时加 `is-initializing` 关闭 0.18s 过渡，否则卡片会从左上角散开。
 - 多卡组在首次落位前用 `visibility: hidden` 隐住（`is-laid` 落下后才显示），避免解析较慢时浏览器先把默认两列网格画出来；单卡组不隐藏，因为卡片本身已是 `wide`。隐藏只在桌面宽度生效，并带 2s 的 CSS 动画兜底，脚本失败或被禁用时不会永久空白。
@@ -229,7 +240,8 @@
 - [ ] 同一张卡片里的布尔项全部是勾选框，没有 `.switch` 与 `.check` 混用，也没有 `type=toggle`。
 - [ ] `.page-body` 直接子块之间至少 16px（桌面 20px），KPI 网格 `gap` 使用同一令牌，没有 0 间距贴合。
 - [ ] 每张表只有一个 `<thead>`，没有重复表头。
-- [ ] 布局页的 `data-sakura-layout` 与 `Page_Assets::LAYOUT_PAGES` 一致，右侧「布局修改」存在且旧布局能恢复。
+- [ ] 布局页的 `data-sakura-layout` 与 `Page_Assets::LAYOUT_PAGES` 一致，右侧「布局修改」存在且旧布局能恢复；竖排四字完整，编辑态恢复横排。
+- [ ] 顶栏模块导航中心与页面内容中心偏差 ≤1px；≤1100px 已回到两行 flex 布局。
 - [ ] 刷新布局页时首屏不横向跳变，卡片没有从堆叠到散开的动画；首屏 HTML 的根节点已带 `sakura-layout-enabled`。多卡组在慢速首次加载时也不会先露出默认两列（`is-laid` 前隐藏，禁用 JS 2s 后可见）。
 - [ ] 配置类弹窗居中、可 Esc/背景关闭、焦点可回退；「不再提醒」持久化；没有重复的顶部提示。
 - [ ] 「稍后处理」写入 12 小时冷却：冷却内刷新不弹，把 `snoozed_until` 改成过去时间后刷新会重新弹出。
@@ -240,5 +252,7 @@
 - [ ] 每张可编辑卡片是独立表单，表单内有 `Card_Form::fields()`（单数组 option 用 `option_fields()`）标记，点保存只写本卡；未勾选的 checkbox 能保存为 0；页面没有 `.page-savebar` 或浮动保存条残留。
 - [ ] 页面骨架、卡片、表单壳和保存条来自 `UI::page()` / `UI::card()`，视图没有手写这些骨架。
 - [ ] 页面只加载 `assets/ui/` 的 tokens/base/components（可选 layout）和对应 `pages/*.css`，没有旧 `admin-*.css` / `userfiles-admin.*`。
+- [ ] 系统设置外观项逐项保存后生效，恢复默认后根节点不再输出行内 `--g-page-max` / `--g-card-surface` / `--g-card-border-width` / `--g-radius-card`，只有自定义页面背景会输出 `background`。
+- [ ] 颜色字段使用 `input[type=color]` 的组件样式，没有露出浏览器默认边框或方角。
 - [ ] 没有 `.sakura-sync-app`、`.sky-layer`、`.sakura-layer`、`.app`、`.hero`、`.card-savebar`、`.page-savebar` 等旧标记。
 - [ ] `php -l`、`node --check`、CSS 花括号计数、`git diff --check` 通过。

@@ -14,13 +14,16 @@ use Nboke\UserFiles\Frontend\Entry;
 use Nboke\UserFiles\Frontend\Providers\Generic;
 use Nboke\UserFiles\Settings;
 use Sakura\ImageOptimizer\Admin\Assets;
+use Sakura\ImageOptimizer\Admin\Page_Assets;
+use Sakura\ImageOptimizer\Admin\Registry;
+use Sakura\ImageOptimizer\Admin\Route;
 use Sakura\ImageOptimizer\Support\Hook_Loader;
 
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Server-rendered shell; the table and confirmation widgets are hydrated by
- * userfiles-admin.js against sufm/v1.
+ * Server-rendered shell; each tab has its own page controller under
+ * assets/ui/js/pages and talks to sufm/v1 through SakuraAdmin.api.
  */
 final class Page {
 
@@ -30,11 +33,22 @@ final class Page {
 	public const SLUG = 'sakura-tools-files';
 
 	/**
-	 * Layout page key (matches data-sakura-layout).
+	 * Legacy layout page key.
 	 */
 	public const PAGE = 'files';
 
 	/**
+	 * Tabs migrated to the new UI stack.
+	 *
+	 * @var array<int, string>
+	 */
+	private const UI_PAGES = array(
+		'files-settings',
+		'files-users',
+		'files-queue',
+		'files-log',
+	);
+
 	/**
 	 * The screen is stateless: everything it needs comes from Settings and the
 	 * REST endpoints, so no service has to be injected here.
@@ -54,8 +68,8 @@ final class Page {
 		/*
 		 * Registering the renderers touches Registry::tabs(), which builds the
 		 * translated module labels. Doing that here would run __() during
-		 * plugins_loaded — before init — and WordPress 6.7+ flags it with
-		 * `_load_textdomain_just_in_time` on every admin page. The textdomain
+		 * plugins_loaded - before init - and WordPress 6.7+ flags it with
+		 * _load_textdomain_just_in_time on every admin page. The textdomain
 		 * loads on init, so wait for it; Menu only reads the renderers later,
 		 * on admin_menu.
 		 */
@@ -69,13 +83,13 @@ final class Page {
 	 * claims its routes. Every tab of the file space renders this same page.
 	 */
 	public function register_renderers(): void {
-		foreach ( \Sakura\ImageOptimizer\Admin\Registry::tabs( 'files' ) as $sufm_tab_id ) {
+		foreach ( Registry::tabs( 'files' ) as $sufm_tab_id ) {
 			// The Zibll tab registers its own renderer (Nboke\UserFiles\Admin\Space_Page).
 			if ( 'zibll' === (string) $sufm_tab_id ) {
 				continue;
 			}
 
-			\Sakura\ImageOptimizer\Admin\Registry::register_renderer( 'files', (string) $sufm_tab_id, array( $this, 'render' ) );
+			Registry::register_renderer( 'files', (string) $sufm_tab_id, array( $this, 'render' ) );
 		}
 	}
 
@@ -108,66 +122,197 @@ final class Page {
 	}
 
 	/**
-	 * Load the shared shell styles, the layout engine and this screen's script.
+	 * Load the new UI stack for the four migrated tabs only.
+	 *
+	 * Page data must be attached before Assets::enqueue_page() runs because the
+	 * localized config is printed from Page_Assets::enqueue().
 	 *
 	 * @param string $hook Current admin page hook.
 	 * @return void
 	 */
 	public function enqueue( $hook ): void {
-		if ( ! \Sakura\ImageOptimizer\Admin\Registry::on( 'files' ) ) {
+		unset( $hook );
+
+		if ( ! Registry::on( 'files' ) ) {
 			return;
 		}
 
-		unset( $hook );
+		$page = Route::current_page();
 
-		Assets::enqueue_style();
-		Assets::enqueue_layout();
+		if ( ! in_array( $page, self::UI_PAGES, true ) ) {
+			// files-zibll is owned by Space_Page and loads its own legacy assets.
+			return;
+		}
 
-		wp_enqueue_style(
-			'sufm-admin',
-			SAKURA_TOOLS_URL . 'assets/userfiles-admin.css',
-			array( 'sakura-imgopt-admin' ),
-			\Nboke\UserFiles\Support\Assets::version( 'assets/userfiles-admin.css' )
+		Page_Assets::set_data( $page, $this->page_data( $page ) );
+		Assets::enqueue_page();
+	}
+
+	/**
+	 * Controller strings for one page. All copy goes through __() here so the
+	 * JavaScript never embeds untranslated UI text.
+	 *
+	 * @param string $page Page id.
+	 * @return array<string,mixed>
+	 */
+	private function page_data( string $page ): array {
+		$data = array(
+			'restPath' => 'sufm/v1/',
+			'strings'  => array(
+				'failed'       => __( '操作失败，请重试。', 'sakura-imgopt' ),
+				'cancel'       => __( '取消', 'sakura-imgopt' ),
+				'confirm'      => __( '确认', 'sakura-imgopt' ),
+				'pagerSummary' => __( '显示 {from}–{to} 条 · 共 {total} 条', 'sakura-imgopt' ),
+				'pagerNow'     => __( '{page} / {pages}', 'sakura-imgopt' ),
+				'pagerEmpty'   => __( '暂无记录', 'sakura-imgopt' ),
+			),
 		);
 
-		wp_enqueue_script(
-			'sufm-admin',
-			SAKURA_TOOLS_URL . 'assets/userfiles-admin.js',
-			array( 'jquery', 'sakura-imgopt-layout' ),
-			\Nboke\UserFiles\Support\Assets::version( 'assets/userfiles-admin.js' ),
-			true
-		);
+		if ( 'files-queue' === $page ) {
+			$data['strings'] = array_merge(
+				$data['strings'],
+				array(
+					'loading'             => __( '正在读取…', 'sakura-imgopt' ),
+					'loadFailed'          => __( '读取删除申请失败。', 'sakura-imgopt' ),
+					'approvedLoadFailed'  => __( '读取已批准申请失败。', 'sakura-imgopt' ),
+					'emptyTitle'          => __( '暂无删除申请', 'sakura-imgopt' ),
+					'emptyMessage'        => __( '当前筛选条件下没有申请。', 'sakura-imgopt' ),
+					'approvedEmpty'       => __( '暂无已批准、待执行的申请。', 'sakura-imgopt' ),
+					'approve'             => __( '批准', 'sakura-imgopt' ),
+					'reject'              => __( '驳回', 'sakura-imgopt' ),
+					'needsReview'         => __( '需核实', 'sakura-imgopt' ),
+					'revoke'              => __( '撤销批准', 'sakura-imgopt' ),
+					'stopBatch'           => __( '停止批次', 'sakura-imgopt' ),
+					'pickNone'            => __( '未选择', 'sakura-imgopt' ),
+					'pickCount'           => __( '已选 {count} 项', 'sakura-imgopt' ),
+					'previewButton'       => __( '预览删除范围', 'sakura-imgopt' ),
+					'previewNeed'         => __( '请先勾选至少一条已批准的申请。', 'sakura-imgopt' ),
+					'previewHint'         => __( '先在上一步勾选已批准的申请，再核对范围。', 'sakura-imgopt' ),
+					'previewTitle'        => __( '{count} 项', 'sakura-imgopt' ),
+					'previewTotal'        => __( '共 {size}', 'sakura-imgopt' ),
+					'previewRequest'      => __( '申请 #{id}：{count} 项，{size}', 'sakura-imgopt' ),
+					'previewHash'         => __( '范围哈希 {hash}…，确认时会再次比对。', 'sakura-imgopt' ),
+					'previewFailed'       => __( '预览失败，请重试。', 'sakura-imgopt' ),
+					'executeButton'       => __( '建立删除批次', 'sakura-imgopt' ),
+					'phraseWrong'         => __( '请输入“删除”两个字。', 'sakura-imgopt' ),
+					'phraseValue'         => __( '删除', 'sakura-imgopt' ),
+					'executeTitle'        => __( '确认执行删除', 'sakura-imgopt' ),
+					'executeMessage'      => __( '将建立包含 {count} 个对象的删除批次；任务开始后无法撤回已经处理的对象。', 'sakura-imgopt' ),
+					'executeConfirm'      => __( '确认执行', 'sakura-imgopt' ),
+					'batchCreated'        => __( '批次 #{id} 已建立，等待后台执行。', 'sakura-imgopt' ),
+					'batchState'          => __( '批次 #{id} · {status}', 'sakura-imgopt' ),
+					'batchProgress'       => __( '完成 {done} / {total}，失败 {failed}', 'sakura-imgopt' ),
+					'batchFinished'       => __( '批次 #{id} 已结束。', 'sakura-imgopt' ),
+					'updated'             => __( '已更新 #{id}。', 'sakura-imgopt' ),
+					'reviewDone'          => __( '已更新 #{id} 的审核状态。', 'sakura-imgopt' ),
+					'revokeDone'          => __( '已撤销 #{id} 的批准。', 'sakura-imgopt' ),
+					'revokeTitle'         => __( '撤销批准 #{id}', 'sakura-imgopt' ),
+					'revokeMessage'       => __( '撤销后申请回到待审核状态，对象锁会立即解除。', 'sakura-imgopt' ),
+					'approveTitle'        => __( '批准申请 #{id}', 'sakura-imgopt' ),
+					'approveMessage'      => __( '批准只代表可以进入执行，不会立即删除；还需要在下方预览范围并确认。', 'sakura-imgopt' ),
+					'rejectTitle'         => __( '驳回申请 #{id}', 'sakura-imgopt' ),
+					'rejectMessage'       => __( '驳回会立即解除对象锁，用户需要重新提交申请。', 'sakura-imgopt' ),
+					'needsTitle'          => __( '标记需核实 #{id}', 'sakura-imgopt' ),
+					'needsMessage'        => __( '申请会留在队列中，等待补充信息后再处理。', 'sakura-imgopt' ),
+					'stopTitle'           => __( '停止批次 #{id}', 'sakura-imgopt' ),
+					'stopMessage'         => __( '已经处理的对象无法撤回，剩余对象会停止处理。', 'sakura-imgopt' ),
+					'stopDone'            => __( '已请求停止批次 #{id}。', 'sakura-imgopt' ),
+					'countSub'            => __( '已批准待执行 {approved} · 执行中 {queued}', 'sakura-imgopt' ),
+					'ownerId'             => __( 'ID {id}', 'sakura-imgopt' ),
+					'items'               => __( '{count} 项', 'sakura-imgopt' ),
+					'noActions'           => __( '—', 'sakura-imgopt' ),
+					'idLabel'             => __( '编号', 'sakura-imgopt' ),
+					'userLabel'           => __( '用户', 'sakura-imgopt' ),
+					'objectsLabel'        => __( '对象', 'sakura-imgopt' ),
+					'statusLabel'         => __( '状态', 'sakura-imgopt' ),
+					'timeLabel'           => __( '提交时间', 'sakura-imgopt' ),
+					'actionsLabel'        => __( '操作', 'sakura-imgopt' ),
+					'statusLabels'        => array(
+						'pending_review' => __( '待审核', 'sakura-imgopt' ),
+						'approved'       => __( '已批准', 'sakura-imgopt' ),
+						'rejected'       => __( '已驳回', 'sakura-imgopt' ),
+						'revoked'        => __( '已撤销', 'sakura-imgopt' ),
+						'withdrawn'      => __( '已撤回', 'sakura-imgopt' ),
+						'needs_review'   => __( '需核实', 'sakura-imgopt' ),
+						'queued'         => __( '待执行', 'sakura-imgopt' ),
+						'executing'      => __( '执行中', 'sakura-imgopt' ),
+						'completed'      => __( '已完成', 'sakura-imgopt' ),
+						'partial_failed' => __( '部分失败', 'sakura-imgopt' ),
+						'failed'         => __( '失败', 'sakura-imgopt' ),
+						'stopped'        => __( '已停止', 'sakura-imgopt' ),
+					),
+				)
+			);
+		}
 
-		wp_localize_script(
-			'sufm-admin',
-			'sufmAdmin',
-			array(
-				'restUrl'  => esc_url_raw( rest_url( 'sufm/v1/' ) ),
-				'nonce'    => wp_create_nonce( 'wp_rest' ),
-				'enabled'  => true,
-				'settings' => Settings::get(),
-				'strings'  => array(
-					'loading'   => __( '加载中…', 'sakura-imgopt' ),
-					'empty'     => __( '暂无待处理申请。', 'sakura-imgopt' ),
-					'approve'   => __( '批准', 'sakura-imgopt' ),
-					'reject'    => __( '驳回', 'sakura-imgopt' ),
-					'revoke'    => __( '撤销批准', 'sakura-imgopt' ),
-					'confirm'   => __( '确认执行', 'sakura-imgopt' ),
-					'preview'   => __( '预览删除范围', 'sakura-imgopt' ),
-					'stopped'   => __( '已停止', 'sakura-imgopt' ),
-					'failed'    => __( '操作失败，请重试。', 'sakura-imgopt' ),
-					'phrase'    => __( '请输入“删除”两个字', 'sakura-imgopt' ),
-					'saved'     => __( '已保存', 'sakura-imgopt' ),
-					'quota'     => __( '容量（字节）', 'sakura-imgopt' ),
-					'items'     => __( '项', 'sakura-imgopt' ),
-					'col_user'    => __( '用户', 'sakura-imgopt' ),
-					'col_objects' => __( '对象', 'sakura-imgopt' ),
-					'col_status'  => __( '状态', 'sakura-imgopt' ),
-					'col_time'    => __( '提交时间', 'sakura-imgopt' ),
-					'col_actions' => __( '操作', 'sakura-imgopt' ),
-				),
-			)
-		);
+		if ( 'files-users' === $page ) {
+			$default_quota = (int) ( Settings::defaults()['quota_default_bytes'] ?? 0 );
+
+			$data['defaultQuotaMb'] = (int) round( $default_quota / 1048576 );
+			$data['strings']        = array_merge(
+				$data['strings'],
+				array(
+					'loading'          => __( '正在读取…', 'sakura-imgopt' ),
+					'loadFailed'       => __( '读取用户容量失败。', 'sakura-imgopt' ),
+					'emptyTitle'       => __( '没有匹配的用户', 'sakura-imgopt' ),
+					'emptyMessage'     => __( '换一个关键词，或清空搜索后重试。', 'sakura-imgopt' ),
+					'save'             => __( '保存', 'sakura-imgopt' ),
+					'saved'            => __( '已更新 {name}。', 'sakura-imgopt' ),
+					'saveFailed'       => __( '保存容量失败。', 'sakura-imgopt' ),
+					'quotaPlaceholder' => __( '默认', 'sakura-imgopt' ),
+					'quotaTitle'       => __( '当前生效容量：{size}', 'sakura-imgopt' ),
+					'quotaInvalid'     => __( '请输入不小于 0 的整数，或留空恢复默认容量。', 'sakura-imgopt' ),
+					'quotaClear'       => __( '留空恢复默认容量。', 'sakura-imgopt' ),
+					'filesUnit'        => __( '个文件', 'sakura-imgopt' ),
+					'foldersUnit'      => __( '个文件夹', 'sakura-imgopt' ),
+					'sync'             => __( '同步容量', 'sakura-imgopt' ),
+					'syncing'          => __( '同步中…', 'sakura-imgopt' ),
+					'syncStartFailed'  => __( '启动同步失败。', 'sakura-imgopt' ),
+					'syncFailed'       => __( '同步状态读取失败。', 'sakura-imgopt' ),
+					'syncProgress'     => __( '同步中 {scanned} / {total}（{percent}%），更新 {updated} 个文件', 'sakura-imgopt' ),
+					'syncDone'         => __( '同步完成：{message}', 'sakura-imgopt' ),
+					'reset'            => __( '重置容量', 'sakura-imgopt' ),
+					'resetTitle'       => __( '重置所有用户的单独容量', 'sakura-imgopt' ),
+					'resetMessage'     => __( '重置会清除【所有用户】单独设置的容量，全部回到默认容量。确定继续？', 'sakura-imgopt' ),
+					'resetConfirm'     => __( '确定重置', 'sakura-imgopt' ),
+					'resetDone'        => __( '已重置 {count} 个用户的单独容量。', 'sakura-imgopt' ),
+					'resetFailed'      => __( '重置失败，请重试。', 'sakura-imgopt' ),
+				)
+			);
+		}
+
+		if ( 'files-log' === $page ) {
+			$data['strings'] = array_merge(
+				$data['strings'],
+				array(
+					'loading'           => __( '正在读取…', 'sakura-imgopt' ),
+					'loadFailed'        => __( '读取操作记录失败。', 'sakura-imgopt' ),
+					'emptyTitle'        => __( '暂无操作记录', 'sakura-imgopt' ),
+					'emptyMessage'      => __( '审核、执行和容量变更会记录在这里。', 'sakura-imgopt' ),
+					'allResults'        => __( '全部结果', 'sakura-imgopt' ),
+					'filterPlaceholder' => __( '筛选当前页（动作、结果或说明）', 'sakura-imgopt' ),
+					'filterSummary'     => __( '本页筛选：{shown} / {total} 条', 'sakura-imgopt' ),
+					'filterEmpty'       => __( '没有匹配的记录。', 'sakura-imgopt' ),
+					'actionLabel'       => __( '动作', 'sakura-imgopt' ),
+					'resultLabel'       => __( '结果', 'sakura-imgopt' ),
+					'detailLabel'       => __( '说明', 'sakura-imgopt' ),
+					'timeLabel'         => __( '时间', 'sakura-imgopt' ),
+				)
+			);
+		}
+
+		if ( 'files-settings' === $page ) {
+			$data['strings'] = array_merge(
+				$data['strings'],
+				array(
+					'currentSelection' => __( '当前样式：{style}；图标颜色：{accent}。', 'sakura-imgopt' ),
+					'styleFallback'    => __( '跟随样式', 'sakura-imgopt' ),
+					'accentFallback'   => __( '跟随样式', 'sakura-imgopt' ),
+				)
+			);
+		}
+
+		return $data;
 	}
 
 	/**

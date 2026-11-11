@@ -138,7 +138,7 @@ UI::page(
 					: __( '可在下方切换每页 25 / 50 / 100 条', 'sakura-imgopt' ),
 				'wide'        => true,
 			),
-			static function () use ( $logs, $total_logs ) {
+			static function () use ( $logs, $total_logs, $rows_html ) {
 				?>
 				<div class="table-scroll">
 					<table class="table table--responsive" id="sakura-stats-history" data-total="<?php echo esc_attr( (string) $total_logs ); ?>" data-per-page="25">

@@ -1245,6 +1245,10 @@
 		text-align: left;
 	}
 
+	.sakura-admin .table--responsive td > .badge {
+		justify-self: start;
+	}
+
 	.sakura-admin .table.is-loading {
 	opacity: .55;
 	pointer-events: none;

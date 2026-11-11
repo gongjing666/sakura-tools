@@ -1,7 +1,7 @@
 <?php
 namespace Sakura\ImageOptimizer;
 
-use Sakura\ImageOptimizer\Admin\Assets;
+use Sakura\ImageOptimizer\Admin\Page_Assets;
 use Sakura\ImageOptimizer\Backup\Backup_Repository;
 use Sakura\ImageOptimizer\Backup\Exposure_Probe;
 use Sakura\ImageOptimizer\Contracts\Backup_Repository_Interface;
@@ -423,9 +423,45 @@ class Media_Library_Module implements Module {
 	 * @return void
 	 */
 	public function enqueue_progress_assets( $hook ) {
-		if ( '' !== $this->progress_hook && $hook === $this->progress_hook ) {
-			Assets::enqueue( (string) $hook, array( $this->progress_hook ) );
+		if ( '' === $this->progress_hook || $hook !== $this->progress_hook ) {
+			return;
 		}
+
+		$queue = get_transient( 'sakura_queue_' . get_current_user_id() );
+		$queue = is_array( $queue ) ? $queue : array();
+		$ids   = isset( $queue['ids'] ) && is_array( $queue['ids'] ) ? $queue['ids'] : array();
+
+		Page_Assets::set_data(
+			'media-progress',
+			array(
+				'total'     => $ids ? max( 0, (int) ( $queue['total'] ?? 0 ) ) : 0,
+				'processed' => $ids ? max( 0, (int) ( $queue['processed'] ?? 0 ) ) : 0,
+				'success'   => $ids ? max( 0, (int) ( $queue['success'] ?? 0 ) ) : 0,
+				'fail'      => $ids ? max( 0, (int) ( $queue['fail'] ?? 0 ) ) : 0,
+				'skipped'   => $ids ? max( 0, (int) ( $queue['skipped'] ?? 0 ) ) : 0,
+				'mode'      => $ids && 'restore' === ( $queue['mode'] ?? '' ) ? 'restore' : 'optimize',
+				'batchSize' => $this->get_batch_size(),
+				'delay'     => $this->get_ajax_delay(),
+				'nonce'     => wp_create_nonce( 'sakura_process_batch' ),
+				'strings'   => array(
+					'preparing'     => __( '准备处理 {total} 张图片…', 'sakura-imgopt' ),
+					'resume'        => __( '继续处理，已完成 {processed} / {total}…', 'sakura-imgopt' ),
+					'processing'    => __( '正在处理 {processed} / {total}…', 'sakura-imgopt' ),
+					'successCount'  => __( '成功 {count} 张', 'sakura-imgopt' ),
+					'failCount'     => __( '失败 {count} 张', 'sakura-imgopt' ),
+					'skippedCount'  => __( '跳过 {count} 张', 'sakura-imgopt' ),
+					'errorStop'     => __( '发生错误，已停止。', 'sakura-imgopt' ),
+					'requestFailed' => __( '请求失败，已停止。请检查网络后重试。', 'sakura-imgopt' ),
+					'restore'       => __( '还原', 'sakura-imgopt' ),
+					'optimize'      => __( '优化', 'sakura-imgopt' ),
+					'doneTitle'     => __( '{verb}完成', 'sakura-imgopt' ),
+					'skipRestore'   => __( '其中 {count} 张位于云存储或 CDN，未还原。', 'sakura-imgopt' ),
+					'skipOptimize'  => __( '其中 {count} 张因动图、超过上限、格式不支持或体积没有变小而跳过。', 'sakura-imgopt' ),
+				),
+			)
+		);
+
+		Page_Assets::enqueue( 'media-progress' );
 	}
 
 	/**

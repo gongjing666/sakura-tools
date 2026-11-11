@@ -197,7 +197,11 @@
 	 * below 782px without losing the column name.
 	 */
 	function labelTables( context ) {
-		admin.qsa( '.table--responsive', context || document ).forEach( function ( table ) {
+		var scope  = context || document;
+		var owner  = scope.closest ? scope.closest( 'table.table--responsive' ) : null;
+		var tables = owner ? [ owner ] : admin.qsa( '.table--responsive', scope );
+
+		tables.forEach( function ( table ) {
 			var headers = admin.qsa( 'thead th', table ).map( function ( cell ) {
 				return cell.textContent.trim();
 			} );
@@ -215,7 +219,7 @@
 	}
 
 	/**
-	 * Confirm links marked with data-sakura-confirm before navigating.
+	 * Confirm links and forms marked with data-sakura-confirm before acting.
 	 */
 	function initConfirmations() {
 		document.addEventListener( 'click', function ( event ) {
@@ -225,13 +229,27 @@
 			}
 
 			event.preventDefault();
-			var message = link.getAttribute( 'data-sakura-confirm' ) || '';
+			var submitter  = event.target.closest ? event.target.closest( 'button, input[type="submit"], input[type="image"]' ) : null;
+			var message    = link.getAttribute( 'data-sakura-confirm' ) || '';
 			confirm( message, {
 				title: link.getAttribute( 'data-sakura-confirm-title' ) || '',
 				tone: 'danger',
 				danger: true
 			} ).then( function ( confirmed ) {
-				if ( confirmed && link.href ) {
+				if ( ! confirmed ) {
+					return;
+				}
+
+				if ( 'FORM' === link.tagName ) {
+					if ( link.requestSubmit ) {
+						link.requestSubmit( submitter && submitter.form === link ? submitter : undefined );
+					} else {
+						link.submit();
+					}
+					return;
+				}
+
+				if ( link.href ) {
 					window.location.href = link.href;
 				}
 			} );

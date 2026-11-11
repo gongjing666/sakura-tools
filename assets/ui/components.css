@@ -871,7 +871,8 @@
 	font-family: var(--g-font-mono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace);
 	font-size: 12.5px;
 	line-height: 1.65;
-	white-space: pre;
+	white-space: pre-wrap;
+	overflow-wrap: anywhere;
 }
 
 /* ============================================================

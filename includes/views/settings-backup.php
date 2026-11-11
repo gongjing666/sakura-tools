@@ -138,7 +138,7 @@ UI::page(
 					</div>
 					<p class="sakura-backup-probe is-<?php echo esc_attr( $probe_tone ); ?>" id="sakura-probe-state"><?php echo esc_html( $probe_message ); ?></p>
 					<p class="field__hint"><?php echo esc_html__( 'Nginx、OpenResty、IIS、Caddy 等服务器，请在站点配置里拒绝这个路径：', 'sakura-imgopt' ); ?></p>
-					<pre class="code-block">location ^~ <?php echo esc_html( $backup_path ); ?>/ { deny all; }</pre>
+					<pre class="code-block">location ^~ <?php echo esc_html( untrailingslashit( $backup_path ) ); ?>/ { deny all; }</pre>
 					<div class="button-row">
 						<button type="button" class="btn btn--small" id="sakura-probe-backup" data-sakura-backup-action="sakura_probe_backup" data-sakura-nonce="<?php echo esc_attr( wp_create_nonce( 'sakura_probe_backup' ) ); ?>"><?php echo esc_html__( '检测是否可被公网访问', 'sakura-imgopt' ); ?></button>
 						<span class="sakura-backup-msg" id="sakura-probe-msg" role="status" aria-live="polite"></span>

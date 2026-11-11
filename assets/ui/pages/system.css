@@ -1,0 +1,96 @@
+/**
+ * System overview page: environment readout.
+ *
+ * Scoped to the system-overview page; shared card, table, badge, KPI and field
+ * primitives come from assets/ui/components.css.
+ */
+
+.sakura-admin[data-sakura-page="system-overview"] .kpis {
+	margin-bottom: var(--g-stack);
+}
+
+.sakura-admin[data-sakura-page="system-overview"] .system-value {
+	color: var(--g-ink);
+	font-variant-numeric: tabular-nums;
+	font-weight: 600;
+}
+
+.sakura-admin[data-sakura-page="system-overview"] .system-muted {
+	display: inline-block;
+	max-width: 100%;
+	margin-inline-start: 8px;
+	color: var(--g-muted);
+	font-size: 12px;
+	line-height: 1.5;
+	overflow-wrap: anywhere;
+	vertical-align: baseline;
+}
+
+.sakura-admin[data-sakura-page="system-overview"] .table td .badge {
+	margin: 2px 6px 2px 0;
+	vertical-align: middle;
+}
+
+.sakura-admin[data-sakura-page="system-overview"] .table td:first-child {
+	width: 30%;
+}
+
+.sakura-admin[data-sakura-page="system-overview"] .system-check-note {
+	color: var(--g-muted);
+	font-size: 12.5px;
+	line-height: 1.55;
+}
+
+.sakura-admin[data-sakura-page="system-overview"] .system-ext-grid {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+}
+
+.sakura-admin[data-sakura-page="system-overview"] .progress {
+	display: block;
+	width: 100%;
+	appearance: none;
+	-webkit-appearance: none;
+	border: 0;
+}
+
+.sakura-admin[data-sakura-page="system-overview"] .progress::-webkit-progress-bar {
+	border-radius: inherit;
+	background: var(--g-accent-soft);
+}
+
+.sakura-admin[data-sakura-page="system-overview"] .progress::-webkit-progress-value {
+	border-radius: inherit;
+	background: var(--g-accent);
+}
+
+.sakura-admin[data-sakura-page="system-overview"] .progress::-moz-progress-bar {
+	border-radius: inherit;
+	background: var(--g-accent);
+}
+
+.sakura-admin[data-sakura-page="system-overview"] .system-note {
+	margin: 14px 0 0;
+	color: var(--g-muted);
+	font-size: 12.5px;
+	line-height: 1.6;
+}
+
+@media (max-width: 900px) {
+	.sakura-admin[data-sakura-page="system-overview"] .kpis {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+}
+
+@media (max-width: 782px) {
+	.sakura-admin[data-sakura-page="system-overview"] .table td:first-child {
+		width: auto;
+	}
+
+	.sakura-admin[data-sakura-page="system-overview"] .system-muted {
+		display: block;
+		margin-inline-start: 0;
+		margin-top: 2px;
+	}
+}

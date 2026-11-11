@@ -17,8 +17,9 @@ use Nboke\UserFiles\Services\Space_Rules;
 use Nboke\UserFiles\Services\Zibll_Bridge;
 use Nboke\UserFiles\Space_Settings;
 use Sakura\ImageOptimizer\Admin\Assets;
+use Sakura\ImageOptimizer\Admin\Page_Assets;
 use Sakura\ImageOptimizer\Admin\Registry;
-use Sakura\ImageOptimizer\Admin\Shell;
+use Sakura\ImageOptimizer\Admin\UI;
 use Sakura\ImageOptimizer\Support\Hook_Loader;
 
 /**
@@ -111,67 +112,93 @@ final class Space_Page {
 			return;
 		}
 
-		if ( class_exists( Assets::class ) ) {
-			Assets::enqueue_style();
-			Assets::enqueue_layout();
-		}
-
-		if ( class_exists( Shell::class ) ) {
-			Shell::enqueue();
-		}
-
-		if ( ! function_exists( 'wp_enqueue_style' ) ) {
-			return;
-		}
-
-		$base = defined( 'SAKURA_TOOLS_URL' ) ? (string) SAKURA_TOOLS_URL : '';
-		$style_ver  = \Nboke\UserFiles\Support\Assets::version( 'assets/userfiles-space-admin.css' );
-		$script_ver = \Nboke\UserFiles\Support\Assets::version( 'assets/userfiles-space-admin.js' );
-
-		wp_enqueue_style(
-			'sufm-space-admin',
-			$base . 'assets/userfiles-space-admin.css',
-			array( 'sakura-imgopt-admin', 'sakura-imgopt-layout' ),
-			$style_ver
-		);
-
 		if ( function_exists( 'wp_enqueue_media' ) ) {
-			// The package table lets each plan pick its order icon from the library.
+			// The package card lets each plan pick its order icon from the library.
 			wp_enqueue_media();
 		}
 
-		wp_enqueue_script(
-			'sufm-space-admin',
-			$base . 'assets/userfiles-space-admin.js',
-			array(),
-			$script_ver,
-			true
-		);
-
-		if ( ! function_exists( 'wp_localize_script' ) ) {
-			return;
+		if ( class_exists( Page_Assets::class ) ) {
+			Page_Assets::set_data( 'files-zibll', $this->page_data() );
 		}
 
-		wp_localize_script(
-			'sufm-space-admin',
-			'sufmSpaceCfg',
-			array(
-				'restUrl' => function_exists( 'esc_url_raw' ) && function_exists( 'rest_url' ) ? esc_url_raw( rest_url( 'sufm/v1/' ) ) : '',
-				'nonce'   => function_exists( 'wp_create_nonce' ) ? wp_create_nonce( 'wp_rest' ) : '',
-				'strings' => array(
-					'totalPrefix'  => __( '加成合计：', 'sakura-imgopt' ),
-					'enableWarn'   => __( '启用后将开启扩容售卖入口，用户可付费购买容量。确认继续？', 'sakura-imgopt' ),
-					'disableWarn'  => __( '关闭后前台扩容入口会立即消失，已售出的授权仍然有效。确认继续？', 'sakura-imgopt' ),
-					'flashWarn'    => __( '关闭「计算加成」会让所有已购容量立即停止生效（不删任何文件）。确认继续？', 'sakura-imgopt' ),
-					'unitMb'       => __( 'MB', 'sakura-imgopt' ),
-					'unitGb'       => __( 'GB', 'sakura-imgopt' ),
-					'confirmTitle' => __( '请确认', 'sakura-imgopt' ),
-					'chooseIcon'   => __( '选择订单图标', 'sakura-imgopt' ),
-				'defaultIcon'  => \Nboke\UserFiles\Services\Space_Store::product_image_url(),
-				'grantsEmpty'  => __( '暂无授权记录', 'sakura-imgopt' ),
-					'grantsError'  => __( '加载失败，请刷新重试', 'sakura-imgopt' ),
-				),
-			)
+		if ( class_exists( Assets::class ) && method_exists( Assets::class, 'enqueue_page' ) ) {
+			Assets::enqueue_page();
+		}
+
+		// files.css belongs to the four core file pages and may not exist yet. In
+		// that case the tab stylesheet cannot resolve its declared dependency, so
+		// load it once against the shared component layer instead.
+		$page_css = defined( 'SAKURA_TOOLS_PATH' ) ? SAKURA_TOOLS_PATH . 'assets/ui/pages/files-zibll.css' : '';
+
+		if ( '' !== $page_css && function_exists( 'wp_style_is' ) && function_exists( 'wp_enqueue_style' ) && ! wp_style_is( 'sakura-admin-page-files-zibll', 'enqueued' ) && is_readable( $page_css ) ) {
+			wp_enqueue_style(
+				'sakura-admin-page-files-zibll-fallback',
+				( defined( 'SAKURA_TOOLS_URL' ) ? SAKURA_TOOLS_URL : '' ) . 'assets/ui/pages/files-zibll.css',
+				array( 'sakura-admin-components' ),
+				defined( 'SAKURA_TOOLS_VERSION' ) ? SAKURA_TOOLS_VERSION : ''
+			);
+		}
+	}
+
+	/**
+	 * Controller data for assets/ui/js/pages/files-zibll.js.
+	 *
+	 * All user-facing strings live here so the script never embeds untranslated
+	 * text and the page keeps the same copy when the locale changes.
+	 *
+	 * @return array<string,mixed>
+	 */
+	private function page_data(): array {
+		return array(
+			'restUrl' => function_exists( 'rest_url' ) ? esc_url_raw( rest_url( 'sufm/v1/' ) ) : '',
+			'nonce'   => function_exists( 'wp_create_nonce' ) ? wp_create_nonce( 'wp_rest' ) : '',
+			'strings' => array(
+				'unitMb'             => __( 'MB', 'sakura-imgopt' ),
+				'unitGb'             => __( 'GB', 'sakura-imgopt' ),
+				'enableWarn'         => __( '启用后将开启扩容售卖入口，用户可付费购买容量。确认继续？', 'sakura-imgopt' ),
+				'disableWarn'        => __( '关闭后前台扩容入口会立即消失，已售出的授权仍然有效。确认继续？', 'sakura-imgopt' ),
+				'flashWarn'          => __( '关闭「计算加成」会让所有已购容量立即停止生效（不删任何文件）。确认继续？', 'sakura-imgopt' ),
+				'confirmTitle'       => __( '请确认', 'sakura-imgopt' ),
+				'confirm'            => __( '确认', 'sakura-imgopt' ),
+				'cancel'             => __( '取消', 'sakura-imgopt' ),
+				'close'              => __( '关闭', 'sakura-imgopt' ),
+				'chooseIcon'         => __( '选择订单图标', 'sakura-imgopt' ),
+				'grantsEmpty'        => __( '暂无授权记录', 'sakura-imgopt' ),
+				'grantsLoading'      => __( '正在读取授权记录…', 'sakura-imgopt' ),
+				'grantsError'        => __( '授权记录加载失败，请稍后重试。', 'sakura-imgopt' ),
+				'grantExtendTitle'   => __( '延长授权', 'sakura-imgopt' ),
+				'grantExtendPrompt'  => __( '请输入延长天数（1–3650）', 'sakura-imgopt' ),
+				'grantExtend'        => __( '延长', 'sakura-imgopt' ),
+				'grantExtendDone'    => __( '已延长授权。', 'sakura-imgopt' ),
+				'grantRevokeTitle'   => __( '撤销授权', 'sakura-imgopt' ),
+				'grantRevokePrompt'  => __( '输入「撤销」两个字确认本次操作', 'sakura-imgopt' ),
+				'grantRevoke'        => __( '撤销', 'sakura-imgopt' ),
+				'grantRevokeDone'    => __( '已撤销授权。', 'sakura-imgopt' ),
+				'grantActionFailed'  => __( '操作失败，请重试。', 'sakura-imgopt' ),
+				'revokeWord'         => __( '撤销', 'sakura-imgopt' ),
+				'permanent'         => __( '永久', 'sakura-imgopt' ),
+				'mediaUnavailable'  => __( '媒体库未加载，请刷新页面后重试。', 'sakura-imgopt' ),
+				'invalidDays'        => __( '请输入 1–3650 之间的天数。', 'sakura-imgopt' ),
+				'invalidWord'        => __( '输入不匹配，操作已取消。', 'sakura-imgopt' ),
+				'reconcileNotChecked' => __( '尚未检查。点击「检查差异」比对已付款订单与授权记录。', 'sakura-imgopt' ),
+				'reconcileChecking'  => __( '正在比对订单与授权…', 'sakura-imgopt' ),
+				'reconcileMissing'   => __( '发现 %s 笔「已付款但无授权」的订单。', 'sakura-imgopt' ),
+				'reconcileClean'     => __( '未发现差异。', 'sakura-imgopt' ),
+				'reconcileHealing'   => __( '正在补发授权…', 'sakura-imgopt' ),
+				'reconcileHealed'    => __( '已补发 %s 笔授权。', 'sakura-imgopt' ),
+				'reconcileFailed'    => __( '对账查询失败。', 'sakura-imgopt' ),
+				'reconcileConfirm'   => __( '将按订单快照补发 %s 笔授权，确认？', 'sakura-imgopt' ),
+				'orderNum'           => __( '订单号', 'sakura-imgopt' ),
+				'user'               => __( '用户', 'sakura-imgopt' ),
+				'price'              => __( '金额', 'sakura-imgopt' ),
+				'payTime'            => __( '支付时间', 'sakura-imgopt' ),
+				'reconcileNoItems'   => __( '没有需要补发的订单。', 'sakura-imgopt' ),
+				'grantTimeUser'      => __( '时间 / 用户', 'sakura-imgopt' ),
+				'grantPackageSize'   => __( '套餐 / 容量', 'sakura-imgopt' ),
+				'grantExpiry'        => __( '到期', 'sakura-imgopt' ),
+				'grantState'         => __( '状态', 'sakura-imgopt' ),
+				'grantActions'       => __( '操作', 'sakura-imgopt' ),
+			),
 		);
 	}
 
@@ -221,7 +248,7 @@ final class Space_Page {
 	}
 
 	/**
-	 * Minimal fallback card when the tab is rendered without the theme gate.
+	 * Fallback page when the current theme is not Zibll.
 	 *
 	 * Intentionally contains no form, no nonce and no business value.
 	 *
@@ -230,44 +257,57 @@ final class Space_Page {
 	 */
 	private function render_unavailable_notice( Zibll_Bridge $bridge ): void {
 		$theme = $bridge->theme();
-		?>
-		<div class="sakura-sync-app">
-			<div class="sky-layer" aria-hidden="true"></div>
-			<div class="sakura-layer" aria-hidden="true"></div>
-			<div class="app">
-				<?php
-				if ( class_exists( Shell::class ) ) {
-					Shell::header( 'files', self::TAB );
-				}
+		$name  = '' !== $theme['name'] ? $theme['name'] : __( '未知主题', 'sakura-imgopt' );
+		$ver   = '' !== $theme['version'] ? $theme['version'] : __( '未知', 'sakura-imgopt' );
+
+		UI::page(
+			array(
+				'id'      => 'files-zibll',
+				'module'  => 'files',
+				'tab'     => self::TAB,
+				'eyebrow' => 'ZIBLL BRIDGE / ' . ( defined( 'SAKURA_TOOLS_VERSION' ) ? SAKURA_TOOLS_VERSION : '' ),
+				'title'   => __( '子比专属', 'sakura-imgopt' ),
+				'lede'    => __( '主题能力、支付通道、前台入口与等级加成集中在这里。', 'sakura-imgopt' ),
+				'status'  => array(
+					'label' => __( '子比桥接', 'sakura-imgopt' ),
+					'value' => __( '不可用', 'sakura-imgopt' ),
+					'sub'   => $name,
+					'tone'  => 'bad',
+				),
+			),
+			static function () use ( $bridge, $name, $ver ) {
 				?>
-				<section class="card">
-					<div class="card-head">
-						<p class="kicker"><?php esc_html_e( '子比专属', 'sakura-imgopt' ); ?></p>
-						<h2><?php esc_html_e( '子比专属功能不可用', 'sakura-imgopt' ); ?></h2>
-						<p><?php echo esc_html( $bridge->note() ); ?></p>
-					</div>
-					<div class="card-body">
-						<p class="sufm-space-muted">
-							<?php
-							echo esc_html(
+				<div class="card-grid" data-sakura-layout="files-zibll" data-sakura-group="main">
+					<?php
+					UI::card(
+						array(
+							'id'          => 'space_unavailable',
+							'kicker'      => 'ZIBLL BRIDGE',
+							'title'       => __( '子比专属功能不可用', 'sakura-imgopt' ),
+							'description' => __( '本页只在子比主题处于启用状态时开放；不会修改任何主题设置。', 'sakura-imgopt' ),
+							'wide'        => true,
+						),
+						static function () use ( $bridge, $name, $ver ) {
+							UI::alert( $bridge->note(), 'warn', __( '主题能力未就绪', 'sakura-imgopt' ) );
+							UI::empty_state(
+								__( '当前主题不是子比主题', 'sakura-imgopt' ),
 								sprintf(
 									/* translators: 1: theme name, 2: theme version. */
-									__( '当前主题：%1$s（版本 %2$s）', 'sakura-imgopt' ),
-									'' !== $theme['name'] ? $theme['name'] : __( '未知主题', 'sakura-imgopt' ),
-									'' !== $theme['version'] ? $theme['version'] : __( '未知', 'sakura-imgopt' )
+									__( '当前主题：%1$s（版本 %2$s）。切换到子比主题后重新打开本页即可。', 'sakura-imgopt' ),
+									$name,
+									$ver
+								),
+								array(
+									'label' => __( '返回样式与策略', 'sakura-imgopt' ),
+									'url'   => Registry::url( 'files', 'settings' ),
 								)
 							);
-							?>
-						</p>
-						<p>
-							<a class="btn" href="<?php echo esc_url( Registry::url( 'files', 'settings' ) ); ?>">
-								<?php esc_html_e( '返回样式与策略', 'sakura-imgopt' ); ?>
-							</a>
-						</p>
-					</div>
-				</section>
-			</div>
-		</div>
-		<?php
+						}
+					);
+					?>
+				</div>
+				<?php
+			}
+		);
 	}
 }

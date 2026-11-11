@@ -140,35 +140,44 @@ final class Menu implements Module {
 		$note  = isset( $gate['note'] ) ? (string) $gate['note'] : '';
 		$theme = \Nboke\UserFiles\Services\Zibll_Bridge::instance()->theme();
 
-		Shell::header( $module, $tab );
-		?>
-		<div class="sakura-sync-app">
-			<div class="sky-layer" aria-hidden="true"></div>
-			<div class="sakura-layer" aria-hidden="true"></div>
-			<div class="app">
-				<section class="card">
-					<div class="card-head">
-						<p class="kicker"><?php esc_html_e( '子比专属', 'sakura-imgopt' ); ?></p>
-						<h2><?php esc_html_e( '子比专属功能不可用', 'sakura-imgopt' ); ?></h2>
-						<p><?php echo esc_html( $note ); ?></p>
-					</div>
-					<div class="card-body">
-						<dl class="sufm-space-kv">
-							<dt><?php esc_html_e( '当前主题', 'sakura-imgopt' ); ?></dt>
-							<dd><?php echo esc_html( '' !== $theme['name'] ? $theme['name'] : __( '未取到', 'sakura-imgopt' ) ); ?></dd>
-							<dt><?php esc_html_e( '主题版本', 'sakura-imgopt' ); ?></dt>
-							<dd><?php echo esc_html( '' !== $theme['version'] ? $theme['version'] : __( '未取到', 'sakura-imgopt' ) ); ?></dd>
-						</dl>
-						<p>
-							<a class="btn" href="<?php echo esc_url( Registry::url( 'files', 'settings' ) ); ?>">
-								<?php esc_html_e( '返回样式与策略', 'sakura-imgopt' ); ?>
-							</a>
-						</p>
-					</div>
-				</section>
-			</div>
-		</div>
-		<?php
+		$theme_name    = '' !== (string) $theme['name'] ? (string) $theme['name'] : __( '未取到', 'sakura-imgopt' );
+		$theme_version = '' !== (string) $theme['version'] ? (string) $theme['version'] : __( '未取到', 'sakura-imgopt' );
+
+		UI::page(
+			array(
+				'id'      => Route::current_page(),
+				'module'  => $module,
+				'tab'     => $tab,
+				'eyebrow' => __( '子比专属', 'sakura-imgopt' ),
+				'title'   => __( '子比专属功能不可用', 'sakura-imgopt' ),
+				'lede'    => $note,
+			),
+			static function () use ( $theme_name, $theme_version ): void {
+				UI::card(
+					array(
+						'title'       => __( '主题环境', 'sakura-imgopt' ),
+						'description' => __( '这个页面仅在子比主题启用时可用。', 'sakura-imgopt' ),
+					),
+					static function () use ( $theme_name, $theme_version ): void {
+						?>
+						<div class="field-list">
+							<div class="field">
+								<div class="field__main"><span class="field__label"><?php esc_html_e( '当前主题', 'sakura-imgopt' ); ?></span></div>
+								<div class="field__control"><?php echo esc_html( $theme_name ); ?></div>
+							</div>
+							<div class="field">
+								<div class="field__main"><span class="field__label"><?php esc_html_e( '主题版本', 'sakura-imgopt' ); ?></span></div>
+								<div class="field__control"><?php echo esc_html( $theme_version ); ?></div>
+							</div>
+						</div>
+						<div class="button-row">
+							<a class="btn btn--ghost" href="<?php echo esc_url( Registry::url( 'files', 'settings' ) ); ?>"><?php esc_html_e( '返回样式与策略', 'sakura-imgopt' ); ?></a>
+						</div>
+						<?php
+					}
+				);
+			}
+		);
 	}
 
 	/**

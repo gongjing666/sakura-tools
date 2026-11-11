@@ -123,18 +123,18 @@ final class Shell {
 	 * @return void
 	 */
 	public static function missing(): void {
-		?>
-		<header class="topbar sakura-topbar">
-			<div class="brand">
-				<span class="brand-mark" aria-hidden="true">S</span>
-				<strong><?php esc_html_e( '樱花工具箱', 'sakura-imgopt' ); ?></strong>
-			</div>
-		</header>
-		<div class="card">
-			<div class="card-body">
-				<p><?php esc_html_e( '这个页面还没有注册渲染器。', 'sakura-imgopt' ); ?></p>
-			</div>
-		</div>
-		<?php
+		list( $module, $tab ) = Registry::current();
+
+		UI::page(
+			array(
+				'id'      => Route::current_page(),
+				'module'  => (string) $module,
+				'tab'     => (string) $tab,
+				'eyebrow' => __( '工具箱', 'sakura-imgopt' ),
+				'title'   => __( '页面暂不可用', 'sakura-imgopt' ),
+				'lede'    => __( '这个页面还没有注册渲染器。', 'sakura-imgopt' ),
+			),
+			static function (): void {}
+		);
 	}
 }

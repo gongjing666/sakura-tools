@@ -76,7 +76,7 @@ class Basic_Settings_Module implements Module {
 	}
 
 	/**
-	 * Load the shared admin stylesheet on this page only.
+	 * Load the new admin UI stack on this page only.
 	 *
 	 * The page is deliberately server-rendered: no scan script, no AJAX.
 	 *
@@ -88,6 +88,6 @@ class Basic_Settings_Module implements Module {
 		}
 
 		unset( $hook );
-		Assets::enqueue_style();
+		Assets::enqueue_page();
 	}
 }

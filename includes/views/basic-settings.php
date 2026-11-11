@@ -1,6 +1,8 @@
 <?php
 /**
- * Basic settings view. Included from Basic_Settings_Module::render_page().
+ * Basic settings view: environment readout and the shared card-gap setting.
+ *
+ * Included from Basic_Settings_Module::render_page().
  *
  * @package Sakura_Image_Optimizer
  *
@@ -9,6 +11,8 @@
  * @var string $gaps_option Option name used by the gap form.
  * @var int $gaps_max Maximum accepted gap in pixels.
  */
+
+use Sakura\ImageOptimizer\Admin\UI;
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
@@ -27,14 +31,8 @@ $extensions = $report['extensions'];
 
 $check_map = array();
 foreach ( $checks as $check ) {
-	$check_map[ $check['key'] ] = $check;
+	$check_map[ (string) $check['key'] ] = $check;
 }
-
-$badge_classes = array(
-	'ok'   => 'badge--ok',
-	'warn' => 'badge--warn',
-	'fail' => 'badge--bad',
-);
 
 $state_labels = array(
 	'ok'   => __( '通过', 'sakura-imgopt' ),
@@ -42,19 +40,36 @@ $state_labels = array(
 	'fail' => __( '需要处理', 'sakura-imgopt' ),
 );
 
-$state_class = static function ( string $key ) use ( $check_map, $badge_classes ): string {
-	$state = isset( $check_map[ $key ] ) ? (string) $check_map[ $key ]['state'] : 'warn';
+$state_tone = static function ( string $state ): string {
+	if ( 'ok' === $state ) {
+		return 'ok';
+	}
+	if ( 'fail' === $state ) {
+		return 'bad';
+	}
 
-	return $badge_classes[ $state ] ?? 'badge--warn';
+	return 'warn';
 };
 
-$total       = count( $checks );
-$total       = $total > 0 ? $total : 1;
-$score       = (int) round( ( ( $summary['pass'] + $summary['warn'] * 0.5 ) / $total ) * 100 );
-$sufm_status = $summary['fail'] > 0 ? 'is-bad' : ( $summary['warn'] > 0 ? 'is-warn' : '' );
-$status_text = $summary['fail'] > 0
+$check_tone = static function ( string $key ) use ( $check_map, $state_tone ): string {
+	$state = isset( $check_map[ $key ] ) ? (string) $check_map[ $key ]['state'] : 'warn';
+
+	return $state_tone( $state );
+};
+
+$check_label = static function ( string $key ) use ( $check_map, $state_labels ): string {
+	$state = isset( $check_map[ $key ] ) ? (string) $check_map[ $key ]['state'] : 'warn';
+
+	return $state_labels[ $state ] ?? $state;
+};
+
+$total_checks = count( $checks );
+$total_for_score = $total_checks > 0 ? $total_checks : 1;
+$score        = (int) round( ( ( (int) $summary['pass'] + (int) $summary['warn'] * 0.5 ) / $total_for_score ) * 100 );
+$page_tone    = (int) $summary['fail'] > 0 ? 'bad' : ( (int) $summary['warn'] > 0 ? 'warn' : 'ok' );
+$status_text  = (int) $summary['fail'] > 0
 	? __( '需要处理', 'sakura-imgopt' )
-	: ( $summary['warn'] > 0 ? __( '有建议', 'sakura-imgopt' ) : __( '环境可用', 'sakura-imgopt' ) );
+	: ( (int) $summary['warn'] > 0 ? __( '有建议', 'sakura-imgopt' ) : __( '环境可用', 'sakura-imgopt' ) );
 
 $optimize_url = admin_url( 'admin.php?page=sakura-tools-optimize' );
 $refresh_url  = admin_url( 'admin.php?page=sakura-tools' );
@@ -63,7 +78,6 @@ $memory_limit = (string) $php['memory_limit'];
 $upload_limit = (string) $php['upload_limit'];
 $post_limit   = (string) $php['post_limit'];
 $time_limit   = (string) $php['max_execution_time'];
-
 $memory_bytes = (int) $php['memory_limit_bytes'];
 $upload_bytes = (int) ( $php['upload_limit_bytes'] ?? 0 );
 
@@ -91,266 +105,384 @@ $format_limit = static function ( string $value ): string {
 
 	return $value;
 };
-?>
-<div class="sakura-sync-app">
-	<div class="sky-layer" aria-hidden="true"></div>
-	<div class="sakura-layer" aria-hidden="true"></div>
-	<div class="app">
-		<?php settings_errors(); ?>
-		<?php
-		\Sakura\ImageOptimizer\Admin\Shell::header(
-			'system',
-			'overview',
-			array( 'status' => sprintf( 'PHP %s · %s', $php['version'], $engine['primary'] ) )
-		);
-		?>
 
-		<section class="hero">
-			<div class="hero-copy">
-				<p class="eyebrow">SYSTEM READOUT / <?php echo esc_html( SAKURA_TOOLS_VERSION ); ?></p>
-				<h1><?php esc_html_e( '基础设置', 'sakura-imgopt' ); ?></h1>
-				<p class="lede"><?php esc_html_e( '服务器运行参数、PHP 扩展与图像引擎能力，一页看清；卡片间隔在这里统一设置。', 'sakura-imgopt' ); ?></p>
-				<div class="hero-actions">
-					<a class="btn btn--primary" href="<?php echo esc_url( $optimize_url ); ?>"><?php esc_html_e( '进入图像优化', 'sakura-imgopt' ); ?></a>
-					<a class="btn" href="<?php echo esc_url( $refresh_url ); ?>"><?php esc_html_e( '重新检测', 'sakura-imgopt' ); ?></a>
-					<span class="hero-note"><?php esc_html_e( '服务端渲染 · 加载时刷新', 'sakura-imgopt' ); ?></span>
+$runtime_rows = array(
+	array(
+		'label'  => __( 'PHP 版本', 'sakura-imgopt' ),
+		'value'  => (string) $php['version'],
+		'badges' => array(
+			array(
+				version_compare( (string) $php['version'], '8.2', '>=' ) ? __( '满足 8.2+', 'sakura-imgopt' ) : __( '低于 8.2', 'sakura-imgopt' ),
+				$check_tone( 'php' ),
+			),
+		),
+	),
+	array(
+		'label'  => __( '运行方式', 'sakura-imgopt' ),
+		'value'  => (string) $php['sapi_label'],
+		'muted'  => (string) $php['sapi'],
+	),
+	array(
+		'label' => __( 'Web 服务器', 'sakura-imgopt' ),
+		'value' => '' !== (string) $php['server_software'] ? (string) $php['server_software'] : __( '未知', 'sakura-imgopt' ),
+	),
+	array(
+		'label'  => __( '内存上限', 'sakura-imgopt' ),
+		'value'  => $format_limit( $memory_limit ),
+		'badges' => $memory_warn ? array( array( __( '建议 256M+', 'sakura-imgopt' ), 'warn' ) ) : array(),
+	),
+	array(
+		'label' => __( '最大执行时间', 'sakura-imgopt' ),
+		'value' => $format_time( $time_limit ),
+	),
+	array(
+		'label'  => __( '上传文件上限', 'sakura-imgopt' ),
+		'value'  => $format_limit( $upload_limit ),
+		'badges' => $upload_warn ? array( array( __( '建议 32M+', 'sakura-imgopt' ), 'warn' ) ) : array(),
+	),
+	array(
+		'label' => __( 'POST 上限', 'sakura-imgopt' ),
+		'value' => $format_limit( $post_limit ),
+	),
+	array(
+		'label'  => __( 'OPcache', 'sakura-imgopt' ),
+		'value'  => '',
+		'badges' => array( array( (string) $php['opcache']['label'], $check_tone( 'opcache' ) ) ),
+	),
+	array(
+		'label' => __( 'WordPress', 'sakura-imgopt' ),
+		'value' => (string) $wordpress['version'],
+		'muted' => (string) $wordpress['environment'],
+	),
+	array(
+		'label' => __( '数据库', 'sakura-imgopt' ),
+		'value' => '' !== (string) $wordpress['db_version'] ? (string) $wordpress['db_version'] : __( '未知', 'sakura-imgopt' ),
+		'muted' => __( 'MySQL / MariaDB', 'sakura-imgopt' ),
+	),
+	array(
+		'label' => __( '时区', 'sakura-imgopt' ),
+		'value' => '' !== (string) $wordpress['timezone'] ? (string) $wordpress['timezone'] : __( '未知', 'sakura-imgopt' ),
+	),
+);
+
+$format_badges = array();
+foreach ( $engine['formats'] as $format => $supported ) {
+	$format_badges[] = array( (string) $format, $supported ? 'ok' : 'warn' );
+}
+
+$engine_rows = array(
+	array(
+		'label'  => __( '首选编辑器', 'sakura-imgopt' ),
+		'value'  => (string) $engine['primary'],
+		'badges' => array( array( $check_label( 'engine' ), $check_tone( 'engine' ) ) ),
+	),
+	array(
+		'label'  => 'Imagick',
+		'value'  => '' !== (string) $engine['imagick'] ? (string) $engine['imagick'] : __( '未安装', 'sakura-imgopt' ),
+		'badges' => array( array( '' !== (string) $engine['imagick'] ? __( '可用', 'sakura-imgopt' ) : __( '不可用', 'sakura-imgopt' ), '' !== (string) $engine['imagick'] ? 'ok' : 'warn' ) ),
+	),
+	array(
+		'label'  => 'GD',
+		'value'  => '' !== (string) $engine['gd'] ? (string) $engine['gd'] : __( '未安装', 'sakura-imgopt' ),
+		'badges' => array( array( '' !== (string) $engine['gd'] ? __( '可用', 'sakura-imgopt' ) : __( '不可用', 'sakura-imgopt' ), '' !== (string) $engine['gd'] ? 'ok' : 'warn' ) ),
+	),
+	array(
+		'label'  => 'WebP',
+		'value'  => '',
+		'badges' => array( array( $report['formats']['webp'] ? __( '支持', 'sakura-imgopt' ) : __( '不支持', 'sakura-imgopt' ), $check_tone( 'webp' ) ) ),
+	),
+	array(
+		'label'  => 'AVIF',
+		'value'  => '',
+		'badges' => array( array( $report['formats']['avif'] ? __( '支持', 'sakura-imgopt' ) : __( '不支持', 'sakura-imgopt' ), $check_tone( 'avif' ) ) ),
+	),
+	array(
+		'label'  => __( '支持格式', 'sakura-imgopt' ),
+		'value'  => '',
+		'badges' => $format_badges,
+	),
+);
+
+$kpis = array(
+	array(
+		'label' => __( '通过', 'sakura-imgopt' ),
+		'value' => (string) $summary['pass'],
+		'unit'  => __( '项', 'sakura-imgopt' ),
+		'sub'   => sprintf( /* translators: %d: number of checks. */ __( '共检测 %d 项', 'sakura-imgopt' ), $total_checks ),
+	),
+	array(
+		'label' => __( '建议', 'sakura-imgopt' ),
+		'value' => (string) $summary['warn'],
+		'unit'  => __( '项', 'sakura-imgopt' ),
+		'sub'   => __( '可优化但不阻断', 'sakura-imgopt' ),
+	),
+	array(
+		'label' => __( '需要处理', 'sakura-imgopt' ),
+		'value' => (string) $summary['fail'],
+		'unit'  => __( '项', 'sakura-imgopt' ),
+		'sub'   => __( '影响核心能力', 'sakura-imgopt' ),
+	),
+);
+
+UI::page(
+	array(
+		'id'      => 'system-overview',
+		'module'  => 'system',
+		'tab'     => 'overview',
+		'eyebrow' => 'SYSTEM READOUT / ' . SAKURA_TOOLS_VERSION,
+		'title'   => __( '基础设置', 'sakura-imgopt' ),
+		'lede'    => __( '服务器运行参数、PHP 扩展与图像引擎能力，一页看清；卡片间隔在这里统一设置。', 'sakura-imgopt' ),
+		'status'  => array(
+			'label' => __( '环境自检', 'sakura-imgopt' ),
+			'value' => (string) $summary['pass'] . '/' . (string) $total_checks,
+			'unit'  => __( '项通过', 'sakura-imgopt' ),
+			'sub'   => sprintf(
+				/* translators: 1: environment status, 2: PHP version */
+				__( '%1$s · PHP %2$s', 'sakura-imgopt' ),
+				$status_text,
+				(string) $php['version']
+			),
+			'tone'  => $page_tone,
+		),
+		'actions' => array(
+			array(
+				'label'   => __( '进入图像优化', 'sakura-imgopt' ),
+				'url'     => $optimize_url,
+				'variant' => 'primary',
+			),
+			array(
+				'label'   => __( '重新检测', 'sakura-imgopt' ),
+				'url'     => $refresh_url,
+				'variant' => 'ghost',
+			),
+		),
+	),
+	static function () use ( $score, $kpis, $runtime_rows, $engine_rows, $engine, $checks, $summary, $total_checks, $state_labels, $state_tone, $extensions, $gaps, $gaps_option, $gaps_max ) {
+		settings_errors();
+		?>
+		<section class="kpis" aria-label="<?php echo esc_attr__( '环境评分', 'sakura-imgopt' ); ?>">
+			<div class="kpi">
+				<span class="kpi__label"><?php echo esc_html__( '环境评分', 'sakura-imgopt' ); ?></span>
+				<strong class="kpi__value"><?php echo esc_html( (string) $score ); ?><small><?php echo esc_html__( '分', 'sakura-imgopt' ); ?></small></strong>
+				<div class="kpi__progress">
+					<progress class="progress" max="100" value="<?php echo esc_attr( (string) min( 100, max( 0, $score ) ) ); ?>" aria-label="<?php echo esc_attr__( '环境评分', 'sakura-imgopt' ); ?>"><?php echo esc_html( (string) min( 100, max( 0, $score ) ) ); ?>%</progress>
 				</div>
+				<span class="kpi__sub"><?php echo esc_html__( '通过项计满分，建议项计半分', 'sakura-imgopt' ); ?></span>
 			</div>
-			<aside class="hero-status">
-				<div class="hero-status-top">
-					<span class="hero-status-label <?php echo esc_attr( $sufm_status ); ?>"><span class="dot"></span> <?php echo esc_html( $status_text ); ?></span>
-					<small><?php echo esc_html( sprintf( /* translators: %d: number of checks. */ __( '检测 %d 项', 'sakura-imgopt' ), count( $checks ) ) ); ?></small>
+			<?php foreach ( $kpis as $kpi ) : ?>
+				<div class="kpi">
+					<span class="kpi__label"><?php echo esc_html( (string) $kpi['label'] ); ?></span>
+					<strong class="kpi__value"><?php echo esc_html( (string) $kpi['value'] ); ?><small><?php echo esc_html( (string) $kpi['unit'] ); ?></small></strong>
+					<span class="kpi__sub"><?php echo esc_html( (string) $kpi['sub'] ); ?></span>
 				</div>
-				<div class="hero-status-main"><strong><?php echo esc_html( (string) $summary['pass'] ); ?></strong><span>· <?php esc_html_e( '项通过', 'sakura-imgopt' ); ?></span></div>
-				<div class="hero-status-sub"><?php /* translators: 1: number of recommendations, 2: number of items needing action */ echo esc_html( sprintf( __( '%1$d 项建议 · %2$d 项需要处理', 'sakura-imgopt' ), $summary['warn'], $summary['fail'] ) ); ?></div>
-				<div class="hero-status-bar"><span style="width:<?php echo esc_attr( (string) $score ); ?>%"></span></div>
-				<div class="hero-status-sub"><?php /* translators: 1: PHP version, 2: image engine name */ echo esc_html( sprintf( __( 'PHP %1$s · %2$s', 'sakura-imgopt' ), $php['version'], $engine['primary'] ) ); ?></div>
-			</aside>
+			<?php endforeach; ?>
 		</section>
 
-		<div class="dashboard-grid">
-			<div class="main-stack">
-				<section class="card" data-sakura-card="runtime">
-					<div class="card-head">
-						<div>
-							<p class="section-kicker">Runtime</p>
-							<h2><?php esc_html_e( '服务器运行环境', 'sakura-imgopt' ); ?></h2>
-							<p><?php esc_html_e( 'PHP、Web 服务与 WordPress 的当前读数。', 'sakura-imgopt' ); ?></p>
-						</div>
-						<span class="badge badge--info">PHP <?php echo esc_html( $php['version'] ); ?></span>
-					</div>
-					<div class="card-body">
-						<table class="form-table" role="presentation">
+		<div class="card-grid">
+			<?php
+			UI::card(
+				array(
+					'id'          => 'runtime',
+					'kicker'      => 'Runtime',
+					'title'       => __( '服务器运行环境', 'sakura-imgopt' ),
+					'description' => __( 'PHP、Web 服务与 WordPress 的当前读数。', 'sakura-imgopt' ),
+				),
+				static function () use ( $runtime_rows ) {
+					?>
+					<div class="table-scroll">
+						<table class="table table--compact table--responsive">
+							<thead>
+								<tr>
+									<th scope="col"><?php echo esc_html__( '项目', 'sakura-imgopt' ); ?></th>
+									<th scope="col"><?php echo esc_html__( '当前值', 'sakura-imgopt' ); ?></th>
+								</tr>
+							</thead>
 							<tbody>
-								<tr>
-									<th scope="row"><?php esc_html_e( 'PHP 版本', 'sakura-imgopt' ); ?></th>
-									<td>
-										<span class="basic-value"><?php echo esc_html( $php['version'] ); ?></span>
-										<span class="badge <?php echo esc_attr( $state_class( 'php' ) ); ?>">
-											<?php echo esc_html( version_compare( $php['version'], '8.2', '>=' ) ? __( '满足 8.2+', 'sakura-imgopt' ) : __( '低于 8.2', 'sakura-imgopt' ) ); ?>
-										</span>
-									</td>
-								</tr>
-								<tr>
-									<th scope="row"><?php esc_html_e( '运行方式', 'sakura-imgopt' ); ?></th>
-									<td><?php echo esc_html( $php['sapi_label'] ); ?><span class="basic-muted"><?php echo esc_html( $php['sapi'] ); ?></span></td>
-								</tr>
-								<tr>
-									<th scope="row"><?php esc_html_e( 'Web 服务器', 'sakura-imgopt' ); ?></th>
-									<td><span class="basic-value"><?php echo esc_html( '' !== (string) $php['server_software'] ? $php['server_software'] : __( '未知', 'sakura-imgopt' ) ); ?></span></td>
-								</tr>
-								<tr>
-									<th scope="row"><?php esc_html_e( '内存上限', 'sakura-imgopt' ); ?></th>
-									<td>
-										<span class="basic-value"><?php echo esc_html( $format_limit( $memory_limit ) ); ?></span>
-										<?php if ( $memory_warn ) : ?>
-											<span class="badge badge--warn"><?php esc_html_e( '建议 256M+', 'sakura-imgopt' ); ?></span>
-										<?php endif; ?>
-									</td>
-								</tr>
-								<tr>
-									<th scope="row"><?php esc_html_e( '最大执行时间', 'sakura-imgopt' ); ?></th>
-									<td><span class="basic-value"><?php echo esc_html( $format_time( $time_limit ) ); ?></span></td>
-								</tr>
-								<tr>
-									<th scope="row"><?php esc_html_e( '上传文件上限', 'sakura-imgopt' ); ?></th>
-									<td>
-										<span class="basic-value"><?php echo esc_html( $format_limit( $upload_limit ) ); ?></span>
-										<?php if ( $upload_warn ) : ?>
-											<span class="badge badge--warn"><?php esc_html_e( '建议 32M+', 'sakura-imgopt' ); ?></span>
-										<?php endif; ?>
-									</td>
-								</tr>
-								<tr>
-									<th scope="row"><?php esc_html_e( 'POST 上限', 'sakura-imgopt' ); ?></th>
-									<td><span class="basic-value"><?php echo esc_html( $format_limit( $post_limit ) ); ?></span></td>
-								</tr>
-								<tr>
-									<th scope="row"><?php esc_html_e( 'OPcache', 'sakura-imgopt' ); ?></th>
-									<td><span class="badge <?php echo esc_attr( $state_class( 'opcache' ) ); ?>"><?php echo esc_html( $php['opcache']['label'] ); ?></span></td>
-								</tr>
-								<tr>
-									<th scope="row"><?php esc_html_e( 'WordPress', 'sakura-imgopt' ); ?></th>
-									<td>
-										<span class="basic-value"><?php echo esc_html( $wordpress['version'] ); ?></span>
-										<?php if ( '' !== (string) $wordpress['environment'] ) : ?>
-											<span class="basic-muted"><?php echo esc_html( $wordpress['environment'] ); ?></span>
-										<?php endif; ?>
-									</td>
-								</tr>
-								<tr>
-									<th scope="row"><?php esc_html_e( '数据库', 'sakura-imgopt' ); ?></th>
-									<td>
-										<span class="basic-value"><?php echo esc_html( '' !== $wordpress['db_version'] ? $wordpress['db_version'] : __( '未知', 'sakura-imgopt' ) ); ?></span>
-										<span class="basic-muted"><?php esc_html_e( 'MySQL / MariaDB', 'sakura-imgopt' ); ?></span>
-									</td>
-								</tr>
-								<tr>
-									<th scope="row"><?php esc_html_e( '时区', 'sakura-imgopt' ); ?></th>
-									<td><span class="basic-value"><?php echo esc_html( '' !== $wordpress['timezone'] ? $wordpress['timezone'] : __( '未知', 'sakura-imgopt' ) ); ?></span></td>
-								</tr>
-							</tbody>
-						</table>
-					</div>
-				</section>
-
-				<section class="card" data-sakura-card="engine">
-					<div class="card-head">
-						<div>
-							<p class="section-kicker">Image engine</p>
-							<h2><?php esc_html_e( '图像引擎', 'sakura-imgopt' ); ?></h2>
-							<p><?php esc_html_e( 'WordPress 当前可用的图像处理能力；Imagick 优先，GD 作为回退。', 'sakura-imgopt' ); ?></p>
-						</div>
-						<span class="badge <?php echo esc_attr( '' !== $engine['imagick'] ? 'badge--ok' : 'badge--warn' ); ?>"><?php echo esc_html( $engine['primary'] ); ?></span>
-					</div>
-					<div class="card-body">
-						<table class="form-table" role="presentation">
-							<tbody>
-								<tr>
-									<th scope="row"><?php esc_html_e( '首选编辑器', 'sakura-imgopt' ); ?></th>
-									<td>
-										<span class="basic-value"><?php echo esc_html( $engine['primary'] ); ?></span>
-										<span class="badge <?php echo esc_attr( $state_class( 'engine' ) ); ?>"><?php echo esc_html( $state_labels[ $check_map['engine']['state'] ] ?? '' ); ?></span>
-									</td>
-								</tr>
-								<tr>
-									<th scope="row">Imagick</th>
-									<td>
-										<span class="basic-value"><?php echo esc_html( '' !== $engine['imagick'] ? $engine['imagick'] : __( '未安装', 'sakura-imgopt' ) ); ?></span>
-										<span class="badge <?php echo esc_attr( '' !== $engine['imagick'] ? 'badge--ok' : 'badge--muted' ); ?>"><?php echo esc_html( '' !== $engine['imagick'] ? __( '可用', 'sakura-imgopt' ) : __( '不可用', 'sakura-imgopt' ) ); ?></span>
-									</td>
-								</tr>
-								<tr>
-									<th scope="row">GD</th>
-									<td>
-										<span class="basic-value"><?php echo esc_html( '' !== $engine['gd'] ? $engine['gd'] : __( '未安装', 'sakura-imgopt' ) ); ?></span>
-										<span class="badge <?php echo esc_attr( '' !== $engine['gd'] ? 'badge--ok' : 'badge--muted' ); ?>"><?php echo esc_html( '' !== $engine['gd'] ? __( '可用', 'sakura-imgopt' ) : __( '不可用', 'sakura-imgopt' ) ); ?></span>
-									</td>
-								</tr>
-								<tr>
-									<th scope="row">WebP</th>
-									<td><span class="badge <?php echo esc_attr( $state_class( 'webp' ) ); ?>"><?php echo esc_html( $report['formats']['webp'] ? __( '支持', 'sakura-imgopt' ) : __( '不支持', 'sakura-imgopt' ) ); ?></span></td>
-								</tr>
-								<tr>
-									<th scope="row">AVIF</th>
-									<td><span class="badge <?php echo esc_attr( $state_class( 'avif' ) ); ?>"><?php echo esc_html( $report['formats']['avif'] ? __( '支持', 'sakura-imgopt' ) : __( '不支持', 'sakura-imgopt' ) ); ?></span></td>
-								</tr>
-								<tr>
-									<th scope="row"><?php esc_html_e( '支持格式', 'sakura-imgopt' ); ?></th>
-									<td>
-										<span class="ext-grid">
-											<?php foreach ( $engine['formats'] as $format => $supported ) : ?>
-												<span class="badge <?php echo esc_attr( $supported ? 'badge--ok' : 'badge--muted' ); ?>"><?php echo esc_html( $format ); ?></span>
+								<?php foreach ( $runtime_rows as $row ) : ?>
+									<tr>
+										<td data-label="<?php echo esc_attr__( '项目', 'sakura-imgopt' ); ?>"><?php echo esc_html( (string) $row['label'] ); ?></td>
+										<td data-label="<?php echo esc_attr__( '当前值', 'sakura-imgopt' ); ?>">
+											<?php if ( '' !== (string) $row['value'] ) : ?>
+												<span class="system-value"><?php echo esc_html( (string) $row['value'] ); ?></span>
+											<?php endif; ?>
+											<?php if ( ! empty( $row['muted'] ) ) : ?>
+												<span class="system-muted"><?php echo esc_html( (string) $row['muted'] ); ?></span>
+											<?php endif; ?>
+											<?php foreach ( (array) ( $row['badges'] ?? array() ) as $badge ) : ?>
+												<?php UI::badge( (string) $badge[0], (string) $badge[1] ); ?>
 											<?php endforeach; ?>
-										</span>
-									</td>
-								</tr>
+										</td>
+									</tr>
+								<?php endforeach; ?>
 							</tbody>
 						</table>
 					</div>
-				</section>
-			</div>
+					<?php
+				}
+			);
 
-			<div class="side-stack">
-				<section class="card" data-sakura-card="checks">
-					<div class="card-head">
-						<div>
-							<p class="section-kicker">Checks</p>
-							<h2><?php esc_html_e( '环境检查', 'sakura-imgopt' ); ?></h2>
-							<p><?php esc_html_e( '按插件的实际依赖逐项核对。', 'sakura-imgopt' ); ?></p>
-						</div>
-						<span class="badge badge--info"><?php echo esc_html( sprintf( '%d / %d', $summary['pass'], count( $checks ) ) ); ?></span>
+			UI::card(
+				array(
+					'id'          => 'engine',
+					'kicker'      => 'Image engine',
+					'title'       => __( '图像引擎', 'sakura-imgopt' ),
+					'description' => __( 'WordPress 当前可用的图像处理能力；Imagick 优先，GD 作为回退。', 'sakura-imgopt' ),
+				),
+				static function () use ( $engine_rows, $engine ) {
+					?>
+					<div class="table-scroll">
+						<table class="table table--compact table--responsive">
+							<thead>
+								<tr>
+									<th scope="col"><?php echo esc_html__( '项目', 'sakura-imgopt' ); ?></th>
+									<th scope="col"><?php echo esc_html__( '状态', 'sakura-imgopt' ); ?></th>
+								</tr>
+							</thead>
+							<tbody>
+								<?php foreach ( $engine_rows as $row ) : ?>
+									<tr>
+										<td data-label="<?php echo esc_attr__( '项目', 'sakura-imgopt' ); ?>"><?php echo esc_html( (string) $row['label'] ); ?></td>
+										<td data-label="<?php echo esc_attr__( '状态', 'sakura-imgopt' ); ?>">
+											<?php if ( '' !== (string) $row['value'] ) : ?>
+												<span class="system-value"><?php echo esc_html( (string) $row['value'] ); ?></span>
+											<?php endif; ?>
+											<?php foreach ( (array) ( $row['badges'] ?? array() ) as $badge ) : ?>
+												<?php UI::badge( (string) $badge[0], (string) $badge[1] ); ?>
+											<?php endforeach; ?>
+										</td>
+									</tr>
+								<?php endforeach; ?>
+							</tbody>
+						</table>
 					</div>
-					<div class="card-body">
-						<dl class="health-list">
-							<?php foreach ( $checks as $check ) : ?>
-								<div class="health-row">
-									<dt><?php echo esc_html( $check['label'] ); ?></dt>
-									<dd>
-										<span class="badge <?php echo esc_attr( $badge_classes[ $check['state'] ] ?? 'badge--warn' ); ?>" title="<?php echo esc_attr( $check['note'] ); ?>"><?php echo esc_html( $check['value'] ); ?></span>
-									</dd>
-								</div>
-							<?php endforeach; ?>
-						</dl>
-					</div>
-				</section>
+					<p class="system-note"><?php echo esc_html__( '支持格式来自当前图像编辑器；缺失 WebP / AVIF 时仍可处理常见格式，但无法输出对应格式。', 'sakura-imgopt' ); ?></p>
+					<?php
+				}
+			);
 
-				<section class="card" data-sakura-card="extensions">
-					<div class="card-head">
-						<div>
-							<p class="section-kicker">Extensions</p>
-							<h2><?php esc_html_e( 'PHP 扩展', 'sakura-imgopt' ); ?></h2>
-						</div>
+			UI::card(
+				array(
+					'id'          => 'checks',
+					'kicker'      => 'Checks',
+					'title'       => __( '环境检查', 'sakura-imgopt' ),
+					'description' => sprintf(
+						/* translators: 1: passed checks, 2: total checks */
+						__( '按插件的实际依赖逐项核对：%1$d / %2$d 项通过。', 'sakura-imgopt' ),
+						(int) $summary['pass'],
+						$total_checks
+					),
+					'wide'        => true,
+				),
+				static function () use ( $checks, $state_labels, $state_tone ) {
+					?>
+					<div class="table-scroll">
+						<table class="table table--compact table--responsive">
+							<thead>
+								<tr>
+									<th scope="col"><?php echo esc_html__( '检查项', 'sakura-imgopt' ); ?></th>
+									<th scope="col"><?php echo esc_html__( '状态', 'sakura-imgopt' ); ?></th>
+									<th scope="col"><?php echo esc_html__( '当前值', 'sakura-imgopt' ); ?></th>
+									<th scope="col"><?php echo esc_html__( '说明', 'sakura-imgopt' ); ?></th>
+								</tr>
+							</thead>
+							<tbody>
+								<?php foreach ( $checks as $check ) : ?>
+									<?php $check_state = (string) $check['state']; ?>
+									<tr>
+										<td data-label="<?php echo esc_attr__( '检查项', 'sakura-imgopt' ); ?>"><span class="system-value"><?php echo esc_html( (string) $check['label'] ); ?></span></td>
+										<td data-label="<?php echo esc_attr__( '状态', 'sakura-imgopt' ); ?>"><?php UI::badge( $state_labels[ $check_state ] ?? $check_state, $state_tone( $check_state ) ); ?></td>
+										<td data-label="<?php echo esc_attr__( '当前值', 'sakura-imgopt' ); ?>"><?php echo '' !== (string) $check['value'] ? esc_html( (string) $check['value'] ) : '—'; ?></td>
+										<td data-label="<?php echo esc_attr__( '说明', 'sakura-imgopt' ); ?>" class="system-check-note"><?php echo '' !== (string) $check['note'] ? esc_html( (string) $check['note'] ) : '—'; ?></td>
+									</tr>
+								<?php endforeach; ?>
+							</tbody>
+						</table>
 					</div>
-					<div class="card-body">
-						<div class="ext-grid">
-							<?php foreach ( $extensions as $extension ) : ?>
-								<span class="badge <?php echo esc_attr( $extension['loaded'] ? 'badge--ok' : 'badge--muted' ); ?>"><?php echo esc_html( $extension['name'] ); ?></span>
-							<?php endforeach; ?>
-						</div>
-						<p class="description"><?php esc_html_e( 'S3 上传依赖 cURL 与 OpenSSL；图片处理依赖 Imagick 或 GD。', 'sakura-imgopt' ); ?></p>
+					<?php
+				}
+			);
+
+			UI::card(
+				array(
+					'id'          => 'extensions',
+					'kicker'      => 'Extensions',
+					'title'       => __( 'PHP 扩展', 'sakura-imgopt' ),
+					'description' => __( '按加载状态标记；S3 上传依赖 cURL 与 OpenSSL。', 'sakura-imgopt' ),
+				),
+				static function () use ( $extensions ) {
+					?>
+					<div class="system-ext-grid">
+						<?php foreach ( $extensions as $extension ) : ?>
+							<?php UI::badge( (string) $extension['name'], $extension['loaded'] ? 'ok' : 'warn' ); ?>
+						<?php endforeach; ?>
 					</div>
-				</section>
+					<p class="system-note"><?php echo esc_html__( '图片处理依赖 Imagick 或 GD；缺失的扩展会在环境检查中单独标记。', 'sakura-imgopt' ); ?></p>
+					<?php
+				}
+			);
 
-				<section class="card" data-sakura-card="spacing">
-					<div class="card-head">
-						<div>
-							<p class="section-kicker">Layout rhythm</p>
-							<h2><?php esc_html_e( '卡片间隔', 'sakura-imgopt' ); ?></h2>
-							<p><?php esc_html_e( '所有插件页面共用一组间隔；保存后刷新页面生效。', 'sakura-imgopt' ); ?></p>
-						</div>
-						<span class="badge badge--info"><?php esc_html_e( '全局', 'sakura-imgopt' ); ?></span>
+			UI::card(
+				array(
+					'id'          => 'spacing',
+					'kicker'      => 'Layout rhythm',
+					'title'       => __( '卡片间隔', 'sakura-imgopt' ),
+					'description' => __( '所有插件页面共用一组间隔；保存后刷新页面生效。', 'sakura-imgopt' ),
+					'form'        => array(
+						'option_group' => 'sakura_imgopt_basic',
+						'markers'      => 'fields',
+						'marker_card'  => 'spacing',
+					),
+					'save'        => __( '保存间隔', 'sakura-imgopt' ),
+				),
+				static function () use ( $gaps, $gaps_option, $gaps_max ) {
+					?>
+					<div class="field-list">
+						<?php
+						UI::field(
+							array(
+								'type'  => 'number',
+								'id'    => 'sakura-gap-x',
+								'name'  => $gaps_option . '[gapX]',
+								'label' => __( '左右间隔', 'sakura-imgopt' ),
+								'hint'  => sprintf(
+									/* translators: %d: maximum gap in pixels. */
+									__( '列与列之间 · 0–%d px', 'sakura-imgopt' ),
+									(int) $gaps_max
+								),
+								'value' => (string) $gaps['gapX'],
+								'min'   => 0,
+								'max'   => (int) $gaps_max,
+								'step'  => 1,
+								'attrs' => array( 'inputmode' => 'numeric' ),
+							)
+						);
+
+						UI::field(
+							array(
+								'type'  => 'number',
+								'id'    => 'sakura-gap-y',
+								'name'  => $gaps_option . '[gapY]',
+								'label' => __( '上下间隔', 'sakura-imgopt' ),
+								'hint'  => sprintf(
+									/* translators: %d: maximum gap in pixels. */
+									__( '行与行之间 · 0–%d px', 'sakura-imgopt' ),
+									(int) $gaps_max
+								),
+								'value' => (string) $gaps['gapY'],
+								'min'   => 0,
+								'max'   => (int) $gaps_max,
+								'step'  => 1,
+								'attrs' => array( 'inputmode' => 'numeric' ),
+							)
+						);
+						?>
 					</div>
-					<div class="card-body">
-						<form method="post" action="<?php echo esc_url( admin_url( 'options.php' ) ); ?>" class="basic-gap-form">
-							<?php settings_fields( 'sakura_imgopt_basic' ); ?>
-
-							<div class="basic-gap-field">
-								<label for="sakura-gap-x"><?php esc_html_e( '左右间隔', 'sakura-imgopt' ); ?></label>
-								<div class="basic-gap-control">
-									<input id="sakura-gap-x" type="number" min="0" max="<?php echo esc_attr( (string) $gaps_max ); ?>" step="1" inputmode="numeric" name="<?php echo esc_attr( $gaps_option ); ?>[gapX]" value="<?php echo esc_attr( (string) $gaps['gapX'] ); ?>" />
-									<span class="basic-gap-unit">px</span>
-								</div>
-								<p class="description"><?php echo esc_html( sprintf( /* translators: %d: maximum gap in pixels. */ __( '列与列之间 · 0–%d px', 'sakura-imgopt' ), (int) $gaps_max ) ); ?></p>
-							</div>
-
-							<div class="basic-gap-field">
-								<label for="sakura-gap-y"><?php esc_html_e( '上下间隔', 'sakura-imgopt' ); ?></label>
-								<div class="basic-gap-control">
-									<input id="sakura-gap-y" type="number" min="0" max="<?php echo esc_attr( (string) $gaps_max ); ?>" step="1" inputmode="numeric" name="<?php echo esc_attr( $gaps_option ); ?>[gapY]" value="<?php echo esc_attr( (string) $gaps['gapY'] ); ?>" />
-									<span class="basic-gap-unit">px</span>
-								</div>
-								<p class="description"><?php echo esc_html( sprintf( /* translators: %d: maximum gap in pixels. */ __( '行与行之间 · 0–%d px', 'sakura-imgopt' ), (int) $gaps_max ) ); ?></p>
-							</div>
-
-							<p class="basic-footnote"><?php esc_html_e( '只保存这两个数值，不会清理缓存，也不改动其它页面布局。', 'sakura-imgopt' ); ?></p>
-							<div class="card-savebar">
-								<button type="submit" class="btn btn--primary"><?php esc_html_e( '保存间隔', 'sakura-imgopt' ); ?></button>
-							</div>
-						</form>
-					</div>
-				</section>
-			</div>
+					<p class="system-note"><?php echo esc_html__( '只保存这两个数值，不会清理缓存，也不改动其它页面布局。', 'sakura-imgopt' ); ?></p>
+					<?php
+				}
+			);
+			?>
 		</div>
-	</div>
-</div>
+		<?php
+	}
+);

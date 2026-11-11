@@ -1,1455 +1,1136 @@
 /**
- * UI layer: components.
+ * Component layer: cards, forms, buttons, tables and feedback.
  *
- * Shapes, spacing and states for the migrated screens. Selectors stay scoped
- * to .sakura-sync-app so WordPress core screens are untouched.
+ * Shapes and states only. Page-specific layout belongs in assets/ui/pages/.
  *
  * @package Sakura_Image_Optimizer
  */
 
-/* WordPress admin gives plugin screens a 20px content slot and a bottom
- * padding. The canvas draws its own gutter and footer, so remove both.
- * Scoped with :has(.sakura-sync-app) so other admin screens keep theirs. */
-@media (min-width: 783px) {
-	body:has(.sakura-sync-app) #wpcontent {
-		padding-left: 0;
-	}
-}
-
-@media (max-width: 782px) {
-	body:has(.sakura-sync-app) #wpcontent,
-	body:has(.sakura-sync-app) #wpbody,
-	body:has(.sakura-sync-app) #wpbody-content {
-		width: 100%;
-		margin-left: 0 !important;
-		padding-left: 0 !important;
-		padding-right: 0 !important;
-	}
-}
-
-body:has(.sakura-sync-app) #wpbody-content {
-	padding-bottom: 0;
-}
-
 /* ============================================================
- * 1. Shell
+ * Cards
  * ============================================================ */
 
-.sakura-sync-app .topbar,
-.sakura-sync-app .topbar.sakura-topbar {
-	display: flex;
-	align-items: center;
-	justify-content: space-between;
-	gap: 18px;
-	margin-bottom: 14px;
-}
-
-.sakura-sync-app .brand {
-	display: flex;
-	align-items: center;
-	gap: 10px;
-	min-width: 0;
-	color: var(--g-ink);
-}
-
-.sakura-sync-app .brand-mark {
+.sakura-admin .card-grid {
 	display: grid;
-	place-items: center;
-	flex: 0 0 auto;
-	width: 30px;
-	height: 30px;
-	border-radius: 8px;
-	background: var(--g-accent);
-	box-shadow: 0 2px 6px rgba(18, 19, 21, .18);
-	color: #fff;
-	font-size: 14px;
-	font-weight: 600;
-	letter-spacing: .02em;
-}
-
-.sakura-sync-app .brand strong {
-	color: var(--g-ink);
-	font-size: 14px;
-	font-weight: 600;
-	letter-spacing: .01em;
-	white-space: nowrap;
-}
-
-.sakura-sync-app .brand span.path {
-	color: var(--g-faint);
-	font-size: 13.5px;
-	white-space: nowrap;
-}
-
-.sakura-sync-app .brand .slash {
-	margin: 0 2px;
-	color: #c6c6c1;
-}
-
-.sakura-sync-app .top-actions {
-	display: flex;
-	align-items: center;
-	flex: 0 0 auto;
-	gap: 10px;
-}
-
-.sakura-sync-app .sakura-mods {
-	display: inline-flex;
-	align-items: center;
-	gap: 2px;
-	padding: 3px;
-	border: 1px solid var(--g-line);
-	border-radius: 9px;
-	background: rgba(255, 255, 255, .48);
-}
-
-.sakura-sync-app .sakura-mod {
-	display: inline-flex;
-	align-items: center;
-	padding: 5px 12px;
-	border-radius: 6px;
-	color: var(--g-muted);
-	font-size: 13.5px;
-	font-weight: 500;
-	line-height: 1.4;
-	text-decoration: none;
-	white-space: nowrap;
-	transition: color .15s ease, background .15s ease;
-}
-
-.sakura-sync-app .sakura-mod:hover,
-.sakura-sync-app .sakura-mod:focus {
-	background: rgba(255, 255, 255, .8);
-	color: var(--g-ink);
-}
-
-.sakura-sync-app .sakura-mod.is-active {
-	background: #fff;
-	color: var(--g-ink);
-	font-weight: 600;
-	box-shadow: 0 1px 2px rgba(28, 29, 31, .07);
-}
-
-.sakura-sync-app .sakura-mod:focus-visible {
-	outline: 2px solid var(--g-accent);
-	outline-offset: 1px;
-}
-
-.sakura-sync-app .conn-pill {
-	display: inline-flex;
-	align-items: center;
-	flex: 0 0 auto;
-	gap: 7px;
-	padding: 7px 12px;
-	border: 1px solid var(--g-line);
-	border-radius: 999px;
-	background: rgba(255, 255, 255, .7);
-	color: var(--g-ink-soft);
-	font-size: 13px;
-	font-weight: 500;
-	white-space: nowrap;
-	box-shadow: none;
-}
-
-.sakura-sync-app .conn-pill .dot {
-	width: 6px;
-	height: 6px;
-	border-radius: 50%;
-	background: #a3a5a2;
-	box-shadow: 0 0 0 3px rgba(163, 165, 162, .14);
-}
-
-.sakura-sync-app .conn-pill.is-ok .dot {
-	background: #4f8a69;
-	box-shadow: 0 0 0 3px rgba(79, 138, 105, .12);
-}
-
-.sakura-sync-app .conn-pill small {
-	color: var(--g-faint);
-	font-weight: 400;
-}
-
-.sakura-sync-app .conn-pill.is-off {
-	background: rgba(255, 255, 255, .55);
-	color: var(--g-muted);
-}
-
-.sakura-sync-app .conn-pill.is-off .dot {
-	background: #a3a5a2;
-	box-shadow: 0 0 0 3px rgba(163, 165, 162, .14);
-}
-
-.sakura-sync-app .conn-pill.is-warn {
-	border-color: #eadfc7;
-	background: var(--g-warn-bg);
-	color: var(--g-warn);
-}
-
-.sakura-sync-app .conn-pill.is-warn .dot {
-	background: var(--g-warn);
-	box-shadow: 0 0 0 3px rgba(143, 106, 31, .14);
-}
-
-.sakura-sync-app .conn-pill.is-error {
-	border-color: #ecd6d1;
-	background: var(--g-bad-bg);
-	color: var(--g-bad);
-}
-
-.sakura-sync-app .conn-pill.is-error .dot {
-	background: var(--g-bad);
-	box-shadow: 0 0 0 3px rgba(163, 70, 61, .14);
-}
-
-.sakura-sync-app .sakura-tabs {
-	display: flex;
-	align-items: flex-end;
-	gap: 24px;
-	margin: 0 0 var(--g-stack);
-	padding: 0;
-	overflow-x: auto;
-	border-bottom: 1px solid var(--g-line);
-}
-
-.sakura-sync-app .sakura-tab {
-	position: relative;
-	display: inline-block;
-	margin-bottom: -1px;
-	padding: 8px 0 9px;
-	border-bottom: 2px solid transparent;
-	color: var(--g-muted);
-	font-size: 14px;
-	font-weight: 500;
-	text-decoration: none;
-	white-space: nowrap;
-	transition: color .15s ease, border-color .15s ease;
-}
-
-.sakura-sync-app .sakura-tab:hover,
-.sakura-sync-app .sakura-tab:focus {
-	color: var(--g-ink);
-}
-
-.sakura-sync-app .sakura-tab.is-active {
-	color: var(--g-ink);
-	font-weight: 600;
-	border-bottom-color: var(--g-accent);
-}
-
-.sakura-sync-app .sakura-tab:focus-visible {
-	outline: 2px solid var(--g-accent);
-	outline-offset: 2px;
-}
-
-.sakura-sync-app .sakura-tab.is-disabled {
-	opacity: .45;
-	cursor: not-allowed;
-	filter: grayscale(1);
-	text-decoration: none;
-}
-
-/* ============================================================
- * 2. Page header
- * ============================================================ */
-
-.sakura-sync-app .hero,
-.sakura-sync-app .app > .hero {
-	position: relative;
-	display: flex;
-	align-items: flex-end;
-	justify-content: space-between;
-	gap: 36px;
-	overflow: visible;
-	margin: 0 0 var(--g-stack);
-	padding: 6px 0 var(--g-stack);
-	border: 0;
-	border-bottom: 1px solid var(--g-line);
-	border-radius: 0;
-	background: transparent;
-	box-shadow: none;
-}
-
-.sakura-sync-app .hero::before,
-.sakura-sync-app .hero::after {
-	content: none;
-	display: none;
-}
-
-.sakura-sync-app .hero-copy {
-	flex: 1 1 auto;
-	max-width: 760px;
-	min-width: 0;
-}
-
-.sakura-sync-app .eyebrow {
-	margin: 0 0 10px;
-	color: var(--g-faint);
-	font-size: 11.5px;
-	font-weight: 600;
-	letter-spacing: .16em;
-	text-transform: uppercase;
-}
-
-.sakura-sync-app .hero h1 {
-	margin: 0;
-	color: var(--g-ink);
-	font-size: clamp(25px, 2.3vw, 32px);
-	font-weight: 600;
-	line-height: 1.22;
-	letter-spacing: -.02em;
-}
-
-.sakura-sync-app .hero .lede {
-	max-width: 63ch;
-	margin: 9px 0 0;
-	color: #5c5e61;
-	font-size: 14.5px;
-	line-height: 1.74;
-	text-wrap: balance;
-}
-
-.sakura-sync-app .hero-actions {
-	display: flex;
-	align-items: center;
-	flex-wrap: wrap;
-	gap: 8px;
-	margin-top: 18px;
-}
-
-.sakura-sync-app .hero-actions .btn {
-	min-height: 36px;
-	padding: 0 15px;
-}
-
-.sakura-sync-app .hero-note {
-	display: inline-flex;
-	align-items: center;
-	gap: 6px;
-	margin-left: 0;
-	color: var(--g-faint);
-	font-size: 13px;
-}
-
-.sakura-sync-app .hero-status {
-	flex: 0 0 300px;
-	width: 300px;
-	padding: var(--g-card-pad-top) var(--g-card-pad-x) var(--g-card-pad-bottom);
-	border: 1px solid rgba(230, 229, 224, .92);
-	border-radius: 16px;
-	background: rgba(255, 255, 255, .82);
-	box-shadow: 0 1px 2px rgba(24, 26, 28, .04), 0 16px 36px -26px rgba(24, 26, 28, .34);
-	backdrop-filter: blur(12px);
-	-webkit-backdrop-filter: blur(12px);
-}
-
-.sakura-sync-app .hero-status-top {
-	display: flex;
-	align-items: center;
-	justify-content: space-between;
-	gap: 10px;
-	margin-bottom: 10px;
-}
-
-.sakura-sync-app .hero-status-label {
-	display: inline-flex;
-	align-items: center;
-	gap: 6px;
-	color: var(--g-ink-soft);
-	font-size: 13px;
-	font-weight: 600;
-}
-
-.sakura-sync-app .hero-status-label .dot {
-	width: 6px;
-	height: 6px;
-	border-radius: 50%;
-	background: #4f8a69;
-}
-
-.sakura-sync-app .hero-status-label.is-warn {
-	color: var(--g-warn);
-}
-
-.sakura-sync-app .hero-status-label.is-warn .dot {
-	background: #b8872d;
-}
-
-.sakura-sync-app .hero-status-label.is-bad {
-	color: var(--g-bad);
-}
-
-.sakura-sync-app .hero-status-label.is-bad .dot {
-	background: var(--g-bad);
-}
-
-.sakura-sync-app .hero-status-top small {
-	color: var(--g-faint);
-	font-size: 12.5px;
-}
-
-.sakura-sync-app .hero-status-main {
-	display: flex;
-	align-items: baseline;
-	gap: 7px;
-	margin-bottom: 3px;
-}
-
-.sakura-sync-app .hero-status-main strong {
-	color: var(--g-ink);
-	font-size: 19px;
-	font-weight: 600;
-	letter-spacing: -.02em;
-}
-
-.sakura-sync-app .hero-status-main span {
-	color: var(--g-muted);
-	font-size: 13px;
-}
-
-.sakura-sync-app .hero-status-sub {
-	color: var(--g-muted);
-	font-size: 12.5px;
-	line-height: 1.6;
-}
-
-.sakura-sync-app .hero-status-bar {
-	height: 3px;
-	margin: 12px 0 7px;
-	overflow: hidden;
-	border-radius: 99px;
-	background: #e8e8e4;
-}
-
-.sakura-sync-app .hero-status-bar span {
-	display: block;
-	width: 99.2%;
-	height: 100%;
-	border-radius: inherit;
-	background: var(--g-accent);
-}
-
-/* ============================================================
- * 3. Cards and grids
- * ============================================================ */
-
-.sakura-sync-app .compact-cards {
-	display: grid;
-	grid-template-columns: repeat(2, minmax(0, 1fr));
-	gap: 20px;
+	grid-template-columns: repeat(12, minmax(0, 1fr));
+	gap: var(--g-grid-gap);
 	align-items: start;
 }
 
-.sakura-sync-app .compact-cards--settings {
-	display: grid;
-	grid-template-columns: repeat(2, minmax(0, 1fr));
-	gap: 24px;
-	align-items: start;
-	margin-top: 0;
+.sakura-admin .card-grid > .card {
+	grid-column: span 6;
 }
 
-.sakura-sync-app .compact-cards--settings > .card {
+.sakura-admin .card-grid > .card--wide {
+	grid-column: span 12;
+}
+
+.sakura-admin .card {
+	position: relative;
+	display: flex;
+	flex-direction: column;
 	min-width: 0;
-	margin: 0;
-}
-
-.sakura-sync-app .compact-cards--settings > .card--wide {
-	grid-column: 1 / -1;
-	grid-row: 1;
-}
-
-.sakura-sync-app .compact-cards--settings > .card--rename {
-	grid-column: 1;
-	grid-row: 2;
-}
-
-.sakura-sync-app .compact-cards--settings > .card--compress {
-	grid-column: 2;
-	grid-row: 2 / span 2;
-}
-
-.sakura-sync-app .compact-cards--settings > .card--bulk {
-	grid-column: 1;
-	grid-row: 3;
-}
-
-.sakura-sync-app .card {
 	max-width: none;
+	margin: 0;
 	padding: 0;
-	overflow: hidden;
 	border: 1px solid var(--g-line);
-	border-radius: 18px;
+	border-radius: var(--g-radius-card);
 	background: var(--g-card);
-	box-shadow: var(--g-shadow-soft);
+	box-shadow: var(--g-shadow-card);
+	overflow: clip;
 }
 
-.sakura-sync-app .card--wide {
-	grid-column: 1 / -1;
-}
-
-.sakura-sync-app .card-head {
+.sakura-admin .card__head {
 	display: flex;
 	align-items: flex-start;
 	justify-content: space-between;
-	gap: var(--g-stack);
-	padding: var(--g-card-pad-top) var(--g-card-pad-x) var(--g-head-gap);
+	gap: 16px;
+	padding: var(--g-card-pad-top) var(--g-card-pad-x) 0;
 }
 
-.sakura-sync-app .card-head > div:first-child {
+.sakura-admin .card__heading {
 	min-width: 0;
 }
 
-.sakura-sync-app .card-head h2 {
-	margin: 0;
-	color: var(--g-ink);
-	font-size: 17px;
-	font-weight: 600;
-	line-height: 1.4;
-	letter-spacing: -.01em;
-}
-
-.sakura-sync-app .card-head p {
-	max-width: 74ch;
-	margin: 5px 0 0;
-	color: var(--g-muted);
-	font-size: 13.5px;
-	line-height: 1.68;
-}
-
-.sakura-sync-app .card-head-actions {
-	display: flex;
-	align-items: center;
-	flex-wrap: wrap;
-	gap: 7px;
-}
-
-.sakura-sync-app .card-body {
-	padding: 0 var(--g-card-pad-x) var(--g-card-pad-bottom);
-}
-
-.sakura-sync-app .card-body > :first-child {
-	margin-top: 0;
-}
-
-.sakura-sync-app .card-actions {
-	display: flex;
-	align-items: center;
-	flex-wrap: wrap;
-	gap: 10px;
-	padding: 2px var(--g-card-pad-x) var(--g-card-pad-bottom);
-}
-
-.sakura-sync-app .section-kicker {
+.sakura-admin .card__kicker {
 	margin: 0 0 5px;
 	color: var(--g-faint);
-	font-size: 11.5px;
-	font-weight: 600;
-	line-height: 1.2;
-	letter-spacing: .14em;
+	font-size: 10.5px;
+	font-weight: 650;
+	letter-spacing: .12em;
+	line-height: 1.4;
 	text-transform: uppercase;
 }
 
-.sakura-sync-app .card-head .section-kicker,
-.sakura-sync-app .compact-cards--settings .section-kicker {
-	margin: 0 0 6px;
-	color: var(--g-muted);
-	font-weight: 700;
-	font-size: 11.5px;
-	line-height: 1.2;
-	letter-spacing: .1em;
-}
-
-.sakura-sync-app .section-title {
+.sakura-admin .card__title {
+	margin: 0;
 	color: var(--g-ink);
-	font-size: 14px;
-	font-weight: 600;
+	font-size: var(--g-fs-h2);
+	font-weight: 650;
+	letter-spacing: -.008em;
+	line-height: 1.35;
 }
 
-.sakura-sync-app .section-note {
-	margin: 0 0 10px;
+.sakura-admin .card__desc {
+	margin: 5px 0 0;
 	color: var(--g-muted);
-	font-size: 13.5px;
-	line-height: 1.7;
+	font-size: 12.5px;
+	line-height: 1.65;
 }
 
-.sakura-sync-app .section-note > :first-child {
-	margin-top: 0;
+.sakura-admin .card__actions {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	flex: 0 0 auto;
 }
 
-.sakura-sync-app .section-note > :last-child {
+.sakura-admin .card__body {
+	display: flex;
+	flex: 1;
+	flex-direction: column;
+	min-width: 0;
+	padding: 14px var(--g-card-pad-x) var(--g-card-pad-bottom);
+}
+
+.sakura-admin .card__note {
+	max-width: 82ch;
+	margin: 0 0 16px;
+	color: var(--g-muted);
+	font-size: 13px;
+	line-height: 1.72;
+}
+
+.sakura-admin .card__note p {
+	margin: 0 0 7px;
+}
+
+.sakura-admin .card__note p:last-child {
 	margin-bottom: 0;
 }
 
-.sakura-sync-app .card-body > form {
-	margin: 0;
-}
-
-/* ============================================================
- * 4. Buttons
- * ============================================================ */
-
-.sakura-sync-app .btn,
-.sakura-sync-app .button,
-.sakura-sync-app .button-secondary {
-	display: inline-flex;
-	align-items: center;
-	justify-content: center;
-	gap: 6px;
-	height: 38px;
-	min-height: 38px;
-	padding: 0 16px;
-	border: 1px solid var(--g-line-strong);
-	border-radius: 10px;
-	background: #fff;
+.sakura-admin .card__note strong {
 	color: var(--g-ink-soft);
-	font-family: inherit;
-	font-size: 14px;
-	font-weight: 500;
-	line-height: 1;
-	text-decoration: none;
-	white-space: nowrap;
-	box-shadow: 0 1px 1px rgba(28, 29, 31, .03);
-	transform: none;
-	transition: background-color .15s ease, border-color .15s ease, color .15s ease, box-shadow .15s ease;
 }
 
-.sakura-sync-app .btn:hover,
-.sakura-sync-app .button:hover,
-.sakura-sync-app .button-secondary:hover {
-	border-color: #bcbcb7;
-	background: #f8f8f5;
-	color: var(--g-ink);
-	transform: none;
-	box-shadow: 0 1px 2px rgba(28, 29, 31, .05);
-}
-
-.sakura-sync-app .btn:focus-visible,
-.sakura-sync-app .button:focus-visible,
-.sakura-sync-app .button-secondary:focus-visible,
-.sakura-sync-app .button-primary:focus-visible {
-	outline: 3px solid rgba(32, 34, 37, .16);
-	outline-offset: 2px;
-}
-
-.sakura-sync-app .btn--primary,
-.sakura-sync-app .button-primary,
-.sakura-sync-app input.button-primary,
-.sakura-sync-app .card-actions .button-primary {
-	border: 1px solid var(--g-accent) !important;
-	border-radius: 10px !important;
-	background: var(--g-accent) !important;
-	color: #fff !important;
-	box-shadow: 0 2px 4px rgba(18, 19, 21, .14) !important;
-}
-
-.sakura-sync-app .btn--primary:hover,
-.sakura-sync-app .button-primary:hover,
-.sakura-sync-app input.button-primary:hover,
-.sakura-sync-app .card-actions .button-primary:hover {
-	border-color: var(--g-accent-hover) !important;
-	background: var(--g-accent-hover) !important;
-	color: #fff !important;
-	box-shadow: 0 3px 8px rgba(18, 19, 21, .18) !important;
-}
-
-.sakura-sync-app .button-primary:disabled,
-.sakura-sync-app .button-primary[disabled],
-.sakura-sync-app .btn--primary:disabled,
-.sakura-sync-app .btn--primary[disabled] {
-	border-color: #9c9c98 !important;
-	background: #9c9c98 !important;
-	color: #fff !important;
-	box-shadow: none !important;
-	opacity: .75;
-}
-
-.sakura-sync-app .btn--ghost {
-	border-color: transparent;
-	background: transparent;
-	color: var(--g-muted);
-	box-shadow: none;
-}
-
-.sakura-sync-app .btn--ghost:hover {
-	border-color: var(--g-line);
-	background: var(--g-accent-soft);
-	color: var(--g-ink);
-}
-
-.sakura-sync-app .btn--danger {
-	border-color: #e4c5c0;
-	background: #fff;
-	color: var(--g-bad);
-	box-shadow: none;
-}
-
-.sakura-sync-app .btn--danger:hover {
-	border-color: #d3a39c;
-	background: var(--g-bad-bg);
-	color: #8e3a32;
-}
-
-.sakura-sync-app .btn--small,
-.sakura-sync-app .btn--sm {
-	height: 32px;
-	min-height: 32px;
-	padding: 0 12px;
-	border-radius: 9px;
-	font-size: 13px;
-}
-
-.sakura-sync-app .btn[disabled],
-.sakura-sync-app .btn:disabled,
-.sakura-sync-app .button[disabled],
-.sakura-sync-app .button:disabled {
-	opacity: .45;
-	cursor: not-allowed;
-	transform: none;
-	box-shadow: none;
-}
-
-.sakura-sync-app .button-link {
-	padding: 0;
-	border: 0;
-	background: none;
-	color: var(--g-muted);
-	font-size: 13px;
-	font-weight: 500;
-	text-decoration: none;
-	box-shadow: none;
-}
-
-.sakura-sync-app .button-link:hover {
-	color: var(--g-bad);
+.sakura-admin .card__note a {
+	color: var(--g-ink-soft);
 	text-decoration: underline;
+	text-decoration-color: #c8c5bd;
 }
 
-/* ============================================================
- * 5. Form controls
- * ============================================================ */
+.sakura-admin .card__note-alert {
+	margin-top: 10px;
+	padding: 10px 13px;
+	border-left: 3px solid var(--g-warn);
+	border-radius: 0 var(--g-radius-sm) var(--g-radius-sm) 0;
+	background: var(--g-warn-bg);
+	color: #6f5419;
+	font-size: 12.5px;
+	line-height: 1.7;
+}
 
-.sakura-sync-app .form-table {
-	width: 100%;
+.sakura-admin .card__form {
+	display: flex;
+	flex: 1;
+	flex-direction: column;
 	min-width: 0;
 	margin: 0;
-	border-collapse: collapse;
 }
 
-.sakura-sync-app .form-table > tbody > tr > th {
-	width: 168px;
-	padding: 13px 18px 13px 0;
-	border-top: 1px solid var(--g-line-soft);
-	color: #4e5053;
-	font-size: 13.5px;
-	font-weight: 500;
-	line-height: 1.6;
-	text-align: left;
-	vertical-align: top;
+.sakura-admin .card__savebar {
+	display: flex;
+	align-items: center;
+	justify-content: flex-end;
+	gap: 10px;
+	margin-top: auto;
+	padding-top: 16px;
 }
 
-.sakura-sync-app .compact-cards .form-table > tbody > tr > th {
-	width: 150px;
-	padding-right: 14px;
+.sakura-admin .card__savebar::before {
+	content: "";
+	flex: 1;
+	order: -1;
+	height: 1px;
+	margin-right: 4px;
+	background: var(--g-line-soft);
 }
 
-.sakura-sync-app .form-table > tbody > tr > td {
-	padding: 12px 0 13px;
-	border-top: 1px solid var(--g-line-soft);
-	color: var(--g-ink-soft);
-	font-size: 14px;
-	text-align: left;
-	vertical-align: top;
+/* ============================================================
+ * Fields
+ * ============================================================ */
+
+.sakura-admin .field-list {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 18px 26px;
+	margin-top: 16px;
 }
 
-.sakura-sync-app .form-table > tbody > tr:first-child > th,
-.sakura-sync-app .form-table > tbody > tr:first-child > td {
-	border-top: 0;
+.sakura-admin .field {
+	min-width: 0;
 }
 
-.sakura-sync-app .form-table label {
-	color: var(--g-ink-soft);
-	font-size: 14px;
-	line-height: 1.6;
+.sakura-admin .field--full {
+	grid-column: 1 / -1;
 }
 
-.sakura-sync-app .form-table input[type="text"],
-.sakura-sync-app .form-table input[type="number"],
-.sakura-sync-app .form-table input[type="url"],
-.sakura-sync-app .form-table input[type="password"],
-.sakura-sync-app .form-table input[type="search"],
-.sakura-sync-app .form-table input[type="email"],
-.sakura-sync-app .form-table input[type="tel"],
-.sakura-sync-app .form-table select,
-.sakura-sync-app .form-table textarea,
-.sakura-sync-app .field input,
-.sakura-sync-app .field select,
-.sakura-sync-app .field textarea {
-	box-sizing: border-box;
-	height: 38px;
-	min-height: 38px;
-	margin: 0;
-	padding: 0 12px;
-	border: 1px solid var(--g-line-strong);
-	border-radius: 9px;
-	background: #fff;
+.sakura-admin .field__main {
+	margin-bottom: 6px;
+}
+
+.sakura-admin .field__label {
+	display: block;
 	color: var(--g-ink);
-	font-size: 14px;
+	font-size: 13px;
+	font-weight: 600;
 	line-height: 1.5;
-	box-shadow: inset 0 1px 1px rgba(28, 29, 31, .025);
 }
 
-.sakura-sync-app .form-table textarea,
-.sakura-sync-app .field textarea {
-	height: auto;
-	min-height: 88px;
-	padding: 9px 11px;
-	line-height: 1.7;
+.sakura-admin .field__hint {
+	margin: 3px 0 0;
+	color: var(--g-muted);
+	font-size: 12.5px;
+	line-height: 1.65;
+}
+
+.sakura-admin .field__control {
+	min-width: 0;
+	color: var(--g-ink-soft);
+	font-size: 13.5px;
+}
+
+.sakura-admin .field__control fieldset {
+	min-width: 0;
+	margin: 0;
+	padding: 0;
+	border: 0;
+}
+
+.sakura-admin .field__control > label,
+.sakura-admin .field__control fieldset > label {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	width: fit-content;
+	margin: 0 0 8px;
+	font-size: 13.5px;
+	line-height: 1.5;
+	cursor: pointer;
+}
+
+.sakura-admin .field__control > label:last-child,
+.sakura-admin .field__control fieldset > label:last-child {
+	margin-bottom: 0;
+}
+
+.sakura-admin .field__control .description {
+	max-width: 76ch;
+	margin: 6px 0 0;
+	color: var(--g-muted);
+	font-size: 12.5px;
+	line-height: 1.68;
+}
+
+.sakura-admin .field__control .description + .description {
+	margin-top: 4px;
+}
+
+.sakura-admin .field__control code {
+	font-size: 12px;
+}
+
+/* Inputs: WordPress core selectors are repeated so core's own rules do not
+ * win on source order. */
+.sakura-admin input[type="text"],
+.sakura-admin input[type="number"],
+.sakura-admin input[type="url"],
+.sakura-admin input[type="password"],
+.sakura-admin input[type="email"],
+.sakura-admin input[type="search"],
+.sakura-admin input[type="tel"],
+.sakura-admin select,
+.sakura-admin textarea {
+	width: 100%;
+	max-width: 100%;
+	min-height: var(--g-ctl-h);
+	margin: 0;
+	padding: 8px 11px;
+	border: 1px solid var(--g-line-strong);
+	border-radius: var(--g-radius-sm);
+	background: var(--g-card);
+	box-shadow: inset 0 1px 1px rgba(24, 25, 26, .035);
+	color: var(--g-ink);
+	font-family: var(--g-font);
+	font-size: 13.5px;
+	line-height: 1.45;
+	vertical-align: middle;
+	transition: border-color var(--g-dur) var(--g-ease), box-shadow var(--g-dur) var(--g-ease), background var(--g-dur) var(--g-ease);
+}
+
+.sakura-admin textarea {
+	min-height: 96px;
 	resize: vertical;
 }
 
-.sakura-sync-app .form-table input[type="text"]:focus,
-.sakura-sync-app .form-table input[type="number"]:focus,
-.sakura-sync-app .form-table input[type="url"]:focus,
-.sakura-sync-app .form-table input[type="password"]:focus,
-.sakura-sync-app .form-table input[type="search"]:focus,
-.sakura-sync-app .form-table input[type="email"]:focus,
-.sakura-sync-app .form-table input[type="tel"]:focus,
-.sakura-sync-app .form-table select:focus,
-.sakura-sync-app .form-table textarea:focus,
-.sakura-sync-app .field input:focus,
-.sakura-sync-app .field select:focus,
-.sakura-sync-app .field textarea:focus {
-	border-color: var(--g-accent);
-	outline: 3px solid rgba(32, 34, 37, .09);
-	outline-offset: 0;
-	background: #fff;
-	box-shadow: none;
-}
-
-.sakura-sync-app .form-table input[type="text"],
-.sakura-sync-app .form-table input[type="url"],
-.sakura-sync-app .form-table input[type="password"] {
-	width: 100%;
-	max-width: 460px;
-}
-
-.sakura-sync-app .form-table select {
-	min-width: 200px;
-	max-width: 100%;
-}
-
-.sakura-sync-app .regular-text {
-	width: min(460px, 100%);
-}
-
-.sakura-sync-app input[type="checkbox"],
-.sakura-sync-app input[type="radio"] {
-	position: relative;
-	width: 17px;
-	height: 17px;
-	margin: 0 7px 0 0;
-	border: 1.5px solid #c6c3bb;
-	border-radius: 5px;
-	background: #fff;
-	box-shadow: none;
+.sakura-admin select {
 	appearance: none;
-	-webkit-appearance: none;
-	accent-color: var(--g-accent);
-	vertical-align: -3px;
-	cursor: pointer;
-	transition: border-color .15s ease, background-color .15s ease;
+	padding-right: 32px;
+	background-image:
+		linear-gradient(45deg, transparent 50%, var(--g-muted) 50%),
+		linear-gradient(135deg, var(--g-muted) 50%, transparent 50%);
+	background-position:
+		calc(100% - 16px) calc(50% - 1px),
+		calc(100% - 11px) calc(50% - 1px);
+	background-repeat: no-repeat;
+	background-size: 5px 5px, 5px 5px;
 }
 
-.sakura-sync-app input[type="radio"] {
+.sakura-admin input[type="text"]:hover,
+.sakura-admin input[type="number"]:hover,
+.sakura-admin input[type="url"]:hover,
+.sakura-admin input[type="password"]:hover,
+.sakura-admin input[type="email"]:hover,
+.sakura-admin input[type="search"]:hover,
+.sakura-admin input[type="tel"]:hover,
+.sakura-admin select:hover,
+.sakura-admin textarea:hover {
+	border-color: var(--g-select-border-hover);
+}
+
+.sakura-admin input[type="text"]:focus,
+.sakura-admin input[type="number"]:focus,
+.sakura-admin input[type="url"]:focus,
+.sakura-admin input[type="password"]:focus,
+.sakura-admin input[type="email"]:focus,
+.sakura-admin input[type="search"]:focus,
+.sakura-admin input[type="tel"]:focus,
+.sakura-admin select:focus,
+.sakura-admin textarea:focus {
+	border-color: var(--g-accent);
+	box-shadow: 0 0 0 3px var(--g-select-focus);
+	outline: 2px solid transparent;
+	outline-offset: 0;
+}
+
+.sakura-admin input::placeholder,
+.sakura-admin textarea::placeholder {
+	color: var(--g-faint);
+	opacity: 1;
+}
+
+.sakura-admin input:disabled,
+.sakura-admin select:disabled,
+.sakura-admin textarea:disabled {
+	border-color: var(--g-line);
+	background: var(--g-wash);
+	color: var(--g-faint);
+	cursor: not-allowed;
+	opacity: 1;
+}
+
+/* Selection: one 18px circle, graphite fill, warm-white dot. */
+.sakura-admin input[type="checkbox"],
+.sakura-admin input[type="radio"] {
+	position: relative;
+	display: inline-grid;
+	place-content: center;
+	flex: 0 0 auto;
+	width: 18px;
+	height: 18px;
+	margin: 0;
+	padding: 0;
+	border: 1px solid var(--g-select-border);
 	border-radius: 50%;
+	background: var(--g-select-surface);
+	box-shadow: inset 0 1px 1px rgba(24, 25, 26, .05);
+	appearance: none;
+	cursor: pointer;
+	vertical-align: middle;
+	transition: background var(--g-dur) var(--g-ease), border-color var(--g-dur) var(--g-ease), box-shadow var(--g-dur) var(--g-ease);
 }
 
-.sakura-sync-app input[type="checkbox"]:hover,
-.sakura-sync-app input[type="radio"]:hover {
-	border-color: #98958d;
+.sakura-admin input[type="checkbox"]::before,
+.sakura-admin input[type="radio"]::before {
+	content: "";
+	width: 6px;
+	height: 6px;
+	border-radius: 50%;
+	background: var(--g-select-dot);
+	transform: scale(0);
+	transition: transform .14s var(--g-ease);
 }
 
-.sakura-sync-app input[type="checkbox"]:checked,
-.sakura-sync-app input[type="radio"]:checked {
+.sakura-admin input[type="checkbox"]:hover,
+.sakura-admin input[type="radio"]:hover {
+	border-color: var(--g-select-border-hover);
+}
+
+.sakura-admin input[type="checkbox"]:checked,
+.sakura-admin input[type="radio"]:checked {
 	border-color: var(--g-select);
 	background: var(--g-select);
 }
 
-.sakura-sync-app input[type="checkbox"]:checked::before {
-	content: "";
-	position: absolute;
-	top: 46%;
-	left: 50%;
-	display: block;
-	width: 8px;
-	height: 4.5px;
-	margin: 0;
-	border: 0;
-	border-left: 1.8px solid var(--g-select-dot);
-	border-bottom: 1.8px solid var(--g-select-dot);
-	border-radius: 0;
-	background: transparent;
-	transform: translate(-50%, -50%) rotate(-45deg);
+.sakura-admin input[type="checkbox"]:checked::before,
+.sakura-admin input[type="radio"]:checked::before {
+	transform: scale(1);
 }
 
-.sakura-sync-app input[type="radio"]:checked::before {
-	content: "";
-	position: absolute;
-	top: 50%;
-	left: 50%;
-	width: 5px;
-	height: 5px;
-	border: 0;
-	border-radius: 50%;
-	background: var(--g-select-dot);
-	transform: translate(-50%, -50%);
-}
-
-.sakura-sync-app input[type="checkbox"]:focus-visible,
-.sakura-sync-app input[type="radio"]:focus-visible {
-	outline: 3px solid rgba(32, 34, 37, .14);
+.sakura-admin input[type="checkbox"]:focus-visible,
+.sakura-admin input[type="radio"]:focus-visible {
+	outline: 2px solid var(--g-select);
 	outline-offset: 2px;
+	box-shadow: 0 0 0 4px var(--g-select-focus);
 }
 
-.sakura-sync-app .form-table input[type="checkbox"],
-.sakura-sync-app .form-table input[type="radio"] {
-	width: 18px;
-	height: 18px;
+.sakura-admin input[type="checkbox"]:disabled,
+.sakura-admin input[type="radio"]:disabled {
+	background: var(--g-wash);
+	border-color: var(--g-line);
+	cursor: not-allowed;
+	opacity: .6;
 }
 
-.sakura-sync-app .compact-cards--settings .form-table input[type="checkbox"],
-.sakura-sync-app .compact-cards--settings .form-table input[type="radio"] {
-	width: 18px;
-	height: 18px;
-}
-
-.sakura-sync-app .form-table input:disabled,
-.sakura-sync-app .form-table select:disabled,
-.sakura-sync-app .form-table textarea:disabled {
-	background: #f6f6f3;
-	color: var(--g-faint);
-}
-
-.sakura-sync-app .field {
+.sakura-admin .check {
 	display: flex;
-	flex-direction: column;
-	gap: 7px;
-	min-width: 0;
-}
-
-.sakura-sync-app .field input,
-.sakura-sync-app .field select {
-	width: 100%;
-}
-
-.sakura-sync-app .field > span {
-	color: #4e5053;
+	align-items: flex-start;
+	gap: 9px;
 	font-size: 13.5px;
-	font-weight: 500;
-}
-
-/* ============================================================
- * 6. Thumbnail scan and size table
- * ============================================================ */
-
-.sakura-sync-app .card--thumbs .form-table,
-.sakura-sync-app .card--thumbs .form-table > tbody,
-.sakura-sync-app .card--thumbs .form-table > tbody > tr {
-	display: block;
-	width: 100%;
-}
-
-.sakura-sync-app .card--thumbs .form-table > tbody > tr > th,
-.sakura-sync-app .card--thumbs .form-table > tbody > tr > td {
-	display: block;
-	width: auto;
-	padding: 0;
-	border: 0;
-	text-align: left;
-	vertical-align: top;
-}
-
-.sakura-sync-app .card--thumbs .form-table > tbody > tr > th {
-	margin: 0 0 8px;
-	color: var(--g-muted);
-	font-size: 13px;
-}
-
-.sakura-sync-app .card--thumbs .form-table > tbody > tr > td {
-	padding-bottom: 2px;
-}
-
-.sakura-sync-app .sakura-imgopt-scan-bar {
-	display: flex;
-	align-items: center;
-	flex-wrap: wrap;
-	gap: 10px;
-	margin: 4px 0 10px;
-}
-
-.sakura-sync-app .sakura-imgopt-field-label {
-	display: inline-flex;
-	align-items: center;
-	height: 34px;
-	color: var(--g-muted);
-	font-size: 13.5px;
-	font-weight: 600;
-	white-space: nowrap;
-}
-
-.sakura-sync-app .sakura-imgopt-scan-summary {
-	flex: 1 0 100%;
-	display: block;
-	color: var(--g-muted);
-	font-size: 13px;
-	line-height: 1.7;
-}
-
-.sakura-sync-app .sakura-imgopt-scan-warnings {
-	max-width: 100%;
-	margin: 8px 0;
-	padding: 9px 13px;
-	border-left: 3px solid var(--g-warn);
-	border-radius: 0 8px 8px 0;
-	background: var(--g-warn-bg);
-	color: #755a20;
-	font-size: 13px;
-	line-height: 1.7;
-}
-
-.sakura-sync-app .sakura-imgopt-scan-warnings ul {
-	margin: 5px 0 0 18px;
-	list-style: disc;
-}
-
-.sakura-sync-app .sakura-imgopt-size-scroll {
-	overflow-x: auto;
-}
-
-.sakura-sync-app .form-table .sakura-imgopt-size-table {
-	width: 100%;
-	max-width: none;
-	min-width: 0;
-	margin: 8px 0 0;
-	border: 0;
-	border-spacing: 0;
-	border-collapse: collapse;
-	background: transparent;
-	box-shadow: none;
-}
-
-.sakura-sync-app .form-table .sakura-imgopt-size-table thead,
-.sakura-sync-app .form-table .sakura-imgopt-size-table tbody,
-.sakura-sync-app .form-table .sakura-imgopt-size-table tr,
-.sakura-sync-app .form-table .sakura-imgopt-size-table th,
-.sakura-sync-app .form-table .sakura-imgopt-size-table td {
-	box-shadow: none !important;
-}
-
-.sakura-sync-app .form-table .sakura-imgopt-size-table th {
-	width: auto;
-	padding: 9px 10px;
-	border-top: 0;
-	border-bottom: 1px solid #d7e7f2;
-	background: #f7fbfd;
-	color: var(--g-muted);
-	font-size: 12.5px;
-	font-weight: 600;
-	text-align: center;
-	white-space: nowrap;
-}
-
-.sakura-sync-app .form-table .sakura-imgopt-size-table td {
-	padding: 9px 10px;
-	border-top: 1px solid #d7e7f2;
-	color: var(--g-ink-soft);
-	font-size: 13px;
-	text-align: center;
-	vertical-align: middle;
-}
-
-.sakura-sync-app .form-table .sakura-imgopt-size-table th:nth-child(2),
-.sakura-sync-app .form-table .sakura-imgopt-size-table td:nth-child(2) {
-	text-align: left;
-}
-
-.sakura-sync-app .form-table .sakura-imgopt-size-table th:nth-child(3),
-.sakura-sync-app .form-table .sakura-imgopt-size-table td[data-field="dims"] {
-	text-align: right;
-	font-variant-numeric: tabular-nums;
-	font-feature-settings: "tnum";
-	white-space: nowrap;
-}
-
-.sakura-sync-app .form-table .sakura-imgopt-size-table th:last-child,
-.sakura-sync-app .form-table .sakura-imgopt-size-table td[data-field="sources"] {
-	text-align: left;
-}
-
-.sakura-sync-app .form-table .sakura-imgopt-size-table .sakura-imgopt-col-check {
-	width: 64px;
-	text-align: center;
-}
-
-.sakura-sync-app .form-table .sakura-imgopt-size-table input[type="checkbox"] {
-	margin: 0;
-	vertical-align: middle;
-}
-
-.sakura-sync-app .form-table .sakura-imgopt-size-table code {
-	display: inline;
-	margin: 0;
-	padding: 0;
-	border: 0;
-	background: transparent !important;
-	box-shadow: none;
-	color: inherit;
-	line-height: inherit;
-}
-
-.sakura-sync-app .sakura-imgopt-status {
-	display: inline-block;
-	padding: 2px 9px;
-	border-radius: 99px;
-	font-size: 11.5px;
-	font-weight: 600;
-}
-
-.sakura-sync-app .sakura-imgopt-status.ok {
-	background: var(--g-ok-bg);
-	color: var(--g-ok);
-}
-
-.sakura-sync-app .sakura-imgopt-status.warn {
-	background: #f0d8a8;
-	color: #6f5316;
-}
-
-.sakura-sync-app .sakura-imgopt-status.neutral {
-	background: #eef0ee;
-	color: var(--g-muted);
-}
-
-.sakura-sync-app .sakura-imgopt-status.bad {
-	background: var(--g-bad-bg);
-	color: var(--g-bad);
-}
-
-.sakura-sync-app .sakura-imgopt-status.conflict {
-	box-shadow: inset 0 0 0 2px var(--g-bad);
-}
-
-.sakura-sync-app .sakura-imgopt-source-tag {
-	display: inline-block;
-	margin: 1px 3px;
-	padding: 1px 6px;
-	border-radius: 6px;
-	background: #eef0ee;
-	color: var(--g-muted);
-	font-size: 12px;
-}
-
-.sakura-sync-app .sakura-imgopt-source-formats {
-	display: flex;
-	flex-wrap: wrap;
-	gap: 8px;
-}
-
-.sakura-sync-app .sakura-imgopt-source-format-item {
-	display: inline-flex;
-	align-items: center;
-	gap: 6px;
-	margin: 0;
-	padding: 6px 10px;
-	border: 1px solid var(--g-line-soft);
-	border-radius: 10px;
-	background: #fbfdff;
-	color: var(--g-ink-soft);
-	font-size: 13px;
+	line-height: 1.55;
 	cursor: pointer;
 }
 
-.sakura-sync-app .sakura-imgopt-source-format-item input[type="checkbox"] {
-	margin: 0;
+.sakura-admin .check + .check {
+	margin-top: 8px;
 }
 
-.sakura-sync-app .sakura-imgopt-source-format-item:has(input:checked) {
+.sakura-admin .check input[type="checkbox"],
+.sakura-admin .check input[type="radio"] {
+	margin-top: 1px;
+}
+
+.sakura-admin .check__box {
+	display: none;
+}
+
+.sakura-admin .check-group {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px 20px;
+}
+
+.sakura-admin .check-group .check + .check {
+	margin-top: 0;
+}
+
+.sakura-admin .switch {
+	display: inline-flex;
+	align-items: center;
+	gap: 10px;
+	cursor: pointer;
+}
+
+.sakura-admin .switch__input {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	opacity: 0;
+}
+
+.sakura-admin .switch__track {
+	position: relative;
+	width: 38px;
+	height: 22px;
+	border: 1px solid var(--g-select-border);
+	border-radius: 999px;
+	background: var(--g-select-surface);
+	transition: background var(--g-dur) var(--g-ease), border-color var(--g-dur) var(--g-ease);
+}
+
+.sakura-admin .switch__track::after {
+	content: "";
+	position: absolute;
+	top: 3px;
+	left: 3px;
+	width: 14px;
+	height: 14px;
+	border-radius: 50%;
+	background: var(--g-select-dot);
+	box-shadow: 0 1px 2px rgba(24, 25, 26, .2);
+	transition: transform var(--g-dur) var(--g-ease);
+}
+
+.sakura-admin .switch__input:checked + .switch__track {
+	border-color: var(--g-select);
+	background: var(--g-select);
+}
+
+.sakura-admin .switch__input:checked + .switch__track::after {
+	transform: translateX(16px);
+}
+
+/* ============================================================
+ * Buttons
+ * ============================================================ */
+
+.sakura-admin .btn {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 6px;
+	height: var(--g-btn-h);
+	margin: 0;
+	padding: 0 16px;
+	border: 1px solid var(--g-line-strong);
+	border-radius: var(--g-radius-sm);
+	background: var(--g-card);
+	box-shadow: 0 1px 1px rgba(24, 25, 26, .035);
+	color: var(--g-ink);
+	font-family: var(--g-font);
+	font-size: 13px;
+	font-weight: 600;
+	line-height: 1;
+	text-decoration: none;
+	white-space: nowrap;
+	cursor: pointer;
+	appearance: none;
+	transition: background var(--g-dur) var(--g-ease), border-color var(--g-dur) var(--g-ease), color var(--g-dur) var(--g-ease), box-shadow var(--g-dur) var(--g-ease), transform var(--g-dur) var(--g-ease);
+}
+
+.sakura-admin .btn:hover {
+	border-color: var(--g-select-border-hover);
+	background: var(--g-wash);
+	color: var(--g-ink);
+}
+
+.sakura-admin .btn:active {
+	transform: translateY(1px);
+}
+
+.sakura-admin .btn--primary {
 	border-color: var(--g-accent);
+	background: var(--g-accent);
+	box-shadow: 0 1px 2px rgba(18, 19, 21, .16), 0 8px 16px -12px rgba(18, 19, 21, .5);
+	color: var(--g-accent-ink);
+}
+
+.sakura-admin .btn--primary:hover {
+	border-color: var(--g-accent-hover);
+	background: var(--g-accent-hover);
+	color: var(--g-accent-ink);
+}
+
+.sakura-admin .btn--ghost {
+	border-color: var(--g-line-strong);
+	background: var(--g-card);
+	color: var(--g-ink-soft);
+}
+
+.sakura-admin .btn--danger {
+	border-color: var(--g-bad);
+	background: var(--g-bad);
+	color: var(--g-accent-ink);
+}
+
+.sakura-admin .btn--danger:hover {
+	border-color: #8d3a32;
+	background: #8d3a32;
+	color: var(--g-accent-ink);
+}
+
+.sakura-admin .btn--quiet {
+	border-color: transparent;
+	background: transparent;
+	box-shadow: none;
+	color: var(--g-muted);
+}
+
+.sakura-admin .btn--quiet:hover {
+	border-color: transparent;
 	background: var(--g-accent-soft);
 	color: var(--g-ink);
 }
 
-.sakura-sync-app .sakura-imgopt-field-disabled td,
-.sakura-sync-app .sakura-imgopt-field-disabled th {
-	opacity: .5;
+.sakura-admin .btn--small {
+	height: var(--g-btn-h-sm);
+	padding: 0 11px;
+	border-radius: 8px;
+	font-size: 12.5px;
+}
+
+.sakura-admin .btn:disabled,
+.sakura-admin .btn.is-busy {
+	cursor: not-allowed;
+	opacity: .55;
+	transform: none;
+}
+
+/* WordPress core buttons that still appear inside migrated callbacks. */
+.sakura-admin .button {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 6px;
+	min-height: 34px;
+	margin: 0;
+	padding: 0 13px;
+	border: 1px solid var(--g-line-strong);
+	border-radius: 9px;
+	background: var(--g-card);
+	box-shadow: none;
+	color: var(--g-ink-soft);
+	font-family: var(--g-font);
+	font-size: 12.5px;
+	font-weight: 600;
+	line-height: 1;
+	text-decoration: none;
+	cursor: pointer;
+}
+
+.sakura-admin .button:hover {
+	border-color: var(--g-select-border-hover);
+	background: var(--g-wash);
+	color: var(--g-ink);
+}
+
+.sakura-admin .button-primary {
+	border-color: var(--g-accent);
+	background: var(--g-accent);
+	color: var(--g-accent-ink);
 }
 
 /* ============================================================
- * 7. Notices and save bar
+ * Tables
  * ============================================================ */
 
-.sakura-sync-app .notice {
-	margin: 0 0 16px;
-	padding: 10px 14px;
-	border: 1px solid var(--g-line);
-	border-left: 3px solid var(--g-accent);
-	border-radius: 10px;
-	background: #fff;
-	color: var(--g-ink-soft);
-	box-shadow: none;
-}
-
-.sakura-sync-app .notice p {
+.sakura-admin .table {
+	width: 100%;
 	margin: 0;
-	color: inherit;
-	font-size: 13.5px;
-	line-height: 1.65;
+	border: 0;
+	border-collapse: collapse;
+	border-spacing: 0;
+	background: transparent;
+	font-size: var(--g-fs-table);
 }
 
-.sakura-sync-app .notice-success {
+.sakura-admin .table th,
+.sakura-admin .table td {
+	padding: 11px 12px;
+	border: 0;
+	border-top: 1px solid var(--g-line-soft);
+	text-align: left;
+	vertical-align: middle;
+}
+
+.sakura-admin .table thead th {
+	border-top: 0;
+	border-bottom: 1px solid var(--g-line);
+	color: var(--g-faint);
+	font-size: 11.5px;
+	font-weight: 650;
+	letter-spacing: .06em;
+	text-transform: uppercase;
+}
+
+.sakura-admin .table tbody tr:first-child th,
+.sakura-admin .table tbody tr:first-child td {
+	border-top: 0;
+}
+
+.sakura-admin .table tbody tr:hover {
+	background: var(--g-wash);
+}
+
+.sakura-admin .table code {
+	border: 0;
+	background: transparent;
+	padding: 0;
+}
+
+.sakura-admin .table--compact th,
+.sakura-admin .table--compact td {
+	padding: 8px 10px;
+}
+
+/* ============================================================
+ * Badges, alerts, notices, empty states
+ * ============================================================ */
+
+.sakura-admin .badge {
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+	height: 22px;
+	padding: 0 9px;
+	border: 1px solid transparent;
+	border-radius: var(--g-radius-pill);
+	background: var(--g-accent-soft);
+	color: var(--g-muted);
+	font-size: 11.5px;
+	font-weight: 600;
+	line-height: 1;
+	white-space: nowrap;
+}
+
+.sakura-admin .badge--ok {
+	border-color: var(--g-ok-line);
+	background: var(--g-ok-bg);
+	color: var(--g-ok);
+}
+
+.sakura-admin .badge--warn {
+	border-color: var(--g-warn-line);
+	background: var(--g-warn-bg);
+	color: var(--g-warn);
+}
+
+.sakura-admin .badge--bad {
+	border-color: var(--g-bad-line);
+	background: var(--g-bad-bg);
+	color: var(--g-bad);
+}
+
+.sakura-admin .badge--info {
+	border-color: var(--g-info-line);
+	background: var(--g-info-bg);
+	color: var(--g-info);
+}
+
+.sakura-admin .alert {
+	margin: 0 0 16px;
+	padding: 12px 15px;
+	border: 1px solid var(--g-info-line);
+	border-radius: var(--g-radius-sm);
+	background: var(--g-info-bg);
+	color: var(--g-ink-soft);
+	font-size: 13px;
+	line-height: 1.7;
+}
+
+.sakura-admin .alert__title {
+	display: block;
+	margin-bottom: 2px;
+	color: var(--g-info);
+	font-size: 13.5px;
+	font-weight: 650;
+}
+
+.sakura-admin .alert--ok {
+	border-color: var(--g-ok-line);
+	background: var(--g-ok-bg);
+}
+
+.sakura-admin .alert--ok .alert__title { color: var(--g-ok); }
+
+.sakura-admin .alert--warn {
+	border-color: var(--g-warn-line);
+	background: var(--g-warn-bg);
+}
+
+.sakura-admin .alert--warn .alert__title { color: var(--g-warn); }
+
+.sakura-admin .alert--bad {
+	border-color: var(--g-bad-line);
+	background: var(--g-bad-bg);
+}
+
+.sakura-admin .alert--bad .alert__title { color: var(--g-bad); }
+
+.sakura-admin .alert--neutral {
+	border-color: var(--g-line);
+	background: var(--g-wash);
+}
+
+.sakura-admin .alert--neutral .alert__title { color: var(--g-ink); }
+
+.sakura-admin .alert__body {
+	color: inherit;
+}
+
+.sakura-admin .notice-inline {
+	margin: 10px 0 0;
+	padding: 9px 12px;
+	border-left: 3px solid var(--g-info);
+	border-radius: 0 var(--g-radius-xs) var(--g-radius-xs) 0;
+	background: var(--g-info-bg);
+	color: var(--g-muted);
+	font-size: 12.5px;
+	line-height: 1.68;
+}
+
+.sakura-admin .notice-inline--ok {
 	border-left-color: var(--g-ok);
 	background: var(--g-ok-bg);
 }
 
-.sakura-sync-app .notice-warning {
+.sakura-admin .notice-inline--warn {
 	border-left-color: var(--g-warn);
 	background: var(--g-warn-bg);
 }
 
-.sakura-sync-app .notice-error {
+.sakura-admin .notice-inline--bad {
 	border-left-color: var(--g-bad);
 	background: var(--g-bad-bg);
 }
 
-.sakura-sync-app .card-savebar {
-	display: flex;
-	align-items: center;
-	justify-content: flex-end;
-	flex-wrap: wrap;
-	gap: 10px 12px;
-	margin: var(--g-stack) 0 0;
-	padding: var(--g-head-gap) 0 0;
-	border-top: 1px solid var(--g-line);
+.sakura-admin .empty-state {
+	padding: 34px 20px;
+	text-align: center;
 }
 
-.sakura-sync-app .card-savebar__note,
-.sakura-sync-app .card-savebar__aside {
-	color: var(--g-faint);
-	font-size: 12.5px;
-	line-height: 1.6;
+.sakura-admin .empty-state__title {
+	display: block;
+	color: var(--g-ink);
+	font-size: 15px;
+	font-weight: 650;
 }
 
-.sakura-sync-app .card-savebar__note {
-	margin-right: auto;
-	min-width: 0;
+.sakura-admin .empty-state__message {
+	max-width: 52ch;
+	margin: 7px auto 0;
+	color: var(--g-muted);
+	font-size: 13px;
+	line-height: 1.7;
+}
+
+.sakura-admin .empty-state .btn {
+	margin-top: 14px;
 }
 
 /* ============================================================
- * 8. Responsive
+ * KPI, progress, pagination
+ * ============================================================ */
+
+.sakura-admin .kpis {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+	gap: 12px;
+}
+
+.sakura-admin .kpi {
+	padding: 13px 15px;
+	border: 1px solid var(--g-line-soft);
+	border-radius: var(--g-radius-md);
+	background: var(--g-wash);
+}
+
+.sakura-admin .kpi__label {
+	color: var(--g-faint);
+	font-size: 11px;
+	font-weight: 650;
+	letter-spacing: .08em;
+	text-transform: uppercase;
+}
+
+.sakura-admin .kpi__value {
+	display: block;
+	margin-top: 3px;
+	color: var(--g-ink);
+	font-size: 21px;
+	font-weight: 650;
+	letter-spacing: -.01em;
+	line-height: 1.25;
+}
+
+.sakura-admin .kpi__value small {
+	margin-left: 3px;
+	color: var(--g-muted);
+	font-size: 11.5px;
+	font-weight: 500;
+}
+
+.sakura-admin .progress {
+	height: 8px;
+	overflow: hidden;
+	border-radius: var(--g-radius-pill);
+	background: var(--g-accent-soft);
+}
+
+.sakura-admin .progress__bar {
+	height: 100%;
+	border-radius: inherit;
+	background: var(--g-accent);
+	transition: width .24s var(--g-ease);
+}
+
+.sakura-admin .pagination {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	margin-top: 16px;
+	color: var(--g-faint);
+	font-size: 12.5px;
+}
+
+.sakura-admin .pagination__pages {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+}
+
+.sakura-admin .pagination__link {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	min-width: 30px;
+	height: 30px;
+	padding: 0 8px;
+	border: 1px solid transparent;
+	border-radius: 8px;
+	color: var(--g-muted);
+	text-decoration: none;
+}
+
+.sakura-admin .pagination__link:hover {
+	border-color: var(--g-line);
+	background: var(--g-wash);
+	color: var(--g-ink);
+}
+
+.sakura-admin .pagination__link.is-current {
+	border-color: var(--g-accent);
+	background: var(--g-accent);
+	color: var(--g-accent-ink);
+}
+
+/* ============================================================
+ * WordPress notices inside the canvas
+ * ============================================================ */
+
+.sakura-admin .notice {
+	margin: 0 0 18px;
+	padding: 11px 14px;
+	border: 1px solid var(--g-line);
+	border-left-width: 3px;
+	border-radius: var(--g-radius-sm);
+	background: var(--g-card);
+	box-shadow: var(--g-shadow-soft);
+	font-size: 13px;
+}
+
+.sakura-admin .notice p {
+	margin: .35em 0;
+	font-size: 13px;
+	line-height: 1.65;
+}
+
+.sakura-admin .notice-success { border-left-color: var(--g-ok); }
+.sakura-admin .notice-warning { border-left-color: var(--g-warn); }
+.sakura-admin .notice-error { border-left-color: var(--g-bad); }
+.sakura-admin .notice-info { border-left-color: var(--g-info); }
+
+.sakura-admin .notice-dismiss {
+	padding: 8px;
+}
+
+/* ============================================================
+ * Toast and dialog
+ * ============================================================ */
+
+.sakura-admin .toast-stack {
+	position: fixed;
+	right: 24px;
+	bottom: 24px;
+	z-index: var(--g-z-toast);
+	display: flex;
+	flex-direction: column;
+	align-items: flex-end;
+	gap: 8px;
+	max-width: min(380px, calc(100vw - 32px));
+	pointer-events: none;
+}
+
+.sakura-admin .toast {
+	display: flex;
+	align-items: flex-start;
+	gap: 9px;
+	padding: 10px 14px;
+	border: 1px solid rgba(255, 255, 255, .12);
+	border-radius: var(--g-radius-sm);
+	background: #25272a;
+	box-shadow: var(--g-shadow-pop);
+	color: #f7f6f2;
+	font-size: 13px;
+	line-height: 1.55;
+	pointer-events: auto;
+	animation: sakura-toast-in .18s var(--g-ease);
+}
+
+.sakura-admin .toast::before {
+	content: "";
+	flex: 0 0 auto;
+	width: 7px;
+	height: 7px;
+	margin-top: 6px;
+	border-radius: 50%;
+	background: #b8b9b6;
+}
+
+.sakura-admin .toast--ok::before { background: #7fc39b; }
+.sakura-admin .toast--warn::before { background: #d9b968; }
+.sakura-admin .toast--bad::before { background: #de8a80; }
+
+.sakura-admin .toast.is-leaving {
+	opacity: 0;
+	transform: translateY(4px);
+	transition: opacity .16s ease, transform .16s ease;
+}
+
+@keyframes sakura-toast-in {
+	from { opacity: 0; transform: translateY(6px); }
+	to { opacity: 1; transform: translateY(0); }
+}
+
+.sakura-admin dialog {
+	width: min(440px, calc(100vw - 32px));
+	margin: auto;
+	padding: 0;
+	border: 1px solid var(--g-line);
+	border-radius: var(--g-radius-card);
+	background: var(--g-card);
+	box-shadow: var(--g-shadow-pop);
+	color: var(--g-ink);
+	font-family: var(--g-font);
+	font-size: 14px;
+}
+
+.sakura-admin dialog::backdrop {
+	background: var(--g-overlay);
+	backdrop-filter: blur(2px);
+}
+
+.sakura-admin .sakura-dialog__form {
+	margin: 0;
+}
+
+.sakura-admin .dialog__body {
+	padding: 22px 22px 8px;
+}
+
+.sakura-admin .dialog__title {
+	margin: 0 0 8px;
+	font-size: 17px;
+	font-weight: 650;
+	line-height: 1.35;
+}
+
+.sakura-admin .dialog__message {
+	margin: 0;
+	color: var(--g-muted);
+	font-size: 13.5px;
+	line-height: 1.7;
+}
+
+.sakura-admin .dialog__actions {
+	display: flex;
+	align-items: center;
+	justify-content: flex-end;
+	gap: 8px;
+	padding: 16px 22px 20px;
+}
+
+/* ============================================================
+ * Responsive
  * ============================================================ */
 
 @media (max-width: 1100px) {
-	.sakura-sync-app .topbar.sakura-topbar {
-		flex-wrap: wrap;
-		row-gap: 10px;
+	.sakura-admin .card-grid {
+		grid-template-columns: minmax(0, 1fr);
+		gap: 16px;
 	}
 
-	.sakura-sync-app .sakura-mods {
-		order: 3;
-		width: 100%;
-		justify-content: flex-start;
-		overflow-x: auto;
+	.sakura-admin .card-grid > .card,
+	.sakura-admin .card-grid > .card--wide {
+		grid-column: auto;
 	}
 
-	.sakura-sync-app .compact-cards,
-	.sakura-sync-app .compact-cards--settings {
-		display: block;
+	.sakura-admin .field-list {
+		grid-template-columns: minmax(0, 1fr);
+		gap: 16px;
 	}
 
-	.sakura-sync-app .compact-cards > .card,
-	.sakura-sync-app .compact-cards--settings > .card {
-		margin: 0 0 24px;
-	}
-
-	.sakura-sync-app .compact-cards > .card:last-child,
-	.sakura-sync-app .compact-cards--settings > .card:last-child {
-		margin-bottom: 0;
-	}
-}
-
-@media (max-width: 900px) {
-	.sakura-sync-app .hero {
-		flex-direction: column;
-		align-items: stretch;
-		gap: 20px;
-	}
-
-	.sakura-sync-app .hero-status {
-		flex: 0 0 auto;
-		width: 100%;
-	}
-
-	.sakura-sync-app .form-table > tbody > tr > th,
-	.sakura-sync-app .form-table > tbody > tr > td {
-		display: block;
-		width: auto;
-		padding: 7px 0;
-		border-top: 0;
-	}
-
-	.sakura-sync-app .form-table > tbody > tr {
-		display: block;
-		padding: 10px 0;
-		border-top: 1px solid var(--g-line-soft);
-	}
-
-	.sakura-sync-app .form-table > tbody > tr:first-child {
-		border-top: 0;
-	}
-
-	.sakura-sync-app .form-table > tbody > tr > th {
-		padding-bottom: 4px;
-	}
-
-	.sakura-sync-app .form-table input[type="text"],
-	.sakura-sync-app .form-table input[type="url"],
-	.sakura-sync-app .form-table input[type="password"],
-	.sakura-sync-app .form-table select {
-		max-width: 100%;
-	}
-
-	.sakura-sync-app .sakura-imgopt-size-table {
-		min-width: 640px;
-	}
-
-	.sakura-sync-app .sakura-thumb-size-table {
-		min-width: 680px;
+	.sakura-admin .field--full {
+		grid-column: auto;
 	}
 }
 
 @media (max-width: 782px) {
-	.sakura-sync-app .hero {
-		padding: 4px 0 var(--g-stack);
-		margin-bottom: var(--g-stack);
+	.sakura-admin .card__head {
+		padding-top: 17px;
 	}
 
-	.sakura-sync-app .hero h1 {
-		font-size: 26px;
+	.sakura-admin .card__body {
+		padding-top: 12px;
 	}
 
-	.sakura-sync-app .hero .lede {
-		font-size: 14px;
+	.sakura-admin .card__savebar {
+		padding-top: 14px;
 	}
 
-	.sakura-sync-app .hero-status-main strong {
-		font-size: 17px;
+	.sakura-admin .card__savebar .btn {
+		width: 100%;
 	}
 
-	.sakura-sync-app .brand span.path {
+	.sakura-admin .card__savebar::before {
 		display: none;
 	}
 
-	.sakura-sync-app .form-table > tbody > tr {
-		margin: 0;
-		padding: var(--g-row-pad) 0;
-		border: 0;
-		border-top: 1px solid var(--g-line-soft);
-		border-radius: 0;
-		background: transparent;
+	.sakura-admin .toast-stack {
+		right: 16px;
+		bottom: 16px;
+		left: 16px;
+		max-width: none;
 	}
 
-	.sakura-sync-app .form-table > tbody > tr:first-child {
+	.sakura-admin .toast {
+		width: 100%;
+	}
+}
+
+/* Tables become stacked records below 783px when JS has labelled the cells. */
+@media (max-width: 782px) {
+	.sakura-admin .table--responsive {
+		display: block;
+	}
+
+	.sakura-admin .table--responsive thead {
+		display: none;
+	}
+
+	.sakura-admin .table--responsive tbody,
+	.sakura-admin .table--responsive tr {
+		display: block;
+	}
+
+	.sakura-admin .table--responsive tr {
+		padding: 10px 0;
+		border-top: 1px solid var(--g-line-soft);
+	}
+
+	.sakura-admin .table--responsive tbody tr:first-child {
 		border-top: 0;
 	}
 
-	.sakura-sync-app .form-table > tbody > tr > th,
-	.sakura-sync-app .form-table > tbody > tr > td {
-		padding: var(--g-tight) 0;
-	}
-
-	.sakura-sync-app .card-head {
-		flex-wrap: wrap;
-	}
-
-	.sakura-sync-app .card-head > div:first-child {
-		flex: 1 1 100%;
-		min-width: 0;
-	}
-
-	.sakura-sync-app .card-head-actions {
-		width: 100%;
-		justify-content: flex-end;
-	}
-
-	.sakura-sync-app .card-savebar {
-		margin-top: 16px;
-	}
-
-	.sakura-sync-app .card-savebar .btn {
-		width: 100%;
-	}
-
-	.sakura-sync-app .select,
-	.sakura-sync-app select,
-	.sakura-sync-app input[type="text"],
-	.sakura-sync-app input[type="url"],
-	.sakura-sync-app input[type="password"],
-	.sakura-sync-app input[type="number"],
-	.sakura-sync-app textarea {
-		min-height: 40px;
-		height: auto;
-		padding: 9px 12px;
-		line-height: 1.5;
-		font-size: 14px;
-	}
-
-	.sakura-sync-app select {
-		padding-right: 34px;
-	}
-
-	.sakura-sync-app .sakura-tabs {
-		gap: 18px;
-	}
-
-	.sakura-sync-app .card--thumbs .form-table > tbody > tr.sakura-imgopt-thumbs-row {
-		margin: 0;
-		padding: 0;
-		border: 1px solid var(--g-line);
-		border-radius: var(--r-md);
-		background: var(--g-wash);
-	}
-
-	.sakura-sync-app .card--thumbs .form-table > tbody > tr.sakura-imgopt-thumbs-row > td.sakura-imgopt-thumbs-cell {
-		padding: var(--g-panel-pad);
-	}
-
-	.sakura-sync-app .card--thumbs .sakura-imgopt-scan-bar {
-		margin-top: 0;
-	}
-
-	.sakura-sync-app .card--thumbs .sakura-imgopt-thumbs-cell .description {
-		margin-top: var(--g-inset-gap);
-	}
-
-	.sakura-sync-app .card--thumbs .sakura-imgopt-size-table {
-		width: 100%;
-		border-collapse: collapse;
-	}
-
-	.sakura-sync-app .card--thumbs .sakura-imgopt-size-table tr {
-		margin: 0;
-		padding: var(--g-row-pad) 0;
+	.sakura-admin .table--responsive td {
+		display: grid;
+		grid-template-columns: 92px minmax(0, 1fr);
+		gap: 8px;
+		padding: 5px 0;
 		border: 0;
-		border-top: 1px solid var(--g-line-soft);
-		border-radius: 0;
-		background: transparent;
+		text-align: left;
 	}
 
-	.sakura-sync-app .card--thumbs .sakura-imgopt-size-table tr:first-child {
-		border-top: 0;
+	.sakura-admin .table--responsive td::before {
+		content: attr(data-label);
+		color: var(--g-faint);
+		font-size: 11.5px;
+		font-weight: 600;
+		letter-spacing: .04em;
 	}
 
-	.sakura-sync-app .card--thumbs .sakura-imgopt-size-table td {
-		padding: 4px 0;
-		border: 0;
+	.sakura-admin .table--responsive td[data-label=""]::before {
+		display: none;
 	}
 }

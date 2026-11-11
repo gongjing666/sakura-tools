@@ -3,6 +3,7 @@ namespace Sakura\ImageOptimizer;
 
 use Sakura\ImageOptimizer\Admin\Assets;
 use Sakura\ImageOptimizer\Admin\Card_Form;
+use Sakura\ImageOptimizer\Admin\Page_Assets;
 use Sakura\ImageOptimizer\Backup\Backup_Repository;
 use Sakura\ImageOptimizer\Contracts\Backup_Repository_Interface;
 use Sakura\ImageOptimizer\Contracts\Module;
@@ -469,7 +470,7 @@ class Image_Optimizer_Module implements Module {
 
 	public function section_bulk_cb() {
 		echo '<p>' . esc_html__( '媒体库「图像优化」批量处理时的性能参数。批量优化采用分批异步处理，避免请求超时和服务器过载。', 'sakura-imgopt' ) . '</p>';
-		echo '<p class="sakura-imgopt-inline-notice">'
+		echo '<p class="card__note-alert">'
 			. esc_html__( '注意：批量优化仅适用于存储在本地服务器的图片。如果媒体库已经被阿里云 OSS、腾讯云 COS、七牛、又拍云等云存储插件接管，图片实际在云端、本地没有副本，这里的批量优化就无法处理。这种情况建议在「上传时」就完成压缩和格式转换。', 'sakura-imgopt' )
 			. '</p>';
 	}
@@ -1117,33 +1118,37 @@ class Image_Optimizer_Module implements Module {
 		}
 
 		unset( $hook );
-		Assets::enqueue_page();
 
-		wp_localize_script(
-			'sakura-imgopt-admin',
-			'sakuraImgoptScan',
-			array(
-				'ajaxUrl' => admin_url( 'admin-ajax.php' ),
-				'action'  => 'sakura_imgopt_scan_crop',
-				'nonce'   => wp_create_nonce( 'sakura_imgopt_scan_crop' ),
-				'statsAction' => 'sakura_imgopt_stats_page',
-				'statsNonce'  => wp_create_nonce( 'sakura_imgopt_stats_page' ),
-				'strings' => array(
-					'button'             => __( '扫描裁剪配置', 'sakura-imgopt' ),
-					'scanning'           => __( '正在扫描…', 'sakura-imgopt' ),
-					'failed'             => __( '扫描失败，请稍后重试。', 'sakura-imgopt' ),
-					'never'              => __( '尚未扫描', 'sakura-imgopt' ),
-					'registeredNoSource' => __( '运行中已注册，未定位静态来源', 'sakura-imgopt' ),
-					'unknownSource'      => __( '未扫描', 'sakura-imgopt' ),
-					'hardCrop'           => __( '硬裁剪', 'sakura-imgopt' ),
-					'softCrop'           => __( '等比缩放', 'sakura-imgopt' ),
-					'disabled'           => __( '已禁止', 'sakura-imgopt' ),
-					'enabled'            => __( '正常启用', 'sakura-imgopt' ),
-					'warningsTitle'      => __( '扫描提示', 'sakura-imgopt' ),
-					'auto'               => __( '自动', 'sakura-imgopt' ),
-				),
-			)
-		);
+		if ( \Sakura\ImageOptimizer\Admin\Registry::on( 'image', 'rules' ) ) {
+			Page_Assets::set_data(
+				'image-rules',
+				array(
+					'scan' => array(
+						'ajaxUrl'     => admin_url( 'admin-ajax.php' ),
+						'action'      => 'sakura_imgopt_scan_crop',
+						'nonce'       => wp_create_nonce( 'sakura_imgopt_scan_crop' ),
+						'statsAction' => 'sakura_imgopt_stats_page',
+						'statsNonce'  => wp_create_nonce( 'sakura_imgopt_stats_page' ),
+						'strings'     => array(
+							'button'             => __( '扫描裁剪配置', 'sakura-imgopt' ),
+							'scanning'           => __( '正在扫描…', 'sakura-imgopt' ),
+							'failed'             => __( '扫描失败，请稍后重试。', 'sakura-imgopt' ),
+							'never'              => __( '尚未扫描', 'sakura-imgopt' ),
+							'registeredNoSource' => __( '运行中已注册，未定位静态来源', 'sakura-imgopt' ),
+							'unknownSource'      => __( '未扫描', 'sakura-imgopt' ),
+							'hardCrop'           => __( '硬裁剪', 'sakura-imgopt' ),
+							'softCrop'           => __( '等比缩放', 'sakura-imgopt' ),
+							'disabled'           => __( '已禁止', 'sakura-imgopt' ),
+							'enabled'            => __( '正常启用', 'sakura-imgopt' ),
+							'warningsTitle'      => __( '扫描提示', 'sakura-imgopt' ),
+							'auto'               => __( '自动', 'sakura-imgopt' ),
+						),
+					),
+				)
+			);
+		}
+
+		Assets::enqueue_page();
 	}
 
 	// ── 处理「扫描裁剪配置」AJAX 请求 ─────────────────

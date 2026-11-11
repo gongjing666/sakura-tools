@@ -2,9 +2,9 @@
 /**
  * Shared admin UI components.
  *
- * One place that owns the structural markup for heroes, cards, card forms and
- * save bars. A view describes what a card *is*; it does not repeat the wrapper
- * markup, the nonce or the card-save contract.
+ * One place that owns the structural markup for page shells, cards, fields and
+ * feedback. Views describe content; they do not repeat wrappers, nonces or the
+ * card-save contract.
  *
  * @package Sakura_Image_Optimizer
  */
@@ -12,6 +12,11 @@
 declare( strict_types=1 );
 
 namespace Sakura\ImageOptimizer\Admin;
+
+use Sakura\ImageOptimizer\Admin\UI\Card as Card_View;
+use Sakura\ImageOptimizer\Admin\UI\Feedback;
+use Sakura\ImageOptimizer\Admin\UI\Field as Field_View;
+use Sakura\ImageOptimizer\Admin\UI\Page as Page_View;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -21,149 +26,80 @@ defined( 'ABSPATH' ) || exit;
 final class UI {
 
 	/**
-	 * Render a page hero.
+	 * Render a page shell.
 	 *
-	 * @param array<string,mixed> $args {
-	 *     @type string $eyebrow Small uppercase kicker.
-	 *     @type string $title   Page title.
-	 *     @type string $lede    One-paragraph introduction.
-	 * }
+	 * @param array<string,mixed> $args Page arguments.
+	 * @param callable            $body Main content.
 	 * @return void
 	 */
-	public static function hero( array $args ): void {
-		$eyebrow = isset( $args['eyebrow'] ) ? (string) $args['eyebrow'] : '';
-		$title   = isset( $args['title'] ) ? (string) $args['title'] : '';
-		$lede    = isset( $args['lede'] ) ? (string) $args['lede'] : '';
-
-		echo '<section class="hero">';
-		echo '<div class="hero-copy">';
-		if ( '' !== $eyebrow ) {
-			echo '<p class="eyebrow">' . esc_html( $eyebrow ) . '</p>';
-		}
-		echo '<h1>' . esc_html( $title ) . '</h1>';
-		if ( '' !== $lede ) {
-			echo '<p class="lede">' . esc_html( $lede ) . '</p>';
-		}
-		echo '</div></section>';
+	public static function page( array $args, callable $body ): void {
+		Page_View::render( $args, $body );
 	}
 
 	/**
-	 * Render one card, optionally with its own save form.
+	 * Render one card.
 	 *
-	 * The body callback runs inside .card-body and, when a form is configured,
-	 * inside that form. A save bar is appended after the callback so every
-	 * editable card gets the same bottom-right action without repeating markup.
-	 *
-	 * @param array<string,mixed> $args {
-	 *     @type string   $card    Card id used by data-sakura-card and markers.
-	 *     @type string   $kicker  Small uppercase section label.
-	 *     @type string   $title   Card title (may contain inline HTML).
-	 *     @type bool     $wide    Span the full card grid.
-	 *     @type string   $class   Extra class names.
-	 *     @type string   $save    Save button label. Empty means no save bar.
-	 *     @type array    $form    {
-	 *         @type string $id           Form id.
-	 *         @type string $action       Form action. Default options.php.
-	 *         @type string $method       Form method. Default post.
-	 *         @type string $option_group Option group for the nonce.
-	 *         @type string $markers      fields, option_fields or none.
-	 *         @type string $option       Option name for option_fields.
-	 *     }
-	 * }
-	 * @param callable            $body Card body renderer.
+	 * @param array<string,mixed> $args Card arguments.
+	 * @param callable            $body Card body.
 	 * @return void
 	 */
 	public static function card( array $args, callable $body ): void {
-		$card   = isset( $args['card'] ) ? sanitize_key( (string) $args['card'] ) : '';
-		$kicker = isset( $args['kicker'] ) ? (string) $args['kicker'] : '';
-		$title  = isset( $args['title'] ) ? (string) $args['title'] : '';
-		$wide   = ! empty( $args['wide'] );
-		$extra  = isset( $args['class'] ) ? (string) $args['class'] : '';
-		$save   = isset( $args['save'] ) ? (string) $args['save'] : '';
-		$form   = isset( $args['form'] ) && is_array( $args['form'] ) ? $args['form'] : array();
-
-		$classes = array( 'card' );
-		if ( $wide ) {
-			$classes[] = 'card--wide';
-		}
-		if ( '' !== $card ) {
-			$classes[] = 'card--' . $card;
-		}
-		foreach ( preg_split( '/\s+/', trim( $extra ) ) as $class ) {
-			if ( '' !== $class ) {
-				$classes[] = sanitize_html_class( $class );
-			}
-		}
-
-		echo '<section class="' . esc_attr( implode( ' ', $classes ) ) . '"';
-		if ( '' !== $card ) {
-			echo ' data-sakura-card="' . esc_attr( $card ) . '"';
-		}
-		echo '>';
-
-		echo '<div class="card-head"><div>';
-		if ( '' !== $kicker ) {
-			echo '<p class="section-kicker">' . esc_html( $kicker ) . '</p>';
-		}
-		echo '<h2>' . wp_kses_post( $title ) . '</h2>';
-		echo '</div></div>';
-
-		echo '<div class="card-body">';
-
-		if ( ! empty( $form ) ) {
-			self::form_open( $form, $card );
-		}
-
-		$body();
-
-		if ( '' !== $save ) {
-			self::savebar( $save );
-		}
-
-		if ( ! empty( $form ) ) {
-			echo '</form>';
-		}
-
-		echo '</div></section>';
+		Card_View::render( $args, $body );
 	}
 
 	/**
-	 * Render a card save bar.
+	 * Render one field.
 	 *
-	 * @param string $label Button label.
+	 * @param array<string,mixed> $args Field arguments.
 	 * @return void
 	 */
-	public static function savebar( string $label ): void {
-		echo '<div class="card-savebar"><button type="submit" class="btn btn--primary">' . esc_html( $label ) . '</button></div>';
+	public static function field( array $args ): void {
+		Field_View::render( $args );
 	}
 
 	/**
-	 * Open a card-local form and print its nonce plus save markers.
+	 * Badge.
 	 *
-	 * @param array<string,mixed> $form Form configuration.
-	 * @param string              $card Card id.
+	 * @param string $label Label.
+	 * @param string $tone  ok, warn, bad, info or neutral.
 	 * @return void
 	 */
-	private static function form_open( array $form, string $card ): void {
-		$id      = isset( $form['id'] ) ? (string) $form['id'] : 'sakura-card-' . $card;
-		$action  = isset( $form['action'] ) ? (string) $form['action'] : 'options.php';
-		$method  = isset( $form['method'] ) ? (string) $form['method'] : 'post';
-		$group   = isset( $form['option_group'] ) ? (string) $form['option_group'] : '';
-		$markers = isset( $form['markers'] ) ? (string) $form['markers'] : 'fields';
-		$option  = isset( $form['option'] ) ? (string) $form['option'] : '';
+	public static function badge( string $label, string $tone = 'neutral' ): void {
+		Feedback::badge( $label, $tone );
+	}
 
-		echo '<form id="' . esc_attr( $id ) . '" method="' . esc_attr( $method ) . '" action="' . esc_attr( $action ) . '">';
+	/**
+	 * Page-level alert.
+	 *
+	 * @param string $message Message.
+	 * @param string $tone    info, ok, warn or bad.
+	 * @param string $title   Optional title.
+	 * @return void
+	 */
+	public static function alert( string $message, string $tone = 'info', string $title = '' ): void {
+		Feedback::alert( $message, $tone, $title );
+	}
 
-		if ( '' !== $group ) {
-			echo '<input type="hidden" name="option_page" value="' . esc_attr( $group ) . '" />';
-			echo '<input type="hidden" name="action" value="update" />';
-			echo '<input type="hidden" name="_wpnonce" value="' . esc_attr( wp_create_nonce( $group . '-options' ) ) . '" />';
-		}
+	/**
+	 * Empty state.
+	 *
+	 * @param string              $title   Title.
+	 * @param string              $message Message.
+	 * @param array<string,mixed> $action  Optional action: label, url.
+	 * @return void
+	 */
+	public static function empty_state( string $title, string $message, array $action = array() ): void {
+		Feedback::empty_state( $title, $message, $action );
+	}
 
-		if ( 'fields' === $markers ) {
-			Card_Form::fields( $card );
-		} elseif ( 'option_fields' === $markers && '' !== $option ) {
-			Card_Form::option_fields( $option, $card );
-		}
+	/**
+	 * Inline notice inside a card.
+	 *
+	 * @param string $message Message.
+	 * @param string $tone    info, ok, warn or bad.
+	 * @return void
+	 */
+	public static function notice( string $message, string $tone = 'info' ): void {
+		Feedback::notice( $message, $tone );
 	}
 }

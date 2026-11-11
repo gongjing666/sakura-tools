@@ -75,13 +75,26 @@ final class Assets {
 	 * @return void
 	 */
 	public static function enqueue_page(): void {
-		$ui = self::is_ui_screen();
+		$page = Route::current_page();
 
-		if ( $ui ) {
-			self::enqueue_ui();
-		} else {
-			self::enqueue_style();
+		if ( Page_Assets::is_ui_page( $page ) ) {
+			Page_Assets::enqueue( $page );
+			return;
 		}
+
+		self::enqueue_legacy();
+	}
+
+	/**
+	 * Enqueue the pre-migration stack.
+	 *
+	 * Kept only while pages are being moved one batch at a time. Stage 6 removes
+	 * this method together with the asset files it loads.
+	 *
+	 * @return void
+	 */
+	private static function enqueue_legacy(): void {
+		self::enqueue_style();
 
 		wp_enqueue_script(
 			'sakura-imgopt-admin',
@@ -92,7 +105,7 @@ final class Assets {
 		);
 		wp_set_script_translations( 'sakura-imgopt-admin', 'sakura-imgopt', SAKURA_TOOLS_PATH . 'languages' );
 
-		self::enqueue_layout( $ui ? 'sakura-imgopt-ui-components' : 'sakura-imgopt-admin' );
+		self::enqueue_layout( 'sakura-imgopt-admin' );
 	}
 
 	/**

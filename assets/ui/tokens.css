@@ -1,232 +1,113 @@
 /**
- * UI layer: design tokens, canvas and base typography.
+ * Design tokens for the Sakura admin UI.
  *
- * This file owns the values; components.css owns the shapes. Screens that
- * opt into the UI layer load these two files instead of the legacy
- * admin/admin-ext/unify/theme stack.
+ * Values only. No selectors besides :root, no layout, no component shapes.
+ * Every component reads from this file so a palette change stays one edit.
  *
  * @package Sakura_Image_Optimizer
  */
 
-/* ============================================================
- * 1. Tokens
- * ============================================================ */
+:root {
+	/* Ink */
+	--g-ink: #1b1c1e;
+	--g-ink-soft: #34363a;
+	--g-muted: #5f6165;
+	--g-faint: #8c8d8a;
+	--g-line: #e4e1d9;
+	--g-line-soft: #eeece5;
+	--g-line-strong: #d2cfc6;
 
-.sakura-sync-app {
-	--g-ink: #1c1d1f;
-	--g-ink-soft: #383a3d;
-	--g-muted: #606265;
-	--g-faint: #8b8d8a;
-	--g-line: #e6e5e0;
-	--g-line-soft: #efeeea;
-	--g-line-strong: #d3d3ce;
-	--g-paper: #f7f7f4;
+	/* Surfaces */
+	--g-paper: #f6f5f1;
+	--g-paper-deep: #efeee9;
 	--g-card: #ffffff;
-	--g-wash: #fbfbf9;
-	--g-accent: #202225;
+	--g-wash: #fbfaf7;
+	--g-overlay: rgba(24, 25, 26, .38);
+
+	/* One accent: graphite. Status colours are separate and never decorative. */
+	--g-accent: #232528;
 	--g-accent-hover: #000000;
 	--g-accent-soft: #efeee9;
+	--g-accent-ink: #ffffff;
+
+	/* Selection controls */
 	--g-select: #2f3134;
 	--g-select-dot: #f6f4ed;
 	--g-select-surface: #fffdfa;
 	--g-select-border: #c3c0b7;
 	--g-select-border-hover: #9b978d;
 	--g-select-focus: rgba(47, 49, 52, .16);
-	--g-ok: #35734f;
+
+	/* Status */
+	--g-ok: #33704e;
 	--g-ok-bg: #edf5f0;
-	--g-warn: #8f6a1f;
+	--g-ok-line: #cfe3d7;
+	--g-warn: #8a651d;
 	--g-warn-bg: #faf3e4;
+	--g-warn-line: #ead9b5;
 	--g-bad: #a3463d;
 	--g-bad-bg: #fbedeb;
-	--g-shadow: 0 1px 2px rgba(24, 26, 28, .05), 0 18px 42px -26px rgba(24, 26, 28, .26), 0 44px 90px -70px rgba(24, 26, 28, .34);
-	--g-shadow-soft: 0 1px 2px rgba(24, 26, 28, .04), 0 10px 26px -18px rgba(24, 26, 28, .2), 0 28px 60px -52px rgba(24, 26, 28, .22);
+	--g-bad-line: #efd3ce;
+	--g-info: #4a4c50;
+	--g-info-bg: #f2f1ed;
+	--g-info-line: #e2e0d8;
 
-	/* Legacy names stay mapped so shared shell and layout files keep working
-	 * while a screen is migrated. */
-	--blue: #24262a;
-	--blue-deep: #111214;
-	--blue-soft: #f2f2ef;
-	--sky: #eceae4;
-	--pink: #f7f7f4;
-	--rose: #9d6d65;
-	--ink: var(--g-ink);
-	--muted: var(--g-muted);
-	--line: var(--g-line);
-	--line-soft: var(--g-line-soft);
-	--line-strong: var(--g-line-strong);
-	--surface: var(--g-card);
-	--surface-soft: var(--g-wash);
-	--ok: var(--g-ok);
-	--ok-bg: var(--g-ok-bg);
-	--warn: var(--g-warn);
-	--warn-bg: var(--g-warn-bg);
-	--bad: var(--g-bad);
-	--bad-bg: var(--g-bad-bg);
-	--shadow: var(--g-shadow);
-	--shadow-soft: var(--g-shadow-soft);
-	--radius: 18px;
-	--radius-sm: 14px;
-	--r-lg: 18px;
-	--r-md: 14px;
-	--r-sm: 9px;
-	--r-xs: 5px;
-	--ctl-h: 38px;
-	--ctl-h-sm: 32px;
-	--fs-11: 12.5px;
-	--fs-12: 13.5px;
-	--fs-13: 14px;
-	--fs-16: 17px;
-	--fs-20: 20px;
+	/* Depth. Two levels only: resting card, lifted surface. */
+	--g-shadow-card: 0 1px 2px rgba(24, 25, 26, .04), 0 14px 32px -24px rgba(24, 25, 26, .28), 0 40px 72px -64px rgba(24, 25, 26, .32);
+	--g-shadow-soft: 0 1px 2px rgba(24, 25, 26, .035), 0 8px 20px -16px rgba(24, 25, 26, .18);
+	--g-shadow-pop: 0 2px 4px rgba(24, 25, 26, .06), 0 24px 60px -28px rgba(24, 25, 26, .42);
 
+	/* Shape */
+	--g-radius-card: 18px;
+	--g-radius-lg: 22px;
+	--g-radius-md: 14px;
+	--g-radius-sm: 10px;
+	--g-radius-xs: 7px;
+	--g-radius-pill: 999px;
+
+	/* Type */
+	--g-font: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", system-ui, sans-serif;
+	--g-font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+	--g-fs-body: 14px;
+	--g-fs-small: 13px;
+	--g-fs-meta: 12.5px;
+	--g-fs-eyebrow: 11px;
+	--g-fs-table: 13.5px;
+	--g-fs-h1: clamp(26px, 2.5vw, 32px);
+	--g-fs-h2: 17px;
+	--g-fs-h3: 15px;
+	--g-lh-body: 1.65;
+	--g-lh-tight: 1.28;
+
+	/* Controls */
+	--g-ctl-h: 38px;
+	--g-btn-h: 36px;
+	--g-btn-h-sm: 30px;
+
+	/* Rhythm */
 	--g-gutter: clamp(16px, 2.4vw, 30px);
+	--g-page-max: 1480px;
 	--g-app-top: clamp(14px, 1.7vw, 22px);
 	--g-app-bottom: clamp(56px, 5vw, 80px);
-	--g-card-pad-x: clamp(16px, 2.2vw, 22px);
-	--g-card-pad-top: clamp(16px, 1.8vw, 20px);
-	--g-card-pad-bottom: clamp(18px, 1.9vw, 22px);
-	--g-panel-pad: clamp(12px, 1.7vw, 16px);
+	--g-grid-gap: 18px;
+	--g-card-pad-x: clamp(17px, 2.1vw, 24px);
+	--g-card-pad-top: clamp(18px, 1.9vw, 22px);
+	--g-card-pad-bottom: clamp(18px, 2vw, 24px);
 	--g-stack: clamp(16px, 1.6vw, 20px);
-	--g-row-pad: clamp(10px, 1.2vw, 14px);
-	--g-tight: clamp(8px, 1vw, 12px);
-	--g-inset-gap: clamp(12px, 1.5vw, 16px);
-	--g-head-gap: 12px;
+	--g-space-1: 6px;
+	--g-space-2: 10px;
+	--g-space-3: 14px;
+	--g-space-4: 18px;
+	--g-space-5: 24px;
+	--g-space-6: 32px;
 
-	box-sizing: border-box;
-	min-height: calc(100vh - 32px);
-	color: var(--g-ink);
-	background:
-		radial-gradient(1180px 680px at 80% -18%, rgba(255, 255, 255, .72) 0%, rgba(255, 255, 255, 0) 64%),
-		radial-gradient(900px 560px at 4% 6%, rgba(255, 255, 255, .62) 0%, rgba(255, 255, 255, 0) 60%),
-		radial-gradient(1100px 760px at 52% 116%, rgba(255, 255, 255, .58) 0%, rgba(255, 255, 255, 0) 68%),
-		linear-gradient(180deg, #f8f8f5 0%, #f4f4f1 54%, #f6f6f3 100%);
-	font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", system-ui, sans-serif;
-	font-size: 14px;
-	line-height: 1.6;
-	letter-spacing: .002em;
-	-webkit-font-smoothing: antialiased;
-	min-width: 320px;
-	/* Cancel the admin content slot so the canvas owns its own gutter. */
-	margin: -10px 0 0;
-}
+	/* Layers */
+	--g-z-toolbar: 20;
+	--g-z-popover: 40;
+	--g-z-dialog: 60;
+	--g-z-toast: 80;
 
-.sakura-sync-app *,
-.sakura-sync-app *::before,
-.sakura-sync-app *::after {
-	box-sizing: border-box;
-}
-
-/* ============================================================
- * 2. Canvas
- * ============================================================ */
-
-.sakura-sync-app .app {
-	position: relative;
-	z-index: 1;
-	max-width: 1480px;
-	margin: 0 auto;
-	padding: var(--g-app-top) var(--g-gutter) var(--g-app-bottom);
-}
-
-.sakura-sync-app .sky-layer {
-	position: absolute;
-	inset: 0;
-	overflow: hidden;
-	pointer-events: none;
-	background:
-		radial-gradient(760px 480px at 16% 14%, rgba(212, 218, 215, .46), rgba(212, 218, 215, 0) 72%),
-		radial-gradient(880px 540px at 74% 28%, rgba(220, 225, 222, .4), rgba(220, 225, 222, 0) 74%),
-		radial-gradient(700px 430px at 38% 80%, rgba(214, 220, 217, .36), rgba(214, 220, 217, 0) 76%),
-		radial-gradient(920px 540px at 98% 62%, rgba(255, 255, 255, .6), rgba(255, 255, 255, 0) 70%);
-}
-
-.sakura-sync-app .sakura-layer {
-	display: none;
-}
-
-/* ============================================================
- * 3. Base type
- * ============================================================ */
-
-.sakura-sync-app h1,
-.sakura-sync-app h2,
-.sakura-sync-app h3,
-.sakura-sync-app h4 {
-	color: var(--g-ink);
-}
-
-.sakura-sync-app p {
-	line-height: 1.68;
-}
-
-.sakura-sync-app a {
-	color: var(--g-ink-soft);
-	text-decoration-color: #c9c9c4;
-	text-underline-offset: 2px;
-}
-
-.sakura-sync-app a:hover {
-	color: var(--g-accent);
-	text-decoration-color: currentColor;
-}
-
-.sakura-sync-app ::selection {
-	background: #e0e0dc;
-	color: #111;
-}
-
-.sakura-sync-app .description,
-.sakura-sync-app .card-head .description,
-.sakura-sync-app .section-note .description {
-	margin: 6px 0 0;
-	color: var(--g-muted);
-	font-size: 13.5px;
-	line-height: 1.7;
-}
-
-.sakura-sync-app .description a,
-.sakura-sync-app .section-note a {
-	color: var(--g-ink);
-	text-decoration: underline;
-	text-decoration-color: #c9c9c4;
-	text-underline-offset: 2px;
-}
-
-.sakura-sync-app .description a:hover,
-.sakura-sync-app .section-note a:hover {
-	text-decoration-color: currentColor;
-}
-
-.sakura-sync-app code,
-.sakura-sync-app .code {
-	padding: 2px 6px;
-	border: 1px solid #e8e8e4;
-	border-radius: 5px;
-	background: #f6f6f3;
-	color: #3a3c3f;
-	font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
-	font-size: 12.5px;
-	line-height: 1.6;
-}
-
-.sakura-sync-app .mono {
-	font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
-	font-variant-numeric: tabular-nums;
-}
-
-.sakura-sync-app .small-text {
-	color: var(--g-faint);
-	font-size: 12.5px;
-}
-
-.sakura-sync-app .sr-only,
-.sakura-sync-app .screen-reader-text {
-	position: absolute;
-	width: 1px;
-	height: 1px;
-	padding: 0;
-	margin: -1px;
-	overflow: hidden;
-	clip: rect(0, 0, 0, 0);
-	white-space: nowrap;
-	border: 0;
+	/* Motion */
+	--g-ease: cubic-bezier(.2, .8, .2, 1);
+	--g-dur: .16s;
 }

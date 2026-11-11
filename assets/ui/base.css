@@ -1,0 +1,551 @@
+/**
+ * Base layer: admin canvas, shared chrome, page head and type.
+ *
+ * @package Sakura_Image_Optimizer
+ */
+
+/* WordPress wraps plugin screens in a 20px content slot and a 65px bottom
+ * pad. This page owns its gutter and footer. :has keeps the override scoped
+ * to screens that actually render .sakura-admin. */
+#wpcontent:has(.sakura-admin) {
+	padding-left: 0;
+}
+
+#wpbody-content:has(.sakura-admin) {
+	padding-bottom: 0;
+}
+
+@media (max-width: 782px) {
+	#wpcontent:has(.sakura-admin),
+	#wpbody:has(.sakura-admin),
+	#wpbody-content:has(.sakura-admin) {
+		width: 100%;
+		margin-left: 0;
+		padding-left: 0;
+		padding-right: 0;
+	}
+}
+
+/* ============================================================
+ * Canvas
+ * ============================================================ */
+
+.sakura-admin {
+	--sakura-cloud-a: rgba(255, 255, 255, .92);
+	--sakura-cloud-b: rgba(211, 217, 212, .30);
+	--sakura-cloud-c: rgba(218, 221, 216, .34);
+
+	position: relative;
+	isolation: isolate;
+	box-sizing: border-box;
+	min-width: 320px;
+	min-height: calc(100vh - 32px);
+	margin: -10px 0 0;
+	color: var(--g-ink);
+	font-family: var(--g-font);
+	font-size: var(--g-fs-body);
+	line-height: var(--g-lh-body);
+	letter-spacing: .002em;
+	-webkit-font-smoothing: antialiased;
+	text-rendering: optimizeLegibility;
+	background:
+		radial-gradient(1160px 660px at 80% -12%, var(--sakura-cloud-a) 0%, rgba(255, 255, 255, 0) 68%),
+		radial-gradient(900px 560px at 2% 4%, var(--sakura-cloud-b) 0%, rgba(211, 217, 212, 0) 72%),
+		radial-gradient(1040px 680px at 46% 112%, var(--sakura-cloud-c) 0%, rgba(218, 221, 216, 0) 70%),
+		radial-gradient(720px 440px at 96% 58%, rgba(255, 255, 255, .58) 0%, rgba(255, 255, 255, 0) 76%),
+		linear-gradient(180deg, #f8f7f3 0%, #f4f3ee 56%, #f7f6f2 100%);
+}
+
+.sakura-admin *,
+.sakura-admin *::before,
+.sakura-admin *::after {
+	box-sizing: border-box;
+}
+
+.sakura-admin ::selection {
+	background: #dedcd5;
+	color: #111213;
+}
+
+/* ============================================================
+ * Shared chrome
+ * ============================================================ */
+
+.sakura-admin > .sakura-topbar,
+.sakura-admin__main {
+	width: 100%;
+	max-width: var(--g-page-max);
+	margin-left: auto;
+	margin-right: auto;
+	padding-left: var(--g-gutter);
+	padding-right: var(--g-gutter);
+}
+
+.sakura-admin > .sakura-topbar {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 18px;
+	padding-top: var(--g-app-top);
+	margin-bottom: 0;
+}
+
+.sakura-admin .brand {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	min-width: 0;
+	color: var(--g-ink);
+}
+
+.sakura-admin .brand-mark {
+	display: grid;
+	place-items: center;
+	flex: 0 0 auto;
+	width: 30px;
+	height: 30px;
+	border-radius: 9px;
+	background: var(--g-accent);
+	box-shadow: 0 2px 8px rgba(18, 19, 21, .18);
+	color: var(--g-accent-ink);
+	font-size: 13.5px;
+	font-weight: 650;
+	letter-spacing: .02em;
+}
+
+.sakura-admin .brand strong {
+	color: var(--g-ink);
+	font-size: 14.5px;
+	font-weight: 650;
+	letter-spacing: .01em;
+	white-space: nowrap;
+}
+
+.sakura-admin .brand .path {
+	color: var(--g-faint);
+	font-size: 13.5px;
+	white-space: nowrap;
+}
+
+.sakura-admin .brand .slash {
+	margin: 0 3px;
+	color: #c5c2ba;
+}
+
+.sakura-admin .sakura-mods {
+	display: flex;
+	align-items: center;
+	gap: 2px;
+	padding: 4px;
+	border: 1px solid rgba(255, 255, 255, .8);
+	border-radius: var(--g-radius-pill);
+	background: rgba(255, 255, 255, .52);
+	box-shadow: var(--g-shadow-soft);
+	backdrop-filter: blur(10px);
+}
+
+.sakura-admin .sakura-mod {
+	display: inline-flex;
+	align-items: center;
+	height: 30px;
+	padding: 0 13px;
+	border-radius: var(--g-radius-pill);
+	color: var(--g-muted);
+	font-size: 13px;
+	font-weight: 550;
+	line-height: 1;
+	text-decoration: none;
+	transition: background var(--g-dur) var(--g-ease), color var(--g-dur) var(--g-ease), box-shadow var(--g-dur) var(--g-ease);
+}
+
+.sakura-admin .sakura-mod:hover {
+	background: rgba(255, 255, 255, .82);
+	color: var(--g-ink);
+}
+
+.sakura-admin .sakura-mod.is-active {
+	background: var(--g-accent);
+	box-shadow: 0 1px 2px rgba(18, 19, 21, .18), 0 6px 14px -8px rgba(18, 19, 21, .5);
+	color: var(--g-accent-ink);
+}
+
+.sakura-admin .sakura-mod:focus-visible,
+.sakura-admin .sakura-tab:focus-visible,
+.sakura-admin .btn:focus-visible {
+	outline: 2px solid var(--g-select);
+	outline-offset: 2px;
+}
+
+.sakura-admin .top-actions {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	min-width: 0;
+}
+
+.sakura-admin .conn-pill {
+	display: inline-flex;
+	align-items: center;
+	gap: 7px;
+	height: 28px;
+	padding: 0 11px;
+	border: 1px solid rgba(255, 255, 255, .9);
+	border-radius: var(--g-radius-pill);
+	background: rgba(255, 255, 255, .62);
+	box-shadow: var(--g-shadow-soft);
+	color: var(--g-muted);
+	font-size: 12.5px;
+	font-weight: 550;
+	white-space: nowrap;
+	backdrop-filter: blur(10px);
+}
+
+.sakura-admin .conn-pill .dot {
+	width: 6px;
+	height: 6px;
+	border-radius: 50%;
+	background: var(--g-faint);
+}
+
+.sakura-admin .conn-pill.is-ok .dot { background: var(--g-ok); }
+.sakura-admin .conn-pill.is-warn .dot { background: var(--g-warn); }
+.sakura-admin .conn-pill.is-error .dot,
+.sakura-admin .conn-pill.is-off .dot { background: var(--g-bad); }
+
+/* Tabs */
+.sakura-admin .sakura-tabs {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	max-width: var(--g-page-max);
+	margin: 16px auto 0;
+	padding: 0 var(--g-gutter);
+	border-bottom: 1px solid var(--g-line);
+	overflow-x: auto;
+	scrollbar-width: none;
+}
+
+.sakura-admin .sakura-tabs::-webkit-scrollbar {
+	display: none;
+}
+
+.sakura-admin .sakura-tab {
+	position: relative;
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	flex: 0 0 auto;
+	padding: 9px 12px 11px;
+	border-bottom: 2px solid transparent;
+	margin-bottom: -1px;
+	color: var(--g-muted);
+	font-size: 13.5px;
+	font-weight: 550;
+	line-height: 1.2;
+	text-decoration: none;
+	white-space: nowrap;
+	transition: color var(--g-dur) var(--g-ease), border-color var(--g-dur) var(--g-ease);
+}
+
+.sakura-admin .sakura-tab:hover {
+	color: var(--g-ink);
+}
+
+.sakura-admin .sakura-tab.is-active {
+	border-bottom-color: var(--g-accent);
+	color: var(--g-ink);
+}
+
+.sakura-admin .sakura-tab.is-disabled {
+	cursor: not-allowed;
+	opacity: .48;
+}
+
+.sakura-admin .sakura-tab.is-disabled:hover {
+	color: var(--g-muted);
+}
+
+.sakura-admin .sakura-tab-lock {
+	display: inline-block;
+	width: 7px;
+	height: 7px;
+	border: 1.5px solid currentColor;
+	border-radius: 2px;
+}
+
+.sakura-admin__main {
+	padding-top: 22px;
+	padding-bottom: var(--g-app-bottom);
+}
+
+/* ============================================================
+ * Type
+ * ============================================================ */
+
+.sakura-admin h1,
+.sakura-admin h2,
+.sakura-admin h3,
+.sakura-admin h4 {
+	margin: 0;
+	color: var(--g-ink);
+	font-family: var(--g-font);
+	font-weight: 650;
+	letter-spacing: -.006em;
+	line-height: var(--g-lh-tight);
+}
+
+.sakura-admin h1 { font-size: var(--g-fs-h1); }
+.sakura-admin h2 { font-size: var(--g-fs-h2); }
+.sakura-admin h3 { font-size: var(--g-fs-h3); }
+
+.sakura-admin p {
+	margin: 0 0 .8em;
+	line-height: var(--g-lh-body);
+}
+
+.sakura-admin p:last-child {
+	margin-bottom: 0;
+}
+
+.sakura-admin a {
+	color: var(--g-ink-soft);
+	text-decoration-color: #c8c5bd;
+	text-underline-offset: 2px;
+}
+
+.sakura-admin a:hover {
+	color: var(--g-accent);
+	text-decoration-color: currentColor;
+}
+
+.sakura-admin strong {
+	font-weight: 650;
+}
+
+.sakura-admin code,
+.sakura-admin .mono {
+	font-family: var(--g-font-mono);
+	font-variant-numeric: tabular-nums;
+}
+
+.sakura-admin code {
+	padding: 2px 6px;
+	border: 1px solid var(--g-line-soft);
+	border-radius: 5px;
+	background: #f5f4ef;
+	color: #3a3c3f;
+	font-size: 12.5px;
+	line-height: 1.55;
+}
+
+.sakura-admin .description {
+	margin: 6px 0 0;
+	color: var(--g-muted);
+	font-size: var(--g-fs-meta);
+	line-height: 1.7;
+}
+
+.sakura-admin .small-text {
+	color: var(--g-faint);
+	font-size: var(--g-fs-meta);
+}
+
+.sakura-admin .screen-reader-text {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	padding: 0;
+	margin: -1px;
+	overflow: hidden;
+	clip: rect(0, 0, 0, 0);
+	white-space: nowrap;
+	border: 0;
+}
+
+/* ============================================================
+ * Page head
+ * ============================================================ */
+
+.sakura-admin .page-head {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) auto;
+	align-items: end;
+	gap: 24px;
+	margin-bottom: var(--g-space-5);
+}
+
+.sakura-admin .page-head__copy {
+	min-width: 0;
+}
+
+.sakura-admin .eyebrow,
+.sakura-admin .page-head .eyebrow {
+	margin: 0 0 8px;
+	color: var(--g-faint);
+	font-size: var(--g-fs-eyebrow);
+	font-weight: 650;
+	letter-spacing: .13em;
+	line-height: 1.4;
+	text-transform: uppercase;
+}
+
+.sakura-admin .page-head h1 {
+	max-width: 20ch;
+	font-size: var(--g-fs-h1);
+	font-weight: 650;
+	letter-spacing: -.018em;
+	line-height: 1.16;
+}
+
+.sakura-admin .page-head .lede {
+	max-width: 68ch;
+	margin: 9px 0 0;
+	color: var(--g-muted);
+	font-size: 14px;
+	line-height: 1.72;
+}
+
+.sakura-admin .page-head__aside {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	flex-wrap: wrap;
+	justify-content: flex-end;
+}
+
+.sakura-admin .status-card {
+	display: grid;
+	gap: 2px;
+	min-width: 168px;
+	padding: 11px 15px 12px;
+	border: 1px solid rgba(255, 255, 255, .92);
+	border-radius: var(--g-radius-md);
+	background: rgba(255, 255, 255, .66);
+	box-shadow: var(--g-shadow-soft);
+	backdrop-filter: blur(12px);
+}
+
+.sakura-admin .status-card__label {
+	color: var(--g-faint);
+	font-size: 10.5px;
+	font-weight: 650;
+	letter-spacing: .11em;
+	line-height: 1.4;
+	text-transform: uppercase;
+}
+
+.sakura-admin .status-card__line {
+	display: flex;
+	align-items: baseline;
+	gap: 5px;
+}
+
+.sakura-admin .status-card__value {
+	color: var(--g-ink);
+	font-size: 19px;
+	font-weight: 650;
+	letter-spacing: -.01em;
+	line-height: 1.3;
+}
+
+.sakura-admin .status-card__unit {
+	color: var(--g-muted);
+	font-size: 12px;
+}
+
+.sakura-admin .status-card__sub {
+	color: var(--g-faint);
+	font-size: 11.5px;
+	line-height: 1.4;
+}
+
+.sakura-admin .status-card--ok .status-card__sub { color: var(--g-ok); }
+.sakura-admin .status-card--warn .status-card__sub { color: var(--g-warn); }
+.sakura-admin .status-card--bad .status-card__sub { color: var(--g-bad); }
+
+.sakura-admin .page-head__actions {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+/* ============================================================
+ * Responsive chrome
+ * ============================================================ */
+
+@media (max-width: 1100px) {
+	.sakura-admin > .sakura-topbar {
+		flex-wrap: wrap;
+		gap: 12px 14px;
+	}
+
+	.sakura-admin .sakura-mods {
+		order: 3;
+		width: 100%;
+		overflow-x: auto;
+		scrollbar-width: none;
+	}
+
+	.sakura-admin .sakura-mods::-webkit-scrollbar {
+		display: none;
+	}
+
+	.sakura-admin .top-actions {
+		margin-left: auto;
+	}
+}
+
+@media (max-width: 900px) {
+	.sakura-admin .page-head {
+		grid-template-columns: minmax(0, 1fr);
+		align-items: start;
+		gap: 16px;
+	}
+
+	.sakura-admin .page-head__aside {
+		justify-content: flex-start;
+	}
+
+	.sakura-admin .page-head h1 {
+		max-width: none;
+	}
+}
+
+@media (max-width: 782px) {
+	.sakura-admin {
+		margin-top: 0;
+		min-height: calc(100vh - 46px);
+	}
+
+	.sakura-admin .brand .path {
+		display: none;
+	}
+
+	.sakura-admin .conn-pill {
+		height: 26px;
+		font-size: 12px;
+	}
+
+	.sakura-admin .sakura-tabs {
+		margin-top: 12px;
+	}
+
+	.sakura-admin__main {
+		padding-top: 18px;
+	}
+
+	.sakura-admin .status-card {
+		min-width: 0;
+		width: 100%;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.sakura-admin *,
+	.sakura-admin *::before,
+	.sakura-admin *::after {
+		transition-duration: .01ms;
+		animation-duration: .01ms;
+		animation-iteration-count: 1;
+	}
+}

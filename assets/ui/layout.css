@@ -112,7 +112,9 @@
 }
 
 /* Toolbar: a slim tab docked to the right gutter while idle. Editing expands
- * it into a panel to the left, keeping the tab in place. */
+ * it into a panel to the left, keeping the tab in place. The idle label is
+ * rotated instead of using vertical writing-mode: some CJK fallback fonts
+ * report no vertical metrics, which collapses the label to a clipped smudge. */
 .sakura-admin .sakura-layout-tools {
 	position: fixed;
 	right: 0;
@@ -146,9 +148,12 @@
 
 .sakura-admin .sakura-layout-tools-toggle {
 	flex: 0 0 auto;
-	writing-mode: vertical-rl;
-	text-orientation: mixed;
-	padding: 13px 6px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 38px;
+	height: 88px;
+	padding: 0;
 	border: 1px solid var(--g-line);
 	border-right: 0;
 	border-radius: var(--g-radius-sm) 0 0 var(--g-radius-sm);
@@ -161,15 +166,29 @@
 	cursor: pointer;
 }
 
+.sakura-admin .sakura-layout-tools-toggle .sakura-layout-tools-label {
+	display: block;
+	white-space: nowrap;
+	transform: rotate(90deg);
+	transform-origin: center;
+}
+
 .sakura-admin .sakura-layout-tools-toggle:hover {
 	background: var(--g-card);
 	color: var(--g-ink);
 }
 
 .sakura-admin.sakura-layout-edit .sakura-layout-tools-toggle {
+	width: auto;
+	height: 34px;
+	padding: 0 14px;
 	background: var(--g-accent-soft);
 	box-shadow: none;
 	color: var(--g-ink);
+}
+
+.sakura-admin.sakura-layout-edit .sakura-layout-tools-toggle .sakura-layout-tools-label {
+	transform: none;
 }
 
 .sakura-admin .sakura-layout-panel {
@@ -369,6 +388,14 @@
 
 .sakura-admin.sakura-layout-enabled .sakura-admin__main {
 	padding-bottom: calc(var(--g-app-bottom) + 8px);
+}
+
+/* Reserve the right gutter for the docked layout tab so it never covers a
+ * card border or the page's right-hand actions. */
+@media (min-width: 1101px) {
+	.sakura-admin.sakura-layout-enabled {
+		padding-right: 46px;
+	}
 }
 
 @media (max-width: 1100px) {

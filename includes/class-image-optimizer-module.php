@@ -541,7 +541,7 @@ class Image_Optimizer_Module implements Module {
 			printf( '<span class="sakura-imgopt-field-label">%s</span>', esc_html( $label ) );
 		}
 		printf(
-			'<button type="button" class="button button-secondary" id="sakura-imgopt-scan-crop">%s</button>',
+			'<button type="button" class="btn btn--ghost btn--small" id="sakura-imgopt-scan-crop">%s</button>',
 			esc_html__( '扫描裁剪配置', 'sakura-imgopt' )
 		);
 		printf(

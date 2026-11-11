@@ -25,7 +25,23 @@ final class Page_Assets {
 	 *
 	 * @var array<int, string>
 	 */
-	public const UI_PAGES = array( 'image-rules', 'image-thumb', 'image-backup', 'image-stats' );
+	public const UI_PAGES = array(
+		'image-rules',
+		'image-thumb',
+		'image-backup',
+		'image-stats',
+		'storage-connection',
+		'storage-sync',
+		'storage-deletes',
+		'files-settings',
+		'files-users',
+		'files-queue',
+		'files-log',
+		'files-zibll',
+		'system-overview',
+		'media-progress',
+		'locked',
+	);
 
 	/**
 	 * Per-page data passed to the page controller.
@@ -40,9 +56,15 @@ final class Page_Assets {
 	 * @var array<string, string>
 	 */
 	private const LAYOUT_PAGES = array(
-		'image-rules'  => 'image',
-		'image-thumb'  => 'thumb',
-		'image-backup' => 'backup',
+		'image-rules'        => 'image',
+		'image-thumb'        => 'thumb',
+		'image-backup'       => 'backup',
+		'storage-connection' => 's3',
+		'storage-sync'       => 'sync',
+		'files-settings'     => 'files-settings',
+		'files-users'        => 'files-users',
+		'files-queue'        => 'files-queue',
+		'files-log'          => 'files-log',
 	);
 
 	/**

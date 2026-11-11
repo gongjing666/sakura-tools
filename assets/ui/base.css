@@ -171,6 +171,7 @@
 
 .sakura-admin .sakura-mod:focus-visible,
 .sakura-admin .sakura-tab:focus-visible,
+.sakura-admin .pagination__link:focus-visible,
 .sakura-admin .btn:focus-visible {
 	outline: 2px solid var(--g-select);
 	outline-offset: 2px;
@@ -223,6 +224,10 @@
 	border-bottom: 1px solid var(--g-line);
 	overflow-x: auto;
 	scrollbar-width: none;
+	/* Soft cut-off at both ends so a horizontally scrolled tab strip does not
+	 * begin with a half glyph when the active tab sits off-screen. */
+	-webkit-mask-image: linear-gradient(to right, transparent 0, transparent 8px, #000 28px, #000 calc(100% - 16px), transparent 100%);
+	mask-image: linear-gradient(to right, transparent 0, transparent 8px, #000 28px, #000 calc(100% - 16px), transparent 100%);
 }
 
 .sakura-admin .sakura-tabs::-webkit-scrollbar {

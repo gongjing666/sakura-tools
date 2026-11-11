@@ -1072,7 +1072,7 @@
 		if ( ! toolbar ) {
 			return;
 		}
-		toolbar.querySelector( '.sakura-layout-tools-toggle' ).textContent = on
+		toolbar.querySelector( '.sakura-layout-tools-label' ).textContent = on
 			? ( ( cfg.strings && cfg.strings.save ) || '布局保存' )
 			: ( ( cfg.strings && cfg.strings.edit ) || '布局修改' );
 		panel.hidden = ! on;
@@ -1107,7 +1107,7 @@
 			'<p class="sakura-layout-hint">' + ( ( cfg.strings && cfg.strings.hint ) || '拖标题移动，拖边缘调整大小。' ) + '</p>' +
 			'</div>' +
 			'<button type="button" class="sakura-layout-tools-toggle" aria-expanded="false">' +
-			( ( cfg.strings && cfg.strings.edit ) || '布局修改' ) + '</button>';
+			'<span class="sakura-layout-tools-label">' + ( ( cfg.strings && cfg.strings.edit ) || '布局修改' ) + '</span></button>';
 		root.appendChild( toolbar );
 
 		var gridToggle = toolbar.querySelector( '[data-grid-toggle]' );

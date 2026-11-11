@@ -1,0 +1,1097 @@
+/**
+ * Object storage screens: connection, sync center and delete queue.
+ *
+ * Scoped to .sakura-admin[data-sakura-page^="storage-"] so the rules cannot
+ * leak into other admin screens. Only design tokens are used for colour,
+ * spacing and radii.
+ */
+
+.sakura-admin[data-sakura-page^="storage-"] .card__body {
+	display: grid;
+	gap: var(--g-space-4);
+}
+
+/* ---------------------------------------------------------------- connection */
+
+.sakura-admin[data-sakura-page="storage-connection"] .profile-toolbar {
+	justify-content: flex-end;
+}
+
+.sakura-admin[data-sakura-page="storage-connection"] .profile-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+	gap: var(--g-space-3);
+}
+
+.sakura-admin[data-sakura-page="storage-connection"] .profile-item {
+	display: flex;
+	flex-direction: column;
+	justify-content: space-between;
+	gap: var(--g-space-2);
+	padding: var(--g-space-3);
+	border: 1px solid var(--g-line);
+	border-radius: var(--g-radius-md);
+	background: var(--g-paper);
+}
+
+.sakura-admin[data-sakura-page="storage-connection"] .profile-item form {
+	margin: 0;
+}
+
+.sakura-admin[data-sakura-page="storage-connection"] .profile-card {
+	display: block;
+	width: 100%;
+	padding: var(--g-space-2);
+	border: 0;
+	border-radius: var(--g-radius-sm);
+	background: transparent;
+	text-align: left;
+	cursor: pointer;
+	color: inherit;
+	font: inherit;
+}
+
+.sakura-admin[data-sakura-page="storage-connection"] .profile-card:hover {
+	background: var(--g-wash);
+}
+
+.sakura-admin[data-sakura-page="storage-connection"] .profile-card:disabled {
+	cursor: default;
+	opacity: 1;
+}
+
+.sakura-admin[data-sakura-page="storage-connection"] .profile-card.is-active {
+	background: var(--g-accent-soft);
+	box-shadow: inset 0 0 0 1px var(--g-accent);
+}
+
+.sakura-admin[data-sakura-page="storage-connection"] .profile-card__top {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--g-space-2);
+}
+
+.sakura-admin[data-sakura-page="storage-connection"] .profile-card__name {
+	font-weight: 600;
+	overflow-wrap: anywhere;
+}
+
+.sakura-admin[data-sakura-page="storage-connection"] .profile-card__meta {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--g-space-1) var(--g-space-2);
+	margin-top: var(--g-space-1);
+	color: var(--g-muted);
+	font-size: var(--g-fs-meta);
+	overflow-wrap: anywhere;
+}
+
+.sakura-admin[data-sakura-page="storage-connection"] .profile-card__warning {
+	margin: var(--g-space-1) 0 0;
+	color: var(--g-bad);
+	font-size: var(--g-fs-meta);
+}
+
+.sakura-admin[data-sakura-page="storage-connection"] .profile-delete {
+	width: 100%;
+	justify-content: flex-start;
+	color: var(--g-bad);
+}
+
+/* Checkbox rows with a bold title and a hint line. */
+.sakura-admin[data-sakura-page^="storage-"] .field--check .field__main {
+	gap: 0;
+}
+
+.sakura-admin[data-sakura-page^="storage-"] .check--stacked {
+	align-items: flex-start;
+}
+
+.sakura-admin[data-sakura-page^="storage-"] .check__title {
+	display: block;
+	font-weight: 600;
+	color: var(--g-ink);
+}
+
+.sakura-admin[data-sakura-page^="storage-"] .check__hint {
+	display: block;
+	margin-top: 2px;
+	color: var(--g-muted);
+	font-size: var(--g-fs-meta);
+	line-height: var(--g-lh-body);
+}
+
+.sakura-admin[data-sakura-page^="storage-"] .check__hint.is-danger {
+	color: var(--g-bad);
+}
+
+/* Upload throughput + monitoring cards. */
+.sakura-admin[data-sakura-page="storage-connection"] .metrics-panel {
+	display: grid;
+	gap: var(--g-space-3);
+}
+
+.sakura-admin[data-sakura-page="storage-connection"] .metrics-toolbar {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--g-space-2);
+	color: var(--g-muted);
+	font-size: var(--g-fs-meta);
+}
+
+.sakura-admin[data-sakura-page="storage-connection"] .metrics-toolbar .btn {
+	margin-left: auto;
+}
+
+.sakura-admin[data-sakura-page="storage-connection"] .kpis--metrics {
+	grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+.sakura-admin[data-sakura-page="storage-connection"] .kpi--wide {
+	grid-column: span 2;
+}
+
+.sakura-admin[data-sakura-page="storage-connection"] .kpi--bad .kpi__value {
+	color: var(--g-bad);
+}
+
+.sakura-admin[data-sakura-page="storage-connection"] .monitor-grid {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: var(--g-space-4);
+}
+
+.sakura-admin[data-sakura-page="storage-connection"] .monitor-panel {
+	display: grid;
+	align-content: start;
+	gap: var(--g-space-3);
+	padding: var(--g-space-4);
+	border: 1px solid var(--g-line);
+	border-radius: var(--g-radius-md);
+	background: var(--g-paper);
+}
+
+.sakura-admin[data-sakura-page="storage-connection"] .monitor-panel h3 {
+	margin: 0;
+	font-size: var(--g-fs-h3);
+}
+
+.sakura-admin[data-sakura-page="storage-connection"] .monitor-panel p {
+	margin: 0;
+	color: var(--g-muted);
+	font-size: var(--g-fs-meta);
+}
+
+.sakura-admin[data-sakura-page="storage-connection"] .monitor-panel__actions {
+	margin: 0;
+}
+
+.sakura-admin[data-sakura-page="storage-connection"] .monitor-fields {
+	display: grid;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	gap: var(--g-space-3);
+}
+
+.sakura-admin[data-sakura-page="storage-connection"] .monitor-savebar {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--g-space-2);
+	margin-top: var(--g-space-2);
+	padding-top: var(--g-space-3);
+	border-top: 1px solid var(--g-line-soft);
+}
+
+.sakura-admin[data-sakura-page="storage-connection"] .monitor-savebar__aside {
+	margin: 0;
+}
+
+/* ------------------------------------------------------------- sync center */
+
+.sakura-admin[data-sakura-page="storage-sync"] .task-summary {
+	display: grid;
+	gap: var(--g-space-2);
+}
+
+.sakura-admin[data-sakura-page="storage-sync"] .task-summary__head {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: var(--g-space-2);
+}
+
+.sakura-admin[data-sakura-page="storage-sync"] .task-summary__title {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--g-space-2);
+}
+
+.sakura-admin[data-sakura-page="storage-sync"] .task-summary__title p {
+	margin: 0;
+}
+
+.sakura-admin[data-sakura-page="storage-sync"] .task-summary__percent {
+	font-size: var(--g-fs-h2);
+	font-weight: 600;
+	color: var(--g-ink);
+	font-variant-numeric: tabular-nums;
+	white-space: nowrap;
+}
+
+.sakura-admin[data-sakura-page="storage-sync"] .progress-meta {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: space-between;
+	gap: var(--g-space-1) var(--g-space-3);
+	color: var(--g-muted);
+	font-size: var(--g-fs-meta);
+}
+
+.sakura-admin[data-sakura-page="storage-sync"] .task-stats {
+	display: grid;
+	grid-template-columns: repeat(4, minmax(0, 1fr));
+	gap: var(--g-space-2);
+}
+
+.sakura-admin[data-sakura-page="storage-sync"] .task-stat {
+	display: grid;
+	gap: 2px;
+	padding: var(--g-space-2);
+	border: 1px solid var(--g-line-soft);
+	border-radius: var(--g-radius-sm);
+	background: var(--g-paper-deep);
+}
+
+.sakura-admin[data-sakura-page="storage-sync"] .task-stat span {
+	color: var(--g-muted);
+	font-size: var(--g-fs-meta);
+}
+
+.sakura-admin[data-sakura-page="storage-sync"] .task-stat strong {
+	font-size: var(--g-fs-h3);
+	font-variant-numeric: tabular-nums;
+}
+
+.sakura-admin[data-sakura-page="storage-sync"] .task-actions {
+	margin-top: var(--g-space-1);
+}
+
+/* Seven-day activity chart. */
+.sakura-admin[data-sakura-page="storage-sync"] .activity {
+	display: grid;
+	gap: var(--g-space-2);
+	margin-top: var(--g-space-2);
+	padding-top: var(--g-space-3);
+	border-top: 1px solid var(--g-line-soft);
+}
+
+.sakura-admin[data-sakura-page="storage-sync"] .activity__head {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: var(--g-space-1) var(--g-space-3);
+}
+
+.sakura-admin[data-sakura-page="storage-sync"] .activity__title {
+	margin: 0;
+	font-size: var(--g-fs-h3);
+}
+
+.sakura-admin[data-sakura-page="storage-sync"] .activity__legend {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--g-space-2);
+	color: var(--g-muted);
+	font-size: var(--g-fs-meta);
+}
+
+.sakura-admin[data-sakura-page="storage-sync"] .activity__legend span {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+}
+
+.sakura-admin[data-sakura-page="storage-sync"] .activity__dot {
+	width: 8px;
+	height: 8px;
+	border-radius: 50%;
+	background: var(--g-ok);
+}
+
+.sakura-admin[data-sakura-page="storage-sync"] .activity__dot--bad {
+	background: var(--g-bad);
+}
+
+.sakura-admin[data-sakura-page="storage-sync"] .activity__chart {
+	display: grid;
+	grid-template-columns: repeat(7, minmax(0, 1fr));
+	align-items: end;
+	gap: var(--g-space-2);
+	min-height: 96px;
+	padding: var(--g-space-2) 0 0;
+}
+
+.sakura-admin[data-sakura-page="storage-sync"] .activity__day {
+	display: grid;
+	justify-items: center;
+	gap: var(--g-space-1);
+}
+
+.sakura-admin[data-sakura-page="storage-sync"] .activity__bars {
+	display: flex;
+	align-items: flex-end;
+	gap: 2px;
+	height: 76px;
+}
+
+.sakura-admin[data-sakura-page="storage-sync"] .activity__bar {
+	width: 8px;
+	border-radius: var(--g-radius-xs) var(--g-radius-xs) 0 0;
+	background: var(--g-accent);
+}
+
+.sakura-admin[data-sakura-page="storage-sync"] .activity__bar--bad {
+	background: var(--g-bad);
+}
+
+.sakura-admin[data-sakura-page="storage-sync"] .activity__label {
+	color: var(--g-muted);
+	font-size: var(--g-fs-meta);
+	font-variant-numeric: tabular-nums;
+}
+
+/* Health list. */
+.sakura-admin[data-sakura-page="storage-sync"] .health {
+	display: grid;
+	gap: var(--g-space-3);
+}
+
+.sakura-admin[data-sakura-page="storage-sync"] .health__status {
+	display: flex;
+	align-items: center;
+	gap: var(--g-space-2);
+	padding: var(--g-space-2) var(--g-space-3);
+	border: 1px solid var(--g-line);
+	border-radius: var(--g-radius-sm);
+	background: var(--g-ok-bg);
+	color: var(--g-ok);
+}
+
+.sakura-admin[data-sakura-page="storage-sync"] .health__status.is-warn {
+	background: var(--g-warn-bg);
+	color: var(--g-warn);
+}
+
+.sakura-admin[data-sakura-page="storage-sync"] .health__status small {
+	margin-left: auto;
+	color: var(--g-muted);
+	font-size: var(--g-fs-meta);
+}
+
+.sakura-admin[data-sakura-page="storage-sync"] .health__dot {
+	width: 9px;
+	height: 9px;
+	border-radius: 50%;
+	background: currentColor;
+}
+
+.sakura-admin[data-sakura-page="storage-sync"] .health__list {
+	display: grid;
+	gap: 0;
+	margin: 0;
+}
+
+.sakura-admin[data-sakura-page="storage-sync"] .health__row {
+	display: grid;
+	grid-template-columns: 88px minmax(0, 1fr);
+	gap: var(--g-space-2);
+	padding: var(--g-space-2) 0;
+	border-bottom: 1px solid var(--g-line-soft);
+}
+
+.sakura-admin[data-sakura-page="storage-sync"] .health__row:last-child {
+	border-bottom: 0;
+}
+
+.sakura-admin[data-sakura-page="storage-sync"] .health__row dt {
+	color: var(--g-muted);
+	font-size: var(--g-fs-meta);
+}
+
+.sakura-admin[data-sakura-page="storage-sync"] .health__row dd {
+	margin: 0;
+	overflow-wrap: anywhere;
+}
+
+.sakura-admin[data-sakura-page="storage-sync"] .health__mono {
+	font-family: var(--g-font-mono);
+	font-size: var(--g-fs-meta);
+}
+
+/* Cloud size mix. */
+.sakura-admin[data-sakura-page="storage-sync"] .storage-mix {
+	display: grid;
+	gap: var(--g-space-3);
+}
+
+.sakura-admin[data-sakura-page="storage-sync"] .storage-mix__donut-wrap {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--g-space-4);
+}
+
+.sakura-admin[data-sakura-page="storage-sync"] .storage-mix__donut {
+	position: relative;
+	display: grid;
+	place-items: center;
+	width: clamp(140px, 40vw, 176px);
+	aspect-ratio: 1;
+	border-radius: 50%;
+}
+
+.sakura-admin[data-sakura-page="storage-sync"] .storage-mix__center {
+	display: grid;
+	justify-items: center;
+	gap: 2px;
+	width: 68%;
+	aspect-ratio: 1;
+	border-radius: 50%;
+	background: var(--g-card);
+	text-align: center;
+	align-content: center;
+}
+
+.sakura-admin[data-sakura-page="storage-sync"] .storage-mix__center strong {
+	font-size: var(--g-fs-h2);
+	font-variant-numeric: tabular-nums;
+}
+
+.sakura-admin[data-sakura-page="storage-sync"] .storage-mix__center span {
+	color: var(--g-muted);
+	font-size: var(--g-fs-meta);
+}
+
+.sakura-admin[data-sakura-page="storage-sync"] .storage-mix__legend {
+	display: grid;
+	gap: var(--g-space-1);
+	flex: 1 1 160px;
+}
+
+.sakura-admin[data-sakura-page="storage-sync"] .storage-mix__legend-row {
+	display: flex;
+	align-items: center;
+	gap: var(--g-space-2);
+	color: var(--g-muted);
+	font-size: var(--g-fs-meta);
+}
+
+.sakura-admin[data-sakura-page="storage-sync"] .storage-mix__legend-row strong {
+	margin-left: auto;
+	color: var(--g-ink);
+	font-variant-numeric: tabular-nums;
+}
+
+.sakura-admin[data-sakura-page="storage-sync"] .storage-mix__swatch {
+	width: 10px;
+	height: 10px;
+	border-radius: var(--g-radius-xs);
+	background: var(--g-accent);
+}
+
+.sakura-admin[data-sakura-page="storage-sync"] .storage-mix__foot {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: space-between;
+	gap: var(--g-space-2);
+	padding-top: var(--g-space-3);
+	border-top: 1px solid var(--g-line-soft);
+	color: var(--g-muted);
+	font-size: var(--g-fs-meta);
+}
+
+.sakura-admin[data-sakura-page="storage-sync"] .storage-mix__foot strong {
+	color: var(--g-ink);
+}
+
+/* Reconciliation toolbar, chips and batch bar. */
+.sakura-admin[data-sakura-page="storage-sync"] .recon-toolbar,
+.sakura-admin[data-sakura-page="storage-sync"] .recon-actions,
+.sakura-admin[data-sakura-page="storage-sync"] .batch-bar,
+.sakura-admin[data-sakura-page="storage-sync"] .log-toolbar {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--g-space-2);
+}
+
+.sakura-admin[data-sakura-page="storage-sync"] .recon-toolbar {
+	justify-content: space-between;
+}
+
+.sakura-admin[data-sakura-page="storage-sync"] .filter-chips {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--g-space-1);
+}
+
+.sakura-admin[data-sakura-page="storage-sync"] .filter-chip {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	padding: 5px 10px;
+	border: 1px solid var(--g-line);
+	border-radius: var(--g-radius-pill);
+	background: var(--g-card);
+	color: var(--g-ink-soft);
+	font-size: var(--g-fs-meta);
+	cursor: pointer;
+}
+
+.sakura-admin[data-sakura-page="storage-sync"] .filter-chip:hover {
+	border-color: var(--g-line-strong);
+	color: var(--g-ink);
+}
+
+.sakura-admin[data-sakura-page="storage-sync"] .filter-chip.is-active {
+	border-color: var(--g-accent);
+	background: var(--g-accent-soft);
+	color: var(--g-ink);
+}
+
+.sakura-admin[data-sakura-page="storage-sync"] .filter-chip__count {
+	color: var(--g-muted);
+	font-variant-numeric: tabular-nums;
+}
+
+.sakura-admin[data-sakura-page="storage-sync"] .filter-chip.is-active .filter-chip__count {
+	color: var(--g-ink-soft);
+}
+
+.sakura-admin[data-sakura-page="storage-sync"] .recon-tools {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--g-space-2);
+}
+
+.sakura-admin[data-sakura-page="storage-sync"] .recon-search input {
+	min-width: 190px;
+}
+
+.sakura-admin[data-sakura-page="storage-sync"] .batch-bar {
+	justify-content: space-between;
+	padding: var(--g-space-2) var(--g-space-3);
+	border: 1px dashed var(--g-accent);
+	border-radius: var(--g-radius-sm);
+	background: var(--g-accent-soft);
+}
+
+.sakura-admin[data-sakura-page="storage-sync"] .batch-bar[hidden],
+.sakura-admin[data-sakura-page="storage-sync"] .batch-progress[hidden] {
+	display: none;
+}
+
+.sakura-admin[data-sakura-page="storage-sync"] .batch-bar__count {
+	font-size: var(--g-fs-meta);
+}
+
+.sakura-admin[data-sakura-page="storage-sync"] .batch-progress {
+	display: grid;
+	gap: var(--g-space-1);
+}
+
+.sakura-admin[data-sakura-page="storage-sync"] .batch-progress__head {
+	display: flex;
+	justify-content: space-between;
+	gap: var(--g-space-2);
+	color: var(--g-muted);
+	font-size: var(--g-fs-meta);
+}
+
+/* Reconciliation table cells. */
+.sakura-admin[data-sakura-page="storage-sync"] .cell-select {
+	width: 40px;
+	text-align: center;
+}
+
+.sakura-admin[data-sakura-page="storage-sync"] .file-cell {
+	display: grid;
+	gap: 2px;
+	max-width: 320px;
+}
+
+.sakura-admin[data-sakura-page="storage-sync"] .file-cell__name {
+	font-weight: 500;
+	overflow-wrap: anywhere;
+}
+
+.sakura-admin[data-sakura-page="storage-sync"] .file-cell__path {
+	color: var(--g-muted);
+	font-family: var(--g-font-mono);
+	font-size: var(--g-fs-meta);
+	overflow-wrap: anywhere;
+}
+
+.sakura-admin[data-sakura-page="storage-sync"] .type-pill {
+	display: inline-block;
+	padding: 1px 6px;
+	border-radius: var(--g-radius-xs);
+	background: var(--g-paper-deep);
+	color: var(--g-muted);
+	font-family: var(--g-font-mono);
+	font-size: var(--g-fs-meta);
+}
+
+.sakura-admin[data-sakura-page="storage-sync"] .loc {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	white-space: nowrap;
+	font-size: var(--g-fs-meta);
+}
+
+.sakura-admin[data-sakura-page="storage-sync"] .loc__dot {
+	width: 7px;
+	height: 7px;
+	border-radius: 50%;
+	background: currentColor;
+}
+
+.sakura-admin[data-sakura-page="storage-sync"] .loc--yes {
+	color: var(--g-ok);
+}
+
+.sakura-admin[data-sakura-page="storage-sync"] .loc--warn {
+	color: var(--g-warn);
+}
+
+.sakura-admin[data-sakura-page="storage-sync"] .loc--no {
+	color: var(--g-muted);
+}
+
+.sakura-admin[data-sakura-page="storage-sync"] .action-cell {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--g-space-1) var(--g-space-2);
+}
+
+.sakura-admin[data-sakura-page="storage-sync"] .link-btn {
+	padding: 0;
+	border: 0;
+	background: none;
+	color: var(--g-accent);
+	font: inherit;
+	font-size: var(--g-fs-meta);
+	text-decoration: none;
+	cursor: pointer;
+}
+
+.sakura-admin[data-sakura-page="storage-sync"] .link-btn:hover {
+	text-decoration: underline;
+}
+
+.sakura-admin[data-sakura-page="storage-sync"] .link-btn--danger {
+	color: var(--g-bad);
+}
+
+.sakura-admin[data-sakura-page="storage-sync"] .empty-row:hover {
+	background: transparent;
+}
+
+.sakura-admin[data-sakura-page="storage-sync"] .empty-row td {
+	border-bottom: 0;
+}
+
+/* Log list. */
+.sakura-admin[data-sakura-page="storage-sync"] .log-toolbar {
+	justify-content: space-between;
+}
+
+.sakura-admin[data-sakura-page="storage-sync"] .log-list {
+	display: grid;
+	max-height: 360px;
+	overflow-y: auto;
+	border: 1px solid var(--g-line-soft);
+	border-radius: var(--g-radius-sm);
+}
+
+.sakura-admin[data-sakura-page="storage-sync"] .log-item {
+	display: grid;
+	grid-template-columns: 72px minmax(0, 1fr);
+	gap: var(--g-space-2);
+	padding: var(--g-space-2) var(--g-space-3);
+	border-bottom: 1px solid var(--g-line-soft);
+	font-size: var(--g-fs-meta);
+}
+
+.sakura-admin[data-sakura-page="storage-sync"] .log-item:last-child {
+	border-bottom: 0;
+}
+
+.sakura-admin[data-sakura-page="storage-sync"] .log-item[data-level="error"] {
+	background: var(--g-bad-bg);
+}
+
+.sakura-admin[data-sakura-page="storage-sync"] .log-item[data-level="warning"] {
+	background: var(--g-warn-bg);
+}
+
+.sakura-admin[data-sakura-page="storage-sync"] .log-item__time {
+	color: var(--g-muted);
+	font-family: var(--g-font-mono);
+}
+
+.sakura-admin[data-sakura-page="storage-sync"] .log-item__body {
+	display: grid;
+	gap: 2px;
+	min-width: 0;
+}
+
+.sakura-admin[data-sakura-page="storage-sync"] .log-item__title {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--g-space-1);
+	overflow-wrap: anywhere;
+}
+
+.sakura-admin[data-sakura-page="storage-sync"] .log-item__meta {
+	color: var(--g-muted);
+	font-family: var(--g-font-mono);
+	font-size: var(--g-fs-meta);
+}
+
+.sakura-admin[data-sakura-page="storage-sync"] .log-more {
+	justify-self: start;
+}
+
+.sakura-admin[data-sakura-page="storage-sync"] .notes-list {
+	display: grid;
+	gap: var(--g-space-2);
+	margin: 0;
+	padding-left: 1.1em;
+	color: var(--g-ink-soft);
+	font-size: var(--g-fs-small);
+}
+
+.sakura-admin[data-sakura-page="storage-sync"] .notes-list strong {
+	color: var(--g-ink);
+}
+
+/* -------------------------------------------------------------- delete queue */
+
+.sakura-admin[data-sakura-page="storage-deletes"] .kpi--link {
+	color: inherit;
+	text-decoration: none;
+}
+
+.sakura-admin[data-sakura-page="storage-deletes"] .kpi--link:hover {
+	border-color: var(--g-line-strong);
+}
+
+.sakura-admin[data-sakura-page="storage-deletes"] .kpi--link.is-active {
+	border-color: var(--g-accent);
+	background: var(--g-accent-soft);
+}
+
+.sakura-admin[data-sakura-page="storage-deletes"] .queue-toolbar {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--g-space-2);
+}
+
+.sakura-admin[data-sakura-page="storage-deletes"] .queue-filter {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--g-space-2);
+	margin: 0;
+}
+
+.sakura-admin[data-sakura-page="storage-deletes"] .queue-toolbar__meta {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--g-space-1) var(--g-space-3);
+}
+
+.sakura-admin[data-sakura-page="storage-deletes"] .queue-form {
+	display: grid;
+	gap: var(--g-space-3);
+	margin: 0;
+}
+
+.sakura-admin[data-sakura-page="storage-deletes"] .queue-select-mobile {
+	display: none;
+	align-items: center;
+	gap: 8px;
+	color: var(--g-ink-soft);
+	font-size: var(--g-fs-small);
+	cursor: pointer;
+}
+
+.sakura-admin[data-sakura-page="storage-deletes"] .queue-select-mobile input {
+	margin: 0;
+}
+
+.sakura-admin[data-sakura-page="storage-deletes"] .queue-selection {
+	padding: var(--g-space-1) var(--g-space-2);
+	border-radius: var(--g-radius-sm);
+	background: var(--g-accent-soft);
+	color: var(--g-ink);
+}
+
+.sakura-admin[data-sakura-page="storage-deletes"] .queue-id {
+	color: var(--g-muted);
+	font-family: var(--g-font-mono);
+	font-size: var(--g-fs-meta);
+}
+
+.sakura-admin[data-sakura-page="storage-deletes"] .queue-key {
+	display: inline-block;
+	max-width: 360px;
+	overflow-wrap: anywhere;
+	white-space: normal;
+	word-break: break-word;
+}
+
+.sakura-admin[data-sakura-page="storage-deletes"] .queue-error {
+	display: inline-block;
+	max-width: 320px;
+	overflow-wrap: anywhere;
+	color: var(--g-bad);
+	font-size: var(--g-fs-meta);
+}
+
+.sakura-admin[data-sakura-page="storage-deletes"] .queue-error.is-empty {
+	color: var(--g-faint);
+}
+
+.sakura-admin[data-sakura-page="storage-deletes"] .queue-time {
+	color: var(--g-muted);
+	font-family: var(--g-font-mono);
+	font-size: var(--g-fs-meta);
+	white-space: nowrap;
+}
+
+.sakura-admin[data-sakura-page="storage-deletes"] .queue-foot {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--g-space-2);
+	padding-top: var(--g-space-3);
+	border-top: 1px solid var(--g-line-soft);
+}
+
+.sakura-admin[data-sakura-page="storage-deletes"] .queue-hint {
+	margin: 0;
+}
+
+.sakura-admin[data-sakura-page="storage-deletes"] .queue-actions {
+	margin-left: auto;
+}
+
+.sakura-admin[data-sakura-page="storage-deletes"] .pagination__ellipsis {
+	color: var(--g-muted);
+	padding: 0 4px;
+}
+
+/* -------------------------------------------------- shared config notice modal
+ * Config_Notice still renders the legacy markup (it lives in a shared file);
+ * these scoped rules keep it usable on the connection screen without loading
+ * the legacy admin stylesheet.
+ */
+
+.sakura-admin[data-sakura-page="storage-connection"] .sakura-modal {
+	position: fixed;
+	inset: 0;
+	z-index: 100000;
+	display: grid;
+	place-items: center;
+	padding: var(--g-space-4);
+}
+
+.sakura-admin[data-sakura-page="storage-connection"] .sakura-modal[hidden] {
+	display: none;
+}
+
+.sakura-admin[data-sakura-page="storage-connection"] .sakura-modal__backdrop {
+	position: absolute;
+	inset: 0;
+	background: var(--g-overlay);
+}
+
+.sakura-admin[data-sakura-page="storage-connection"] .sakura-modal__card {
+	position: relative;
+	width: min(560px, 100%);
+	max-height: calc(100vh - 2 * var(--g-space-4));
+	overflow-y: auto;
+	padding: var(--g-space-5);
+	border-radius: var(--g-radius-lg);
+	background: var(--g-card);
+	box-shadow: var(--g-shadow-pop);
+}
+
+.sakura-admin[data-sakura-page="storage-connection"] .sakura-modal__close {
+	position: absolute;
+	top: var(--g-space-2);
+	right: var(--g-space-2);
+	width: 32px;
+	height: 32px;
+	border: 0;
+	background: none;
+	color: var(--g-muted);
+	font-size: 20px;
+	cursor: pointer;
+}
+
+.sakura-admin[data-sakura-page="storage-connection"] .sakura-modal__card h2 {
+	margin: var(--g-space-1) 0 var(--g-space-2);
+	font-size: var(--g-fs-h2);
+}
+
+.sakura-admin[data-sakura-page="storage-connection"] .sakura-config-missing {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--g-space-1);
+	margin-top: var(--g-space-3);
+}
+
+.sakura-admin[data-sakura-page="storage-connection"] .sakura-config-missing span {
+	padding: 2px 8px;
+	border-radius: var(--g-radius-pill);
+	background: var(--g-warn-bg);
+	color: var(--g-warn);
+	font-size: var(--g-fs-meta);
+}
+
+.sakura-admin[data-sakura-page="storage-connection"] .sakura-modal__actions {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--g-space-2);
+	margin-top: var(--g-space-4);
+}
+
+.sakura-admin[data-sakura-page="storage-connection"] .sakura-config-remember {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--g-space-1);
+	color: var(--g-muted);
+	font-size: var(--g-fs-meta);
+}
+
+.sakura-admin[data-sakura-page="storage-connection"] .sakura-config-buttons {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--g-space-2);
+}
+
+.sakura-admin[data-sakura-page="storage-connection"] .section-kicker {
+	margin: 0;
+	color: var(--g-muted);
+	font-size: var(--g-fs-eyebrow);
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+}
+
+
+/* --------------------------------------------------------------- responsive */
+
+@media (max-width: 1100px) {
+	.sakura-admin[data-sakura-page="storage-connection"] .monitor-grid,
+	.sakura-admin[data-sakura-page="storage-connection"] .monitor-fields {
+		grid-template-columns: minmax(0, 1fr);
+	}
+
+	.sakura-admin[data-sakura-page="storage-connection"] .kpi--wide {
+		grid-column: auto;
+	}
+
+	.sakura-admin[data-sakura-page="storage-sync"] .task-stats {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+}
+
+@media (max-width: 782px) {
+	.sakura-admin[data-sakura-page^="storage-"] .card__body {
+		gap: var(--g-space-3);
+	}
+
+	.sakura-admin[data-sakura-page="storage-sync"] .recon-toolbar,
+	.sakura-admin[data-sakura-page="storage-sync"] .recon-tools,
+	.sakura-admin[data-sakura-page="storage-sync"] .log-toolbar,
+	.sakura-admin[data-sakura-page="storage-deletes"] .queue-toolbar,
+	.sakura-admin[data-sakura-page="storage-deletes"] .queue-foot {
+		align-items: stretch;
+	}
+
+	.sakura-admin[data-sakura-page="storage-sync"] .recon-search,
+	.sakura-admin[data-sakura-page="storage-sync"] .recon-search input {
+		width: 100%;
+		min-width: 0;
+	}
+
+	.sakura-admin[data-sakura-page="storage-sync"] .log-item {
+		grid-template-columns: minmax(0, 1fr);
+	}
+
+	.sakura-admin[data-sakura-page="storage-sync"] .activity__chart {
+		gap: var(--g-space-1);
+	}
+
+	.sakura-admin[data-sakura-page="storage-sync"] .activity__bar {
+		width: 6px;
+	}
+
+	.sakura-admin[data-sakura-page="storage-sync"] .health__row {
+		grid-template-columns: minmax(0, 1fr);
+		gap: 2px;
+	}
+
+	.sakura-admin[data-sakura-page="storage-deletes"] .queue-select-mobile {
+		display: inline-flex;
+	}
+
+	.sakura-admin[data-sakura-page="storage-deletes"] .queue-actions {
+		margin-left: 0;
+	}
+
+	.sakura-admin[data-sakura-page="storage-deletes"] .queue-key,
+	.sakura-admin[data-sakura-page="storage-deletes"] .queue-error {
+		max-width: 100%;
+	}
+}
+
+@media (max-width: 600px) {
+	.sakura-admin[data-sakura-page="storage-sync"] .task-stat strong {
+		font-size: var(--g-fs-h3);
+	}
+
+	.sakura-admin[data-sakura-page="storage-sync"] .task-summary__percent {
+		font-size: var(--g-fs-h3);
+	}
+
+	.sakura-admin[data-sakura-page="storage-sync"] .storage-mix__donut {
+		margin-inline: auto;
+	}
+
+	.sakura-admin[data-sakura-page="storage-sync"] .activity__label {
+		font-size: 11px;
+	}
+
+	.sakura-admin[data-sakura-page="storage-connection"] .sakura-modal__card {
+		padding: var(--g-space-4);
+	}
+}

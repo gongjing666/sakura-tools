@@ -74,6 +74,13 @@ final class Sync_Center_Module implements Module {
 	private Scan_Worker $worker;
 
 	/**
+	 * Cached view data shared by the enqueue config and the renderer.
+	 *
+	 * @var array<string,mixed>|null
+	 */
+	private ?array $data_cache = null;
+
+	/**
 	 * Constructor.
 	 *
 	 * @param Options|null         $options Options.
@@ -143,101 +150,154 @@ final class Sync_Center_Module implements Module {
 
 		unset( $hook );
 
-		\Sakura\ImageOptimizer\Admin\Assets::enqueue_style();
-		\Sakura\ImageOptimizer\Admin\Assets::enqueue_layout();
-		wp_enqueue_script( 'sakura-imgopt-admin', SAKURA_TOOLS_URL . 'assets/admin.js', array( 'jquery' ), \Sakura\ImageOptimizer\Admin\Assets::script_version(), true );
-		wp_set_script_translations( 'sakura-imgopt-admin', 'sakura-imgopt', SAKURA_TOOLS_PATH . 'languages' );
-		$profile  = (string) $this->options->active_profile_id();
-		$counts   = '' !== $profile ? ( $this->index->summary( $profile )['counts'] ?? array() ) : array();
+		\Sakura\ImageOptimizer\Admin\Page_Assets::set_data( 'storage-sync', $this->page_config() );
+		\Sakura\ImageOptimizer\Admin\Assets::enqueue_page();
+	}
 
-		wp_localize_script(
-			'sakura-imgopt-admin',
-			'sakuraSyncCenter',
-			array(
-				'ajaxUrl'      => admin_url( 'admin-ajax.php' ),
-				'scanNonce'    => wp_create_nonce( 'sakura_s3_sync_scan' ),
-				'retryNonce'   => wp_create_nonce( 'sakura_s3_retry' ),
-				'testNonce'    => wp_create_nonce( 'sakura_s3_sync_test' ),
-				'actionNonce'  => wp_create_nonce( 'sakura_s3_sync_action' ),
-				'pageNonce'    => wp_create_nonce( 'sakura_s3_sync_page' ),
-				'searchUrl'    => SAKURA_TOOLS_URL . 'fast-search.php',
-				'searchToken'  => '' !== $profile ? Search_Token::create( (int) get_current_user_id(), $profile, 1800 ) : null,
-				'cancelNonce'  => wp_create_nonce( 'sakura_s3_sync_cancel' ),
-				'resumeNonce'  => wp_create_nonce( 'sakura_s3_sync_resume' ),
-				'refreshNonce' => wp_create_nonce( 'sakura_s3_sync_refresh' ),
-				'toggleNonce'  => wp_create_nonce( 'sakura_s3_sync_toggle_index' ),
-				'counts'       => is_array( $counts ) ? $counts : array(),
-				'unknownError' => __( '操作失败，请稍后重试。', 'sakura-imgopt' ),
-				'scanning'     => __( '正在对账…', 'sakura-imgopt' ),
-				'cancelling'   => __( '正在停止对账…', 'sakura-imgopt' ),
-				'cancelled'    => __( '对账已停止，可随时继续。', 'sakura-imgopt' ),
-				'resuming'     => __( '正在继续对账…', 'sakura-imgopt' ),
-				'resume'       => __( '继续对账', 'sakura-imgopt' ),
-				'resumeMissing' => __( '没有可继续的对账任务，请重新开始。', 'sakura-imgopt' ),
-				'cancelFailed' => __( '停止对账失败，请稍后重试。', 'sakura-imgopt' ),
-				'refreshing'   => __( '正在重算差异…', 'sakura-imgopt' ),
-				'refreshed'    => __( '差异已按现有索引重算（未列举云端）。', 'sakura-imgopt' ),
-				'toggling'     => __( '正在切换索引状态…', 'sakura-imgopt' ),
-				'retrying'     => __( '正在重试…', 'sakura-imgopt' ),
-				'done'         => __( '对账完成。', 'sakura-imgopt' ),
-				'retryDone'    => __( '重试完成。', 'sakura-imgopt' ),
-				'uploading'    => __( '正在上传…', 'sakura-imgopt' ),
-				'downloading'  => __( '正在下载…', 'sakura-imgopt' ),
-				'deleting'     => __( '正在删除…', 'sakura-imgopt' ),
-				'actionDone'   => __( '操作完成。', 'sakura-imgopt' ),
+	/**
+	 * View data, computed once per request for both enqueue config and render.
+	 *
+	 * @return array<string,mixed>
+	 */
+	private function page_data(): array {
+		if ( null === $this->data_cache ) {
+			$this->data_cache = $this->view_data();
+		}
+
+		return $this->data_cache;
+	}
+
+	/**
+	 * Format sync events for the client-side log list.
+	 *
+	 * @param array<int,array<string,mixed>> $logs      Raw log rows.
+	 * @param int                            $scan_time Last scan timestamp.
+	 * @return array<int,array<string,string>>
+	 */
+	private function log_payload( array $logs, int $scan_time ): array {
+		$payload = array();
+
+		foreach ( $logs as $log ) {
+			$level           = (string) ( $log['level'] ?? 'info' );
+			$badge           = 'error' === $level ? 'bad' : ( 'warning' === $level ? 'warn' : 'info' );
+			$label           = 'error' === $level ? __( '错误', 'sakura-imgopt' ) : ( 'warning' === $level ? __( '警告', 'sakura-imgopt' ) : __( '信息', 'sakura-imgopt' ) );
+			$payload[]       = array(
+				'time'    => wp_date( 'H:i:s', (int) ( $log['time'] ?? 0 ) ),
+				'level'   => $level,
+				'message' => (string) ( $log['message'] ?? '' ),
+				'badge'   => $badge,
+				'label'   => $label,
+				'scan'    => 'scan: ' . ( $scan_time ? gmdate( 'Ymd-His', $scan_time ) : '—' ),
+			);
+		}
+
+		return $payload;
+	}
+
+	/**
+	 * Data handed to the sync page controller through window.sakuraPage.data.
+	 *
+	 * @return array<string,mixed>
+	 */
+	private function page_config(): array {
+		$data    = $this->page_data();
+		$profile = (string) $this->options->active_profile_id();
+		$token   = '' !== $profile ? Search_Token::create( (int) get_current_user_id(), $profile, 1800 ) : null;
+
+		return array(
+			'ajaxUrl'      => admin_url( 'admin-ajax.php' ),
+			'searchUrl'    => SAKURA_TOOLS_URL . 'fast-search.php',
+			'searchToken'  => $token,
+			'mediaUrl'     => admin_url( 'upload.php' ),
+			'pageSize'     => 25,
+			'pageSizes'    => array( 25, 50, 100 ),
+			'logs'         => $this->log_payload( (array) $data['logs'], (int) ( $data['snapshot']['scanned_at'] ?? 0 ) ),
+			'indexEnabled' => Feature::enabled(),
+			'scanNonce'    => wp_create_nonce( 'sakura_s3_sync_scan' ),
+			'retryNonce'   => wp_create_nonce( 'sakura_s3_retry' ),
+			'testNonce'    => wp_create_nonce( 'sakura_s3_sync_test' ),
+			'actionNonce'  => wp_create_nonce( 'sakura_s3_sync_action' ),
+			'pageNonce'    => wp_create_nonce( 'sakura_s3_sync_page' ),
+			'cancelNonce'  => wp_create_nonce( 'sakura_s3_sync_cancel' ),
+			'resumeNonce'  => wp_create_nonce( 'sakura_s3_sync_resume' ),
+			'refreshNonce' => wp_create_nonce( 'sakura_s3_sync_refresh' ),
+			'toggleNonce'  => wp_create_nonce( 'sakura_s3_sync_toggle' ),
+			'strings'      => array(
+				'unknownError'    => __( '操作失败，请稍后重试。', 'sakura-imgopt' ),
+				'scanning'        => __( '正在对账…', 'sakura-imgopt' ),
+				'cancelling'      => __( '正在停止对账…', 'sakura-imgopt' ),
+				'cancelled'       => __( '对账已停止，可随时继续。', 'sakura-imgopt' ),
+				'resuming'        => __( '正在继续对账…', 'sakura-imgopt' ),
+				'resumeMissing'   => __( '没有可继续的对账任务，请重新开始。', 'sakura-imgopt' ),
+				'cancelFailed'    => __( '停止对账失败，请稍后重试。', 'sakura-imgopt' ),
+				'refreshing'      => __( '正在重算差异…', 'sakura-imgopt' ),
+				'refreshed'       => __( '差异已按现有索引重算（未列举云端）。', 'sakura-imgopt' ),
+				'toggling'        => __( '正在切换索引状态…', 'sakura-imgopt' ),
+				'retrying'        => __( '正在重试…', 'sakura-imgopt' ),
+				'done'            => __( '对账完成。', 'sakura-imgopt' ),
+				'retryDone'       => __( '重试完成。', 'sakura-imgopt' ),
+				'uploading'       => __( '正在上传…', 'sakura-imgopt' ),
+				'downloading'     => __( '正在下载…', 'sakura-imgopt' ),
+				'deleting'        => __( '正在删除…', 'sakura-imgopt' ),
+				'actionDone'      => __( '操作完成。', 'sakura-imgopt' ),
+				'queued'          => __( '已加入队列，稍后自动刷新。', 'sakura-imgopt' ),
 				/* translators: %d: selected item count */
-				'batchSelected' => __( '已选 %d 项', 'sakura-imgopt' ),
-				'batchLimit'    => __( '最多选择 100 项', 'sakura-imgopt' ),
-				'batchWorking'  => __( '正在处理', 'sakura-imgopt' ),
+				'batchSelected'   => __( '已选 %d 项', 'sakura-imgopt' ),
+				'batchLimit'      => __( '最多选择 100 项', 'sakura-imgopt' ),
+				'batchWorking'    => __( '正在处理', 'sakura-imgopt' ),
 				'batchLeaveWarning' => __( '批量上传/下载仍在进行。离开本页会中断，已完成的项目会保留。', 'sakura-imgopt' ),
-				'batchUpload'   => __( '批量上传', 'sakura-imgopt' ),
-				'batchDownload' => __( '批量下载', 'sakura-imgopt' ),
-				'batchDelete'   => __( '批量删除远端', 'sakura-imgopt' ),
-				'batchClear'    => __( '清除选择', 'sakura-imgopt' ),
-				'batchEmpty'    => __( '所选对象没有符合该操作的状态。', 'sakura-imgopt' ),
+				'batchEmpty'      => __( '所选对象没有符合该操作的状态。', 'sakura-imgopt' ),
 				/* translators: %d: number of items already on the remote */
-				'batchReplace'  => __( '选中项中有 %d 个云端已存在，继续会覆盖远端文件。确认批量覆盖？', 'sakura-imgopt' ),
-				/* translators: %d: number of objects */
-				'batchDeleteTitle' => __( '从云端永久删除这 %d 个对象？', 'sakura-imgopt' ),
-				'batchDeleteDesc'  => __( '将删除所选的全部云端对象，不可撤销；本地文件不会删除，但使用 CDN 的页面可能出现 404。', 'sakura-imgopt' ),
+				'batchReplace'    => __( '选中项中有 %d 个云端已存在，继续会覆盖远端文件。确认批量覆盖？', 'sakura-imgopt' ),
+				'batchDeleteTitle' => __( '从云端永久删除这些对象？', 'sakura-imgopt' ),
+				'batchDeleteDesc' => __( '将删除所选的全部云端对象，不可撤销；本地文件不会删除，但使用 CDN 的页面可能出现 404。', 'sakura-imgopt' ),
 				/* translators: %d: number of objects */
 				'batchDeleteConfirm' => __( '永久删除 %d 个对象', 'sakura-imgopt' ),
-				'deleteConfirmHint' => __( '请输入 DELETE 以确认（区分大小写）', 'sakura-imgopt' ),
-
-				'testing'      => __( '测试中…', 'sakura-imgopt' ),
-				'testDone'     => __( '连接正常。', 'sakura-imgopt' ),
+				'deleteTitle'     => __( '删除云端文件', 'sakura-imgopt' ),
+				'deleteDesc'      => __( '将从云端永久删除该对象，不可撤销；本地文件不受影响。', 'sakura-imgopt' ),
+				'deleteConfirm'   => __( '永久删除', 'sakura-imgopt' ),
+				'replaceTitle'    => __( '覆盖云端文件', 'sakura-imgopt' ),
+				'replaceDesc'     => __( '云端已存在同名文件，继续会上传本地文件并覆盖云端内容。', 'sakura-imgopt' ),
+				'replaceConfirm'  => __( '覆盖并上传', 'sakura-imgopt' ),
+				'adoptRunning'    => __( '正在补建媒体库记录…', 'sakura-imgopt' ),
+				'adoptDone'       => __( '媒体库记录已补建。', 'sakura-imgopt' ),
+				'testing'         => __( '测试中…', 'sakura-imgopt' ),
+				'testDone'        => __( '连接正常。', 'sakura-imgopt' ),
 				/* translators: 1: first item index, 2: last item index, 3: total items */
-				'summary'      => __( '显示 %1$s–%2$s 项，共 %3$s 项', 'sakura-imgopt' ),
+				'summary'         => __( '显示 %1$s–%2$s 项，共 %3$s 项', 'sakura-imgopt' ),
 				/* translators: 1: first item index, 2: last item index, 3: total before filtering */
 				'summaryFiltered' => __( '显示 %1$s–%2$s 项，筛选自 %3$s 项', 'sakura-imgopt' ),
-				'sortedByRecent'  => __( ' · 按最近修改排序', 'sakura-imgopt' ),
-				'pageError'    => __( '加载文件列表失败。', 'sakura-imgopt' ),
-				'mediaUrl'     => admin_url( 'upload.php' ),
-				'labels'       => array(
-					'upload'   => __( '上传', 'sakura-imgopt' ),
-					'download' => __( '下载', 'sakura-imgopt' ),
-					'delete'   => __( '删除远端', 'sakura-imgopt' ),
-					'retry'    => __( '重试', 'sakura-imgopt' ),
-					'detail'   => __( '详情', 'sakura-imgopt' ),
-					'noaction' => __( '—', 'sakura-imgopt' ),
-					'exists'   => __( '已存在', 'sakura-imgopt' ),
-					'missing'  => __( '缺失', 'sakura-imgopt' ),
-					'diffsize' => __( '内容不一致', 'sakura-imgopt' ),
-				),
-				'statusLabels' => array(
-					'synced'   => __( '已同步', 'sakura-imgopt' ),
-					'pending'  => __( '待上传', 'sakura-imgopt' ),
-					'failed'   => __( '同步失败', 'sakura-imgopt' ),
-					'remote'   => __( '仅云端', 'sakura-imgopt' ),
-					'mismatch' => __( '校验差异', 'sakura-imgopt' ),
-				),
-				'typeLabels'   => array(
-					'image'   => __( '图片', 'sakura-imgopt' ),
-					'video'   => __( '视频', 'sakura-imgopt' ),
-					'archive' => __( '压缩包', 'sakura-imgopt' ),
-					'other'   => __( '其他', 'sakura-imgopt' ),
-				),
-			)
+				'pageError'       => __( '加载文件列表失败。', 'sakura-imgopt' ),
+				'logsEmpty'       => __( '暂无匹配日志。', 'sakura-imgopt' ),
+				/* translators: %d: number of hidden log entries */
+				'logsMore'        => __( '查询更多日志（还有 %d 条）', 'sakura-imgopt' ),
+				'logsNoMore'      => __( '没有更多日志', 'sakura-imgopt' ),
+			),
+			'labels'       => array(
+				'upload'   => __( '上传', 'sakura-imgopt' ),
+				'reupload' => __( '重新上传', 'sakura-imgopt' ),
+				'download' => __( '下载', 'sakura-imgopt' ),
+				'delete'   => __( '删除远端', 'sakura-imgopt' ),
+				'retry'    => __( '重试', 'sakura-imgopt' ),
+				'detail'   => __( '详情', 'sakura-imgopt' ),
+				'noaction' => __( '—', 'sakura-imgopt' ),
+				'exists'   => __( '已存在', 'sakura-imgopt' ),
+				'missing'  => __( '缺失', 'sakura-imgopt' ),
+				'diffsize' => __( '内容不一致', 'sakura-imgopt' ),
+			),
+			'statusLabels' => array(
+				'synced'   => __( '已同步', 'sakura-imgopt' ),
+				'pending'  => __( '待上传', 'sakura-imgopt' ),
+				'failed'   => __( '同步失败', 'sakura-imgopt' ),
+				'remote'   => __( '仅云端', 'sakura-imgopt' ),
+				'mismatch' => __( '内容不一致', 'sakura-imgopt' ),
+			),
+			'typeLabels'   => array(
+				'image'   => __( '图片', 'sakura-imgopt' ),
+				'video'   => __( '视频', 'sakura-imgopt' ),
+				'archive' => __( '压缩包', 'sakura-imgopt' ),
+				'other'   => __( '其他', 'sakura-imgopt' ),
+			),
 		);
 	}
 
@@ -249,7 +309,7 @@ final class Sync_Center_Module implements Module {
 			return;
 		}
 
-		$data = $this->view_data();
+		$data = $this->page_data();
 
 		$snapshot = $data['snapshot'];
 		$rows = $data['rows'];

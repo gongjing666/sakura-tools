@@ -41,19 +41,6 @@ final class Config_Notice {
 	public const SNOOZE_SECONDS = 43200;
 
 	/**
-	 * Human labels for the machine-readable missing fields.
-	 *
-	 * @var array<string,string>
-	 */
-	private const FIELD_LABELS = array(
-		'provider' => '服务商',
-		'bucket'   => '存储桶名称',
-		'key'      => 'Access Key',
-		'secret'   => 'Secret Key',
-		'endpoint' => '服务地址',
-	);
-
-	/**
 	 * Whether the dialog should be rendered for the current request.
 	 *
 	 * @param Options $options Storage options.
@@ -86,6 +73,29 @@ final class Config_Notice {
 	}
 
 	/**
+	 * Human label for one machine-readable missing field.
+	 *
+	 * @param string $field Field key.
+	 * @return string
+	 */
+	private static function field_label( string $field ): string {
+		switch ( $field ) {
+			case 'provider':
+				return __( '服务商', 'sakura-imgopt' );
+			case 'bucket':
+				return __( '存储桶名称', 'sakura-imgopt' );
+			case 'endpoint':
+				return __( '服务地址', 'sakura-imgopt' );
+			case 'key':
+				return 'Access Key';
+			case 'secret':
+				return 'Secret Key';
+			default:
+				return $field;
+		}
+	}
+
+	/**
 	 * Return the dialog markup, or an empty string when it is not needed.
 	 *
 	 * @param Options $options Storage options.
@@ -103,7 +113,7 @@ final class Config_Notice {
 		$missing       = array();
 
 		foreach ( $options->configuration_errors() as $field ) {
-			$missing[] = self::FIELD_LABELS[ $field ] ?? $field;
+			$missing[] = self::field_label( $field );
 		}
 
 		ob_start();

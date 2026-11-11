@@ -41,8 +41,6 @@ settings_errors();
 		);
 		?>
 
-		<form id="sakura-imgopt-settings-form" method="post" action="options.php">
-			<?php settings_fields( $option_group ); ?>
 			<section class="hero">
 				<div class="hero-copy">
 					<p class="eyebrow">SAKURA TOOLS / <?php echo esc_html( SAKURA_TOOLS_VERSION ); ?></p>
@@ -58,7 +56,7 @@ settings_errors();
 					'sakura_imgopt_section_compress' => __( '03 压缩', 'sakura-imgopt' ),
 					'sakura_imgopt_section_bulk'     => __( '04 批量', 'sakura-imgopt' ),
 				);
-				$render_section = static function ( $section_id, $section ) use ( $fields, $kickers ) {
+				$render_section = static function ( $section_id, $section ) use ( $fields, $kickers, $option_group ) {
 					$section_fields = isset( $fields[ $section_id ] ) ? $fields[ $section_id ] : array();
 					$wide           = ( 'sakura_imgopt_section_thumbs' === $section_id );
 					$slug           = str_replace( 'sakura_imgopt_section_', '', $section_id );
@@ -66,6 +64,9 @@ settings_errors();
 					$kicker = isset( $kickers[ $section_id ] ) ? $kickers[ $section_id ] : strtoupper( str_replace( 'sakura_imgopt_section_', '', $section_id ) );
 					echo '<div class="card-head"><div><p class="section-kicker">' . esc_html( $kicker ) . '</p><h2>' . wp_kses_post( $section['title'] ) . '</h2></div></div>';
 					echo '<div class="card-body">';
+					echo '<form id="sakura-imgopt-card-' . esc_attr( $slug ) . '" method="post" action="options.php">';
+					settings_fields( $option_group );
+					\Sakura\ImageOptimizer\Admin\Card_Form::fields( (string) $slug );
 					if ( ! empty( $section['callback'] ) && is_callable( $section['callback'] ) ) {
 						echo '<div class="section-note">';
 						call_user_func( $section['callback'] );
@@ -92,6 +93,7 @@ settings_errors();
 						echo '</table>';
 					}
 					echo '<div class="card-savebar"><button type="submit" class="btn btn--primary">' . esc_html__( '保存设置', 'sakura-imgopt' ) . '</button></div>';
+					echo '</form>';
 					echo '</div></section>';
 				};
 
@@ -112,6 +114,5 @@ settings_errors();
 				}
 				?>
 			</div>
-		</form>
 	</div>
 </div>

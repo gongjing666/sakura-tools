@@ -124,6 +124,7 @@ $usage = $backup->get_usage();
 					<form id="sakura-backup-policy-form" action="options.php" method="post">
 						<?php
 						settings_fields( $backup_group );
+						\Sakura\ImageOptimizer\Admin\Card_Form::fields( 'backup_policy' );
 						do_settings_sections( $backup_slug );
 						?>
 						<div class="card-savebar">

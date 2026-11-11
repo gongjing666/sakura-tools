@@ -123,22 +123,24 @@ final class S3_Storage_Page {
 				<?php endif; ?>
 			</section>
 
-			<form id="sakura-s3-save-form" class="sakura-s3-save-form" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" data-sakura-layout="s3" data-sakura-group="main">
-				<input type="hidden" name="action" value="sakura_s3_save">
-				<input type="hidden" name="profile_id" value="<?php echo esc_attr( $active_id ); ?>">
-				<?php wp_nonce_field( 'sakura_s3_save' ); ?>
+			<div id="sakura-s3-save-form" class="sakura-s3-save-form" data-sakura-layout="s3" data-sakura-group="main">
 				<section class="card" data-sakura-card="behaviour">
 					<div class="card-head">
 						<div><p class="section-kicker">BEHAVIOUR</p><h2><?php esc_html_e( '上传行为', 'sakura-imgopt' ); ?></h2><p><?php esc_html_e( '同样对所有存储配置生效。', 'sakura-imgopt' ); ?></p></div>
 					</div>
 					<div class="card-body">
-						<label class="sakura-s3-check"><input type="checkbox" name="no_thumb" value="1" form="sakura-s3-save-form" <?php checked( $options['no_thumb'], 'true' ); ?>><span><strong><?php esc_html_e( '不上传 WordPress 生成的缩略图', 'sakura-imgopt' ); ?></strong><span class="description"><?php esc_html_e( '一般不建议开启，否则部分自适应图片可能无法从云端读取。', 'sakura-imgopt' ); ?></span></span></label>
-						<label class="sakura-s3-check"><input type="checkbox" name="no_local_saving" value="1" form="sakura-s3-save-form" <?php checked( $options['no_local_saving'], 'true' ); ?>><span><strong><?php esc_html_e( '上传成功后删除本地文件（高风险）', 'sakura-imgopt' ); ?></strong><span class="description sakura-s3-danger"><?php esc_html_e( '勾选后，只有新上传的图片及其缩略图都成功传到云端，才会删除本地文件；不勾选就一直保留。手动同步历史附件时始终保留本地文件。', 'sakura-imgopt' ); ?></span></span></label>
+						<form id="sakura-s3-behaviour-form" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+							<input type="hidden" name="action" value="sakura_s3_save">
+							<input type="hidden" name="profile_id" value="<?php echo esc_attr( $active_id ); ?>">
+							<?php wp_nonce_field( 'sakura_s3_save' ); ?>
+							<?php \Sakura\ImageOptimizer\Admin\Card_Form::fields( 'behaviour' ); ?>
+						<label class="sakura-s3-check"><input type="checkbox" name="no_thumb" value="1" <?php checked( $options['no_thumb'], 'true' ); ?>><span><strong><?php esc_html_e( '不上传 WordPress 生成的缩略图', 'sakura-imgopt' ); ?></strong><span class="description"><?php esc_html_e( '一般不建议开启，否则部分自适应图片可能无法从云端读取。', 'sakura-imgopt' ); ?></span></span></label>
+						<label class="sakura-s3-check"><input type="checkbox" name="no_local_saving" value="1" <?php checked( $options['no_local_saving'], 'true' ); ?>><span><strong><?php esc_html_e( '上传成功后删除本地文件（高风险）', 'sakura-imgopt' ); ?></strong><span class="description sakura-s3-danger"><?php esc_html_e( '勾选后，只有新上传的图片及其缩略图都成功传到云端，才会删除本地文件；不勾选就一直保留。手动同步历史附件时始终保留本地文件。', 'sakura-imgopt' ); ?></span></span></label>
 						<div class="sakura-s3-advanced">
 							<p class="sakura-s3-advanced-title"><?php esc_html_e( '高级设置', 'sakura-imgopt' ); ?></p>
 							<div class="sakura-s3-field">
 								<label class="sakura-s3-field-label" for="sakura-s3-upload-concurrency"><?php esc_html_e( '云端传输并发数', 'sakura-imgopt' ); ?></label>
-								<select id="sakura-s3-upload-concurrency" name="upload_concurrency" form="sakura-s3-save-form">
+								<select id="sakura-s3-upload-concurrency" name="upload_concurrency">
 									<?php for ( $i = 1; $i <= \Sakura\ImageOptimizer\Settings\Settings_Repository::MAX_UPLOAD_CONCURRENCY; $i++ ) : ?>
 										<option value="<?php echo esc_attr( (string) $i ); ?>" <?php selected( $concurrency, $i ); ?>><?php echo esc_html( (string) $i ); ?></option>
 									<?php endfor; ?>
@@ -152,6 +154,7 @@ final class S3_Storage_Page {
 						<div class="card-savebar">
 							<button type="submit" class="btn btn--primary"><?php esc_html_e( '保存设置', 'sakura-imgopt' ); ?></button>
 						</div>
+						</form>
 					</div>
 				</section>
 
@@ -160,6 +163,11 @@ final class S3_Storage_Page {
 						<div><p class="section-kicker">CONNECTION</p><h2><?php esc_html_e( '连接设置', 'sakura-imgopt' ); ?></h2><p><?php esc_html_e( '配置保存在网站数据库里，密钥会加密保存，页面上不会显示。', 'sakura-imgopt' ); ?></p></div>
 					</div>
 					<div class="card-body">
+						<form id="sakura-s3-connection-form" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+							<input type="hidden" name="action" value="sakura_s3_save">
+							<input type="hidden" name="profile_id" value="<?php echo esc_attr( $active_id ); ?>">
+							<?php wp_nonce_field( 'sakura_s3_save' ); ?>
+							<?php \Sakura\ImageOptimizer\Admin\Card_Form::fields( 'connection' ); ?>
 						<p class="description"><?php esc_html_e( '下面这些设置会跟着每份配置单独保存；切换配置时，访问权限、云端路径和图片地址前缀也会一起切换。', 'sakura-imgopt' ); ?></p>
 						<table class="form-table" role="presentation">
 <tr><th scope="row"><?php esc_html_e( '启用 S3 存储', 'sakura-imgopt' ); ?></th><td><label><input type="checkbox" name="enabled" value="1" <?php checked( $options['enabled'], 'true' ); ?>> <?php esc_html_e( '新上传的图片自动同步到云存储', 'sakura-imgopt' ); ?></label></td></tr>
@@ -199,6 +207,7 @@ final class S3_Storage_Page {
 						<div class="card-savebar">
 							<button type="submit" class="btn btn--primary"><?php esc_html_e( '保存连接配置', 'sakura-imgopt' ); ?></button>
 						</div>
+						</form>
 					</div>
 				</section>
 
@@ -213,7 +222,7 @@ final class S3_Storage_Page {
 						</div>
 					</div>
 				</section>
-			</form>
+			</div>
 
 			<form id="sakura-s3-test-form" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" hidden>
 				<input type="hidden" name="action" value="sakura_s3_test">
@@ -224,9 +233,8 @@ final class S3_Storage_Page {
 				var add = document.getElementById('sakura-s3-add-profile');
 				if (!add) return;
 				add.addEventListener('click', function() {
-					var form = document.querySelector('input[name="action"][value="sakura_s3_save"]');
+					var form = document.getElementById('sakura-s3-connection-form');
 					if (!form) return;
-					form = form.closest('form');
 					var newBox = form.querySelector('input[name="save_as_new"]');
 					var name = form.querySelector('input[name="profile_name"]');
 					if (newBox) newBox.checked = true;

@@ -1,6 +1,7 @@
 <?php
 namespace Sakura\ImageOptimizer\S3;
 
+use Sakura\ImageOptimizer\Admin\Card_Form;
 use Sakura\ImageOptimizer\S3_Storage_Module;
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -46,6 +47,13 @@ final class Settings_Saver {
 			wp_die( esc_html__( '权限不足。', 'sakura-imgopt' ) );
 		}
 		check_admin_referer( 'sakura_s3_save' );
+
+		$card = Card_Form::current_card();
+		if ( 'behaviour' === $card ) {
+			$this->save_behaviour();
+			return;
+		}
+		$connection_only = 'connection' === $card;
 
 		$old       = $this->options->all();
 		$raw       = get_option( Options::OPTION, array() );
@@ -97,13 +105,15 @@ final class Settings_Saver {
 			'endpoint'        => $endpoint,
 			'key'             => '' !== $key ? $key : ( $provider_changed ? '' : (string) ( $old['key'] ?? '' ) ),
 			'secret'          => '' !== $secret ? $secret : ( $provider_changed ? '' : (string) ( $old['secret'] ?? '' ) ),
-			'no_thumb'        => isset( $_POST['no_thumb'] ) ? 'true' : 'false',
-			'no_local_saving' => isset( $_POST['no_local_saving'] ) ? 'true' : 'false',
+			'no_thumb'        => $connection_only ? (string) ( $old['no_thumb'] ?? 'false' ) : ( isset( $_POST['no_thumb'] ) ? 'true' : 'false' ),
+			'no_local_saving' => $connection_only ? (string) ( $old['no_local_saving'] ?? 'false' ) : ( isset( $_POST['no_local_saving'] ) ? 'true' : 'false' ),
 			'upload_url_path' => $upload_url,
 			'object_acl'      => isset( $_POST['object_acl'] ) && in_array( wp_unslash( $_POST['object_acl'] ), array( 'public-read', 'private' ), true ) ? wp_unslash( $_POST['object_acl'] ) : 'public-read',
 		);
-		$upload_concurrency = self::sanitize_upload_concurrency( isset( $_POST['upload_concurrency'] ) ? wp_unslash( $_POST['upload_concurrency'] ) : 1 );
-		update_option( 'sakura_imgopt_upload_concurrency', $upload_concurrency, false );
+		if ( ! $connection_only ) {
+			$upload_concurrency = self::sanitize_upload_concurrency( isset( $_POST['upload_concurrency'] ) ? wp_unslash( $_POST['upload_concurrency'] ) : 1 );
+			update_option( 'sakura_imgopt_upload_concurrency', $upload_concurrency, false );
+		}
 
 		$upload_path = isset( $_POST['upload_path'] ) ? trim( str_replace( '\\', '/', sanitize_text_field( wp_unslash( $_POST['upload_path'] ) ) ), '/' ) : Options::DEFAULT_UPLOAD_PATH;
 		if ( '' === $upload_path ) {
@@ -192,6 +202,26 @@ final class Settings_Saver {
 		} else {
 			Upload_URL::restore( (string) ( $old['upload_url_path'] ?? $upload_url ) );
 		}
+		$this->redirect( array( 'saved' => '1' ) );
+	}
+
+	/**
+	 * Save the upload-behaviour card without touching connection credentials.
+	 */
+	private function save_behaviour(): void {
+		$raw = get_option( Options::OPTION, array() );
+		$raw = is_array( $raw ) ? $raw : array();
+
+		$raw['no_thumb']        = isset( $_POST['no_thumb'] ) ? 'true' : 'false';
+		$raw['no_local_saving'] = isset( $_POST['no_local_saving'] ) ? 'true' : 'false';
+
+		update_option( Options::OPTION, $raw, false );
+		update_option(
+			'sakura_imgopt_upload_concurrency',
+			self::sanitize_upload_concurrency( isset( $_POST['upload_concurrency'] ) ? wp_unslash( $_POST['upload_concurrency'] ) : 1 ),
+			false
+		);
+
 		$this->redirect( array( 'saved' => '1' ) );
 	}
 

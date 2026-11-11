@@ -2,6 +2,7 @@
 namespace Sakura\ImageOptimizer;
 
 use Sakura\ImageOptimizer\Admin\Assets;
+use Sakura\ImageOptimizer\Admin\Card_Form;
 use Sakura\ImageOptimizer\Backup\Backup_Repository;
 use Sakura\ImageOptimizer\Contracts\Backup_Repository_Interface;
 use Sakura\ImageOptimizer\Contracts\Module;
@@ -431,6 +432,37 @@ class Image_Optimizer_Module implements Module {
 				'desc'      => __( '每批之间的休息时间（0–2000 毫秒）。调大对前端访问更友好，调小处理更快。推荐 300–500。', 'sakura-imgopt' ),
 			)
 		);
+
+		// 每张卡片只提交自己的字段；未提交的 option 保持原值。
+		Card_Form::guard_options(
+			$this->option_group,
+			array(
+				'thumbs'  => array( 'sakura_imgopt_disabled_sizes' ),
+				'rename'  => array( 'sakura_imgopt_rename_enabled', 'sakura_imgopt_rename_rule' ),
+				'compress' => array(
+					'sakura_imgopt_enable_compression',
+					'sakura_imgopt_compression_mode',
+					'sakura_imgopt_convert_format',
+					'sakura_imgopt_source_formats',
+					'sakura_imgopt_quality',
+					'sakura_imgopt_max_file_size_mb',
+					'sakura_imgopt_max_image_width',
+					'sakura_imgopt_max_image_height',
+					'sakura_imgopt_backup_enabled',
+				),
+				'bulk'    => array( 'sakura_imgopt_batch_size', 'sakura_imgopt_ajax_delay' ),
+			)
+		);
+		Card_Form::guard_options(
+			$this->backup_group,
+			array(
+				'backup_policy' => array(
+					'sakura_imgopt_backup_retention_days',
+					'sakura_imgopt_backup_max_mb',
+					'sakura_imgopt_delete_data_on_uninstall',
+				),
+			)
+		);
 	}
 
 	// ── 回调函数 ──────────────────────────────────────
@@ -756,6 +788,12 @@ class Image_Optimizer_Module implements Module {
 
 		$value = (int) $this->settings->get( $key );
 
+		// A hidden zero makes an unchecked card checkbox save as 0 instead of
+		// disappearing from the request.
+		printf(
+			'<input type="hidden" name="%1$s" value="0" />',
+			esc_attr( $key )
+		);
 		printf(
 			'<label for="%1$s"><input type="checkbox" id="%1$s" name="%1$s" value="1" %2$s /> %3$s</label>',
 			esc_attr( $key ),

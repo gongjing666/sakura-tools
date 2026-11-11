@@ -220,6 +220,88 @@ final class SettingsTest extends TestCase {
 		$this->assertSame( 'medium_large', $sanitized['scenes']['sidebar'] );
 	}
 
+	public function test_partial_scopes_save_keeps_other_cards(): void {
+		$stored = Settings::defaults();
+		$stored['enabled'] = 1;
+		$stored['advanced']['stats'] = 1;
+		$stored['scenes']['sidebar'] = 'large';
+		update_option( Settings::OPTION, $stored );
+		Settings::reset();
+
+		$sanitized = Settings::sanitize(
+			array(
+				'_sakura_card'    => 'scopes',
+				'_sakura_partial' => '1',
+				'scopes'          => array(
+					'archive' => '1',
+					'sidebar' => '0',
+				),
+			)
+		);
+
+		$this->assertSame( 1, $sanitized['enabled'] );
+		$this->assertSame( 1, $sanitized['advanced']['stats'] );
+		$this->assertSame( 'large', $sanitized['scenes']['sidebar'] );
+		$this->assertSame( 1, $sanitized['scopes']['archive'] );
+		$this->assertSame( 0, $sanitized['scopes']['sidebar'] );
+	}
+
+	public function test_partial_advanced_saves_unchecked_switch_without_resetting_others(): void {
+		$stored = Settings::defaults();
+		$stored['advanced']['stats'] = 1;
+		$stored['advanced']['content_images'] = 1;
+		update_option( Settings::OPTION, $stored );
+		Settings::reset();
+
+		$sanitized = Settings::sanitize(
+			array(
+				'_sakura_card'    => 'advanced',
+				'_sakura_partial' => '1',
+				'advanced'        => array( 'stats' => '0' ),
+			)
+		);
+
+		$this->assertSame( 0, $sanitized['advanced']['stats'] );
+		$this->assertSame( 1, $sanitized['advanced']['content_images'] );
+	}
+
+	public function test_partial_switches_can_disable_without_touching_other_cards(): void {
+		$stored = Settings::defaults();
+		$stored['enabled'] = 1;
+		$stored['advanced']['stats'] = 1;
+		update_option( Settings::OPTION, $stored );
+		Settings::reset();
+
+		$sanitized = Settings::sanitize(
+			array(
+				'_sakura_card'    => 'switches',
+				'_sakura_partial' => '1',
+				'enabled'         => '0',
+				'engine'          => 'url',
+			)
+		);
+
+		$this->assertSame( 0, $sanitized['enabled'] );
+		$this->assertSame( 'url', $sanitized['engine'] );
+		$this->assertSame( 1, $sanitized['advanced']['stats'] );
+	}
+
+	public function test_partial_unknown_card_does_not_blank_option(): void {
+		$stored = Settings::defaults();
+		$stored['enabled'] = 1;
+		update_option( Settings::OPTION, $stored );
+		Settings::reset();
+
+		$sanitized = Settings::sanitize(
+			array(
+				'_sakura_card'    => 'typo',
+				'_sakura_partial' => '1',
+			)
+		);
+
+		$this->assertSame( 1, $sanitized['enabled'] );
+	}
+
 	public function test_cache_groups_include_zibll_bbs_html(): void {
 		$groups = Settings::cache_groups();
 

@@ -106,13 +106,14 @@
 - 嵌套结构（缩略图尺寸表、缩略图开关列表）只保留最外层一个框，内部用 `border-top` 分隔。
 - 阴影只表达层级，不表达状态；hover 不额外加边。
 
-### 4.1 卡片动作
+### 4.1 卡片动作与保存
 
-- 每张可编辑卡片必须在卡片正文末尾放一个 `.card-savebar`，保存/测试等主动作靠右；移动端按钮整宽。
-- 只读卡、纯操作卡（清理、探测、刷新、删除队列）不需要保存按钮；动作按钮留在卡内的 `.card-savebar` 或既有 `.card-actions`，不要再造页面级操作条。以「行/项」为保存单位的列表卡（如用户容量）把保存按钮放在对应行内，不要求卡底 `.card-savebar`。
-- 不再使用整页 `.page-savebar`，也不再使用 `.sakura-floating-savebar` 浮动保存条。旧页面底部孤立的「保存更改」必须移进对应卡片。
-- 多张卡共用一组 option / 一个 `options.php` 表单时，保留共享 `<form>`，每张卡里的按钮都提交整组设置；不要为了「每卡独立」把字段拆成多个 form，否则未提交字段会被 WordPress 置空。备份策略这类本来就是独立表单的卡片，按钮只保存该卡。
-- 按钮文案要说明保存范围（如「保存连接配置」「保存清理策略」）；多卡共用表单时可以统一写「保存设置」。
+- **一张可编辑卡片 = 一个独立表单，只保存本卡。** 表单放在 `.card-body` 内部（`section.card > .card-body > form`），不要把 `section` 本身换成 `form`；字段、`.card-savebar`、提交按钮都在同一个 `form` 内。
+- 每个表单都要有 nonce（`settings_fields()` 或页面自己的 nonce）和卡片标记：多 option 表单用 `\Sakura\ImageOptimizer\Admin\Card_Form::fields( 'card-key' )`；提交单个数组 option 的表单用 `Card_Form::option_fields( 'option_name', 'card-key' )`，把标记放进该 option 数组内，否则 sanitize 收不到。服务端必须按卡片合并已存值：`options.php` 多 option 用 `Card_Form::guard_options()` 保护未提交字段；单数组 option / 自定义 saver 按 `_sakura_card` 只更新本卡字段。未提交字段保持原值，未知卡片直接返回旧值，不能清空。
+- checkbox 组要有 hidden `0`；保存本卡时未勾选必须能写回 0。
+- 保存/测试等主动作放在卡片正文末尾的 `.card-savebar`，靠右；移动端按钮整宽。按钮文案说明保存范围（如「保存连接配置」「保存清理策略」），单卡内可统一写「保存设置」。
+- 只读卡、纯操作卡（清理、探测、刷新、删除队列）不需要保存按钮；动作按钮留在卡内的 `.card-savebar` 或既有 `.card-actions`，不要再造页面级操作条。以「行/项」为保存单位的列表卡（如用户容量）把保存按钮放在对应行内，这是唯一例外。
+- 不再使用整页 `.page-savebar`，也不再使用 `.sakura-floating-savebar` 浮动保存条。新增页面直接照本节的「一卡一表单」写，不要回到「多卡共享一个表单、按钮提交整组」的旧模式。
 
 ## 5. 页头与状态
 
@@ -191,5 +192,5 @@
 - [ ] 移动端标题区换行、按钮不挤、页面不横溢。
 - [ ] 页签单行完整，最后一个页签在 320px 也不被裁切。
 - [ ] 窄屏内容型表格已重排为带 `data-label` 的行，没有 860px 宽的隐藏溢出。
-- [ ] 每张可编辑卡片都有卡片级 `.card-savebar` 或行内保存按钮；页面没有 `.page-savebar` 或浮动保存条残留。
+- [ ] 每张可编辑卡片是独立表单，表单内有 `Card_Form::fields()`（单数组 option 用 `option_fields()`）标记，点保存只写本卡；未勾选的 checkbox 能保存为 0；页面没有 `.page-savebar` 或浮动保存条残留。
 - [ ] `php -l`、`node --check`、CSS 花括号计数、`git diff --check` 通过。

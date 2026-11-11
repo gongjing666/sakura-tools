@@ -437,26 +437,43 @@ final class Settings {
 	 * @return array<string,mixed>
 	 */
 	public static function sanitize( $input ): array {
-		$input = is_array( $input ) ? $input : array();
-		$old   = self::get();
+		$input  = is_array( $input ) ? $input : array();
+		$old    = self::get();
 		$source = $old;
 
-		$source['enabled'] = empty( $input['enabled'] ) ? 0 : 1;
-		if ( isset( $input['engine'] ) ) {
-			$source['engine'] = (string) $input['engine'];
+		$card    = isset( $input['_sakura_card'] ) && is_string( $input['_sakura_card'] )
+			? sanitize_key( $input['_sakura_card'] )
+			: '';
+		$partial = ! empty( $input['_sakura_partial'] );
+		$cards   = array( 'switches', 'scopes', 'scenes', 'sizes', 'advanced' );
+
+		// A partial submission without a known card must not blank the option.
+		if ( $partial && ! in_array( $card, $cards, true ) ) {
+			return $old;
 		}
-		if ( isset( $input['provider_mode'] ) ) {
-			$source['provider_mode'] = (string) $input['provider_mode'];
+
+		$owns = static function ( string $name ) use ( $partial, $card ): bool {
+			return ! $partial || $card === $name;
+		};
+
+		if ( $owns( 'switches' ) ) {
+			$source['enabled'] = empty( $input['enabled'] ) ? 0 : 1;
+			if ( isset( $input['engine'] ) ) {
+				$source['engine'] = (string) $input['engine'];
+			}
+			if ( isset( $input['provider_mode'] ) ) {
+				$source['provider_mode'] = (string) $input['provider_mode'];
+			}
+			if ( isset( $input['dpr'] ) ) {
+				$source['dpr'] = (float) $input['dpr'];
+			}
 		}
-		if ( isset( $input['dpr'] ) ) {
-			$source['dpr'] = (float) $input['dpr'];
-		}
-		if ( isset( $input['scopes'] ) && is_array( $input['scopes'] ) ) {
+		if ( $owns( 'scopes' ) && isset( $input['scopes'] ) && is_array( $input['scopes'] ) ) {
 			$source['scopes'] = $input['scopes'];
 		}
 
-		if ( isset( $input['sizes'] ) && is_array( $input['sizes'] ) ) {
-			$sizes = isset( $old['sizes'] ) && is_array( $old['sizes'] ) ? $old['sizes'] : array();
+		if ( $owns( 'sizes' ) && isset( $input['sizes'] ) && is_array( $input['sizes'] ) ) {
+			$sizes     = isset( $old['sizes'] ) && is_array( $old['sizes'] ) ? $old['sizes'] : array();
 			$style_map = isset( $old['style_map'] ) && is_array( $old['style_map'] ) ? $old['style_map'] : array();
 			foreach ( $input['sizes'] as $name => $row ) {
 				$name = self::sanitize_size_name( (string) $name );
@@ -475,18 +492,24 @@ final class Settings {
 			$source['style_map'] = $style_map;
 		}
 
-		if ( isset( $input['scenes'] ) && is_array( $input['scenes'] ) ) {
+		if ( $owns( 'scenes' ) && isset( $input['scenes'] ) && is_array( $input['scenes'] ) ) {
 			// normalize() validates each entry against the configured sizes.
 			$source['scenes'] = $input['scenes'];
 		}
 
-		if ( isset( $input['style_map'] ) && is_array( $input['style_map'] ) ) {
+		if ( $owns( 'sizes' ) && isset( $input['style_map'] ) && is_array( $input['style_map'] ) ) {
 			$source['style_map'] = $input['style_map'];
 		}
 
-		if ( isset( $input['advanced'] ) && is_array( $input['advanced'] ) ) {
+		if ( $owns( 'advanced' ) && isset( $input['advanced'] ) && is_array( $input['advanced'] ) ) {
 			$advanced = isset( $old['advanced'] ) && is_array( $old['advanced'] ) ? $old['advanced'] : array();
-			foreach ( array( 'content_images', 'native_fallback', 'theme_bridge', 'full_cap', 'rest', 'animated', 'unknown_fallback', 'stats' ) as $key ) {
+			$keys     = array( 'content_images', 'native_fallback', 'theme_bridge', 'full_cap', 'rest', 'animated', 'unknown_fallback', 'stats' );
+			foreach ( $keys as $key ) {
+				// A card form posts every switch (hidden 0 + checkbox 1). Only a
+				// full submission treats missing switches as unchecked.
+				if ( $partial && ! array_key_exists( $key, $input['advanced'] ) ) {
+					continue;
+				}
 				$advanced[ $key ] = empty( $input['advanced'][ $key ] ) ? 0 : 1;
 			}
 			$template = isset( $input['advanced']['custom_provider_template'] ) && is_string( $input['advanced']['custom_provider_template'] )
@@ -500,7 +523,7 @@ final class Settings {
 			$source['legacy'] = $old['legacy'];
 		}
 
-		$normalized = self::normalize( $source );
+		$normalized    = self::normalize( $source );
 		self::$options = $normalized;
 
 		// Also covers an unchanged form: WordPress skips update_option_* when

@@ -75,6 +75,15 @@ $cache_note = ! empty( $cache_report['group_flush'] )
 	: ( 'none' === (string) ( $cache_report['backend'] ?? '' )
 		? __( '当前没有启用对象缓存，无需清理。', 'sakura-imgopt' )
 		: __( '当前的对象缓存不支持按组清理；插件不会清空整站缓存，请手动清理，或换用支持分组清理的缓存服务。', 'sakura-imgopt' ) );
+$render_card_open = static function ( string $card ) {
+	echo '<form id="sakura-imgopt-oss-' . esc_attr( $card ) . '" method="post" action="options.php">';
+	settings_fields( 'sakura_imgopt_oss_group' );
+	echo '<input type="hidden" name="sakura_imgopt_oss_thumb[schema]" value="2" />';
+	\Sakura\ImageOptimizer\Admin\Card_Form::option_fields( 'sakura_imgopt_oss_thumb', $card );
+};
+$render_card_close = static function () {
+	echo '</form>';
+};
 $render_card_save = static function () {
 	echo '<div class="card-savebar"><button type="submit" class="btn btn--primary">' . esc_html__( '保存设置', 'sakura-imgopt' ) . '</button></div>';
 };
@@ -137,9 +146,7 @@ $render_card_save = static function () {
 		<?php endif; ?>
 
 		<div class="dashboard-grid" data-sakura-layout="thumb" data-sakura-group="main" data-sakura-collect="deep">
-			<form id="sakura-imgopt-oss-form" class="sakura-thumb-main" method="post" action="options.php" data-sakura-source="1">
-				<?php settings_fields( 'sakura_imgopt_oss_group' ); ?>
-				<input type="hidden" name="sakura_imgopt_oss_thumb[schema]" value="2" />
+			<div class="sakura-thumb-main" data-sakura-source="1">
 
 				<section class="card" data-sakura-card="switches">
 					<div class="card-head">
@@ -150,6 +157,7 @@ $render_card_save = static function () {
 						</div>
 					</div>
 					<div class="card-body">
+						<?php $render_card_open( 'switches' ); ?>
 						<table class="form-table" role="presentation">
 							<tr>
 								<th scope="row"><?php echo esc_html__( '启用', 'sakura-imgopt' ); ?></th>
@@ -189,6 +197,7 @@ $render_card_save = static function () {
 							</tr>
 						</table>
 						<?php $render_card_save(); ?>
+						<?php $render_card_close(); ?>
 					</div>
 				</section>
 
@@ -201,6 +210,7 @@ $render_card_save = static function () {
 						</div>
 					</div>
 					<div class="card-body">
+						<?php $render_card_open( 'scopes' ); ?>
 						<div class="sakura-thumb-checkgrid">
 							<?php
 							$scope_labels = array(
@@ -220,6 +230,7 @@ $render_card_save = static function () {
 						</div>
 						<p class="description"><?php echo esc_html__( '正文图片和单篇文章共用这个开关；正文尺寸可以单独在「按位置指定尺寸」里指定。', 'sakura-imgopt' ); ?></p>
 						<?php $render_card_save(); ?>
+						<?php $render_card_close(); ?>
 					</div>
 				</section>
 
@@ -232,6 +243,7 @@ $render_card_save = static function () {
 						</div>
 					</div>
 					<div class="card-body">
+						<?php $render_card_open( 'scenes' ); ?>
 						<?php
 						$scene_fields = array(
 							'thumb'   => array(
@@ -279,6 +291,7 @@ $render_card_save = static function () {
 						</table>
 						<p class="description"><?php echo esc_html__( '只有「生效位置」里对应的开关打开时才会生效；命名样式模式下，所选尺寸要先在下方「尺寸规格」里填好命名样式。缩略图和侧边栏会重写主题的缩略图缓存，保存后刷新前台即可看到变化。', 'sakura-imgopt' ); ?></p>
 						<?php $render_card_save(); ?>
+						<?php $render_card_close(); ?>
 					</div>
 				</section>
 
@@ -291,6 +304,7 @@ $render_card_save = static function () {
 						</div>
 					</div>
 					<div class="card-body">
+						<?php $render_card_open( 'sizes' ); ?>
 						<div class="table-wrap">
 							<table class="sakura-thumb-size-table">
 								<thead>
@@ -336,6 +350,7 @@ $render_card_save = static function () {
 						</div>
 						<p class="description"><?php echo esc_html__( '只能填 1 到 36 个字母或数字；留空表示这个尺寸不使用命名样式，命名样式模式下会被跳过。填写的名称要和缤纷云后台的尺寸名称一致。', 'sakura-imgopt' ); ?></p>
 						<?php $render_card_save(); ?>
+						<?php $render_card_close(); ?>
 					</div>
 				</section>
 
@@ -348,6 +363,7 @@ $render_card_save = static function () {
 						</div>
 					</div>
 					<div class="card-body">
+						<?php $render_card_open( 'advanced' ); ?>
 						<div class="sakura-thumb-checkgrid sakura-thumb-checkgrid--wide">
 							<?php
 							$advanced_labels = array(
@@ -377,9 +393,10 @@ $render_card_save = static function () {
 							<p class="description"><?php echo esc_html__( '「子比主题备用图联动」会在读取主题设置时改写备用图地址，不修改主题文件，主题升级也不会丢。', 'sakura-imgopt' ); ?></p>
 						</div>
 						<?php $render_card_save(); ?>
+						<?php $render_card_close(); ?>
 					</div>
 				</section>
-			</form>
+			</div>
 
 			<aside class="side-stack" data-sakura-source="1">
 				<section class="card" data-sakura-card="probe" id="sakura-thumb-probe">

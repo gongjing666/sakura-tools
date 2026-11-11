@@ -483,7 +483,8 @@ final class Sync_Center_Module implements Module {
 	}
 
 	/**
-	 * AJAX: remember that this operator opted out of the setup dialog.
+	 * AJAX: record whether this operator muted the setup dialog for good or
+	 * only postponed it for the twelve-hour snooze window.
 	 */
 	public function ajax_dismiss_config_notice(): void {
 		check_ajax_referer( 'sakura_s3_config_notice', 'nonce' );
@@ -492,9 +493,25 @@ final class Sync_Center_Module implements Module {
 			wp_send_json_error( array( 'message' => __( '权限不足。', 'sakura-imgopt' ) ), 403 );
 		}
 
-		update_user_meta( get_current_user_id(), Config_Notice::META_KEY, '1' );
+		$dismiss = isset( $_POST['dismiss'] ) && is_string( $_POST['dismiss'] ) && '1' === sanitize_text_field( wp_unslash( $_POST['dismiss'] ) );
+		$snooze  = isset( $_POST['snooze'] ) && is_string( $_POST['snooze'] ) && '1' === sanitize_text_field( wp_unslash( $_POST['snooze'] ) );
 
-		wp_send_json_success( array( 'dismissed' => true ) );
+		if ( ! $dismiss && ! $snooze ) {
+			wp_send_json_error( array( 'message' => __( '未知的提醒操作。', 'sakura-imgopt' ) ), 400 );
+		}
+
+		$user_id = get_current_user_id();
+
+		if ( $dismiss ) {
+			update_user_meta( $user_id, Config_Notice::META_KEY, '1' );
+			delete_user_meta( $user_id, Config_Notice::SNOOZE_META_KEY );
+			wp_send_json_success( array( 'dismissed' => true ) );
+		}
+
+		$until = time() + Config_Notice::SNOOZE_SECONDS;
+		update_user_meta( $user_id, Config_Notice::SNOOZE_META_KEY, (string) $until );
+
+		wp_send_json_success( array( 'snoozed_until' => $until ) );
 	}
 
 	/**

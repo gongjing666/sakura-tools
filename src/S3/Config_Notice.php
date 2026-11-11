@@ -18,7 +18,9 @@ defined( 'ABSPATH' ) || exit;
  *
  * The prompt is intentionally separate from the destructive delete modal: it
  * is informational, has no danger styling, and stays dismissed for the current
- * user until they clear the saved preference.
+ * user until they clear the saved preference. A plain "later" close snoozes it
+ * for twelve hours instead of hiding it forever; the choice is stored per user
+ * so it survives a browser restart and does not leak across operators.
  */
 final class Config_Notice {
 
@@ -26,6 +28,17 @@ final class Config_Notice {
 	 * User meta flag set when the operator asks not to see this again.
 	 */
 	public const META_KEY = 'sakura_imgopt_s3_config_notice_dismissed';
+
+	/**
+	 * User meta key holding the Unix timestamp until which a plain dismissal
+	 * keeps the dialog quiet.
+	 */
+	public const SNOOZE_META_KEY = 'sakura_imgopt_s3_config_notice_snoozed_until';
+
+	/**
+	 * How long "later" keeps the dialog quiet, in seconds (12 hours).
+	 */
+	public const SNOOZE_SECONDS = 43200;
 
 	/**
 	 * Human labels for the machine-readable missing fields.
@@ -55,7 +68,21 @@ final class Config_Notice {
 			return false;
 		}
 
-		return '1' !== (string) get_user_meta( get_current_user_id(), self::META_KEY, true );
+		$user_id = get_current_user_id();
+		if ( '1' === (string) get_user_meta( $user_id, self::META_KEY, true ) ) {
+			return false;
+		}
+
+		$snoozed_until = (int) get_user_meta( $user_id, self::SNOOZE_META_KEY, true );
+		if ( $snoozed_until > time() ) {
+			return false;
+		}
+
+		if ( $snoozed_until > 0 ) {
+			delete_user_meta( $user_id, self::SNOOZE_META_KEY );
+		}
+
+		return true;
 	}
 
 	/**

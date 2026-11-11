@@ -1,22 +1,23 @@
 # 后台 UI 规则
 
-适用范围：图片优化（`sakura-tools-image`）4 页、对象存储（`sakura-tools-storage`）3 页、文件空间（`sakura-tools-files`）5 页与系统自检（`sakura-tools`）。这些页面都加载同一套主题；新增页面时必须同步扩展 `src/Admin/Assets.php` 的 `enqueue_theme` 白名单。
+适用范围：图片优化（`sakura-tools-image`）4 页、对象存储（`sakura-tools-storage`）3 页、文件空间（`sakura-tools-files`）5 页与系统自检（`sakura-tools`）。后台目前有两套样式栈：已迁移到 UI 层的页面（当前只有图片优化的「优化规则」页）加载 `assets/ui/`，其余页面仍加载旧栈。新增页面默认按第 9 节用 UI 层写；只有继续使用旧栈的页面才需要同步扩展 `src/Admin/Assets.php` 的 `enqueue_theme` 白名单。
 
-## 1. 样式分层与加载顺序
+## 1. 样式分层与加载顺序（旧栈，未迁移页面）
 
-实际加载顺序：
+旧页面当前的实际加载顺序：
 
 1. `assets/admin.css`：旧樱花主题与基础结构，仅作为历史底座。
 2. `assets/admin-ext.css`：页面级细节（缩略图尺寸、S3 表单等）。
-3. `assets/admin-layout.css`：12 栏卡片布局编辑态。
-4. `assets/admin-unify.css`：统一圆角、字号、控件尺寸。
-5. `assets/admin-theme.css`：当前的「云雾白 · 墨石墨」视觉层，最后加载。
+3. `assets/admin-shell.css`：共享顶栏、模块切换与页签。
+4. `assets/admin-layout.css`：12 栏卡片布局编辑态。
+5. `assets/admin-unify.css`：统一圆角、字号、控件尺寸。
+6. `assets/admin-theme.css`：当前的「云雾白 · 墨石墨」视觉层，最后加载。
 
 规则：
 
-- 新的视觉修改只写进 `assets/admin-theme.css`，不要回头改 `admin.css` 的旧色值。
+- 旧栈页面的视觉修改只写进 `assets/admin-theme.css`，不要回头改 `admin.css` 的旧色值；已迁移到 UI 层的页面写 `assets/ui/`（见 9.2），不要同时改两套。
 - 视图里不要再写内联颜色；确需运行时变色时用 `var(--g-*)`。
-- 主题在 `sakura-tools`、`sakura-tools-image`、`sakura-tools-storage`、`sakura-tools-files` 四个 slug 加载；不在白名单里的后台页面仍是旧样式，不能假设这些变量存在。
+- 旧栈主题只在 `sakura-tools`、`sakura-tools-image`、`sakura-tools-storage`、`sakura-tools-files` 四个 slug 且未迁移的页面上加载；不在白名单里的后台页面仍是旧样式，不能假设这些变量存在。UI 页面改用 `assets/ui/tokens.css`，不再加载 `admin-theme.css`。
 - 覆盖旧规则时先看特异性。旧文件里有 ID 选择器（如 `#sakura-s3-save-form h2`）和带 `.form-table` 的高特异性规则，普通类选择器压不住。
 
 ## 2. 设计令牌
@@ -109,7 +110,7 @@
 ### 4.1 卡片动作与保存
 
 - **一张可编辑卡片 = 一个独立表单，只保存本卡。** 表单放在 `.card-body` 内部（`section.card > .card-body > form`），不要把 `section` 本身换成 `form`；字段、`.card-savebar`、提交按钮都在同一个 `form` 内。
-- 每个表单都要有 nonce（`settings_fields()` 或页面自己的 nonce）和卡片标记：多 option 表单用 `\Sakura\ImageOptimizer\Admin\Card_Form::fields( 'card-key' )`；提交单个数组 option 的表单用 `Card_Form::option_fields( 'option_name', 'card-key' )`，把标记放进该 option 数组内，否则 sanitize 收不到。服务端必须按卡片合并已存值：`options.php` 多 option 用 `Card_Form::guard_options()` 保护未提交字段；单数组 option / 自定义 saver 按 `_sakura_card` 只更新本卡字段。未提交字段保持原值，未知卡片直接返回旧值，不能清空。
+- 每个表单都要有 nonce 和卡片标记。用 `UI::card()` 的 `form` 参数时，由组件输出 `option_page` / `action=update` / `_wpnonce`，不要在外层再手写一份；手写表单时用 `settings_fields()` 或页面自己的 nonce。多 option 表单用 `\Sakura\ImageOptimizer\Admin\Card_Form::fields( 'card-key' )`；提交单个数组 option 的表单用 `Card_Form::option_fields( 'option_name', 'card-key' )`，把标记放进该 option 数组内，否则 sanitize 收不到。服务端必须按卡片合并已存值：`options.php` 多 option 用 `Card_Form::guard_options()` 保护未提交字段；单数组 option / 自定义 saver 按 `_sakura_card` 只更新本卡字段。未提交字段保持原值，未知卡片直接返回旧值，不能清空。
 - checkbox 组要有 hidden `0`；保存本卡时未勾选必须能写回 0。
 - 保存/测试等主动作放在卡片正文末尾的 `.card-savebar`，靠右；移动端按钮整宽。按钮文案说明保存范围（如「保存连接配置」「保存清理策略」），单卡内可统一写「保存设置」。
 - 只读卡、纯操作卡（清理、探测、刷新、删除队列）不需要保存按钮；动作按钮留在卡内的 `.card-savebar` 或既有 `.card-actions`，不要再造页面级操作条。以「行/项」为保存单位的列表卡（如用户容量）把保存按钮放在对应行内，这是唯一例外。
@@ -177,7 +178,41 @@
 - 勾选框最容易出现「看着能点，但勾没勾一个样」：基础态 `.form-table input` 的特异性高于旧的 `:checked` 时，白底会把石墨勾选态盖掉；要在同一特异性补 `:checked`。
 - 改完至少验证 1440、1366、424、390、320 五个宽度，并检查 `document.scrollWidth == innerWidth` 与 console 无报错。
 
-## 9. 自检清单
+## 9. UI 组件层与静态资源
+
+从图片优化「优化规则」页开始，后台有独立的 UI 组件层。页面只描述内容，不再复制卡片、hero、表单壳和保存条的 HTML。
+
+### 9.1 PHP 组件
+
+- 页头用 `\Sakura\ImageOptimizer\Admin\UI::hero()`，参数为 `eyebrow` / `title` / `lede`。
+- 卡片用 `UI::card( $args, $body )`。`$args` 支持 `card`（同时作为 `data-sakura-card` 和类名后缀）、`kicker`、`title`、`wide`、`class`、`save`、`form`。
+- 可编辑卡片的 `form` 参数：
+  - `id`：表单 id，默认 `sakura-card-{card}`；
+  - `action`：默认 `options.php`；自定义 saver 传 `admin-post.php`；
+  - `option_group`：传给 `wp_create_nonce( $group . '-options' )` 的组名；
+  - `markers`：`fields`（默认，多 option）、`option_fields`（单数组 option）、`none`（自定义 nonce）；
+  - `option`：`markers=option_fields` 时的 option 名。
+- `save` 非空时，组件在 body 后输出 `.card-savebar`；只读卡不传 `save`，纯操作卡用 `class` 内自己的 `.card-actions`。
+- 新页面不要手写 `section.card > .card-head > .card-body` 骨架，也不要在视图里重复 nonce、`Card_Form` 标记和保存按钮。特殊版式通过 `wide` / `class` 传给组件，不改组件结构。
+- `UI` 在 `src/Admin/UI.php`，`Card_Form` 在 `src/Admin/Card_Form.php`，都由现有 PSR-4 自动加载。
+
+### 9.2 样式分层
+
+- `assets/ui/tokens.css`：只放设计令牌（色板、间距、圆角、字号）和旧变量重映射，不放具体组件。
+- `assets/ui/components.css`：放后台页面骨架和组件（画布、顶栏槽位重置、hero、卡片、表单、按钮、状态、保存条、响应式）。
+- `assets/admin-shell.css`、`assets/admin-layout.css` 继续独立存在，分别负责共享 chrome 和 12 栏布局；两者都依赖 UI components，加载顺序固定为 tokens → components → shell → layout。
+- 新迁移页面自身只加载这 4 个后台样式：2 个 UI 文件 + shell + layout。不要再加 `admin.css` / `admin-ext.css` / `admin-unify.css` / `admin-theme.css`，否则同一选择器会有多份所有权。媒体库钩子可能额外加载 `assets/media-modal-folders.css`，它只服务媒体弹窗，不属于页面布局。
+- 页面专属样式默认不新建文件：优先复用 components；确属一次性的少量规则，加在 components.css 的页面段并用页面类限定。超过约 50 行才考虑独立文件，且必须在 `Assets` 中显式登记依赖和版本。
+- 禁止用 `!important` 抢旧主题的样式；唯一例外是 WordPress 管理页槽位重置（`#wpcontent` / `#wpbody-content`）这类必须覆盖核心的规则，且要带 `body:has(.sakura-sync-app)` 作用域。
+
+### 9.3 页面接入与迁移
+
+- 资源门控在 `src/Admin/Assets.php`：`enqueue_page()` 调 `is_ui_screen()`；命中时走 `enqueue_ui()`，否则走旧 `enqueue_style()`。`enqueue_layout()` 的依赖也要跟着切换。
+- 页面识别必须用后台真实参数 `t`（不是 `tab`）：`page=sakura-tools-image&t=rules`。默认 tab 可以省略 `t`。
+- 迁移顺序：先把该页视图改成 `UI::hero()` / `UI::card()`，再在 `is_ui_screen()` 加上该页条件，最后验证 1440/1366/424/390/320、逐卡保存、拖拽布局与控制台。未完成验证的页面继续走旧资源，不要半迁移。
+- 新增功能页默认按 UI 层写，并在 `is_ui_screen()` 中登记自己的 `page` + `t`；不要为新页面复制一套 `admin-*.css`。
+
+## 10. 自检清单
 
 - [ ] 没有新的粉/蓝硬编码色。
 - [ ] 所有横向留白来自 `--g-*` 令牌。
@@ -193,4 +228,7 @@
 - [ ] 页签单行完整，最后一个页签在 320px 也不被裁切。
 - [ ] 窄屏内容型表格已重排为带 `data-label` 的行，没有 860px 宽的隐藏溢出。
 - [ ] 每张可编辑卡片是独立表单，表单内有 `Card_Form::fields()`（单数组 option 用 `option_fields()`）标记，点保存只写本卡；未勾选的 checkbox 能保存为 0；页面没有 `.page-savebar` 或浮动保存条残留。
+- [ ] UI 页面的 hero、卡片、表单壳和保存条来自 `UI::hero()` / `UI::card()`，视图没有手写这些骨架。
+- [ ] UI 页面自身只加载 `ui/tokens.css`、`ui/components.css`、`admin-shell.css`、`admin-layout.css` 这 4 个后台样式（媒体库钩子额外加载的 `media-modal-folders.css` 不计），没有混入旧 `admin.css` / `admin-theme.css`。
+- [ ] 新页面已在 `Assets::is_ui_screen()` 中按 `page` + `t` 登记，没有依赖错误参数或把旧资源一起加载。
 - [ ] `php -l`、`node --check`、CSS 花括号计数、`git diff --check` 通过。

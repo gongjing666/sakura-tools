@@ -75,7 +75,13 @@ final class Assets {
 	 * @return void
 	 */
 	public static function enqueue_page(): void {
-		self::enqueue_style();
+		$ui = self::is_ui_screen();
+
+		if ( $ui ) {
+			self::enqueue_ui();
+		} else {
+			self::enqueue_style();
+		}
 
 		wp_enqueue_script(
 			'sakura-imgopt-admin',
@@ -86,7 +92,69 @@ final class Assets {
 		);
 		wp_set_script_translations( 'sakura-imgopt-admin', 'sakura-imgopt', SAKURA_TOOLS_PATH . 'languages' );
 
-		self::enqueue_layout();
+		self::enqueue_layout( $ui ? 'sakura-imgopt-ui-components' : 'sakura-imgopt-admin' );
+	}
+
+	/**
+	 * Whether the current screen is the first UI-layer pilot.
+	 *
+	 * The pilot is deliberately one screen: the image rules tab. Every other
+	 * screen keeps the legacy stack until it is migrated and verified.
+	 *
+	 * @return bool
+	 */
+	public static function is_ui_screen(): bool {
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only screen detection for asset loading.
+		$page = isset( $_GET['page'] ) ? sanitize_key( wp_unslash( (string) $_GET['page'] ) ) : '';
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only screen detection for asset loading.
+		$tab = isset( $_GET['t'] ) ? sanitize_key( wp_unslash( (string) $_GET['t'] ) ) : '';
+
+		return 'sakura-tools-image' === $page && ( '' === $tab || 'rules' === $tab );
+	}
+
+	/**
+	 * Enqueue the two-file UI layer.
+	 *
+	 * tokens.css owns values, components.css owns shapes. The shell and layout
+	 * engine stay as separate files but depend on components, so the cascade
+	 * order is tokens -> shell -> components -> layout.
+	 *
+	 * @return void
+	 */
+	public static function enqueue_ui(): void {
+		wp_enqueue_style(
+			'sakura-imgopt-ui-tokens',
+			SAKURA_TOOLS_URL . 'assets/ui/tokens.css',
+			array(),
+			self::ui_version()
+		);
+
+		wp_enqueue_style(
+			'sakura-imgopt-ui-components',
+			SAKURA_TOOLS_URL . 'assets/ui/components.css',
+			array( 'sakura-imgopt-ui-tokens' ),
+			self::ui_version()
+		);
+
+		Shell::enqueue( 'sakura-imgopt-ui-components' );
+	}
+
+	/**
+	 * Version the UI layer by the modification time of either file.
+	 *
+	 * @return string
+	 */
+	public static function ui_version(): string {
+		$stamp = array();
+
+		foreach ( array( 'assets/ui/tokens.css', 'assets/ui/components.css' ) as $relative ) {
+			$path = SAKURA_TOOLS_PATH . $relative;
+			if ( is_readable( $path ) ) {
+				$stamp[] = (string) filemtime( $path ) . '.' . (string) filesize( $path );
+			}
+		}
+
+		return '' === implode( '', $stamp ) ? SAKURA_TOOLS_VERSION : SAKURA_TOOLS_VERSION . '.' . implode( '.', $stamp );
 	}
 
 	/**
@@ -210,11 +278,11 @@ final class Assets {
 	/**
 	 * Load the card-layout engine on screens that expose layout groups.
 	 */
-	public static function enqueue_layout(): void {
+	public static function enqueue_layout( string $dependency = 'sakura-imgopt-admin' ): void {
 		wp_enqueue_style(
 			'sakura-imgopt-layout',
 			SAKURA_TOOLS_URL . 'assets/admin-layout.css',
-			array( 'sakura-imgopt-admin' ),
+			array( $dependency ),
 			self::layout_version()
 		);
 

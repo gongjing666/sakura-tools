@@ -258,7 +258,7 @@ final class Space_Page {
 			),
 			static function () use ( $bridge, $name, $ver ) {
 				?>
-				<div class="card-grid" data-sakura-layout="files-zibll" data-sakura-group="main">
+				<div class="card-grid" data-sakura-layout="files-space" data-sakura-group="main">
 					<?php
 					UI::card(
 						array(

@@ -5,10 +5,6 @@
  * primitives come from assets/ui/components.css.
  */
 
-.sakura-admin[data-sakura-page="system-overview"] .kpis {
-	margin-bottom: var(--g-stack);
-}
-
 .sakura-admin[data-sakura-page="system-overview"] .system-value {
 	color: var(--g-ink);
 	font-variant-numeric: tabular-nums;

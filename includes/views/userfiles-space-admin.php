@@ -101,10 +101,17 @@ $sufm_space_check = static function ( string $name, string $text, bool $checked,
 	echo '</label>';
 };
 
+/**
+ * Save-time boolean option rendered with the shared 18px checkbox.
+ *
+ * The historical helper name is kept so the five call sites and their closure
+ * use-lists stay stable; this is deliberately not a slider. Interactive
+ * confirmations still bind through data-zibll-switch.
+ */
 $sufm_space_switch = static function ( string $name, string $text, bool $checked, string $kind = '', string $warn_on = '', string $warn_off = '' ): void {
 	echo '<input type="hidden" name="' . esc_attr( $name ) . '" value="0" />';
-	echo '<label class="switch">';
-	echo '<input class="switch__input" type="checkbox" name="' . esc_attr( $name ) . '" value="1"';
+	echo '<label class="check">';
+	echo '<input type="checkbox" name="' . esc_attr( $name ) . '" value="1"';
 	if ( '' !== $kind ) {
 		echo ' data-zibll-switch="' . esc_attr( $kind ) . '"';
 	}
@@ -115,8 +122,8 @@ $sufm_space_switch = static function ( string $name, string $text, bool $checked
 		echo ' data-zibll-warn-off="' . esc_attr( $warn_off ) . '"';
 	}
 	echo ' ' . checked( $checked, true, false ) . ' />';
-	echo '<span class="switch__track" aria-hidden="true"></span>';
-	echo '<span class="switch__text">' . esc_html( $text ) . '</span>';
+	echo '<span class="check__box" aria-hidden="true"></span>';
+	echo '<span class="check__text">' . esc_html( $text ) . '</span>';
 	echo '</label>';
 };
 
@@ -318,7 +325,7 @@ UI::page(
 	static function () use ( $sufm_space_option, $sufm_space_caps, $sufm_space_caps_state, $sufm_space_theme, $sufm_space_theme_methods, $sufm_space_allowed, $sufm_space_points_on, $sufm_space_methods_ready, $sufm_space_size, $sufm_space_format_mb, $sufm_space_check, $sufm_space_switch, $sufm_space_bd, $sufm_space_override, $sufm_space_levels, $sufm_space_level_max, $sufm_space_level_total_mb, $sufm_space_vip_rows, $sufm_space_vip_total_mb, $sufm_space_rule, $sufm_space_rule_on, $sufm_space_packages, $sufm_space_points, $sufm_space_ppkgs, $sufm_space_icon, $sufm_space_default_icon, $sufm_space_pay_rate, $sufm_space_cheapest, $sufm_space_points_per_gb, $sufm_space_far, $sufm_space_today_gb, $sufm_space_today_count, $sufm_space_entry_theme, $sufm_space_entry_label, $sufm_space_entry_url, $sufm_space_is_generic, $sufm_space_cash_row, $sufm_space_points_row, $entry_status, $files_enabled, $files_entry ) {
 		settings_errors();
 		?>
-		<div class="card-grid" data-sakura-layout="files-zibll" data-sakura-group="main">
+		<div class="card-grid" data-sakura-layout="files-space" data-sakura-group="main">
 			<?php if ( empty( $entry_status['enabled'] ) ) : ?>
 				<div class="zibll-span-all">
 					<?php UI::alert( __( '扩容尚未启用。前台不会出现任何入口；已存在的等级 / VIP 加成也不会影响容量。', 'sakura-imgopt' ), 'warn', __( '扩容未启用', 'sakura-imgopt' ) ); ?>
@@ -678,46 +685,44 @@ UI::page(
 						?>
 					</div>
 
-					<?php foreach ( array_chunk( $sufm_space_levels, (int) ceil( count( $sufm_space_levels ) / 2 ) ) as $sufm_space_chunk ) : ?>
-						<div class="table-scroll zibll-level-table">
-							<table class="table table--compact table--responsive">
-								<thead>
+					<div class="table-scroll zibll-level-table">
+						<table class="table table--compact table--responsive">
+							<thead>
+								<tr>
+									<th scope="col"><?php esc_html_e( '等级', 'sakura-imgopt' ); ?></th>
+									<th scope="col"><?php esc_html_e( '门槛积分', 'sakura-imgopt' ); ?></th>
+									<th scope="col"><?php esc_html_e( '加成（MB）', 'sakura-imgopt' ); ?></th>
+								</tr>
+							</thead>
+							<tbody>
+								<?php foreach ( $sufm_space_levels as $sufm_space_row ) : ?>
 									<tr>
-										<th scope="col"><?php esc_html_e( '等级', 'sakura-imgopt' ); ?></th>
-										<th scope="col"><?php esc_html_e( '门槛积分', 'sakura-imgopt' ); ?></th>
-										<th scope="col"><?php esc_html_e( '加成（MB）', 'sakura-imgopt' ); ?></th>
+										<td data-label="<?php esc_attr_e( '等级', 'sakura-imgopt' ); ?>"><?php echo esc_html( 'LV' . $sufm_space_row['level'] ); ?></td>
+										<td data-label="<?php esc_attr_e( '门槛积分', 'sakura-imgopt' ); ?>"><?php echo null === $sufm_space_row['threshold'] ? '—' : esc_html( (string) $sufm_space_row['threshold'] ); ?></td>
+										<td data-label="<?php esc_attr_e( '加成（MB）', 'sakura-imgopt' ); ?>">
+											<?php
+											UI::field(
+												array(
+													'type'     => 'number',
+													'name'     => $sufm_space_option . '[level_bonus_mb][' . $sufm_space_row['level'] . ']',
+													'value'    => $sufm_space_row['mb'],
+													'min'      => 0,
+													'step'     => 1,
+													'disabled' => $sufm_space_rule_on,
+													'class'    => 'zibll-cell-field',
+													'attrs'    => array(
+														'data-zibll-mb' => 'level',
+														'aria-label'    => sprintf( __( 'LV%d 加成（MB）', 'sakura-imgopt' ), $sufm_space_row['level'] ),
+													),
+												)
+											);
+											?>
+										</td>
 									</tr>
-								</thead>
-								<tbody>
-									<?php foreach ( $sufm_space_chunk as $sufm_space_row ) : ?>
-										<tr>
-											<td data-label="<?php esc_attr_e( '等级', 'sakura-imgopt' ); ?>"><?php echo esc_html( 'LV' . $sufm_space_row['level'] ); ?></td>
-											<td data-label="<?php esc_attr_e( '门槛积分', 'sakura-imgopt' ); ?>"><?php echo null === $sufm_space_row['threshold'] ? '—' : esc_html( (string) $sufm_space_row['threshold'] ); ?></td>
-											<td data-label="<?php esc_attr_e( '加成（MB）', 'sakura-imgopt' ); ?>">
-												<?php
-												UI::field(
-													array(
-														'type'     => 'number',
-														'name'     => $sufm_space_option . '[level_bonus_mb][' . $sufm_space_row['level'] . ']',
-														'value'    => $sufm_space_row['mb'],
-														'min'      => 0,
-														'step'     => 1,
-														'disabled' => $sufm_space_rule_on,
-														'class'    => 'zibll-cell-field',
-														'attrs'    => array(
-															'data-zibll-mb' => 'level',
-															'aria-label'    => sprintf( __( 'LV%d 加成（MB）', 'sakura-imgopt' ), $sufm_space_row['level'] ),
-														),
-													)
-												);
-												?>
-											</td>
-										</tr>
-									<?php endforeach; ?>
-								</tbody>
-							</table>
-						</div>
-					<?php endforeach; ?>
+								<?php endforeach; ?>
+							</tbody>
+						</table>
+					</div>
 
 					<p class="zibll-total" data-zibll-total="level"><?php esc_html_e( '加成合计：', 'sakura-imgopt' ); ?><strong><?php echo esc_html( $sufm_space_format_mb( $sufm_space_level_total_mb ) ); ?></strong></p>
 					<?php

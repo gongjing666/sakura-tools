@@ -379,6 +379,18 @@
 	margin-bottom: var(--g-space-5);
 }
 
+/* Top-level blocks on one page never touch: KPI row, card grids, standalone cards.
+ * The :not() specificity is deliberate: .card resets margin to 0 later in
+ * components.css, so a plain * + * rule would lose for standalone cards. */
+.sakura-admin .page-body > :not(:first-child) {
+	margin-top: var(--g-stack);
+}
+
+/* The batch progress screen uses its own grid gap. */
+.sakura-admin[data-sakura-page="media-progress"] .page-body > :not(:first-child) {
+	margin-top: 0;
+}
+
 .sakura-admin .page-head__copy {
 	min-width: 0;
 }

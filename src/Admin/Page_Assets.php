@@ -38,6 +38,7 @@ final class Page_Assets {
 		'files-users'        => 'files-users',
 		'files-queue'        => 'files-queue',
 		'files-log'          => 'files-log',
+		'files-zibll'        => 'files-space',
 	);
 
 	/**

@@ -25,7 +25,7 @@ final class Page_Assets {
 	 *
 	 * @var array<int, string>
 	 */
-	public const UI_PAGES = array( 'image-rules' );
+	public const UI_PAGES = array( 'image-rules', 'image-thumb', 'image-backup', 'image-stats' );
 
 	/**
 	 * Per-page data passed to the page controller.
@@ -40,7 +40,9 @@ final class Page_Assets {
 	 * @var array<string, string>
 	 */
 	private const LAYOUT_PAGES = array(
-		'image-rules' => 'image',
+		'image-rules'  => 'image',
+		'image-thumb'  => 'thumb',
+		'image-backup' => 'backup',
 	);
 
 	/**
@@ -107,29 +109,48 @@ final class Page_Assets {
 			self::group_version( array( 'assets/ui/components.css' ) )
 		);
 
-		wp_enqueue_style(
-			$base . '-layout',
-			SAKURA_TOOLS_URL . 'assets/ui/layout.css',
-			array( $base . '-components' ),
-			self::group_version( array( 'assets/ui/layout.css' ) )
-		);
+		$has_layout = isset( self::LAYOUT_PAGES[ $page ] );
+
+		if ( $has_layout ) {
+			wp_enqueue_style(
+				$base . '-layout',
+				SAKURA_TOOLS_URL . 'assets/ui/layout.css',
+				array( $base . '-components' ),
+				self::group_version( array( 'assets/ui/layout.css' ) )
+			);
+		}
 
 		$page_css = 'assets/ui/pages/' . $module . '.css';
 		if ( is_readable( SAKURA_TOOLS_PATH . $page_css ) ) {
 			wp_enqueue_style(
 				$base . '-page-' . $module,
 				SAKURA_TOOLS_URL . $page_css,
-				array( $base . '-layout' ),
+				array( $has_layout ? $base . '-layout' : $base . '-components' ),
 				self::group_version( array( $page_css ) )
 			);
 		}
 
+		// Optional page-specific stylesheet for tabs that need more than the
+		// shared module styles (for example files-zibll.css).
+		$tab_css = 'assets/ui/pages/' . $page . '.css';
+		if ( is_readable( SAKURA_TOOLS_PATH . $tab_css ) ) {
+			wp_enqueue_style(
+				$base . '-page-' . $page,
+				SAKURA_TOOLS_URL . $tab_css,
+				array( $base . '-page-' . $module ),
+				self::group_version( array( $tab_css ) )
+			);
+		}
+
 		$scripts = array(
-			'core'   => array( 'assets/ui/js/core.js', array(), true ),
-			'api'    => array( 'assets/ui/js/api.js', array( $base . '-core' ), true ),
-			'ui'     => array( 'assets/ui/js/ui.js', array( $base . '-api' ), true ),
-			'layout' => array( 'assets/ui/js/layout.js', array( $base . '-ui' ), true ),
+			'core' => array( 'assets/ui/js/core.js', array(), true ),
+			'api'  => array( 'assets/ui/js/api.js', array( $base . '-core' ), true ),
+			'ui'   => array( 'assets/ui/js/ui.js', array( $base . '-api' ), true ),
 		);
+
+		if ( $has_layout ) {
+			$scripts['layout'] = array( 'assets/ui/js/layout.js', array( $base . '-ui' ), true );
+		}
 
 		foreach ( $scripts as $name => $definition ) {
 			wp_enqueue_script(
@@ -146,13 +167,11 @@ final class Page_Assets {
 			wp_enqueue_script(
 				$base . '-page-' . $page,
 				SAKURA_TOOLS_URL . $page_js,
-				array( $base . '-layout' ),
+				array( $has_layout ? $base . '-layout' : $base . '-ui' ),
 				self::group_version( array( $page_js ) ),
 				true
 			);
 		}
-
-		$layout_page = self::LAYOUT_PAGES[ $page ] ?? $module;
 
 		$config = array(
 			'page'    => $page,
@@ -160,8 +179,19 @@ final class Page_Assets {
 			'restUrl' => esc_url_raw( rest_url() ),
 			'nonce'   => wp_create_nonce( 'wp_rest' ),
 			'data'    => self::data( $page ),
-			'layout'  => array(
-				'page'    => $layout_page,
+			'strings' => array(
+				'saved'      => __( '已保存', 'sakura-imgopt' ),
+				'saveFailed' => __( '保存失败，请稍后重试。', 'sakura-imgopt' ),
+				'confirm'    => __( '确认', 'sakura-imgopt' ),
+				'cancel'     => __( '取消', 'sakura-imgopt' ),
+				'copied'     => __( '已复制', 'sakura-imgopt' ),
+				'loading'    => __( '处理中…', 'sakura-imgopt' ),
+			),
+		);
+
+		if ( $has_layout ) {
+			$config['layout'] = array(
+				'page'    => self::LAYOUT_PAGES[ $page ],
 				'ajaxUrl' => admin_url( 'admin-ajax.php' ),
 				'nonce'   => wp_create_nonce( Layout::NONCE ),
 				'pages'   => Layout::saved(),
@@ -173,16 +203,8 @@ final class Page_Assets {
 					'drag'  => __( '拖动以调整位置', 'sakura-imgopt' ),
 					'hint'  => __( '拖标题移动，拖边缘调整大小。', 'sakura-imgopt' ),
 				),
-			),
-			'strings' => array(
-				'saved'       => __( '已保存', 'sakura-imgopt' ),
-				'saveFailed'  => __( '保存失败，请稍后重试。', 'sakura-imgopt' ),
-				'confirm'     => __( '确认', 'sakura-imgopt' ),
-				'cancel'      => __( '取消', 'sakura-imgopt' ),
-				'copied'      => __( '已复制', 'sakura-imgopt' ),
-				'loading'     => __( '处理中…', 'sakura-imgopt' ),
-			),
-		);
+			);
+		}
 
 		wp_localize_script( $base . '-core', 'sakuraPage', $config );
 		wp_set_script_translations( $base . '-core', 'sakura-imgopt', SAKURA_TOOLS_PATH . 'languages' );

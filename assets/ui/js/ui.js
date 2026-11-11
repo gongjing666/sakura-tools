@@ -214,6 +214,35 @@
 		} );
 	}
 
+	/**
+	 * Confirm links marked with data-sakura-confirm before navigating.
+	 */
+	function initConfirmations() {
+		document.addEventListener( 'click', function ( event ) {
+			var link = event.target.closest ? event.target.closest( '[data-sakura-confirm]' ) : null;
+			if ( ! link ) {
+				return;
+			}
+
+			event.preventDefault();
+			var message = link.getAttribute( 'data-sakura-confirm' ) || '';
+			confirm( message, {
+				title: link.getAttribute( 'data-sakura-confirm-title' ) || '',
+				tone: 'danger',
+				danger: true
+			} ).then( function ( confirmed ) {
+				if ( confirmed && link.href ) {
+					window.location.href = link.href;
+				}
+			} );
+		} );
+	}
+
+	admin.ready( function () {
+		labelTables( document );
+		initConfirmations();
+	} );
+
 	admin.ui = {
 		toast: toast,
 		confirm: confirm,

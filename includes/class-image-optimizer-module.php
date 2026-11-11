@@ -1030,7 +1030,7 @@ class Image_Optimizer_Module implements Module {
 				/* translators: %s: saving percentage */
 				$badge = '<span class="badge badge--ok">' . esc_html( sprintf( __( '节省 %s%%', 'sakura-imgopt' ), (string) ( $log['ratio'] ?? 0 ) ) ) . '</span>';
 			} elseif ( $is_skip ) {
-				$badge = '<span class="badge badge--muted" title="' . esc_attr( (string) ( $log['error'] ?? '' ) ) . '">' . esc_html__( '已跳过', 'sakura-imgopt' ) . '</span>';
+				$badge = '<span class="badge badge--warn" title="' . esc_attr( (string) ( $log['error'] ?? '' ) ) . '">' . esc_html__( '已跳过', 'sakura-imgopt' ) . '</span>';
 			} else {
 				$badge = '<span class="badge badge--bad" title="' . esc_attr( (string) ( $log['error'] ?? '' ) ) . '">' . esc_html__( '失败', 'sakura-imgopt' ) . '</span>';
 			}
@@ -1098,12 +1098,10 @@ class Image_Optimizer_Module implements Module {
 		$this->stats->reset();
 
 		wp_safe_redirect(
-			add_query_arg(
-				array(
-					'page'  => 'sakura-tools-stats',
-					'reset' => '1',
-				),
-				admin_url( 'admin.php' )
+			\Sakura\ImageOptimizer\Admin\Registry::url(
+				'image',
+				'stats',
+				array( 'reset' => '1' )
 			)
 		);
 		exit;
@@ -1143,6 +1141,18 @@ class Image_Optimizer_Module implements Module {
 							'warningsTitle'      => __( '扫描提示', 'sakura-imgopt' ),
 							'auto'               => __( '自动', 'sakura-imgopt' ),
 						),
+					),
+				)
+			);
+		}
+
+		if ( \Sakura\ImageOptimizer\Admin\Registry::on( 'image', 'stats' ) ) {
+			Page_Assets::set_data(
+				'image-stats',
+				array(
+					'stats' => array(
+						'action' => 'sakura_imgopt_stats_page',
+						'nonce'  => wp_create_nonce( 'sakura_imgopt_stats_page' ),
 					),
 				)
 			);

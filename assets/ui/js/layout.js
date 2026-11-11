@@ -132,7 +132,7 @@
 			}
 			Array.prototype.forEach.call( table.querySelectorAll( 'tbody tr' ), function ( row ) {
 				Array.prototype.forEach.call( row.children, function ( cell, index ) {
-					if ( heads[ index ] ) {
+					if ( heads[ index ] && ! cell.hasAttribute( 'data-label' ) ) {
 						cell.setAttribute( 'data-label', heads[ index ] );
 					}
 				} );

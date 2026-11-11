@@ -105,14 +105,25 @@ final class Page {
 		if ( ! empty( $status['label'] ) ) {
 			echo '<span class="status-card__label">' . esc_html( (string) $status['label'] ) . '</span>';
 		}
+		$value_id = isset( $status['id'] ) ? sanitize_key( (string) $status['id'] ) : '';
+		$sub_id   = isset( $status['sub_id'] ) ? sanitize_key( (string) $status['sub_id'] ) : '';
+
 		echo '<span class="status-card__line">';
-		echo '<strong class="status-card__value">' . esc_html( (string) ( $status['value'] ?? '' ) ) . '</strong>';
+		echo '<strong class="status-card__value"';
+		if ( '' !== $value_id ) {
+			echo ' id="' . esc_attr( $value_id ) . '"';
+		}
+		echo '>' . esc_html( (string) ( $status['value'] ?? '' ) ) . '</strong>';
 		if ( ! empty( $status['unit'] ) ) {
 			echo '<span class="status-card__unit">' . esc_html( (string) $status['unit'] ) . '</span>';
 		}
 		echo '</span>';
 		if ( ! empty( $status['sub'] ) ) {
-			echo '<span class="status-card__sub">' . esc_html( (string) $status['sub'] ) . '</span>';
+			echo '<span class="status-card__sub"';
+			if ( '' !== $sub_id ) {
+				echo ' id="' . esc_attr( $sub_id ) . '"';
+			}
+			echo '>' . esc_html( (string) $status['sub'] ) . '</span>';
 		}
 		echo '</div>';
 	}
@@ -137,9 +148,23 @@ final class Page {
 
 		echo '<div class="page-head__actions">';
 		foreach ( $valid as $action ) {
-			$variant = isset( $action['variant'] ) ? sanitize_key( (string) $action['variant'] ) : 'ghost';
-			$variant = in_array( $variant, array( 'primary', 'ghost', 'quiet' ), true ) ? $variant : 'ghost';
-			echo '<a class="btn btn--' . esc_attr( $variant ) . '" href="' . esc_url( (string) $action['url'] ) . '">' . esc_html( (string) $action['label'] ) . '</a>';
+			$variant   = isset( $action['variant'] ) ? sanitize_key( (string) $action['variant'] ) : 'ghost';
+			$variant   = in_array( $variant, array( 'primary', 'ghost', 'quiet', 'danger' ), true ) ? $variant : 'ghost';
+			$action_id = isset( $action['id'] ) ? sanitize_key( (string) $action['id'] ) : '';
+
+			echo '<a class="btn btn--' . esc_attr( $variant ) . '" href="' . esc_url( (string) $action['url'] ) . '"';
+			if ( '' !== $action_id ) {
+				echo ' id="' . esc_attr( $action_id ) . '"';
+			}
+			if ( ! empty( $action['attrs'] ) && is_array( $action['attrs'] ) ) {
+				foreach ( $action['attrs'] as $attr_name => $attr_value ) {
+					$attr_name = preg_replace( '/[^A-Za-z0-9_\-]/', '', (string) $attr_name );
+					if ( '' !== $attr_name ) {
+						echo ' ' . esc_attr( $attr_name ) . '="' . esc_attr( (string) $attr_value ) . '"';
+					}
+				}
+			}
+			echo '>' . esc_html( (string) $action['label'] ) . '</a>';
 		}
 		echo '</div>';
 	}

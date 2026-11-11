@@ -302,3 +302,138 @@
 		grid-template-columns: repeat(auto-fill, minmax(112px, 1fr));
 	}
 }
+
+/* ============================================================
+ * Thumbnail engine
+ * ============================================================ */
+
+.sakura-admin .sakura-thumb-size-table {
+	min-width: 800px;
+}
+
+.sakura-admin .sakura-thumb-size-table th {
+	white-space: nowrap;
+}
+
+.sakura-admin .sakura-thumb-size-table td {
+	padding-top: 9px;
+	padding-bottom: 9px;
+	vertical-align: middle;
+}
+
+.sakura-admin .sakura-thumb-size-name {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	min-width: 96px;
+}
+
+.sakura-admin .sakura-thumb-size-name strong {
+	color: var(--g-ink);
+	font-size: 13px;
+	font-weight: 600;
+	line-height: 1.4;
+}
+
+.sakura-admin .sakura-thumb-size-name code {
+	color: var(--g-faint);
+	font-size: 11.5px;
+}
+
+.sakura-admin .sakura-thumb-size-table input[type="number"] {
+	width: 76px;
+}
+
+.sakura-admin .sakura-thumb-size-table input[type="text"] {
+	min-width: 120px;
+}
+
+.sakura-admin .sakura-thumb-size-table select {
+	min-width: 96px;
+}
+
+.sakura-admin .sakura-thumb-readonly {
+	max-width: 78ch;
+	margin: 0;
+	color: var(--g-muted);
+	font-size: 13px;
+	line-height: 1.7;
+}
+
+.sakura-admin .sakura-thumb-readonly + .sakura-thumb-readonly {
+	margin-top: 8px;
+}
+
+.sakura-admin .sakura-thumb-evidence {
+	margin: 12px 0 0;
+	padding: 10px 12px;
+	border: 1px solid var(--g-line-soft);
+	border-radius: var(--g-radius-sm);
+	background: var(--g-wash);
+	color: var(--g-muted);
+	font-size: 12.5px;
+	line-height: 1.65;
+}
+
+@media (max-width: 782px) {
+	.sakura-admin .sakura-thumb-size-table {
+		min-width: 720px;
+	}
+
+	.sakura-admin .sakura-thumb-size-table thead th,
+	.sakura-admin .sakura-thumb-size-table tbody td {
+		padding: 8px 9px;
+	}
+}
+
+
+/* ============================================================
+ * Backup management
+ * ============================================================ */
+
+.sakura-admin .sakura-backup-probe {
+	margin: 16px 0 0;
+	padding: 10px 12px;
+	border: 1px solid var(--g-line-soft);
+	border-left: 3px solid var(--g-line-strong);
+	border-radius: var(--g-radius-sm);
+	background: var(--g-wash);
+	color: var(--g-muted);
+	font-size: 12.5px;
+	line-height: 1.65;
+}
+
+.sakura-admin .sakura-backup-probe.is-ok {
+	border-left-color: var(--g-ok);
+	background: var(--g-ok-bg);
+}
+
+.sakura-admin .sakura-backup-probe.is-bad {
+	border-left-color: var(--g-bad);
+	background: var(--g-bad-bg);
+}
+
+.sakura-admin .sakura-backup-msg {
+	font-size: 12.5px;
+	line-height: 1.6;
+}
+
+.sakura-admin .sakura-backup-msg.is-ok {
+	color: var(--g-ok);
+}
+
+.sakura-admin .sakura-backup-msg.is-bad {
+	color: var(--g-bad);
+}
+
+.sakura-admin .sakura-backup-msg.is-muted {
+	color: var(--g-muted);
+}
+
+.sakura-admin .sakura-backup-msg:empty {
+	display: none;
+}
+
+.sakura-admin .card__body > .code-block + .button-row {
+	margin-top: 12px;
+}

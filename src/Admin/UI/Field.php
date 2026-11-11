@@ -115,7 +115,7 @@ final class Field {
 		}
 
 		if ( 'textarea' === $type ) {
-			echo '<textarea' . self::attributes( $args, $id, $hint_id, true ) . '>' . esc_textarea( (string) ( $args['value'] ?? '' ) ) . '</textarea>';
+			echo '<textarea' . self::attributes( $args, $id, $hint_id, false ) . '>' . esc_textarea( (string) ( $args['value'] ?? '' ) ) . '</textarea>';
 			return;
 		}
 

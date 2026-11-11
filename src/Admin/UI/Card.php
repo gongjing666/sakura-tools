@@ -47,7 +47,13 @@ final class Card {
 			$classes[] = $class;
 		}
 
-		echo '<section class="' . esc_attr( implode( ' ', $classes ) ) . '" data-sakura-card="' . esc_attr( $id ) . '">';
+		$anchor = isset( $args['anchor'] ) ? sanitize_key( (string) $args['anchor'] ) : '';
+
+		echo '<section class="' . esc_attr( implode( ' ', $classes ) ) . '" data-sakura-card="' . esc_attr( $id ) . '"';
+		if ( '' !== $anchor ) {
+			echo ' id="' . esc_attr( $anchor ) . '"';
+		}
+		echo '>';
 		self::head( $args );
 		echo '<div class="card__body">';
 
@@ -98,8 +104,22 @@ final class Card {
 					continue;
 				}
 				$variant = isset( $action['variant'] ) ? sanitize_key( (string) $action['variant'] ) : 'ghost';
-				$variant = in_array( $variant, array( 'primary', 'ghost', 'quiet' ), true ) ? $variant : 'ghost';
-				echo '<a class="btn btn--' . esc_attr( $variant ) . ' btn--small" href="' . esc_url( (string) $action['url'] ) . '">' . esc_html( (string) $action['label'] ) . '</a>';
+				$variant = in_array( $variant, array( 'primary', 'ghost', 'quiet', 'danger' ), true ) ? $variant : 'ghost';
+				$action_id = isset( $action['id'] ) ? sanitize_key( (string) $action['id'] ) : '';
+
+				echo '<a class="btn btn--' . esc_attr( $variant ) . ' btn--small" href="' . esc_url( (string) $action['url'] ) . '"';
+				if ( '' !== $action_id ) {
+					echo ' id="' . esc_attr( $action_id ) . '"';
+				}
+				if ( ! empty( $action['attrs'] ) && is_array( $action['attrs'] ) ) {
+					foreach ( $action['attrs'] as $attr_name => $attr_value ) {
+						$attr_name = preg_replace( '/[^A-Za-z0-9_\-]/', '', (string) $attr_name );
+						if ( '' !== $attr_name ) {
+							echo ' ' . esc_attr( $attr_name ) . '="' . esc_attr( (string) $attr_value ) . '"';
+						}
+					}
+				}
+				echo '>' . esc_html( (string) $action['label'] ) . '</a>';
 			}
 			echo '</div>';
 		}
@@ -121,6 +141,7 @@ final class Card {
 		$method  = in_array( $method, array( 'POST', 'GET' ), true ) ? $method : 'POST';
 		$group   = isset( $form['option_group'] ) ? (string) $form['option_group'] : '';
 		$markers = isset( $form['markers'] ) ? (string) $form['markers'] : 'fields';
+		$marker  = isset( $form['marker_card'] ) && '' !== (string) $form['marker_card'] ? sanitize_key( (string) $form['marker_card'] ) : $card;
 
 		echo '<form class="card__form" id="' . esc_attr( $id ) . '" method="' . esc_attr( strtolower( $method ) ) . '" action="' . esc_url( $action ) . '"';
 		if ( ! empty( $form['enctype'] ) ) {
@@ -135,9 +156,9 @@ final class Card {
 		}
 
 		if ( 'fields' === $markers ) {
-			Card_Form::fields( $card );
+			Card_Form::fields( $marker );
 		} elseif ( 'option_fields' === $markers ) {
-			Card_Form::option_fields( isset( $form['option'] ) ? (string) $form['option'] : '', $card );
+			Card_Form::option_fields( isset( $form['option'] ) ? (string) $form['option'] : '', $marker );
 		}
 
 		if ( ! empty( $form['hidden'] ) && is_array( $form['hidden'] ) ) {

@@ -287,6 +287,31 @@
 	transition: none;
 }
 
+/* A page can paint its default two-column card grid before the layout engine
+ * has run, which reads as the cards scattering into place. Keep multi-card
+ * groups invisible until the first placement is committed; a single card is
+ * already wide in the markup and does not move. The timed animation is a
+ * no-JavaScript fallback so a failed script never leaves the page empty. */
+@media (min-width: 1101px) {
+	.sakura-admin.sakura-layout-enabled .page-body
+		:where(.card-grid, .sakura-layout-grid):has(> [data-sakura-card] ~ [data-sakura-card]) > [data-sakura-card] {
+		visibility: hidden;
+		animation: sakura-layout-reveal 0s linear 2s forwards;
+	}
+
+	.sakura-admin.sakura-layout-enabled .page-body
+		.sakura-layout-grid.is-laid > [data-sakura-card] {
+		visibility: visible;
+		animation: none;
+	}
+}
+
+@keyframes sakura-layout-reveal {
+	to {
+		visibility: visible;
+	}
+}
+
 .sakura-admin .sakura-layout-grid.is-free > [data-sakura-card].is-dragging {
 	opacity: 0;
 }

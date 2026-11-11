@@ -165,6 +165,20 @@ final class Page_Assets {
 			);
 		}
 
+		if ( $has_layout ) {
+			/*
+			 * WordPress prints footer scripts in enqueue order. Core and the
+			 * block editor are enqueued before this page renders, so the layout
+			 * engine would otherwise land after more than a hundred kilobytes
+			 * of editor payload and run only after the browser had already
+			 * painted the cards in their default grid. Printing the dependency
+			 * chain at the front of the footer keeps the first placement ahead
+			 * of that payload, and WP_Scripts still marks the handles done so
+			 * the normal footer pass does not print them twice.
+			 */
+			add_action( 'admin_print_footer_scripts', array( __CLASS__, 'print_layout_scripts' ), 1 );
+		}
+
 		$page_js = 'assets/ui/js/pages/' . $page . '.js';
 		if ( is_readable( SAKURA_TOOLS_PATH . $page_js ) ) {
 			wp_enqueue_script(
@@ -211,6 +225,22 @@ final class Page_Assets {
 
 		wp_localize_script( $base . '-core', 'sakuraPage', $config );
 		wp_set_script_translations( $base . '-core', 'sakura-imgopt', SAKURA_TOOLS_PATH . 'languages' );
+	}
+
+	/**
+	 * Print the layout dependency chain at the start of the footer.
+	 *
+	 * The normal footer pass follows at priority 20; handles printed here are
+	 * marked done, so only the remaining page scripts are emitted there.
+	 *
+	 * @return void
+	 */
+	public static function print_layout_scripts(): void {
+		if ( ! self::has_layout( Route::current_page() ) ) {
+			return;
+		}
+
+		wp_print_scripts( array( 'sakura-admin-layout' ) );
 	}
 
 	/**

@@ -360,7 +360,7 @@
 	function freeLayout( group ) {
 		if ( ! group || ! desktops.matches ) {
 			if ( group ) {
-				group.classList.remove( 'is-free', 'is-initializing' );
+				group.classList.remove( 'is-free', 'is-initializing', 'is-laid' );
 				group.style.removeProperty( 'height' );
 			}
 			return;
@@ -448,6 +448,7 @@
 		} );
 
 		group.style.height = ( bottom + gapY ) + 'px';
+		group.classList.add( 'is-laid' );
 	}
 
 	function bestColumn( heights, span ) {

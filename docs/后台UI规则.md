@@ -86,13 +86,14 @@
 | `--g-card-pad-x` | `clamp(17px, 2.1vw, 24px)` | 卡片左右内边距 |
 | `--g-card-pad-top` | `clamp(18px, 1.9vw, 22px)` | 卡片顶部 |
 | `--g-card-pad-bottom` | `clamp(18px, 2vw, 24px)` | 卡片底部 |
-| `--g-stack` | `clamp(16px, 1.6vw, 20px)` | 卡片之间 |
+| `--g-stack` | `clamp(16px, 1.6vw, 20px)` | 页头与内容之间的堆叠 |
+| `--g-grid-gap-x` / `--g-grid-gap-y` | 20px（系统页可设 0–48px） | 桌面多列卡片网格的左右 / 上下间隔 |
 | `--g-space-1` … `--g-space-6` | 6 / 10 / 14 / 18 / 24 / 32px | 组件内部节奏 |
 
 硬性下限：
 
 - 文字到卡片边框至少 16px；嵌套面板内至少 12px。
-- 相邻卡片之间至少 16px；同层级的带框面板（KPI 磁贴、S3 面板）也用 `--g-stack`。
+- 相邻卡片之间至少 16px；卡片网格读取系统页保存的 `Layout::gaps()`，由 `Page_Assets` 写成 `.sakura-admin` 的 `--g-grid-gap-x` / `--g-grid-gap-y` 行内变量。
 - 同一条竖直内容线：卡片标题/正文、KPI、页头状态卡、页面级面板都使用 `--g-card-pad-x`；只有卡片内部的嵌套框降一级。
 - 不允许再引入 13/15/17/19px 这类一次性内边距；嵌套框统一用 `--g-space-3`，行内上下用 `--g-space-2`，紧凑网格用 `--g-space-2`。
 - 页面上下留白用 `--g-app-top` / `--g-app-bottom`，不要在断点里写死 18/20/60。

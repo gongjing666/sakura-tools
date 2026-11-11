@@ -280,7 +280,7 @@ tokens → base → components → layout → pages/*.css
 - 顶栏高度 56–60px，底部 1px `--g-line`，白底，不使用渐变。
 - 主内容最大宽度 1440px，左右留白桌面 32px、1200px 以下 24px、782px 以下 16px、600px 以下 12px。
 - 页头不是 hero：无背景、无插画、无大块渐变；标题 26–28px，说明 14px、最大 68ch，右侧状态卡宽 260–280px。
-- 页头与第一张卡片之间 20–24px；卡片之间使用布局令牌 `--gap-x/--gap-y`。
+- 页头与第一张卡片之间 20–24px；卡片之间使用布局令牌 `--g-grid-gap-x/--g-grid-gap-y`，数值来自系统页保存的 `Layout::gaps()`。
 
 **卡片**：
 

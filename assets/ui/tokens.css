@@ -89,7 +89,8 @@
 	--g-page-max: 1480px;
 	--g-app-top: clamp(14px, 1.7vw, 22px);
 	--g-app-bottom: clamp(56px, 5vw, 80px);
-	--g-grid-gap: 18px;
+	--g-grid-gap-x: 20px;
+	--g-grid-gap-y: 20px;
 	--g-card-pad-x: clamp(17px, 2.1vw, 24px);
 	--g-card-pad-top: clamp(18px, 1.9vw, 22px);
 	--g-card-pad-bottom: clamp(18px, 2vw, 24px);

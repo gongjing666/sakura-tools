@@ -72,6 +72,18 @@ final class Page_Assets {
 			self::group_version( array( 'assets/ui/tokens.css' ) )
 		);
 
+		// The gap fields on the system page are site-wide, so feed the saved
+		// values into the grid instead of relying on the token fallbacks.
+		$gaps = Layout::gaps();
+		wp_add_inline_style(
+			$base . '-tokens',
+			sprintf(
+				'.sakura-admin{--g-grid-gap-x:%1$dpx;--g-grid-gap-y:%2$dpx;}',
+				(int) $gaps['gapX'],
+				(int) $gaps['gapY']
+			)
+		);
+
 		wp_enqueue_style(
 			$base . '-base',
 			SAKURA_TOOLS_URL . 'assets/ui/base.css',

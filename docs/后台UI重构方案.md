@@ -1,6 +1,8 @@
 # 后台 UI 完整重构方案（云雾白 · 墨石墨）
 
-> 状态：待执行
+> 状态：已执行（2026-11-11 完成代码改造；未部署生产）
+>
+> 实现规范：`docs/后台UI规则.md`
 >
 > 适用仓库：sakura-tools（WordPress 插件，Version 1.24.4）
 >
@@ -1264,6 +1266,8 @@ tools/ui-qa/shots/
 ---
 
 ## 6. 旧资产删除清单
+
+> 2026-11-11：以下清理已全部执行。旧 CSS/JS/SVG 与 PHP 方法、钩子、旧 class、内联事件、全局变量均已删除；`assets/ui/` 中 `!important` 已清零。媒体样式保留为 `assets/ui/wp-media/`。
 
 ### 6.1 文件
 

@@ -458,7 +458,7 @@
 	/* ------------------------------------------------------------------ drag */
 
 	function enableDrag( card, group, page, groupName ) {
-		var head = card.querySelector( ':scope > .card__head' ) || card.querySelector( ':scope > .card-head' );
+		var head = card.querySelector( ':scope > .card__head' );
 		if ( ! head ) {
 			return;
 		}

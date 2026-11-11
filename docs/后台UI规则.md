@@ -1,73 +1,77 @@
 # 后台 UI 规则
 
-适用范围：图片优化（`sakura-tools-image`）4 页、对象存储（`sakura-tools-storage`）3 页、文件空间（`sakura-tools-files`）5 页与系统自检（`sakura-tools`）。后台目前有两套样式栈：已迁移到 UI 层的页面（当前只有图片优化的「优化规则」页）加载 `assets/ui/`，其余页面仍加载旧栈。新增页面默认按第 9 节用 UI 层写；只有继续使用旧栈的页面才需要同步扩展 `src/Admin/Assets.php` 的 `enqueue_theme` 白名单。
+适用范围：图片优化（`sakura-tools-image`）4 页、对象存储（`sakura-tools-storage`）3 页、文件空间（`sakura-tools-files`）5 页、系统自检（`sakura-tools`）与批量处理页。后台只有一套样式栈，全部页面加载 `assets/ui/`；旧的 `admin*.css`、`admin.js`、`admin-layout.js`、`userfiles-admin.*`、`userfiles-space-admin.*` 已删除，不要再引用，也不要新造第二套皮肤。
 
-## 1. 样式分层与加载顺序（旧栈，未迁移页面）
+## 1. 样式分层与加载顺序
 
-旧页面当前的实际加载顺序：
+`src/Admin/Page_Assets.php` 按以下顺序加载：
 
-1. `assets/admin.css`：旧樱花主题与基础结构，仅作为历史底座。
-2. `assets/admin-ext.css`：页面级细节（缩略图尺寸、S3 表单等）。
-3. `assets/admin-shell.css`：共享顶栏、模块切换与页签。
-4. `assets/admin-layout.css`：12 栏卡片布局编辑态。
-5. `assets/admin-unify.css`：统一圆角、字号、控件尺寸。
-6. `assets/admin-theme.css`：当前的「云雾白 · 墨石墨」视觉层，最后加载。
+1. `assets/ui/tokens.css`：设计令牌，只有 `:root`。
+2. `assets/ui/base.css`：画布、共享顶栏、模块切换、页签、页头、通用排版与 WP 管理页槽位重置。
+3. `assets/ui/components.css`：卡片、表单、按钮、状态、保存条、弹窗、表格、提示等组件。
+4. `assets/ui/layout.css`：12 栏卡片拖拽布局，只给登记在 `Page_Assets::LAYOUT_PAGES` 的页面加载。
+5. `assets/ui/pages/{module}.css`：模块级样式；模块名取页面 id 的第一段，例如 `image-rules` → `image.css`。
+6. `assets/ui/pages/{page}.css`：单个页面的补充样式，只在文件存在时加载。
+
+脚本顺序固定为 `core.js` → `api.js` → `ui.js` →（可选）`layout.js` → `pages/{page}.js`。
 
 规则：
 
-- 旧栈页面的视觉修改只写进 `assets/admin-theme.css`，不要回头改 `admin.css` 的旧色值；已迁移到 UI 层的页面写 `assets/ui/`（见 9.2），不要同时改两套。
-- 视图里不要再写内联颜色；确需运行时变色时用 `var(--g-*)`。
-- 旧栈主题只在 `sakura-tools`、`sakura-tools-image`、`sakura-tools-storage`、`sakura-tools-files` 四个 slug 且未迁移的页面上加载；不在白名单里的后台页面仍是旧样式，不能假设这些变量存在。UI 页面改用 `assets/ui/tokens.css`，不再加载 `admin-theme.css`。
-- 覆盖旧规则时先看特异性。旧文件里有 ID 选择器（如 `#sakura-s3-save-form h2`）和带 `.form-table` 的高特异性规则，普通类选择器压不住。
+- 视觉修改只写 `assets/ui/`。页面专属样式优先复用 `components.css`；确属一次性的少量规则，先放模块 stylesheet，超过约 50 行再拆 `pages/{page}.css`。
+- 禁止新增粉色、天蓝色；禁止贴图、云朵 SVG、樱花 SVG。唯一强调色是石墨。
+- 不要用 `!important`。若确需覆盖 WordPress 管理页槽位（`#wpcontent` / `#wpbody-content`），先用 `:has(.sakura-admin)` 限定作用域，再在评审中说明原因。
+- 页面根节点由 `UI::page()` 输出 `.sakura-admin[data-sakura-page]`。不要再手写 `.sakura-sync-app`、`.sky-layer`、`.sakura-layer`、`.app` 这些旧根节点。
+- WordPress 媒体库的样式独立放在 `assets/ui/wp-media/`，由 `Media_Hooks` 按屏幕单独加载，不属于后台页面布局，不参与上表顺序：`media-library.css` 只加载于 `upload.php`；`media-modal-folders.css` 在除 `upload.php` / `media-new.php` 外的后台屏幕加载（媒体弹窗可从任意页面打开，因此后台页面上看到它是正常现象）；`media-new-folders.css` 只加载于 `media-new.php`。
 
 ## 2. 设计令牌
 
-颜色：
+颜色（`tokens.css`）：
 
 | 变量 | 值 | 用途 |
 | --- | --- | --- |
-| `--g-ink` | `#1c1d1f` | 主文字、主按钮 |
-| `--g-ink-soft` | `#383a3d` | 正文、表格 |
-| `--g-muted` | `#606265` | 说明、次级信息 |
-| `--g-faint` | `#8b8d8a` | 眉标、占位提示 |
-| `--g-line` | `#e6e5e0` | 卡片边框 |
-| `--g-line-soft` | `#efeeea` | 卡片内分隔线 |
-| `--g-line-strong` | `#d3d3ce` | 输入框边框 |
-| `--g-paper` | `#f7f7f4` | 页面底色 |
+| `--g-ink` | `#1b1c1e` | 主文字、主按钮 |
+| `--g-ink-soft` | `#34363a` | 正文、表格 |
+| `--g-muted` | `#5f6165` | 说明、次级信息 |
+| `--g-faint` | `#6b6c68` | 眉标、辅助信息下限 |
+| `--g-line` | `#e4e1d9` | 卡片边框 |
+| `--g-line-soft` | `#eeece5` | 卡片内分隔线 |
+| `--g-line-strong` | `#d2cfc6` | 输入框边框 |
+| `--g-paper` | `#f6f5f1` | 页面底色 |
 | `--g-card` | `#ffffff` | 卡片 |
-| `--g-wash` | `#fbfbf9` | 弱底、嵌套面板 |
-| `--g-accent` | `#202225` | 唯一强调色（石墨） |
-| `--g-accent-soft` | `#efeee9` | 强调色的弱底 |
-| `--g-ok` / `--g-ok-bg` | `#35734f` / `#edf5f0` | 成功 |
-| `--g-warn` / `--g-warn-bg` | `#8f6a1f` / `#faf3e4` | 警告 |
+| `--g-wash` | `#fbfaf7` | 弱底、嵌套面板 |
+| `--g-accent` | `#232528` | 唯一强调色（石墨） |
+| `--g-accent-soft` | `#efeee9` | 强调色弱底 |
+| `--g-select` / `--g-select-dot` | `#2f3134` / `#f6f4ed` | 勾选/单选底与点 |
+| `--g-ok` / `--g-ok-bg` | `#33704e` / `#edf5f0` | 成功 |
+| `--g-warn` / `--g-warn-bg` | `#8a651d` / `#faf3e4` | 警告 |
 | `--g-bad` / `--g-bad-bg` | `#a3463d` / `#fbedeb` | 错误、破坏性操作 |
 
-- 页面只允许一个强调色（石墨）。状态色只表达状态，不拿来当装饰。
-- 禁止新增粉色、天蓝色；旧变量 `--rose` 仍映射为偏粉的 `#9d6d65`，新组件不要用。
+- 页面只允许一个强调色。状态色只表达状态，不拿来当装饰；「等待配置」用中性或琥珀，不用绿色。
 - 图表、donut、进度条用中性阶：`#2b2d30`、`#5f6265`、`#9a9b96`、`#dcdad3`；空数据 `#e9e7e1`。
 
 圆角与控件：
 
 | 变量 | 值 |
 | --- | --- |
-| `--r-lg` | 18px（卡片） |
-| `--r-md` | 14px（嵌套面板、缩略图外框） |
-| `--r-sm` | 9px（输入框、按钮） |
-| `--r-xs` | 5px（旧行内 code 等；勾选/单选控件固定用 50% 圆） |
-| `--ctl-h` | 38px |
-| `--ctl-h-sm` | 32px |
+| `--g-radius-card` | 18px（卡片） |
+| `--g-radius-md` | 14px（嵌套面板、缩略图外框） |
+| `--g-radius-sm` | 10px（输入框、按钮） |
+| `--g-radius-xs` | 7px（行内 code 等） |
+| `--g-ctl-h` | 38px |
+| `--g-btn-h` / `--g-btn-h-sm` | 36px / 30px |
 
 字号：
 
 | 变量 | 值 | 用途 |
 | --- | --- | --- |
-| `--fs-11` | 12.5px | 最小辅助信息下限 |
-| `--fs-12` | 13.5px | 卡片说明、次级正文 |
-| `--fs-13` | 14px | 正文、表格、输入 |
-| `--fs-16` | 17px | 卡片标题 |
-| `--fs-20` | 20px | 区块大标题 |
+| `--g-fs-meta` | 12.5px | 最小辅助信息下限 |
+| `--g-fs-small` | 13px | 卡片说明、次级正文 |
+| `--g-fs-body` | 14px | 正文、输入 |
+| `--g-fs-table` | 13.5px | 表格 |
+| `--g-fs-h2` | 17px | 卡片标题 |
+| `--g-fs-h1` | `clamp(26px, 2.5vw, 32px)` | 页面标题 |
 
-正文行高 1.6，说明 1.68–1.74。说明文字最大宽度 74ch，hero 说明 63ch。
+正文行高 1.65。说明文字最大宽度 74ch，页头说明 63ch。
 
 ## 3. 间距：自适应但有下限
 
@@ -78,59 +82,54 @@
 | `--g-gutter` | `clamp(16px, 2.4vw, 30px)` | 页面左右留白 |
 | `--g-app-top` | `clamp(14px, 1.7vw, 22px)` | 页面顶部留白 |
 | `--g-app-bottom` | `clamp(56px, 5vw, 80px)` | 页面底部留白 |
-| `--g-card-pad-x` | `clamp(16px, 2.2vw, 22px)` | 卡片左右内边距 |
-| `--g-card-pad-top` | `clamp(16px, 1.8vw, 20px)` | 卡片顶部 |
-| `--g-card-pad-bottom` | `clamp(18px, 1.9vw, 22px)` | 卡片底部 |
-| `--g-panel-pad` | `clamp(12px, 1.7vw, 16px)` | 嵌套面板内边距 |
+| `--g-page-max` | 1480px | 内容最大宽度 |
+| `--g-card-pad-x` | `clamp(17px, 2.1vw, 24px)` | 卡片左右内边距 |
+| `--g-card-pad-top` | `clamp(18px, 1.9vw, 22px)` | 卡片顶部 |
+| `--g-card-pad-bottom` | `clamp(18px, 2vw, 24px)` | 卡片底部 |
 | `--g-stack` | `clamp(16px, 1.6vw, 20px)` | 卡片之间 |
-| `--g-row-pad` | `clamp(10px, 1.2vw, 14px)` | 列表行上下 |
-| `--g-tight` | `clamp(8px, 1vw, 12px)` | 紧凑间隔、嵌套网格 |
-| `--g-inset-gap` | `clamp(12px, 1.5vw, 16px)` | 正文到嵌套面板、面板到脚注 |
-| `--g-head-gap` | 12px | 标题到正文、卡片底部分隔线以上 |
+| `--g-space-1` … `--g-space-6` | 6 / 10 / 14 / 18 / 24 / 32px | 组件内部节奏 |
 
 硬性下限：
 
 - 文字到卡片边框至少 16px；嵌套面板内至少 12px。
-- 相邻卡片之间至少 16px；同一层级的带框面板（KPI 磁贴、S3 面板）也用 `--g-stack`。
-- 同一竖直内容线：卡片标题/正文、KPI、hero 状态卡、页面级 S3 面板都使用 `--g-card-pad-x`，文本应落在同一条左基线上；只有卡片内部的嵌套框降一级用 `--g-panel-pad`。
-- 不允许再引入 13/15/17/19px 这类一次性内边距；嵌套框统一用 `--g-panel-pad`，行内上下用 `--g-row-pad`，紧凑网格用 `--g-tight`。
-- 页面上下留白也用 `--g-app-top` / `--g-app-bottom`，不要再在 1100px、782px 断点里写死 18/20/60。
-- 正文与嵌套框之间至少 `--g-inset-gap`，不能在移动端缩到 6–8px。
-- 页面不允许出现横向滚动（`scrollWidth == innerWidth`）。表格放不下时只能让 `.table-wrap` 内部横向滚动，不能撑破页面。
-- 自适应是重排，不是按设备写死。除极窄屏（≤360px）外，不要为某个机型单独写断点；这个断点只允许给确实放不下的控件做紧凑化（如模块切换、顶栏状态胶囊），不能用来写死间距。
+- 相邻卡片之间至少 16px；同层级的带框面板（KPI 磁贴、S3 面板）也用 `--g-stack`。
+- 同一条竖直内容线：卡片标题/正文、KPI、页头状态卡、页面级面板都使用 `--g-card-pad-x`；只有卡片内部的嵌套框降一级。
+- 不允许再引入 13/15/17/19px 这类一次性内边距；嵌套框统一用 `--g-space-3`，行内上下用 `--g-space-2`，紧凑网格用 `--g-space-2`。
+- 页面上下留白用 `--g-app-top` / `--g-app-bottom`，不要在断点里写死 18/20/60。
+- 页面不允许横向滚动（`scrollWidth == innerWidth`）。表格放不下时只能让 `.table-wrap` 内部横向滚动。
+- 自适应是重排，不是按设备写死。除极窄屏（≤360px）外，不要为某个机型单独写断点；这个断点只允许给确实放不下的控件做紧凑化。
 
 ## 4. 边框与层级
 
-- 一张卡片只有一层可见边框：`1px var(--g-line)` + 18px 圆角 + `--g-shadow-soft`。
+- 一张卡片只有一层可见边框：`1px var(--g-line)` + 18px 圆角 + `--g-shadow-card`。
 - 卡片内部的分组用分隔线（`--g-line-soft`），不要再套一张带边框的卡。
 - 表单行在移动端是「分隔线分隔的块」，不是第二张卡。
-- 嵌套结构（缩略图尺寸表、缩略图开关列表）只保留最外层一个框，内部用 `border-top` 分隔。
+- 嵌套结构（缩略图尺寸表、开关列表）只保留最外层一个框，内部用 `border-top` 分隔。
 - 阴影只表达层级，不表达状态；hover 不额外加边。
 
 ### 4.1 卡片动作与保存
 
-- **一张可编辑卡片 = 一个独立表单，只保存本卡。** 表单放在 `.card-body` 内部（`section.card > .card-body > form`），不要把 `section` 本身换成 `form`；字段、`.card-savebar`、提交按钮都在同一个 `form` 内。
-- 每个表单都要有 nonce 和卡片标记。用 `UI::card()` 的 `form` 参数时，由组件输出 `option_page` / `action=update` / `_wpnonce`，不要在外层再手写一份；手写表单时用 `settings_fields()` 或页面自己的 nonce。多 option 表单用 `\Sakura\ImageOptimizer\Admin\Card_Form::fields( 'card-key' )`；提交单个数组 option 的表单用 `Card_Form::option_fields( 'option_name', 'card-key' )`，把标记放进该 option 数组内，否则 sanitize 收不到。服务端必须按卡片合并已存值：`options.php` 多 option 用 `Card_Form::guard_options()` 保护未提交字段；单数组 option / 自定义 saver 按 `_sakura_card` 只更新本卡字段。未提交字段保持原值，未知卡片直接返回旧值，不能清空。
+- **一张可编辑卡片 = 一个独立表单，只保存本卡。** 用 `UI::card( array( 'form' => array( ... ), 'save' => '保存设置' ), $body )`，组件会把 `form` 放进 `.card__body`，字段和保存条都在同一个表单内；不要把 `section` 本身换成 `form`，也不要在视图里手写 nonce。
+- 多 option 表单传 `form.option_group`，由组件输出 `option_page` / `action=update` / `_wpnonce`；字段标记用默认的 `markers=fields`（等同 `Card_Form::fields( $card )`）。单个数组 option 用 `markers=option_fields` + `option`，把 `_sakura_card` 写进该 option 数组。自定义 saver 用 `markers=none` 并在视图里自行输出 nonce。
+- 服务端必须按卡片合并已存值：`options.php` 多 option 用 `Card_Form::guard_options()` 保护未提交字段；单数组 option / 自定义 saver 按卡片标记只更新本卡字段。未提交字段保持原值，未知卡片直接返回旧值，不能清空。
 - checkbox 组要有 hidden `0`；保存本卡时未勾选必须能写回 0。
-- 保存/测试等主动作放在卡片正文末尾的 `.card-savebar`，靠右；移动端按钮整宽。按钮文案说明保存范围（如「保存连接配置」「保存清理策略」），单卡内可统一写「保存设置」。
-- 只读卡、纯操作卡（清理、探测、刷新、删除队列）不需要保存按钮；动作按钮留在卡内的 `.card-savebar` 或既有 `.card-actions`，不要再造页面级操作条。以「行/项」为保存单位的列表卡（如用户容量）把保存按钮放在对应行内，这是唯一例外。
-- 不再使用整页 `.page-savebar`，也不再使用 `.sakura-floating-savebar` 浮动保存条。新增页面直接照本节的「一卡一表单」写，不要回到「多卡共享一个表单、按钮提交整组」的旧模式。
+- 保存按钮由组件输出在 `.card__savebar`，靠右；移动端按钮整宽。按钮文案说明保存范围（如「保存连接配置」「保存清理策略」），单卡内可统一写「保存设置」。
+- 只读卡、纯操作卡（清理、探测、刷新、删除队列）不传 `form` / `save`，动作按钮留在卡内的 `.card__actions` 或 `.card__savebar`，不要再造页面级操作条。
+- 以「行/项」为保存单位的列表卡（如用户容量）把保存按钮放在对应行内，这是唯一例外。
+- 不再使用整页 `.page-savebar`，也不再使用浮动保存条。新增页面直接照本节写，不要回到「多卡共享一个表单、按钮提交整组」的旧模式。
 
 ## 5. 页头与状态
 
-- 页头是轻量横条：上方眉标、标题、1–2 行说明，右侧一张状态卡；底部一条 `--g-line` 分隔线，不再使用粉蓝渐变或樱花插画。
-- 背景只允许暖白底 + 柔和云雾径向渐变；禁止贴图、云朵 SVG、樱花 SVG。
-- 顶栏状态胶囊支持 `ok / off / warn / error`：
-  - 未传 tone 时是中性灰点，只表达信息；
-  - `ok` 绿点，`off` 灰字，`warn` 琥珀，`error` 淡红；
-  - 不要所有状态都用绿点。
-- hero 内的小状态标签同样遵循语义，不要用绿色表示「等待配置」。
+- 页头由 `UI::page()` 输出：上方眉标（`.page-head__eyebrow`）、标题、1–2 行说明（`.page-head__lede`），右侧一张状态卡；底部一条 `--g-line` 分隔线。不要再使用粉蓝渐变、樱花插画或高对比大面积色块。
+- 背景只允许暖白底 + 柔和云雾径向渐变（`base.css` 的 `.sakura-admin` 画布）；禁止贴图。
+- 顶栏状态胶囊支持 `ok / off / warn / error`：未传 tone 时是中性灰点；`ok` 绿点，`off` 灰字，`warn` 琥珀，`error` 淡红。不要所有状态都用绿点。
+- 页头状态卡与页头内的小状态标签同样遵循语义，不要用绿色表示「等待配置」。
 
 ## 5.1 弹窗
 
 - 需要用户立即处理、且忽略后会影响功能的配置缺失（如 S3 未配置），用居中 modal，不再用顶部 `notice`。同一问题不能「顶部提示 + 弹窗」重复出现。
 - 复用 `.sakura-modal` 结构，配置类加 `.sakura-modal--config`：560px 宽、18px 圆角、1px `--g-line` 边框、白底、深而柔的阴影；`max-height: calc(100dvh - 32px)`，内容超高时卡片内部滚动。
-- 结构固定为：图标 → 大写眉标 → 标题 → 1–2 行说明 → 缺失项面板（小标 + 胶囊列表）→ 底部「不再提醒」+ 次按钮 + 主按钮。底部操作区与正文用 `--g-line-soft` 分隔。
+- 结构固定为：图标 → 大写眉标（`.sakura-modal__kicker`）→ 标题 → 1–2 行说明 → 缺失项面板（小标 + 胶囊列表）→ 底部「不再提醒」+ 次按钮 + 主按钮。底部操作区与正文用 `--g-line-soft` 分隔。
 - 配置缺失不是错误：图标、胶囊用暖灰/琥珀状态点，不用红色；红色只留给破坏性操作。
 - ≤520px 时底部操作区纵向排列，「不再提醒」靠左、按钮整宽；次按钮保留描边和暖白底，不能变成无边界的一行文字。390/320 下弹窗不得横向溢出。
 - 行为：配置不完整时延迟约 220ms 自动打开；`role=dialog` / `aria-modal` / `aria-hidden` 成对；打开后焦点进标题，Tab 焦点圈在弹窗内，Esc / 背景 / 关闭按钮都能关闭，关闭后焦点回到触发前元素。
@@ -139,96 +138,85 @@
   - 未勾选时，任何关闭方式（稍后处理、X、Esc、背景、主按钮跳转）都只延后 12 小时（`sakura_imgopt_s3_config_notice_snoozed_until` 存 Unix 时间戳）；12 小时内不再自动弹出，12 小时后配置仍不完整则再次弹出。
 - 主按钮跳转下一页时保留 sessionStorage 一次性跳过，作为 AJAX 写入失败时的兜底；不能把 sessionStorage 当作长期静默，长期状态只认 user meta。
 - 锚点主按钮关闭弹窗后滚动到表单并聚焦第一个空字段。
-- 弹窗覆盖整个视口，包括 WordPress 侧栏和顶部工具条；`.app` 自带 `position: relative; z-index: 1` 会形成堆叠上下文，所以弹窗节点放在 `.app` 外，或在打开时通过 `body.sakura-modal-open .sakura-sync-app .app { z-index: auto; }` 解除，否则遮罩只盖住页面内容。
+- 弹窗节点由页面根节点输出，遮罩覆盖整个视口；不要依赖旧 `.app` 的堆叠上下文。
 - 打开时锁 body 滚动；`prefers-reduced-motion` 下关闭入场动画。
 
 ## 6. 控件
 
-- 输入框、下拉、文本域：38px 高、9px 圆角、1px `--g-line-strong` 边框、白底、14px 字。
-- 文本域最小高度 88px，可纵向拉伸。
+- 输入框、下拉、文本域：38px 高、10px 圆角、1px `--g-line-strong` 边框、白底、14px 字。文本域最小高度 88px，可纵向拉伸。
 - 勾选框/单选框统一 18px 圆形，不再区分方框与圆圈。基础态为暖白底 `#fffdfa` + 1.5px `#c3c0b7` 边框；hover 边框 `#9b978d`。
 - 勾选态必须改变填充，不能只换边框：统一为柔石墨底 `#2f3134` + 6px 暖白圆点 `#f6f4ed`。勾选/未勾选在 1:1 截图里必须一眼可分；禁止再出现黑色方框 + 白勾。
 - 禁用态为暖灰底/边框；`checked:disabled` 用 `#b8b5ac` 底 + 暖白点。选择控件焦点环 3px `rgba(47,49,52,.16)`。
 - 选择控件放在 flex 行里时必须 `flex: none`（或 `0 0 18px`），否则在 320px 会被压成 16px 宽；宽度和高度都属于硬性 18px。
 - `appearance: none` 的基础态写了白底后，`:checked` 必须用同等或更高特异性重新声明背景和边框；否则基础态会把勾选态盖掉。
-- 不在 `.sakura-sync-app` 内的原生控件（如布局工具条的「显示网格」）要单独给皮肤，不能假设主题会覆盖到。
-- 状态控件同时检查 `:hover`、`:checked`、`:focus-visible`、`:disabled`；不要把 hover 写成蓝色。
-- 焦点环统一为 3px `rgba(32,34,37,.09)`，边框变石墨；不要再使用蓝色 outline。
+- 不在页面根节点内的原生控件（如布局工具条的「显示网格」）要单独给皮肤。
+- 焦点环统一为 3px `rgba(32,34,37,.09)`，边框变石墨；不要使用蓝色 outline。
 - 主按钮石墨实心白字；次按钮白底描边；危险按钮只在确认场景实心 `--g-bad`。
-- 表格表头 12.5px、正文 14px；数字列可等宽字体，但不要用蓝色。
-- 多列勾选/选项网格里的说明文字必须 `grid-column: 1 / -1` 单独成行，不能作为网格项落在勾选项之间，避免被误读成某个选项的标签。
+- 表格表头 12.5px、正文 13.5px；数字列可等宽字体，但不要用蓝色。
+- 多列勾选/选项网格里的说明文字必须 `grid-column: 1 / -1` 单独成行，不能被误读成某个选项的标签。
 
 ## 7. 移动端
 
 - ≤782px：卡片标题区换行，标题占满一行，操作按钮落到下一行并右对齐。
-- 页签保持单行：`gap: clamp(10px, 2.8vw, 18px)`、字号 13px；验收时 `.sakura-tabs` 的 `clientWidth == scrollWidth`，最后一个页签必须完整可见。≤360px 可再收到 `gap: 4px`、字号 12px，但不能裁切或让用户横向拖动才能看到页签。
+- 页签保持单行：`gap: clamp(10px, 2.8vw, 18px)`、字号 13px；横向滚动时两端用 mask 渐隐，不能露出半个字。验收时最后一个页签必须完整可见。
 - 分段控件、日志筛选允许换行；不要用横向滚动藏按钮。
-- 表格用 `.sufm-table-wrap` / `.table-wrap` 内部滚动，页面本身不横溢。桌面的固定列宽在 ≤782px 必须重置为 `width:auto; min-width:0`，否则表头隐藏后表格仍会被旧列宽撑到 860px。
-- 内容型表格（审核队列、授权流水、套餐编辑器）在窄屏重排为带标签的行，而不是让用户横向滚动找字段：数据行用 `data-label` + `::before` 显示列名，表头隐藏；授权流水改为两列三行（时间/状态、用户/套餐 + 容量、到期/操作）；套餐行用 6 等分网格，ID 占一列、名称占其余五列，容量/价格/时长各占两列。
+- 表格用 `.table-wrap` 内部滚动，页面本身不横溢。桌面的固定列宽在 ≤782px 必须重置为 `width:auto; min-width:0`。
+- 内容型表格（审核队列、授权流水、套餐编辑器）在窄屏重排为带标签的行：数据行用 `data-label` + `::before` 显示列名，表头隐藏；空标签 `data-label=""` 的单元格保持块级，不加冒号。
 - 顶栏在 ≤660px 收成「品牌 + 状态」一行，模块导航另起一行；≤340px 隐藏长状态胶囊，避免挤成三行。
 
 ## 8. 常见坑
 
 - 后台 tab 参数是 `t`，例如 `admin.php?page=sakura-tools-image&t=thumb`；不是 `tab`。截图验收时用错参数会全部落在默认页。
-- 旧 `admin.css` 的 `.sakura-sync-app tbody td`、`.form-table code`、`#sakura-s3-save-form h2` 特异性高，主题覆盖要带同等或更高特异性。
-- `admin-ext.css` 有 `background: transparent !important` 的 code 规则；不要在主题里跟它抢背景，保留透明即可。
-- 旧视图内联颜色不会被 `--blue` 映射自动收掉，必须逐个改成 `var(--g-*)`。
+- 资源门控只看 `Route::current_page()`，不再有迁移白名单。新页面只要注册了路由并调用 `Assets::enqueue_page()` 就会加载 UI 栈。
+- 隐藏页面（如批量处理）不在 `Registry` 里，不要调用会反查路由的 `Assets::enqueue_page()`；直接 `Page_Assets::set_data()` + `Page_Assets::enqueue( 'media-progress' )`。
+- WP 媒体库样式已迁到 `assets/ui/wp-media/`；不要放回 `assets/` 根目录，也不要让它们参与后台页面布局。后台页面出现 `media-modal-folders.css` 是媒体弹窗的全局依赖，不是页面样式串场。
 - 窄屏重排用的 `data-label` 要加在真正承载列名的元素上，且只加一次；`::before { content: attr(data-label) }` 不会走翻译，当前后台仅中文，新增语言时需改为视图内可见标签。
-- `admin.css` 的 `.sakura-sync-app table { min-width: 860px }` 会把手机表格撑出卡片；重排表格时同时写 `width:100%; min-width:0`，否则只改 `width` 不生效。
-- 勾选框最容易出现「看着能点，但勾没勾一个样」：基础态 `.form-table input` 的特异性高于旧的 `:checked` 时，白底会把石墨勾选态盖掉；要在同一特异性补 `:checked`。
+- 勾选框最容易出现「看着能点，但勾没勾一个样」：基础态选择器特异性高于 `:checked` 时，白底会把石墨勾选态盖掉；要在同一特异性补 `:checked`。
 - 改完至少验证 1440、1366、424、390、320 五个宽度，并检查 `document.scrollWidth == innerWidth` 与 console 无报错。
 
-## 9. UI 组件层与静态资源
-
-从图片优化「优化规则」页开始，后台有独立的 UI 组件层。页面只描述内容，不再复制卡片、hero、表单壳和保存条的 HTML。
+## 9. 组件层与静态资源
 
 ### 9.1 PHP 组件
 
-- 页头用 `\Sakura\ImageOptimizer\Admin\UI::hero()`，参数为 `eyebrow` / `title` / `lede`。
-- 卡片用 `UI::card( $args, $body )`。`$args` 支持 `card`（同时作为 `data-sakura-card` 和类名后缀）、`kicker`、`title`、`wide`、`class`、`save`、`form`。
-- 可编辑卡片的 `form` 参数：
-  - `id`：表单 id，默认 `sakura-card-{card}`；
+- 页面用 `UI::page( $args, $body )`。`$args`：`id`（页面 id，写入 `data-sakura-page`）、`module`、`tab`、`eyebrow`、`title`、`lede`、`status`、`actions`、`chrome`。
+- 卡片用 `UI::card( $args, $body )`。`$args`：`id`、`kicker`、`title`、`description`、`actions`、`wide`、`class`、`anchor`、`form`、`save`。
+- 表单用 `form` 参数：
+  - `id`：表单 id，默认 `sakura-card-form-{card}`；
   - `action`：默认 `options.php`；自定义 saver 传 `admin-post.php`；
   - `option_group`：传给 `wp_create_nonce( $group . '-options' )` 的组名；
-  - `markers`：`fields`（默认，多 option）、`option_fields`（单数组 option）、`none`（自定义 nonce）；
-  - `option`：`markers=option_fields` 时的 option 名。
-- `save` 非空时，组件在 body 后输出 `.card-savebar`；只读卡不传 `save`，纯操作卡用 `class` 内自己的 `.card-actions`。
-- 新页面不要手写 `section.card > .card-head > .card-body` 骨架，也不要在视图里重复 nonce、`Card_Form` 标记和保存按钮。特殊版式通过 `wide` / `class` 传给组件，不改组件结构。
-- `UI` 在 `src/Admin/UI.php`，`Card_Form` 在 `src/Admin/Card_Form.php`，都由现有 PSR-4 自动加载。
+  - `markers`：`fields`（默认）、`option_fields`、`none`；
+  - `option`：`markers=option_fields` 时的 option 名；
+  - `hidden`：额外 hidden 字段。
+- 字段用 `UI::field( $args )`，类型支持 `text/number/url/password/email/select/textarea/checkbox/radio/toggle/hidden/custom`；复杂控件用 `custom` + `control` 回调，只外包标签与间距。
+- 反馈用 `UI::badge()`、`UI::alert()`、`UI::notice()`、`UI::empty_state()`。
+- 新页面不要手写 `section.card > .card__head > .card__body` 骨架，也不要在视图里重复 nonce、卡片标记和保存按钮。特殊版式通过 `wide` / `class` 传给组件，不改组件结构。
+- 组件在 `src/Admin/UI.php` 与 `src/Admin/UI/`，`Card_Form` 在 `src/Admin/Card_Form.php`，均由 PSR-4 自动加载。
 
-### 9.2 样式分层
+### 9.2 页面接入
 
-- `assets/ui/tokens.css`：只放设计令牌（色板、间距、圆角、字号）和旧变量重映射，不放具体组件。
-- `assets/ui/components.css`：放后台页面骨架和组件（画布、顶栏槽位重置、hero、卡片、表单、按钮、状态、保存条、响应式）。
-- `assets/admin-shell.css`、`assets/admin-layout.css` 继续独立存在，分别负责共享 chrome 和 12 栏布局；两者都依赖 UI components，加载顺序固定为 tokens → components → shell → layout。
-- 新迁移页面自身只加载这 4 个后台样式：2 个 UI 文件 + shell + layout。不要再加 `admin.css` / `admin-ext.css` / `admin-unify.css` / `admin-theme.css`，否则同一选择器会有多份所有权。媒体库钩子可能额外加载 `assets/media-modal-folders.css`，它只服务媒体弹窗，不属于页面布局。
-- 页面专属样式默认不新建文件：优先复用 components；确属一次性的少量规则，加在 components.css 的页面段并用页面类限定。超过约 50 行才考虑独立文件，且必须在 `Assets` 中显式登记依赖和版本。
-- 禁止用 `!important` 抢旧主题的样式；唯一例外是 WordPress 管理页槽位重置（`#wpcontent` / `#wpbody-content`）这类必须覆盖核心的规则，且要带 `body:has(.sakura-sync-app)` 作用域。
-
-### 9.3 页面接入与迁移
-
-- 资源门控在 `src/Admin/Assets.php`：`enqueue_page()` 调 `is_ui_screen()`；命中时走 `enqueue_ui()`，否则走旧 `enqueue_style()`。`enqueue_layout()` 的依赖也要跟着切换。
-- 页面识别必须用后台真实参数 `t`（不是 `tab`）：`page=sakura-tools-image&t=rules`。默认 tab 可以省略 `t`。
-- 迁移顺序：先把该页视图改成 `UI::hero()` / `UI::card()`，再在 `is_ui_screen()` 加上该页条件，最后验证 1440/1366/424/390/320、逐卡保存、拖拽布局与控制台。未完成验证的页面继续走旧资源，不要半迁移。
-- 新增功能页默认按 UI 层写，并在 `is_ui_screen()` 中登记自己的 `page` + `t`；不要为新页面复制一套 `admin-*.css`。
+- 在 `src/Admin/Registry.php` 注册页面与 tab；页面 id 同时决定 CSS/JS 文件名。默认 tab 可以省略 `t`。
+- 渲染前把该页需要的运行时数据交给 `Page_Assets::set_data( $page, $data )`，再调用 `Assets::enqueue_page()`。数据会进入前端 `SakuraAdmin.data`。
+- 页面 CSS 命名：`assets/ui/pages/{module}.css` 是模块共享样式，`assets/ui/pages/{page}.css` 是可选页面样式；JS 只加载 `assets/ui/js/pages/{page}.js`。
+- 需要卡片拖拽布局的页面，在 `Page_Assets::LAYOUT_PAGES` 登记 `页面 id => 布局 id`；布局根节点输出 `data-sakura-ready`、`data-sakura-layout`，每张卡同时带 `data-sakura-card`。
+- 页面脚本只用 `window.SakuraAdmin`：`ready`、`qs`、`qsa`、`on`、`delegate`、`closest`、`dataBlock`、`format`；请求用 `admin.api.ajax/post`；提示/确认/忙碌用 `admin.ui.toast/confirm/busy`。不要引入 jQuery。
+- 所有可见文案走 PHP 的 `__()` 后放进 `Page_Assets::set_data()`，JS 不内嵌未翻译中文。
+- 迁移/新增页面后验证 1440/1366/424/390/320、逐卡保存、拖拽布局与控制台；不要留下半迁移页面。
 
 ## 10. 自检清单
 
-- [ ] 没有新的粉/蓝硬编码色。
+- [ ] 没有新的粉/蓝硬编码色，也没有背景图案/SVG。
 - [ ] 所有横向留白来自 `--g-*` 令牌。
 - [ ] 卡片只有一层边框，内部没有卡中卡。
 - [ ] 正文不小于 13.5px，辅助信息不小于 12.5px。
-- [ ] 勾选框、下拉、输入框与主题同色系。
 - [ ] 所有勾选/单选控件都是 18px 圆点样式，勾选态为柔石墨底 + 暖白点，没有黑方框白勾残留。
-- [ ] 勾选/未勾选状态在 1:1 截图下可分，且没有蓝色原生控件。
 - [ ] 配置类弹窗居中、可 Esc/背景关闭、焦点可回退；「不再提醒」持久化；没有重复的顶部提示。
 - [ ] 「稍后处理」写入 12 小时冷却：冷却内刷新不弹，把 `snoozed_until` 改成过去时间后刷新会重新弹出。
-- [ ] 状态胶囊/hero 标签语义正确。
+- [ ] 状态胶囊/页头标签语义正确。
 - [ ] 移动端标题区换行、按钮不挤、页面不横溢。
 - [ ] 页签单行完整，最后一个页签在 320px 也不被裁切。
 - [ ] 窄屏内容型表格已重排为带 `data-label` 的行，没有 860px 宽的隐藏溢出。
 - [ ] 每张可编辑卡片是独立表单，表单内有 `Card_Form::fields()`（单数组 option 用 `option_fields()`）标记，点保存只写本卡；未勾选的 checkbox 能保存为 0；页面没有 `.page-savebar` 或浮动保存条残留。
-- [ ] UI 页面的 hero、卡片、表单壳和保存条来自 `UI::hero()` / `UI::card()`，视图没有手写这些骨架。
-- [ ] UI 页面自身只加载 `ui/tokens.css`、`ui/components.css`、`admin-shell.css`、`admin-layout.css` 这 4 个后台样式（媒体库钩子额外加载的 `media-modal-folders.css` 不计），没有混入旧 `admin.css` / `admin-theme.css`。
-- [ ] 新页面已在 `Assets::is_ui_screen()` 中按 `page` + `t` 登记，没有依赖错误参数或把旧资源一起加载。
+- [ ] 页面骨架、卡片、表单壳和保存条来自 `UI::page()` / `UI::card()`，视图没有手写这些骨架。
+- [ ] 页面只加载 `assets/ui/` 的 tokens/base/components（可选 layout）和对应 `pages/*.css`，没有旧 `admin-*.css` / `userfiles-admin.*`。
+- [ ] 没有 `.sakura-sync-app`、`.sky-layer`、`.sakura-layer`、`.app`、`.hero`、`.card-savebar`、`.page-savebar` 等旧标记。
 - [ ] `php -l`、`node --check`、CSS 花括号计数、`git diff --check` 通过。

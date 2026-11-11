@@ -163,16 +163,16 @@ final class Media_Hooks {
 			return;
 		}
 
-		$path = SAKURA_TOOLS_PATH . 'assets/media-library.css';
+		$path = SAKURA_TOOLS_PATH . 'assets/ui/wp-media/media-library.css';
 		if ( ! file_exists( $path ) ) {
 			return;
 		}
 
 		wp_enqueue_style(
 			'sufm-media-library',
-			SAKURA_TOOLS_URL . 'assets/media-library.css',
+			SAKURA_TOOLS_URL . 'assets/ui/wp-media/media-library.css',
 			array(),
-			\Nboke\UserFiles\Support\Assets::version( 'assets/media-library.css' )
+			\Nboke\UserFiles\Support\Assets::version( 'assets/ui/wp-media/media-library.css' )
 		);
 	}
 
@@ -1065,10 +1065,10 @@ final class Media_Hooks {
 		}
 
 		if ( 'upload.php' !== $hook && 'media-new.php' !== $hook ) {
-			$modal_css = SAKURA_TOOLS_PATH . 'assets/media-modal-folders.css';
+			$modal_css = SAKURA_TOOLS_PATH . 'assets/ui/wp-media/media-modal-folders.css';
 
 			if ( file_exists( $modal_css ) ) {
-				wp_enqueue_style( 'sufm-media-modal', SAKURA_TOOLS_URL . 'assets/media-modal-folders.css', array(), \Nboke\UserFiles\Support\Assets::version( 'assets/media-modal-folders.css' ) );
+				wp_enqueue_style( 'sufm-media-modal', SAKURA_TOOLS_URL . 'assets/ui/wp-media/media-modal-folders.css', array(), \Nboke\UserFiles\Support\Assets::version( 'assets/ui/wp-media/media-modal-folders.css' ) );
 			}
 
 			$modal = SAKURA_TOOLS_PATH . 'assets/media-modal-folders.js';
@@ -1094,10 +1094,10 @@ final class Media_Hooks {
 		}
 
 		if ( 'media-new.php' === $hook ) {
-			$css = SAKURA_TOOLS_PATH . 'assets/media-new-folders.css';
+			$css = SAKURA_TOOLS_PATH . 'assets/ui/wp-media/media-new-folders.css';
 			$js  = SAKURA_TOOLS_PATH . 'assets/media-new-folders.js';
 			if ( file_exists( $css ) ) {
-				wp_enqueue_style( 'sufm-media-new', SAKURA_TOOLS_URL . 'assets/media-new-folders.css', array(), \Nboke\UserFiles\Support\Assets::version( 'assets/media-new-folders.css' ) );
+				wp_enqueue_style( 'sufm-media-new', SAKURA_TOOLS_URL . 'assets/ui/wp-media/media-new-folders.css', array(), \Nboke\UserFiles\Support\Assets::version( 'assets/ui/wp-media/media-new-folders.css' ) );
 			}
 			if ( file_exists( $js ) ) {
 				wp_enqueue_script( 'sufm-media-new', SAKURA_TOOLS_URL . 'assets/media-new-folders.js', array(), \Nboke\UserFiles\Support\Assets::version( 'assets/media-new-folders.js' ), true );

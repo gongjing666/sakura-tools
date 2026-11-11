@@ -998,7 +998,7 @@
 	gap: var(--g-space-2);
 }
 
-.sakura-admin[data-sakura-page="storage-connection"] .section-kicker {
+.sakura-admin[data-sakura-page="storage-connection"] .sakura-modal__kicker {
 	margin: 0;
 	color: var(--g-muted);
 	font-size: var(--g-fs-eyebrow);

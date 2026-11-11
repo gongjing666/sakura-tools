@@ -122,7 +122,7 @@ final class Page {
 	}
 
 	/**
-	 * Load the new UI stack for the four migrated tabs only.
+	 * Load the UI stack for the four core tabs.
 	 *
 	 * Page data must be attached before Assets::enqueue_page() runs because the
 	 * localized config is printed from Page_Assets::enqueue().
@@ -140,7 +140,7 @@ final class Page {
 		$page = Route::current_page();
 
 		if ( ! in_array( $page, self::UI_PAGES, true ) ) {
-			// files-zibll is owned by Space_Page and loads its own legacy assets.
+			// files-zibll is owned by Space_Page and loads its own data.
 			return;
 		}
 

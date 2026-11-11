@@ -12,36 +12,9 @@ namespace Sakura\ImageOptimizer\Admin;
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Loads the new CSS/JS stack for whitelisted pages only.
- *
- * Legacy screens keep Assets::enqueue_legacy() until they are migrated. The
- * whitelist is the migration switch: adding a page must never change how an
- * unmigrated page is loaded.
+ * Loads the shared CSS/JS stack for plugin pages.
  */
 final class Page_Assets {
-
-	/**
-	 * Pages that have completed the UI migration.
-	 *
-	 * @var array<int, string>
-	 */
-	public const UI_PAGES = array(
-		'image-rules',
-		'image-thumb',
-		'image-backup',
-		'image-stats',
-		'storage-connection',
-		'storage-sync',
-		'storage-deletes',
-		'files-settings',
-		'files-users',
-		'files-queue',
-		'files-log',
-		'files-zibll',
-		'system-overview',
-		'media-progress',
-		'locked',
-	);
 
 	/**
 	 * Per-page data passed to the page controller.
@@ -83,30 +56,12 @@ final class Page_Assets {
 	}
 
 	/**
-	 * Whether a page uses the new stack.
-	 *
-	 * @param string $page Page id; current request when omitted.
-	 * @return bool
-	 */
-	public static function is_ui_page( string $page = '' ): bool {
-		if ( '' === $page ) {
-			$page = Route::current_page();
-		}
-
-		return in_array( $page, self::UI_PAGES, true );
-	}
-
-	/**
-	 * Enqueue the new stack for one page.
+	 * Enqueue the stack for one page.
 	 *
 	 * @param string $page Page id.
 	 * @return void
 	 */
 	public static function enqueue( string $page ): void {
-		if ( ! self::is_ui_page( $page ) ) {
-			return;
-		}
-
 		$module = explode( '-', $page, 2 )[0];
 		$base   = 'sakura-admin';
 

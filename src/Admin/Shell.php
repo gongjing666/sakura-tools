@@ -14,27 +14,9 @@ defined( 'ABSPATH' ) || exit;
 /**
  * Renders the parts of the page that every module shares.
  *
- * Each screen keeps its own hero and cards; only the chrome lives here so the
- * eight legacy views stop carrying eight copies of the same markup.
+ * Each screen keeps its own page head and cards; only the chrome lives here.
  */
 final class Shell {
-
-	/**
-	 * Enqueue the shell stylesheet. Safe to call from every module.
-	 *
-	 * @param string $dependency Style handle the shell sits on top of.
-	 * @return void
-	 */
-	public static function enqueue( string $dependency = 'sakura-imgopt-admin' ): void {
-		$path = SAKURA_TOOLS_PATH . 'assets/admin-shell.css';
-
-		wp_enqueue_style(
-			'sakura-imgopt-shell',
-			SAKURA_TOOLS_URL . 'assets/admin-shell.css',
-			array( $dependency ),
-			is_readable( $path ) ? SAKURA_TOOLS_VERSION . '.' . (string) filemtime( $path ) . '.' . (string) filesize( $path ) : SAKURA_TOOLS_VERSION
-		);
-	}
 
 	/**
 	 * Print the top bar and, when the module has more than one screen, the tabs.

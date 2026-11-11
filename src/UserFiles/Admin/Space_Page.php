@@ -117,27 +117,8 @@ final class Space_Page {
 			wp_enqueue_media();
 		}
 
-		if ( class_exists( Page_Assets::class ) ) {
-			Page_Assets::set_data( 'files-zibll', $this->page_data() );
-		}
-
-		if ( class_exists( Assets::class ) && method_exists( Assets::class, 'enqueue_page' ) ) {
-			Assets::enqueue_page();
-		}
-
-		// files.css belongs to the four core file pages and may not exist yet. In
-		// that case the tab stylesheet cannot resolve its declared dependency, so
-		// load it once against the shared component layer instead.
-		$page_css = defined( 'SAKURA_TOOLS_PATH' ) ? SAKURA_TOOLS_PATH . 'assets/ui/pages/files-zibll.css' : '';
-
-		if ( '' !== $page_css && function_exists( 'wp_style_is' ) && function_exists( 'wp_enqueue_style' ) && ! wp_style_is( 'sakura-admin-page-files-zibll', 'enqueued' ) && is_readable( $page_css ) ) {
-			wp_enqueue_style(
-				'sakura-admin-page-files-zibll-fallback',
-				( defined( 'SAKURA_TOOLS_URL' ) ? SAKURA_TOOLS_URL : '' ) . 'assets/ui/pages/files-zibll.css',
-				array( 'sakura-admin-components' ),
-				defined( 'SAKURA_TOOLS_VERSION' ) ? SAKURA_TOOLS_VERSION : ''
-			);
-		}
+		Page_Assets::set_data( 'files-zibll', $this->page_data() );
+		Assets::enqueue_page();
 	}
 
 	/**

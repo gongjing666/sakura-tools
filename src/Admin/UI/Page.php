@@ -66,13 +66,13 @@ final class Page {
 		echo '<header class="page-head">';
 		echo '<div class="page-head__copy">';
 		if ( '' !== $eyebrow ) {
-			echo '<p class="eyebrow">' . esc_html( $eyebrow ) . '</p>';
+			echo '<p class="page-head__eyebrow">' . esc_html( $eyebrow ) . '</p>';
 		}
 		if ( '' !== $title ) {
 			echo '<h1 id="sakura-page-title">' . esc_html( $title ) . '</h1>';
 		}
 		if ( '' !== $lede ) {
-			echo '<p class="lede">' . esc_html( $lede ) . '</p>';
+			echo '<p class="page-head__lede">' . esc_html( $lede ) . '</p>';
 		}
 		echo '</div>';
 

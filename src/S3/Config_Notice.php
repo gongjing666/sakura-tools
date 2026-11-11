@@ -130,7 +130,7 @@ final class Config_Notice {
 						<path d="M12 9.5v5.2M9.4 12.1 12 9.5l2.6 2.6"/>
 					</svg>
 				</div>
-				<p class="section-kicker">OBJECT STORAGE / SETUP</p>
+				<p class="sakura-modal__kicker">OBJECT STORAGE / SETUP</p>
 				<h2 id="sakura-s3-config-title" tabindex="-1" data-config-focus><?php esc_html_e( '还差几步就能启用对象存储', 'sakura-imgopt' ); ?></h2>
 				<p id="sakura-s3-config-desc"><?php esc_html_e( '连接信息还不完整。补全后，插件会恢复图片同步、媒体地址接管与云端清理；在补全之前，这些动作会保持暂停。', 'sakura-imgopt' ); ?></p>
 				<div class="sakura-config-missing">

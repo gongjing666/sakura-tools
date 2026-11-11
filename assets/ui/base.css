@@ -383,8 +383,7 @@
 	min-width: 0;
 }
 
-.sakura-admin .eyebrow,
-.sakura-admin .page-head .eyebrow {
+.sakura-admin .page-head .page-head__eyebrow {
 	margin: 0 0 8px;
 	color: var(--g-faint);
 	font-size: var(--g-fs-eyebrow);
@@ -402,7 +401,7 @@
 	line-height: 1.16;
 }
 
-.sakura-admin .page-head .lede {
+.sakura-admin .page-head .page-head__lede {
 	max-width: 68ch;
 	margin: 9px 0 0;
 	color: var(--g-muted);

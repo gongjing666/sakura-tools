@@ -126,13 +126,12 @@ $usage = $backup->get_usage();
 						settings_fields( $backup_group );
 						do_settings_sections( $backup_slug );
 						?>
+						<div class="card-savebar">
+							<button class="btn btn--primary" type="submit"><?php esc_html_e( '保存清理策略', 'sakura-imgopt' ); ?></button>
+						</div>
 					</form>
 				</div>
 			</section>
-		</div>
-
-		<div class="page-savebar">
-			<button class="btn btn--primary" type="submit" form="sakura-backup-policy-form"><?php esc_html_e( '保存清理策略', 'sakura-imgopt' ); ?></button>
 		</div>
 
 		<script>

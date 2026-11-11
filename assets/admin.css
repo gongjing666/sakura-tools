@@ -1495,13 +1495,11 @@ body:has(.sakura-sync-app) #wpbody-content {
 /* build 20261105-queue-select3 */
 
 /* ---- Save actions -------------------------------------------------------
- * The save button sits in the bottom-right corner of whatever it saves: a
- * footer strip inside a card (.card-savebar), or one strip after the last
- * card of a whole-page form (.page-savebar). One convention, so the button
- * is always found in the same place.
+ * The save button sits in the bottom-right corner of the card it saves:
+ * a footer strip inside a card (.card-savebar). One convention, so the
+ * button is always found in the same place.
  */
-.sakura-sync-app .card-savebar,
-.sakura-sync-app .page-savebar {
+.sakura-sync-app .card-savebar {
         display: flex;
         align-items: center;
         justify-content: flex-end;
@@ -1513,23 +1511,13 @@ body:has(.sakura-sync-app) #wpbody-content {
         padding: 14px 0 0;
         border-top: 1px solid var(--line);
 }
-.sakura-sync-app .page-savebar {
-        margin: 22px 0 0;
-        padding: 14px 20px;
-        border: 1px solid var(--line);
-        border-radius: var(--radius-sm);
-        background: rgba(255, 255, 255, .94);
-        box-shadow: var(--shadow-soft);
-}
 /* A hint stays on the left so the button keeps the corner. */
 .sakura-sync-app .card-savebar__note,
-.sakura-sync-app .card-savebar__aside,
-.sakura-sync-app .page-savebar__note {
+.sakura-sync-app .card-savebar__aside {
         margin-right: auto;
         min-width: 0;
 }
-.sakura-sync-app .card-savebar__note,
-.sakura-sync-app .page-savebar__note {
+.sakura-sync-app .card-savebar__note {
         color: var(--muted);
         font-size: 11.5px;
         line-height: 1.55;
@@ -1543,27 +1531,20 @@ body:has(.sakura-sync-app) #wpbody-content {
 }
 /* A pill button should not stretch to the height of the strip. */
 .sakura-sync-app .card-savebar > .btn,
-.sakura-sync-app .card-savebar > .button,
-.sakura-sync-app .page-savebar > .btn,
-.sakura-sync-app .page-savebar > .button { flex: 0 0 auto; }
+.sakura-sync-app .card-savebar > .button { flex: 0 0 auto; }
 /* submit_button() wraps its input in p.submit: keep the strip slim and let
  * the pill itself sit against the right edge. */
 .sakura-sync-app .card-savebar > .submit,
-.sakura-sync-app .card-savebar__aside > .submit,
-.sakura-sync-app .page-savebar > .submit {
+.sakura-sync-app .card-savebar__aside > .submit {
         display: flex;
         flex: 0 0 auto;
         margin: 0;
         padding: 0;
 }
 /* A few card forms are two-column grids: the strip spans the full card. */
-.sakura-sync-app .card-body > form > .card-savebar,
-.sakura-sync-app .card-body > form > .page-savebar { grid-column: 1 / -1; }
+.sakura-sync-app .card-body > form > .card-savebar { grid-column: 1 / -1; }
 @media (max-width: 782px) {
-        .sakura-sync-app .card-savebar__note,
-        .sakura-sync-app .page-savebar__note { width: 100%; margin-right: 0; }
+        .sakura-sync-app .card-savebar__note { width: 100%; margin-right: 0; }
         .sakura-sync-app .card-savebar > .btn,
-        .sakura-sync-app .card-savebar > .button,
-        .sakura-sync-app .page-savebar > .btn,
-        .sakura-sync-app .page-savebar > .button { width: 100%; }
+        .sakura-sync-app .card-savebar > .button { width: 100%; }
 }

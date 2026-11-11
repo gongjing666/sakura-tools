@@ -149,6 +149,9 @@ final class S3_Storage_Page {
 								<?php endif; ?>
 							</div>
 						</div>
+						<div class="card-savebar">
+							<button type="submit" class="btn btn--primary"><?php esc_html_e( '保存设置', 'sakura-imgopt' ); ?></button>
+						</div>
 					</div>
 				</section>
 
@@ -193,6 +196,9 @@ final class S3_Storage_Page {
 					</td></tr>
 					<tr><th scope="row"><label for="sakura-s3-url"><?php esc_html_e( '图片地址前缀', 'sakura-imgopt' ); ?></label></th><td><input class="regular-text code" id="sakura-s3-url" name="upload_url_path" type="url" value="<?php echo esc_attr( $options['upload_url_path'] ); ?>" placeholder="https://cdn.example.com/wp-content/uploads"><p class="description"><?php esc_html_e( '保存后会写入 WordPress 的图片地址设置。不会自动替换文章里已经写好的旧地址。', 'sakura-imgopt' ); ?></p></td></tr>
 						</table>
+						<div class="card-savebar">
+							<button type="submit" class="btn btn--primary"><?php esc_html_e( '保存连接配置', 'sakura-imgopt' ); ?></button>
+						</div>
 					</div>
 				</section>
 
@@ -209,9 +215,6 @@ final class S3_Storage_Page {
 				</section>
 			</form>
 
-			<div class="page-savebar">
-				<button id="sakura-s3-save" type="submit" class="btn btn--primary" form="sakura-s3-save-form"><?php esc_html_e( '保存 S3 配置', 'sakura-imgopt' ); ?></button>
-			</div>
 			<form id="sakura-s3-test-form" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" hidden>
 				<input type="hidden" name="action" value="sakura_s3_test">
 				<?php wp_nonce_field( 'sakura_s3_test' ); ?>
@@ -234,10 +237,6 @@ final class S3_Storage_Page {
 			</script>
 			<?php Sync_Center_Panel::render( $this->status ?? new Sync_Status() ); ?>
 			<?php Monitoring_Panel::render(); ?>
-			<div class="sakura-floating-savebar" data-sakura-save-anchor="#sakura-s3-save" hidden>
-				<span class="sakura-floating-savebar-label"><?php esc_html_e( '整页设置', 'sakura-imgopt' ); ?></span>
-				<button id="sakura-s3-floating-save" class="btn btn--primary" type="submit" form="sakura-s3-save-form"><?php esc_html_e( '保存 S3 配置', 'sakura-imgopt' ); ?></button>
-			</div>
 			</div>
 			<?php echo Config_Notice::modal_html( $this->options, 'connection' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- generated with escaped values. ?>
 		</div>

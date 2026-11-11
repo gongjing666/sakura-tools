@@ -1472,37 +1472,6 @@
     });
 })();
 
-(function () {
-    var floats = document.querySelectorAll('[data-sakura-save-anchor]');
-    if (!floats.length) {
-        return;
-    }
-    Array.prototype.forEach.call(floats, function (button) {
-        var anchor = document.querySelector(button.getAttribute('data-sakura-save-anchor'));
-        if (!anchor) {
-            button.hidden = false;
-            return;
-        }
-        var hero = document.querySelector('.sakura-sync-app .hero');
-        var queued = false;
-        var update = function () {
-            queued = false;
-            var heroPassed = hero ? hero.getBoundingClientRect().bottom < 0 : window.scrollY > 280;
-            var anchorVisible = anchor.getBoundingClientRect().top < window.innerHeight - 24;
-            button.hidden = !heroPassed || anchorVisible;
-        };
-        var queue = function () {
-            if (queued) {
-                return;
-            }
-            queued = true;
-            window.requestAnimationFrame(update);
-        };
-        window.addEventListener('scroll', queue, { passive: true });
-        window.addEventListener('resize', queue);
-        update();
-    });
-})();
 /* ── 优化统计：服务端分页 ───────────── */
 (function () {
     'use strict';

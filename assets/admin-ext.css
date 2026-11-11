@@ -94,49 +94,6 @@
     white-space: nowrap;
 }
 
-/* Page-level floating save: one visible action at a time */
-.sakura-floating-savebar {
-	position: fixed;
-	right: 28px;
-	bottom: 22px;
-	z-index: 100000;
-	display: flex;
-	align-items: center;
-	gap: 12px;
-	padding: 8px 10px 8px 16px;
-	border: 1px solid var(--line);
-	border-radius: 999px;
-	background: rgba(255, 255, 255, .96);
-	box-shadow: 0 14px 34px rgba(39, 92, 128, .18);
-	backdrop-filter: blur(8px);
-}
-
-.sakura-floating-savebar[hidden] {
-	display: none !important;
-}
-
-.sakura-floating-savebar-label {
-	color: var(--muted);
-	font-size: 11px;
-	font-weight: 700;
-	letter-spacing: .08em;
-	white-space: nowrap;
-}
-
-.sakura-floating-savebar .btn {
-	min-height: 36px;
-}
-
-@media (max-width: 782px) {
-	.sakura-floating-savebar {
-		left: 16px;
-		right: 16px;
-		bottom: 16px;
-		transform: none;
-		justify-content: space-between;
-	}
-}
-
 /* Monitoring alert fields: match the page's normal input language */
 .sakura-sync-app .sakura-monitor-card input[type="url"],
 .sakura-sync-app .sakura-monitor-card input[type="number"],

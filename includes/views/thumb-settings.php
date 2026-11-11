@@ -75,6 +75,9 @@ $cache_note = ! empty( $cache_report['group_flush'] )
 	: ( 'none' === (string) ( $cache_report['backend'] ?? '' )
 		? __( '当前没有启用对象缓存，无需清理。', 'sakura-imgopt' )
 		: __( '当前的对象缓存不支持按组清理；插件不会清空整站缓存，请手动清理，或换用支持分组清理的缓存服务。', 'sakura-imgopt' ) );
+$render_card_save = static function () {
+	echo '<div class="card-savebar"><button type="submit" class="btn btn--primary">' . esc_html__( '保存设置', 'sakura-imgopt' ) . '</button></div>';
+};
 ?>
 <div class="sakura-sync-app">
 	<div class="sky-layer" aria-hidden="true"></div>
@@ -185,6 +188,7 @@ $cache_note = ! empty( $cache_report['group_flush'] )
 								</td>
 							</tr>
 						</table>
+						<?php $render_card_save(); ?>
 					</div>
 				</section>
 
@@ -215,6 +219,7 @@ $cache_note = ! empty( $cache_report['group_flush'] )
 							<?php endforeach; ?>
 						</div>
 						<p class="description"><?php echo esc_html__( '正文图片和单篇文章共用这个开关；正文尺寸可以单独在「按位置指定尺寸」里指定。', 'sakura-imgopt' ); ?></p>
+						<?php $render_card_save(); ?>
 					</div>
 				</section>
 
@@ -273,6 +278,7 @@ $cache_note = ! empty( $cache_report['group_flush'] )
 							</tbody>
 						</table>
 						<p class="description"><?php echo esc_html__( '只有「生效位置」里对应的开关打开时才会生效；命名样式模式下，所选尺寸要先在下方「尺寸规格」里填好命名样式。缩略图和侧边栏会重写主题的缩略图缓存，保存后刷新前台即可看到变化。', 'sakura-imgopt' ); ?></p>
+						<?php $render_card_save(); ?>
 					</div>
 				</section>
 
@@ -329,6 +335,7 @@ $cache_note = ! empty( $cache_report['group_flush'] )
 							</table>
 						</div>
 						<p class="description"><?php echo esc_html__( '只能填 1 到 36 个字母或数字；留空表示这个尺寸不使用命名样式，命名样式模式下会被跳过。填写的名称要和缤纷云后台的尺寸名称一致。', 'sakura-imgopt' ); ?></p>
+						<?php $render_card_save(); ?>
 					</div>
 				</section>
 
@@ -369,6 +376,7 @@ $cache_note = ! empty( $cache_report['group_flush'] )
 							<p class="description"><?php echo esc_html__( '使用其他服务商时填写。可用占位符：{url} 图片地址、{w} 宽、{h} 高、{mode} 模式、{pos} 位置、{q} 质量、{style} 命名样式。含 {url} 时按完整地址模板处理，否则作为后缀追加。', 'sakura-imgopt' ); ?></p>
 							<p class="description"><?php echo esc_html__( '「子比主题备用图联动」会在读取主题设置时改写备用图地址，不修改主题文件，主题升级也不会丢。', 'sakura-imgopt' ); ?></p>
 						</div>
+						<?php $render_card_save(); ?>
 					</div>
 				</section>
 			</form>
@@ -474,13 +482,6 @@ $cache_note = ! empty( $cache_report['group_flush'] )
 					</div>
 				</section>
 			</aside>
-			<div class="sakura-floating-savebar" data-sakura-save-anchor="#sakura-thumb-save" hidden>
-				<span class="sakura-floating-savebar-label"><?php echo esc_html__( '整页设置', 'sakura-imgopt' ); ?></span>
-				<button id="sakura-thumb-floating-save" class="btn btn--primary" type="submit" form="sakura-imgopt-oss-form"><?php echo esc_html__( '保存设置', 'sakura-imgopt' ); ?></button>
-			</div>
-		</div>
-		<div class="page-savebar">
-			<button id="sakura-thumb-save" class="btn btn--primary" type="submit" form="sakura-imgopt-oss-form"><?php echo esc_html__( '保存设置', 'sakura-imgopt' ); ?></button>
 		</div>
 	</div>
 </div>

@@ -1107,10 +1107,6 @@
 			( ( cfg.strings && cfg.strings.edit ) || '布局修改' ) + '</button>';
 		document.body.appendChild( toolbar );
 
-		if ( document.querySelector( '.sakura-floating-savebar' ) ) {
-			toolbar.style.bottom = '84px';
-		}
-
 		var gridToggle = toolbar.querySelector( '[data-grid-toggle]' );
 		gridToggle.checked = !! pageState( firstPage() ).grid;
 

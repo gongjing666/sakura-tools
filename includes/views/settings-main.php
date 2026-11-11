@@ -91,6 +91,7 @@ settings_errors();
 						}
 						echo '</table>';
 					}
+					echo '<div class="card-savebar"><button type="submit" class="btn btn--primary">' . esc_html__( '保存设置', 'sakura-imgopt' ) . '</button></div>';
 					echo '</div></section>';
 				};
 
@@ -110,9 +111,6 @@ settings_errors();
 					$render_section( $section_id, $section );
 				}
 				?>
-			</div>
-			<div class="page-savebar">
-				<button type="submit" class="btn btn--primary" id="submit" name="submit"><?php esc_html_e( '保存更改', 'sakura-imgopt' ); ?></button>
 			</div>
 		</form>
 	</div>

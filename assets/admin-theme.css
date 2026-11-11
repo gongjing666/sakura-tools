@@ -1509,43 +1509,16 @@
 }
 
 .sakura-sync-app .card-savebar__note,
-.sakura-sync-app .page-savebar__note,
 .sakura-sync-app .card-savebar__aside {
 	color: var(--g-faint);
 	font-size: 12.5px;
 	line-height: 1.6;
 }
 
-.sakura-sync-app .page-savebar {
-	margin-top: var(--g-stack);
-	padding: 0;
-	border: 0;
-	border-radius: 0;
-	background: transparent;
-	box-shadow: none;
-}
-
 .sakura-sync-app .page-footer {
 	margin-top: 26px;
 	color: var(--g-faint);
 	font-size: 12px;
-}
-
-.sakura-floating-savebar {
-	padding: 7px 8px 7px 14px;
-	border: 1px solid var(--g-line);
-	border-radius: 12px;
-	background: rgba(255, 255, 255, .95);
-	box-shadow: 0 16px 40px -24px rgba(28, 29, 31, .45);
-	backdrop-filter: blur(10px);
-	-webkit-backdrop-filter: blur(10px);
-}
-
-.sakura-floating-savebar-label {
-	color: var(--g-faint);
-	font-size: 12px;
-	font-weight: 500;
-	letter-spacing: .04em;
 }
 
 /* ============================================================
@@ -3090,10 +3063,6 @@
 		justify-content: flex-start;
 	}
 
-	.sakura-sync-app .page-savebar .btn,
-	.sakura-sync-app .page-savebar .button {
-		width: 100%;
-	}
 }
 
 @media (max-width: 660px) {

@@ -76,6 +76,15 @@
 	border: 0;
 }
 
+.sakura-admin .sakura-imgopt-size-notes .description {
+	max-width: none;
+	margin: 0;
+}
+
+.sakura-admin .sakura-imgopt-size-notes .description + .description {
+	margin-top: 4px;
+}
+
 .sakura-admin .sakura-imgopt-size-table {
 	width: 100%;
 	min-width: 660px;

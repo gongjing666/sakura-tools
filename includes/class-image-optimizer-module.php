@@ -679,9 +679,11 @@ class Image_Optimizer_Module implements Module {
 		);
 
 		echo '</tbody></table>';
+		echo '</fieldset></div>';
+		echo '<div class="sakura-imgopt-size-notes">';
 		echo '<p class="description">' . esc_html__( '未勾选的尺寸会正常生成。一般建议保留 thumbnail（缩略图）和 medium（中等），其余按需禁用；来源为「仅静态发现」的尺寸当前不会生成，可以放心勾选。', 'sakura-imgopt' ) . '</p>';
 		printf( '<p class="description" id="sakura-imgopt-scan-wpconfig">%s</p>', esc_html( $wp_config_text ) );
-		echo '</fieldset></div>';
+		echo '</div>';
 	}
 
 	/**

@@ -4,7 +4,7 @@ Tags: image optimization, webp, avif, imagick, media library
 Requires at least: 6.4
 Tested up to: 7.1.4
 Requires PHP: 8.2
-Stable tag: 1.25.0
+Stable tag: 1.25.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -78,6 +78,13 @@ Access Key 和 Secret 会加密后存进数据库，页面和源码都不会显�
 插件目前没有接管这个跳转。等出现「既要防直链、又要保留购买校验」的需求时再研发，方向是在主题之前拦截下载请求，由插件代理输出或签发短时有效的预签名地址；若暂时需要这层保护，请关闭「上传后删除本地文件」，让文件保留在本地。
 
 == Changelog ==
+
+= 1.25.1 =
+* 修复：后台切页卡顿。原因是 WordPress 6.9 起在每个后台页无条件加载命令面板（`wp-commands` / `wp-core-commands`），把 React、区块组件与数据层整套拖进页面；本插件页面本身不依赖它们，却在为这几十个脚本付出代价。
+* 插件页面（`sakura-tools`、`sakura-tools-image`、`sakura-tools-storage`、`sakura-tools-files` 及其全部页签，加上隐藏的媒体处理进度页）在 `admin_enqueue_scripts` 优先级 100 上移除 `wp-commands`、`wp-core-commands` 脚本与 `wp-commands` 样式；命令面板的 ⌘K 入口由核心按脚本是否入队判断，摘掉后自然消失。
+* 其他后台页面（仪表盘、插件列表、文章编辑器等）不受影响：区块编辑器 `wp-edit-post` 显式依赖 `wp-commands`，全站移除以编辑器失效为代价，因此只对插件页面生效。
+* 实测（本地容器，无 CPU 节流，真实点击页签）：单页传输 1,061 KB → 76–85 KB，加载的 `/wp-includes/js/dist/` 脚本 45 → 3 个，`DOMContentLoaded` 2.9–3.1 s → 0.6–0.8 s，点击切页 3.0–3.6 s → 0.7–1.4 s。
+* 版本号同步到 1.25.1；本次不改数据表、REST 路由、钩子语义与选项结构，只加一条 `admin_enqueue_scripts` 回调，具名钩子由 203 变为 204。
 
 = 1.25.0 =
 * 后台界面整体重构：图片优化、对象存储、文件空间与系统设置四组共 13 个页签统一到一套 UI 栈，外观、控件尺寸、间距与响应式断点由 `assets/ui/` 的令牌驱动，不再每页各写一份 CSS。

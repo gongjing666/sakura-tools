@@ -1,9 +1,9 @@
 # 樱花工具箱（sakura-tools）代码结构分析报告
 
-> **版本** 1.25.0 ｜ **代码基线** commit `feb1f31`（1.25.0 发布；后台 UI 重构的 43 个提交与文档修正随本次发布提交）｜ **分析日期** 2026-11-12
-> **分析对象** `/www/wwwroot/www.nboke.com/wp-content/plugins/sakura-tools`（生产副本；1.25.0 的后台 UI 重构在发布前以工作树核对，其余阅读与运行期验证均为只读）
+> **版本** 1.25.1 ｜ **代码基线** commit `7bd1c62`（1.25.0 发布）＋ 随本版发布的 1.25.1 提交（只改主文件，新增命令面板卸载段）｜ **分析日期** 2026-11-12
+> **分析对象** `/www/wwwroot/www.nboke.com/wp-content/plugins/sakura-tools`（生产副本；1.25.0 的后台 UI 重构与 1.25.1 的命令面板卸载都在发布前用工作树和测试站核对，其余阅读与运行期验证均为只读）
 > **测试环境** `/root/sio-e2e`（独立 WordPress + MariaDB 127.0.0.1:13316 + MinIO 127.0.0.1:19010），插件以软链方式挂载，行为与生产一致
-> **配套产物** 3D 图谱 `docs/graph-preview/index.html`（同源数据 `graph.json`）、生成器 `docs/tools/build-code-structure.mjs`、图谱说明 `docs/sakura-tools-图谱同步-1.25.0.md`
+> **配套产物** 3D 图谱 `docs/graph-preview/index.html`（同源数据 `graph.json`）、生成器 `docs/tools/build-code-structure.mjs`、图谱说明 `docs/sakura-tools-图谱同步-1.25.1.md`
 
 ---
 
@@ -41,9 +41,9 @@
 | 指标 | 数值 | 口径 |
 |---|---:|---|
 | 生产 PHP 文件 | **189** | 不含 `tests/`(76 文件) `stubs/`(2) `vendor/` `assets/`(JS/CSS) |
-| 生产 PHP 行数 | **65,108** | 同上，含空行与注释 |
+| 生产 PHP 行数 | **65,137** | 同上，含空行与注释 |
 | 类 / 接口 | **174** | 含 7 个接口；另有 1 个生产全局函数（`fast-search.php:27`）未计入图谱节点。扫描器统计的 64 个 function 节点含 tests/stubs，不是生产全局函数数 |
-| 钩子注册 | **203** | 仅生产代码中的具名 `add_action`/`add_filter`（147 + 56），不含 `do_action` 触发点、`add_submenu_page` 与 `Hook_Loader` 的内部转发 |
+| 钩子注册 | **204** | 仅生产代码中的具名 `add_action`/`add_filter`（148 + 56），不含 `do_action` 触发点、`add_submenu_page` 与 `Hook_Loader` 的内部转发 |
 | 后台资源 | **41 文件 / 34,422 行** | `assets/` 下的 CSS/JS（40 个）+ 1 个 SVG，其中 `assets/ui/` 29 文件 / 14,932 行 |
 | 自定义数据表 | **23** | 15 张 `{prefix}sufm_*` + 6 张 `{prefix}sio_sync_*` + 2 张 `{prefix}sio_s3_*`（`sio_s3_deletes`、`sio_s3_upload_events`） |
 | 后台页面 | **11** | 4 个顶级模块 + 13 个 tab 中实际可访问的 11 个（zibll 依赖主题，log 归入 files） |
@@ -85,9 +85,11 @@
 
 **上一轮更新（2026-11-10，1.24.4 覆盖升级自愈与计数修正）**：新增 `src/Upgrade_Guard.php`，在 `Plugin::boot()` 的旧数据迁移之后调用 `Activation::run()`，补上覆盖升级不会触发 activation hook 的缺口；版本相同或降级时不动，升级失败只记录 transient 并触发 `sakura_imgopt_upgrade_failed`，不阻塞前台。新增 `tests/UpgradeGuardTest.php`（10 tests / 19 assertions），覆盖同版本跳过、旧版本执行、活锁/过期锁与异常清锁。全量验证 **437 tests / 1,315 assertions / 5 skipped**、PHPStan 无错误、PHPCS 0 error（36 条既有 warning，未新增错误或告警）。生产统计修正为 **179 文件 / 61,562 行 / 164 类 / 199 具名钩子**；tests 为 76 文件 / 10,108 行。图谱 **181 节点 / 826 连线**（612 ref + 50 modref + 164 contains），新增 `Plugin → Upgrade_Guard`、`Plugin → Activation` 两条 `ref` 与 `src → Upgrade_Guard` 一条 `contains`。版本号在 1.24.4 发布提交中提升，代码、文档与图谱随同一提交发布；发布本身不再改变图谱拓扑。详见 §3.2、§9.2、§10.18、§13。
 
-**本轮更新（2026-11-12，1.25.0 后台 UI 重构）**：后台 13 个页签从「每页一套视图 + 一套 CSS/JS」收敛为**单一 UI 栈**。新增 `src/Admin/UI.php` 渲染门面与 `src/Admin/UI/` 下 4 个构件（`Page` / `Card` / `Field` / `Feedback`），加上 `src/Admin/Appearance.php`（外观令牌与 `inline_style()`）、`src/Admin/Card_Form.php`（按卡片保存表单）、`src/Admin/Page_Assets.php`（按页加载 tokens/base/components/layout + 分页 CSS 与脚本）、`src/Admin/Route.php`（`page_id()` → `image-rules` 这类稳定页 id）；新增 `assets/ui/`（29 文件 / 14,932 行，tokens/base/components/layout 四层公共样式 + 6 个分页 CSS + `assets/ui/js/` 的 core/api/ui/layout 与 12 个分页脚本），并删除旧的 `assets/admin*.css/js`、`assets/userfiles-admin.*`、`assets/userfiles-space-admin.*` 共 12 个文件。基础设置页被新的**系统设置**页取代：`src/Admin/System_Settings_Module.php` + `includes/views/system-settings.php` 提供运行时/引擎/自检/扩展/版式五卡，slug 直接接管顶层 `sakura-tools`；旧的 `Admin\Basic_Settings_Module` 与 `includes/views/basic-settings.php` 同时移除。另新增 `src/S3/Config_Notice.php`（连接页配置提示），并在核对行加上服务端媒体预览弹窗（图片下载、视频自绘控件、压缩包仅下载）与删除队列行内文件浏览。
+**上一轮更新（2026-11-12，1.25.0 后台 UI 重构）**：后台 13 个页签从「每页一套视图 + 一套 CSS/JS」收敛为**单一 UI 栈**。新增 `src/Admin/UI.php` 渲染门面与 `src/Admin/UI/` 下 4 个构件（`Page` / `Card` / `Field` / `Feedback`），加上 `src/Admin/Appearance.php`（外观令牌与 `inline_style()`）、`src/Admin/Card_Form.php`（按卡片保存表单）、`src/Admin/Page_Assets.php`（按页加载 tokens/base/components/layout + 分页 CSS 与脚本）、`src/Admin/Route.php`（`page_id()` → `image-rules` 这类稳定页 id）；新增 `assets/ui/`（29 文件 / 14,932 行，tokens/base/components/layout 四层公共样式 + 6 个分页 CSS + `assets/ui/js/` 的 core/api/ui/layout 与 12 个分页脚本），并删除旧的 `assets/admin*.css/js`、`assets/userfiles-admin.*`、`assets/userfiles-space-admin.*` 共 12 个文件。基础设置页被新的**系统设置**页取代：`src/Admin/System_Settings_Module.php` + `includes/views/system-settings.php` 提供运行时/引擎/自检/扩展/版式五卡，slug 直接接管顶层 `sakura-tools`；旧的 `Admin\Basic_Settings_Module` 与 `includes/views/basic-settings.php` 同时移除。另新增 `src/S3/Config_Notice.php`（连接页配置提示），并在核对行加上服务端媒体预览弹窗（图片下载、视频自绘控件、压缩包仅下载）与删除队列行内文件浏览。
 
-规模（生产代码）：**189 文件 / 65,108 行 / 174 类与接口 / 203 具名钩子 / 23 张自定义表**；`src/Admin` 由 7 文件 1,895 行增至 16 文件 3,274 行，后台资源 41 文件 / 34,422 行（其中 `assets/ui/` 29 文件 / 14,932 行），`includes/views` 5,391 行。tests 76 文件 / 10,192 行；全量验证 **441 tests / 1,327 assertions / 5 skipped**、PHPStan level 5 无错误、PHPCS 0 error（36 条 warning 全部为 1.24.4 既有）。图谱 **191 节点 / 861 连线**（637 ref + 50 modref + 174 contains）：净增 10 个类节点（新增 11、删除 `Basic_Settings_Module` 1），模块仍 17 个、`modref` 仍 50。详见 §3.5、§9.2、§13。
+**本轮更新（2026-11-12，1.25.1 后台命令面板卸载）**：WordPress 6.9 起命令面板是**全站后台功能**——`wp_enqueue_command_palette_assets()` 挂在 `admin_enqueue_scripts` 上（`wp-includes/default-filters.php:619`），无条件把 `wp-commands` / `wp-core-commands` 连同 React、区块组件、数据层共十余个依赖塞进每一个后台页，插件页面用不到却要付约 1 MB 传输与 2–3 s 解析执行，这正是「切换后台页明显卡顿」的根因（实测见 §10.19）。1.25.1 在 `sakura-tools.php:121-137` 新增一个 `admin_enqueue_scripts` 优先级 100 的闭包：先 `sanitize_key( wp_unslash( $_GET['page'] ) )`，仅当 slug 是隐藏的批量进度页 `sakura-imgopt-progress`（不走 `Registry`），或 `Admin\Route::current_page()` 非空（插件自己的 11 个页签）时，才 `wp_dequeue_script( 'wp-core-commands' )` / `wp_dequeue_script( 'wp-commands' )` / `wp_dequeue_style( 'wp-commands' )`。其余后台页保持原样——`wp-edit-post` 把 `wp-commands` 声明为依赖，整站卸载会让区块编辑器失效；工具栏的 ⌘K 入口由核心以 `wp_script_is( 'wp-core-commands' )` 判定，脚本卸载后入口自动不输出，不需要另改菜单。测试站真实 HTTP + 真实点击实测（无 CPU 节流）：插件页传输 **1,061 KB → 76–85 KB**、`/wp-includes/js/dist/` 脚本 **45 → 3**、DCL **2.9–3.1 s → 0.6–0.8 s**、点标签切页 **3.0–3.6 s → 0.7–1.4 s**；`dashboard` / `plugins.php` / 编辑页的 5 处 `wp-commands` 引用与 ⌘K 入口原样保留，插件自身的 `sakura-admin-*` 资源与 `window.sakuraPage` 全部正常。本轮只加 1 个钩子、29 行代码，类与图谱拓扑不变。
+
+规模（生产代码）：**189 文件 / 65,137 行 / 174 类与接口 / 204 具名钩子 / 23 张自定义表**；`src/Admin` 由 7 文件 1,895 行增至 16 文件 3,274 行，后台资源 41 文件 / 34,422 行（其中 `assets/ui/` 29 文件 / 14,932 行），`includes/views` 5,391 行。tests 76 文件 / 10,192 行；全量验证 **441 tests / 1,327 assertions / 5 skipped**、PHPStan level 5 无错误、PHPCS 0 error（36 条 warning 全部为 1.24.4 既有）。图谱 **191 节点 / 861 连线**（637 ref + 50 modref + 174 contains）：净增 10 个类节点（新增 11、删除 `Basic_Settings_Module` 1），模块仍 17 个、`modref` 仍 50。1.25.1 只新增 1 个 `admin_enqueue_scripts` 闭包（主文件 109 → 138 行），节点、连线与模块划分都不变。详见 §3.5、§9.2、§13。
 
 ---
 
@@ -158,13 +160,13 @@ sakura-tools/
 | src | 5 | 894 | 5 | 组合根与生命周期：Plugin、Activation、Deactivation、Uninstaller |
 | src/Oss | 2 | 505 | 2 | HTML 过滤器与 URL 重写工具（缩略图策略复用的纯函数） |
 | src/Backup | 2 | 459 | 2 | 原图备份仓储与公网暴露探测 |
+| 根文件 | 3 | 412 | 0 | 插件入口、卸载入口、前台快速检索入口 |
 | src/Contracts | 5 | 392 | 5 | 五个接口：Module / Backup / File_System / Settings / Stats |
-| 根文件 | 3 | 383 | 0 | 插件入口、卸载入口、前台快速检索入口 |
 | src/Settings | 1 | 285 | 1 | 插件设置读写边界（选项读写、默认值与清洗） |
 | src/Support | 2 | 178 | 2 | Hook_Loader（延迟注册）与 UTF-8 截断工具 |
 | src/Filesystem | 1 | 97 | 1 | 文件系统仓储适配器 |
 | src/Stats | 1 | 73 | 1 | 统计仓储适配器 |
-| 合计 | 189 | 65108 | 174 | 生产代码；另有 tests 76 文件/10192 行、stubs 2 文件另计 |
+| 合计 | 189 | 65137 | 174 | 生产代码；另有 tests 76 文件/10192 行、stubs 2 文件另计 |
 
 **怎么读这张表**：行数不等于复杂度——`src/UserFiles` 20k 行里有 40% 是 REST 控制器与视图模板（重复度高、改动风险低）；`src/Sync` 只有 5.8k 行却包含状态机与 SQL 层，是改动风险最高的模块。
 
@@ -965,7 +967,7 @@ d3AtY29udGVudC91cGxvYWRzL3Byb2JlLzA5OTkuYmluW21pbmlvX2NhY2hlOnYyLHJldHVybjpd
 
 这是全插件最大、也是唯一带**五层权限门**（`can_use_files` / `can_review` / `can_execute` / `can_manage_media` / `space_can_*`）的子系统。这里的 `space_can_*` 不是一个权限，而是 `space_can_use`、`space_can_review`、`space_can_manage` 三个不同门。改它之前必须先读 `src/UserFiles/Capabilities.php` 与 `src/UserFiles/Schema.php`。
 
-**权限与开关速查（当前 1.25.0）**：
+**权限与开关速查（当前 1.25.1）**：
 
 | 范围 | 当前判定 | `entry_enabled` 关闭时 |
 |---|---|---|
@@ -1118,7 +1120,7 @@ d3AtY29udGVudC91cGxvYWRzL3Byb2JlLzA5OTkuYmluW21pbmlvX2NhY2hlOnYyLHJldHVybjpd
 | 与 Admin IA | 向 Registry 的 `files` 模块注册 4 个 renderer（settings/users/queue/log） | `src/UserFiles/Admin/Page.php:71-78` |
 | 与 Zibll | 能力探测单例 `Zibll_Bridge`；tab、订单卡、空间面板都走它 | `src/UserFiles/Services/Zibll_Bridge.php:23` |
 
-### 8.9 空间扩容支付收口（历史变更记录；2026-11-08/09；当前代码以 1.25.0 为准）
+### 8.9 空间扩容支付收口（历史变更记录；2026-11-08/09；当前代码以 1.25.1 为准）
 
 **结论：空间扩容的现金入口由管理员在后台显式勾选，默认只开放余额；积分入口有独立开关；订单按实际支付渠道记账；退款按渠道补偿；每日对账用租约 + 指数退避；历史 order: 授权提供手动审计/回填命令。** 退款失败（refund_failed）仍坚持人工核对，不自动复活——这是有意保留的资金安全边界，不是遗漏。
 
@@ -1261,7 +1263,7 @@ Space_Panel::build_data()（src/UserFiles/Space_Panel.php:112）先取 $plans/$m
 - **历史授权回填**：合成 order: 空字段行 dry-run 为 pending，--apply --yes 后字段恢复为 purchase/balance/order_id=21/order_num=990.../price=30.00/points=0，bytes/state/label 不变；第二次运行 candidates=0。见 §10.14-B。
 - **单测（历史记录）**：当时的 `phpunit --filter 'SpaceStoreReconcileTest|SpaceStoreRefundTest|SpaceStorePaymentTest|SpaceSettingsTest'` 全绿；该记录中的 SpaceStoreReconcileTest 为 10 tests / 59 assertions。
 
-**1.25.0 当前基线（2026-11-12）**：当前同一过滤器在工作树运行结果为 **30 tests / 119 assertions，OK**；完整套件为 **441 tests / 1,327 assertions / 5 skipped**。测试站运行时注册 **45 条路径 / 51 个 HTTP 端点**；未认证 REST 返回 401，认证后 summary/capacity/items/picker 返回 200；用户 2/3 的文件、文件夹、picker 数据互不泄漏，交叉读取返回 404。以上是本次测试站和代码版本的证据，不是对所有站点配置的保证。
+**1.25.1 当前基线（2026-11-12）**：当前同一过滤器在工作树运行结果为 **30 tests / 119 assertions，OK**；完整套件为 **441 tests / 1,327 assertions / 5 skipped**。测试站运行时注册 **45 条路径 / 51 个 HTTP 端点**；未认证 REST 返回 401，认证后 summary/capacity/items/picker 返回 200；用户 2/3 的文件、文件夹、picker 数据互不泄漏，交叉读取返回 404。以上是本次测试站和代码版本的证据，不是对所有站点配置的保证。
 
 测试后清理：t_sufm_space_grants 恢复为 1 行（原 points: 授权），t_zibpay_order 恢复为 1 行，临时订单/grant/事件已删；sufm_space_reconcile_last 恢复为测试前的标量 1794152631，wp sufm status 读回 recon_next=1794239031；sufm_space_settings 未留下临时值。
 
@@ -1367,7 +1369,7 @@ Space_Panel::build_data()（src/UserFiles/Space_Panel.php:112）先取 $plans/$m
 
 #### 8.10.6 验证与边界
 
-运行记录见 §10.13（**历史 1.23.0 验证，不是当前 1.25.0 基线**）。摘要：
+运行记录见 §10.13（**历史 1.23.0 验证，不是当前 1.25.1 基线**）。摘要：
 
 | 检查 | 结果 |
 |---|---|
@@ -1484,7 +1486,7 @@ Space_Panel::build_data()（src/UserFiles/Space_Panel.php:112）先取 $plans/$m
 
 #### 8.11.6 验证与边界
 
-运行记录见 §10.15（**历史 1.24.1 验证，不是当前 1.25.0 基线**）。摘要：
+运行记录见 §10.15（**历史 1.24.1 验证，不是当前 1.25.1 基线**）。摘要：
 
 | 检查 | 结果 |
 |---|---|
@@ -1542,7 +1544,7 @@ Space_Panel::build_data()（src/UserFiles/Space_Panel.php:112）先取 $plans/$m
 
 **非表落点**（分章详见 §4.5 / §5.5 / §6.5 / §7.5 / §8.6）：option 约 60 个、postmeta 约 13 个（8 个 `_sakura_imgopt_s3_*` + `_sakura_imgopt_backup` / `sakura_imgopt_log` / `_sakura_imgopt_orig` + `sufm_quota_bytes` + 只读 `_wp_attached_file`）、transient 7 个、上传目录 1 个子目录（`sakura-imgopt-backup/`）。
 
-### 9.2 钩子分布（203 条）
+### 9.2 钩子分布（204 条）
 
 | 模块 | 钩子数 | 说明 |
 |---|---:|---|
@@ -1553,9 +1555,9 @@ Space_Panel::build_data()（src/UserFiles/Space_Panel.php:112）先取 $plans/$m
 | `src/Admin` | 7 | `admin_menu` / `admin_enqueue_scripts` / `admin_init` / 布局保存等 |
 | `src/Thumbnail` | 1 | 只有主题缓存桥（`the_post`） |
 | `src/`（根） | 1 | `sakura_imgopt_daily_backup_cleanup`（回调在 `src/Plugin.php:112`，排程在 `src/Activation.php:119-120`） |
-| 未归属（模板/函数） | 3 | `sakura-tools.php` 根文件的闭包（`:25`、`:96`、`:103`） |
+| 未归属（模板/函数） | 4 | `sakura-tools.php` 根文件的闭包（`:25`、`:96`、`:103`、`:121`） |
 
-完整 203 条见**附录 B**（按模块分组，含文件:行、优先级、回调）。这 203 条是具名注册（147 `add_action` + 56 `add_filter`）；`add_submenu_page` 与 `Hook_Loader` 的 4 处通用转发不计入。
+完整 204 条见**附录 B**（按模块分组，含文件:行、优先级、回调）。这 204 条是具名注册（148 `add_action` + 56 `add_filter`）；`add_submenu_page` 与 `Hook_Loader` 的 4 处通用转发不计入。
 
 ### 9.3 REST、CLI 与 Cron
 
@@ -2211,29 +2213,75 @@ WHERE order_num = %s AND state = 'refund_pending' AND updated_at <= %s
 
 PHPCS 的 36 条 warning 全部落在本轮未改动的既有文件，集中在三类规则：保留字参数名（`$parent` / `$new` / `$resource`）、`$wpdb->prepare()` 占位符计数（`includes/class-s3-cli.php:469`、`src/UserFiles/Services/Space_Store.php:2025`、`:2032`）、低于 15 分钟的 cron 间隔（`src/Sync/Verify_Worker.php:99`、`src/S3/Delete_Worker.php:69`），另有 `src/Image/Crop_Config_Scanner.php:1248` 的注释代码告警。`src/Upgrade_Guard.php` 与 `tests/UpgradeGuardTest.php` 均不在警告清单内；本轮没有新增 PHPCS 错误。
 
+### 10.19 后台命令面板卸载的运行期验证（1.25.1，2026-11-12）
+
+验证环境：测试站 `/root/sio-e2e`（站点 `https://demo.77il.cn`，表前缀 `t_`，PHP 8.4.27，WordPress 7.1.4），插件目录软链到 1.25.1 工作树。测量方式为真实浏览器（无 CPU / 网络节流）加载后台页、真实点击插件页签，共 31 次页面加载 + 15 次点标签切页；服务端同时用 mu-plugin 探针记录 `init` / `admin_init` / `admin_footer` / `shutdown` 四段耗时。验证只写测试站数据库，生产未执行。
+
+**A. 根因定位（先排除插件自身）**
+
+| 检查 | 命令 / 方法 | 结果 |
+|---|---|---|
+| 服务端基线 | `curl -w '%{time_starttransfer} %{time_total}'` × 15 页 | TTFB 0.20–0.22 s、total 0.30–0.35 s、HTML 186–195 KB、SQL 51–66 条、内存峰值 28–32 MB |
+| 插件自身成本 | 探针按 hook 归类 31 次请求 | sakura 相关 hook 合计 **21.8 ms**，且几乎全是 WordPress 自己的 `gettext_sakura-imgopt` 翻译加载 |
+| 插件启用 / 停用 A/B | 同一批页面各测一轮 | TTFB 差 **< 5 ms**，SQL 条数与原生页无差异（51–66） |
+| 原生 `plugins.php` 对比 | 有无插件资源 | 只多 1 个 CSS 与约 2 KB HTML |
+| 逐项阻断 | 分别阻断 `/wp-includes/js/dist/`、`layout.js`、命令面板 | 只有阻断 `js/dist/` 能把 TBT 打到 0（load −30%、传输 1,064 KB → 226 KB） |
+
+静态溯源：WordPress 6.9 起在 `wp-includes/default-filters.php:619` 注册 `add_action( 'admin_enqueue_scripts', 'wp_enqueue_command_palette_assets' )`；该函数（`wp-includes/script-loader.php:3498`）在 `…:3609-3611` 无条件入队 `wp-commands`、`wp-commands` 样式与 `wp-core-commands`。`wp-commands` 依赖 react / react-dom / react-jsx-runtime / wp-components / wp-data / wp-element / wp-i18n / wp-keyboard-shortcuts / wp-preferences / wp-primitives / wp-private-apis，`wp-core-commands` 再加 wp-compose / wp-core-data / wp-html-entities / wp-router / wp-url。核心没有提供关闭命令面板的 filter，只能 `remove_action` 或按句柄 dequeue。
+
+**B. 1.25.1 的效果（`sakura-tools.php:121-137`）**
+
+| 指标 | 卸载前 | 卸载后 |
+|---|---|---|
+| 单页传输 | 1,061 – 1,064 KB | **76 – 85 KB** |
+| `/wp-includes/js/dist/` 脚本数 | 45 | **3** |
+| DOMContentLoaded | 2,925 – 3,076 ms | **651 – 827 ms** |
+| 点击页签切页 | 2,987 – 3,566 ms | **709 – 1,443 ms** |
+| 长任务（>50 ms） | 4 – 14 个 | **0 – 2 个** |
+
+**C. 范围与回归**
+
+| 页面 | `wp-commands` 引用 | ⌘K 入口 | 插件资源 |
+|---|---:|---|---|
+| `sakura-tools` 与 `sakura-tools-{image,storage,files}` 全部页签（5 页实测） | **0** | 不输出 | `sakura-admin-tokens` / `base` / `core`、`sakuraPage`、`sakura-layout` 全部正常，`.sakura-layout-enabled` / `data-label` / `nav.sakura-tabs` / `window.SakuraAdmin` 均存在，无 JS 报错 |
+| `dashboard` / `plugins.php` / 文章编辑页 | 5（原样） | 正常 | 不受影响 |
+
+**D. 为什么不能整站卸载**：`wp-includes/script-loader.php:1775/1819/1888` 的 `wp-edit-post` 把 `wp-commands` 声明为依赖，全站 dequeue 会让区块编辑器失效。工具栏 ⌘K 入口由 `wp-includes/admin-bar.php:967` 的 `wp_script_is( 'wp-core-commands', 'enqueued' )` 判定，脚本卸载后入口自然不输出，不需要另改菜单。
+
+**E. 静态检查（1.25.1 复跑）**
+
+| 检查 | 命令 | 结果 |
+|---|---|---|
+| PHPUnit | `vendor/bin/phpunit` | **441 tests / 1,327 assertions / 5 skipped**，OK |
+| PHPStan | `vendor/bin/phpstan analyse --no-progress` | `[OK] No errors`（level 5） |
+| PHPCS | `vendor/bin/phpcs --runtime-set ignore_warnings_on_exit 1` | **0 errors / 36 warnings / 21 files**（与 1.24.4 基线相同，新增文件无告警） |
+| 语法 | `php -l sakura-tools.php` | No syntax errors |
+
+> 关于 Query Monitor：测量期间曾安装 4.1.1 做交叉核对，它会给每个后台页注入约 293 KB 内联脚本（HTML 207 KB → 500 KB），本身足以改变结论，因此正式测量前已停用。上表的数字全部来自停用 Query Monitor 后的采集。
+
 ## 11. 依赖关系与图谱口径
 
 ### 11.1 模块依赖矩阵（类级引用边计数）
 
-| 从 / 到 | UserFiles | S3 | includes | Sync | includes/views | Thumbnail | Admin | Image | src | Oss | Backup | Contracts | 根文件 | Settings | Support | Filesystem | Stats |
+| 从 / 到 | UserFiles | S3 | includes | Sync | includes/views | Thumbnail | Admin | Image | src | Oss | Backup | 根文件 | Contracts | Settings | Support | Filesystem | Stats |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
 | UserFiles |  |  |  |  |  |  | 16 |  |  |  |  |  |  |  | 14 |  |  |
-| S3 |  |  | 8 | 37 |  |  | 30 |  |  |  |  | 6 |  | 6 | 9 |  |  |
-| includes |  | 43 |  | 7 |  | 10 | 18 | 22 |  | 1 | 7 | 17 |  | 9 | 6 | 3 | 5 |
-| Sync |  | 34 |  |  |  |  |  |  |  |  |  | 4 |  |  | 4 |  |  |
+| S3 |  |  | 8 | 37 |  |  | 30 |  |  |  |  |  | 6 | 6 | 9 |  |  |
+| includes |  | 43 |  | 7 |  | 10 | 18 | 22 |  | 1 | 7 |  | 17 | 9 | 6 | 3 | 5 |
+| Sync |  | 34 |  |  |  |  |  |  |  |  |  |  | 4 |  | 4 |  |  |
 | includes/views |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |
 | Thumbnail |  | 1 |  |  |  |  |  |  |  | 2 |  |  |  |  |  |  |  |
-| Admin | 9 |  |  |  |  |  |  |  |  |  |  | 3 |  |  | 3 |  |  |
-| Image |  |  | 9 |  |  |  |  |  |  |  |  | 22 |  | 9 |  | 2 |  |
+| Admin | 9 |  |  |  |  |  |  |  |  |  |  |  | 3 |  | 3 |  |  |
+| Image |  |  | 9 |  |  |  |  |  |  |  |  |  | 22 | 9 |  | 2 |  |
 | src | 9 | 24 | 10 | 20 |  | 1 | 6 |  |  |  | 1 |  |  | 2 | 3 | 1 | 1 |
 | Oss |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |
-| Backup |  |  | 4 |  |  |  |  |  |  |  |  | 1 |  |  |  |  |  |
-| Contracts |  |  |  |  |  |  |  |  |  |  |  |  |  |  | 1 |  |  |
+| Backup |  |  | 4 |  |  |  |  |  |  |  |  |  | 1 |  |  |  |  |
 | 根文件 |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |
-| Settings |  |  |  |  |  |  |  |  |  |  |  | 1 |  |  |  |  |  |
+| Contracts |  |  |  |  |  |  |  |  |  |  |  |  |  |  | 1 |  |  |
+| Settings |  |  |  |  |  |  |  |  |  |  |  |  | 1 |  |  |  |  |
 | Support |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |
-| Filesystem |  |  | 2 |  |  |  |  |  |  |  |  | 1 |  |  |  |  |  |
-| Stats |  |  |  |  |  |  |  |  |  |  |  | 1 |  |  |  |  |  |
+| Filesystem |  |  | 2 |  |  |  |  |  |  |  |  |  | 1 |  |  |  |  |
+| Stats |  |  |  |  |  |  |  |  |  |  |  |  | 1 |  |  |  |  |
 
 **三个可直接用于判断改动风险的读法**：
 
@@ -2363,12 +2411,13 @@ PHPCS 的 36 条 warning 全部落在本轮未改动的既有文件，集中在�
 |---|---|
 | 节点 | 191 = 174 类 + 17 模块 |
 | 连线 | **861** = 637 `ref` + 50 `modref` + 174 `contains` |
-| 钩子 | 203（面板显示，不建节点） |
+| 钩子 | 204（面板显示，不建节点） |
 | 悬空边 | 0 |
-| 本轮变更 | 1.25.0 的后台 UI 重构**净增 10 个类节点**：新增 11 个（`Admin\Appearance`、`Admin\Card_Form`、`Admin\Page_Assets`、`Admin\Route`、`Admin\UI`、`Admin\UI\Card`、`Admin\UI\Feedback`、`Admin\UI\Field`、`Admin\UI\Page`、`Admin\System_Settings_Module`、`S3\Config_Notice`），删除 1 个（`Admin\Basic_Settings_Module`，其视图 `includes/views/basic-settings.php` 同时移除，能力并入新的系统设置页）；`ref` 612→637、`contains` 164→174、节点 181→191、连线 826→861；`modref` 仍 50（模块集合未变）。钩子 199→203（新增 `admin_post`/`ajax` 处理器与 `admin_print_footer_scripts`） |
-| 数据来源 | 2026-11-12 重新扫描的 1.25.0 工作树事实表（codegraph `scanner.php` 输出）——由 `docs/tools/collect-comments.php` 与 `docs/tools/collect-hooks.php` 生成，与本文所有表格同源 |
+| 上一轮变更（1.25.0） | 1.25.0 的后台 UI 重构**净增 10 个类节点**：新增 11 个（`Admin\Appearance`、`Admin\Card_Form`、`Admin\Page_Assets`、`Admin\Route`、`Admin\UI`、`Admin\UI\Card`、`Admin\UI\Feedback`、`Admin\UI\Field`、`Admin\UI\Page`、`Admin\System_Settings_Module`、`S3\Config_Notice`），删除 1 个（`Admin\Basic_Settings_Module`，其视图 `includes/views/basic-settings.php` 同时移除，能力并入新的系统设置页）；`ref` 612→637、`contains` 164→174、节点 181→191、连线 826→861；`modref` 仍 50（模块集合未变）。钩子 199→203（新增 `admin_post`/`ajax` 处理器与 `admin_print_footer_scripts`） |
+| 本轮变更（1.25.1） | 只新增 1 个 `admin_enqueue_scripts` 闭包（`sakura-tools.php:121-137`，卸载 `wp-commands` / `wp-core-commands` 与对应样式）：钩子 203→204、`add_action` 147→148；节点仍 191、连线仍 861（637 `ref` + 50 `modref` + 174 `contains`），`modref` 仍 50 |
+| 数据来源 | 2026-11-12 重新扫描的 1.25.1 工作树事实表（codegraph `scanner.php` 输出）——由 `docs/tools/collect-comments.php` 与 `docs/tools/collect-hooks.php` 生成，与本文所有表格同源 |
 
-1.24.3 的卸载修复与 1.24.4 的覆盖升级自愈都没有改变模块划分；1.25.0 的后台 UI 重构在原有两个后台模块（`system`/`image`）之外**没有新增模块节点**——它把 13 个页签的呈现收敛到一套 UI 内核，因此模块仍 17 个、`modref` 仍 50 条，增量全在类级。节点 191（174 类 + 17 模块）、连线 861（637 `ref` + 50 `modref` + 174 `contains`）、钩子 203。生产 PHP 文件 189 个 / 65,108 行，其中 `src` 5 文件 / 894 行、`src/UserFiles` 22,305 行、`includes` 6,192 行、`src/S3` 11,924 行、`includes/views` 5,391 行。编辑页 JS/CSS 不是图谱对象，`assets/ui/` 的 14,932 行不进入图谱。
+1.24.3 的卸载修复与 1.24.4 的覆盖升级自愈都没有改变模块划分；1.25.0 的后台 UI 重构在原有两个后台模块（`system`/`image`）之外**没有新增模块节点**——它把 13 个页签的呈现收敛到一套 UI 内核，因此模块仍 17 个、`modref` 仍 50 条，增量全在类级。节点 191（174 类 + 17 模块）、连线 861（637 `ref` + 50 `modref` + 174 `contains`）、钩子 204。生产 PHP 文件 189 个 / 65,137 行，其中 `src` 5 文件 / 894 行、`src/UserFiles` 22,305 行、`includes` 6,192 行、`src/S3` 11,924 行、`includes/views` 5,391 行。编辑页 JS/CSS 不是图谱对象，`assets/ui/` 的 14,932 行不进入图谱。
 
 `fast-search.php` 是脚本型文件，本来就不进入图谱；`Space_Store` 的字段缺陷已在 §8.9 修复，不再是未修复缺陷。
 
@@ -2378,7 +2427,7 @@ PHPCS 的 36 条 warning 全部落在本轮未改动的既有文件，集中在�
 
 **与文档的对应关系**：每个类节点在正文里都有一条同名记录——附录 A 给 `文件:行`，所属章节的表给职责与方法数；模块节点对应 §2.2 的模块总览。**改代码后重跑一次生成器，表格与图谱同时更新**，这是两者不脱节的机制保证。
 
-详细的操作步骤、本次新增/修改的节点与连线清单、一致性核对项，见配套文档 **`docs/sakura-tools-图谱同步-1.25.0.md`**。
+详细的操作步骤、本次新增/修改的节点与连线清单、一致性核对项，见配套文档 **`docs/sakura-tools-图谱同步-1.25.1.md`**。
 
 ---
 
@@ -2561,7 +2610,7 @@ PHPCS 的 36 条 warning 全部落在本轮未改动的既有文件，集中在�
 | 173 | `Sakura\ImageOptimizer\Uninstaller` | src/Uninstaller.php:24 | 10 |
 | 174 | `Sakura\ImageOptimizer\Upgrade_Guard` | src/Upgrade_Guard.php:23 | 3 |
 
-## 附录 B：钩子索引（203 条，按模块分组）
+## 附录 B：钩子索引（204 条，按模块分组）
 
 ### includes（67 个）
 
@@ -2800,10 +2849,23 @@ PHPCS 的 36 条 warning 全部落在本轮未改动的既有文件，集中在�
 | `zib_user_center_page_sidebar_button_2_args` | filter | sidebar | src/UserFiles/Frontend/Tab.php:45 |
 | `zibpay_order_title` | filter | array( __CLASS__, 'order_title' ) | src/UserFiles/Space/Zibll_Order_Card.php:41 |
 
-### 未归属（3 个）
+### 未归属（4 个）
 
 | 钩子 | 类型 | 回调 | 注册位置 |
 |---|---|---|---|
+| `admin_enqueue_scripts` | action | static function (): void {
+		$sakura_page = isset( $_GET['page'] ) && is_string( $_GET['page'] )
+			? sanitize_key( wp_unslash( $_GET['page'] ) )
+			: '';
+
+		if ( 'sakura-imgopt-progress' !== $sakura_page && '' === \Sakura\ImageOptimizer\Admin\Route::current_page() ) {
+			return;
+		}
+
+		wp_dequeue_script( 'wp-core-commands' );
+		wp_dequeue_script( 'wp-commands' );
+		wp_dequeue_style( 'wp-commands' );
+	} | sakura-tools.php:121 |
 | `init` | action | static function () {
 		load_plugin_textdomain( 'sakura-imgopt', false, dirname( plugin_basename( __FILE__ ) ) . '/languages' );
 	} | sakura-tools.php:96 |
@@ -2816,7 +2878,7 @@ PHPCS 的 36 条 warning 全部落在本轮未改动的既有文件，集中在�
 		}
 	} | sakura-tools.php:25 |
 
-合计 203 条具名钩子（add_action 147 + add_filter 56；已排除 tests/stubs、add_submenu_page 与 Hook_Loader 通用转发）。
+合计 204 条具名钩子（add_action 148 + add_filter 56；已排除 tests/stubs、add_submenu_page 与 Hook_Loader 通用转发）。
 
 ## 附录 C：文件索引（189 个生产 PHP 文件）
 
@@ -2849,7 +2911,7 @@ PHPCS 的 36 条 warning 全部落在本轮未改动的既有文件，集中在�
 | includes/views/userfiles-space-admin.php | includes/views | 1025 | — |
 | includes/views/userfiles-space-panel.php | includes/views | 276 | — |
 | includes/views/userfiles-tab.php | includes/views | 308 | — |
-| sakura-tools.php | 根文件 | 109 | — |
+| sakura-tools.php | 根文件 | 138 | — |
 | src/Activation.php | src | 133 | `Activation` |
 | src/Admin/Appearance.php | src/Admin | 139 | `Appearance` |
 | src/Admin/Assets.php | src/Admin | 28 | `Assets` |

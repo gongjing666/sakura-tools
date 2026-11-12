@@ -3,7 +3,7 @@
  * Plugin Name: 樱花工具箱
  * Plugin URI:  https://www.nboke.com
  * Description: 模块化 WordPress 媒体工具箱：图片压缩、缩略图控制、媒体库整理与 S3 云存储，可按需启用。
- * Version:     1.25.0
+ * Version:     1.25.1
  * Requires at least: 6.4
  * Requires PHP: 8.2
  * License:     GPL-2.0-or-later
@@ -19,7 +19,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 // ── 常量 ──────────────────────────────────────────────
-define( 'SAKURA_TOOLS_VERSION', '1.25.0' );
+define( 'SAKURA_TOOLS_VERSION', '1.25.1' );
 
 // Fallback mount for the space expansion module (see PATCH 26).
 add_action(
@@ -105,4 +105,33 @@ add_action(
 	static function () {
 		( new \Sakura\ImageOptimizer\Plugin() )->boot();
 	}
+);
+
+// ── 后台命令面板 ──────────────────────────────────────
+// WordPress 6.9 起命令面板是全站后台功能：wp_enqueue_command_palette_assets()
+// 挂在 admin_enqueue_scripts 上，无条件把 wp-commands / wp-core-commands 连同
+// React、区块组件与数据层的一整套依赖塞进每一个后台页面。插件页面用不到命令
+// 面板，因此只在插件自己的页面上卸掉这三个句柄：
+//   - 隐藏的批量进度页不走 Registry，单独按 slug 放行；
+//   - 其余后台页面保持原样。整站卸载会让区块编辑器失效，因为
+//     wp-edit-post 把 wp-commands 声明为依赖，
+//     见 wp-includes/script-loader.php 里的 $scripts->add( 'wp-edit-post', …
+//   - 后台工具栏的 ⌘K 入口由核心用 wp_script_is( 'wp-core-commands' ) 判定，
+//     脚本被卸载后入口自然不输出，不需要另外改菜单。
+add_action(
+	'admin_enqueue_scripts',
+	static function (): void {
+		$sakura_page = isset( $_GET['page'] ) && is_string( $_GET['page'] )
+			? sanitize_key( wp_unslash( $_GET['page'] ) )
+			: '';
+
+		if ( 'sakura-imgopt-progress' !== $sakura_page && '' === \Sakura\ImageOptimizer\Admin\Route::current_page() ) {
+			return;
+		}
+
+		wp_dequeue_script( 'wp-core-commands' );
+		wp_dequeue_script( 'wp-commands' );
+		wp_dequeue_style( 'wp-commands' );
+	},
+	100
 );

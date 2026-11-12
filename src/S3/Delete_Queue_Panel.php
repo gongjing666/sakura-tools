@@ -157,8 +157,7 @@ final class Delete_Queue_Panel {
 		$notice = isset( $_GET['sufm_deletes'] ) ? sanitize_key( wp_unslash( (string) $_GET['sufm_deletes'] ) ) : '';
 		$count  = isset( $_GET['count'] ) ? absint( $_GET['count'] ) : 0;
 		$queued = (int) $counts['queued'];
-		$pending = $queued + (int) $counts['running'];
-		$latest  = ! empty( $rows ) ? (string) $rows[0]['updated_at'] : '';
+		$latest = ! empty( $rows ) ? (string) $rows[0]['updated_at'] : '';
 		$states  = $this->state_choices();
 		$tones   = array(
 			'queued'  => 'info',
@@ -182,20 +181,6 @@ final class Delete_Queue_Panel {
 			<?php $ui::alert( __( '没有选中的记录。', 'sakura-imgopt' ), 'warn' ); ?>
 		<?php endif; ?>
 
-		<section class="kpis" aria-label="<?php esc_attr_e( '队列状态', 'sakura-imgopt' ); ?>">
-			<?php foreach ( $states as $sufm_value => $sufm_choice ) : ?>
-				<?php
-				$sufm_active = $state === $sufm_value;
-				$sufm_url    = Registry::url( 'storage', 'deletes', $sufm_active ? array() : array( 'state' => $sufm_value ) );
-				?>
-				<a class="kpi kpi--link<?php echo $sufm_active ? ' is-active' : ''; ?>" href="<?php echo esc_url( $sufm_url ); ?>" <?php echo $sufm_active ? 'aria-current="page"' : ''; ?>>
-					<span class="kpi__label"><?php echo esc_html( $sufm_choice ); ?></span>
-					<span class="kpi__value"><?php echo esc_html( number_format_i18n( (int) $counts[ $sufm_value ] ) ); ?><small><?php esc_html_e( '条', 'sakura-imgopt' ); ?></small></span>
-					<span class="kpi__sub"><?php echo esc_html( $sufm_active ? __( '正在查看此状态', 'sakura-imgopt' ) : __( '点击筛选此状态', 'sakura-imgopt' ) ); ?></span>
-				</a>
-			<?php endforeach; ?>
-		</section>
-
 		<?php
 		$ui::card(
 			array(
@@ -205,9 +190,21 @@ final class Delete_Queue_Panel {
 				'title'       => __( '队列明细', 'sakura-imgopt' ),
 				'description' => __( '删除任务会先排进这里，由 WP-Cron 逐条执行。勾选记录后可批量重试或丢弃；丢弃只删队列记录，不会删除云端对象。', 'sakura-imgopt' ),
 			),
-			function () use ( $ui, $rows, $state, $states, $tones, $counts, $total, $paged, $latest, $pending, $count ): void {
+			function () use ( $ui, $rows, $state, $states, $tones, $counts, $total, $paged ): void {
 				?>
 				<div class="queue-toolbar">
+					<nav class="queue-stats" aria-label="<?php esc_attr_e( '队列状态筛选', 'sakura-imgopt' ); ?>">
+						<?php foreach ( $states as $sufm_value => $sufm_choice ) : ?>
+							<?php
+							$sufm_active = $state === $sufm_value;
+							$sufm_url    = Registry::url( 'storage', 'deletes', $sufm_active ? array() : array( 'state' => $sufm_value ) );
+							?>
+							<a class="queue-stat<?php echo $sufm_active ? ' is-active' : ''; ?><?php echo 0 === (int) $counts[ $sufm_value ] ? ' is-zero' : ''; ?>" href="<?php echo esc_url( $sufm_url ); ?>" <?php echo $sufm_active ? 'aria-current="true"' : ''; ?>>
+								<span class="queue-stat__label"><?php echo esc_html( $sufm_choice ); ?></span>
+								<strong class="queue-stat__value"><?php echo esc_html( number_format_i18n( (int) $counts[ $sufm_value ] ) ); ?></strong>
+							</a>
+						<?php endforeach; ?>
+					</nav>
 					<form method="get" action="<?php echo esc_url( admin_url( 'admin.php' ) ); ?>" class="queue-filter" data-sakura-queue-filter>
 						<input type="hidden" name="page" value="<?php echo esc_attr( (string) ( \Sakura\ImageOptimizer\Admin\Registry::modules()['storage']['slug'] ?? '' ) ); ?>" />
 						<input type="hidden" name="t" value="deletes" />
@@ -218,12 +215,7 @@ final class Delete_Queue_Panel {
 								<option value="<?php echo esc_attr( $sufm_value ); ?>"<?php selected( $state, $sufm_value ); ?>><?php echo esc_html( $sufm_choice ); ?></option>
 							<?php endforeach; ?>
 						</select>
-						<button type="submit" class="btn btn--small"><?php esc_html_e( '筛选', 'sakura-imgopt' ); ?></button>
 					</form>
-					<div class="queue-toolbar__meta">
-						<span class="small-text"><?php echo esc_html( sprintf( /* translators: 1: pending, 2: total. */ __( '待执行 %1$s 条 · 当前筛选 %2$s 条', 'sakura-imgopt' ), number_format_i18n( $pending ), number_format_i18n( $total ) ) ); ?></span>
-						<span class="small-text"><?php echo '' !== $latest ? esc_html( sprintf( /* translators: %s: last update time. */ __( '最近更新 %s', 'sakura-imgopt' ), mysql2date( 'Y-m-d H:i', $latest ) ) ) : esc_html__( '暂无记录', 'sakura-imgopt' ); ?></span>
-					</div>
 				</div>
 
 				<?php if ( empty( $rows ) ) : ?>

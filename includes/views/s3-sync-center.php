@@ -548,8 +548,34 @@ $sakura_sync_cards = static function () use (
 				'kicker'      => __( 'Reconciliation', 'sakura-imgopt' ),
 				'title'       => sprintf( /* translators: %d: total. */ __( '文件核对（%d 项差异）', 'sakura-imgopt' ), $total ),
 				'description' => __( '按文件名、大小和修改时间比对本地与云端；删除操作始终二次确认。', 'sakura-imgopt' ),
+				'actions'     => array(
+					array(
+						'label'   => __( '重新核对（本地 + 云端）', 'sakura-imgopt' ),
+						'button'  => true,
+						'variant' => 'primary',
+						'attrs'   => array(
+							'data-sakura-action' => 'scan',
+							'data-sakura-nonce'  => $scan_nonce,
+						),
+					),
+					array(
+						'label'   => __( '导出当前筛选', 'sakura-imgopt' ),
+						'url'     => $export_url,
+						'variant' => 'ghost',
+						'id'      => 'sakura-sync-export-recon',
+						'attrs'   => array( 'data-sakura-role' => 'export' ),
+					),
+					array(
+						'label'   => sprintf( /* translators: %d: files missing an attachment row. */ __( '补建媒体库记录（%d）', 'sakura-imgopt' ), (int) $missing_media ),
+						'button'  => true,
+						'variant' => 'ghost',
+						'id'      => 'sakura-sync-adopt',
+						'attrs'   => array( 'data-sakura-action' => 'adopt' ),
+						'disabled' => 0 === (int) $missing_media,
+					),
+				),
 			),
-			static function () use ( $total, $pending, $failed_count, $remote, $mismatch, $synced, $rows, $page_cursor, $page_more, $page_size, $summary_text, $missing_media, $scan_nonce, $export_url, $status_labels, $status_tones, $type_labels ): void {
+			static function () use ( $total, $pending, $failed_count, $remote, $mismatch, $synced, $rows, $page_cursor, $page_more, $page_size, $summary_text, $status_labels, $status_tones, $type_labels ): void {
 				?>
 				<div class="recon-toolbar">
 					<div class="filter-chips" role="tablist" aria-label="<?php esc_attr_e( '差异筛选', 'sakura-imgopt' ); ?>">
@@ -582,12 +608,7 @@ $sakura_sync_cards = static function () use (
 					</div>
 				</div>
 
-				<div class="recon-actions">
-					<button type="button" class="btn btn--primary btn--small" data-sakura-action="scan" data-sakura-nonce="<?php echo esc_attr( $scan_nonce ); ?>"><?php esc_html_e( '重新核对（本地 + 云端）', 'sakura-imgopt' ); ?></button>
-					<a class="btn btn--small" id="sakura-sync-export-recon" href="<?php echo esc_url( $export_url ); ?>" data-sakura-role="export"><?php esc_html_e( '导出当前筛选', 'sakura-imgopt' ); ?></a>
-					<button type="button" class="btn btn--small" id="sakura-sync-adopt" data-sakura-action="adopt" <?php disabled( 0 === (int) $missing_media ); ?>><?php echo esc_html( sprintf( /* translators: %d: files missing an attachment row. */ __( '补建媒体库记录（%d）', 'sakura-imgopt' ), (int) $missing_media ) ); ?></button>
-					<span class="small-text" id="adopt-progress-text" role="status" aria-live="polite" hidden></span>
-				</div>
+				<p class="small-text recon-adopt-status" id="adopt-progress-text" role="status" aria-live="polite" hidden></p>
 
 				<div class="batch-bar" id="recon-batch" hidden>
 					<span class="batch-bar__count"><strong id="batch-count">0</strong> <?php esc_html_e( '项已选', 'sakura-imgopt' ); ?> <span class="small-text"><?php esc_html_e( '最多 100 项', 'sakura-imgopt' ); ?></span></span>

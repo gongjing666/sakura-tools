@@ -122,6 +122,9 @@ final class Card {
 				if ( '' !== $action_id ) {
 					echo ' id="' . esc_attr( $action_id ) . '"';
 				}
+				if ( $is_button && ! empty( $action['disabled'] ) ) {
+					echo ' disabled';
+				}
 				if ( ! empty( $action['attrs'] ) && is_array( $action['attrs'] ) ) {
 					foreach ( $action['attrs'] as $attr_name => $attr_value ) {
 						$attr_name = preg_replace( '/[^A-Za-z0-9_\-]/', '', (string) $attr_name );

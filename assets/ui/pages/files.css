@@ -214,38 +214,10 @@
 	color: var(--g-faint);
 }
 
-.sakura-admin[data-sakura-page="files-queue"] .queue-object__files {
-	justify-self: start;
-	margin-top: 3px;
-	padding: 0;
-	border: 0;
-	background: transparent;
-	color: var(--g-accent);
-	font-size: 11.5px;
-	font-weight: 600;
-	line-height: 1.5;
-	cursor: pointer;
-}
-
-.sakura-admin[data-sakura-page="files-queue"] .queue-object__files:hover {
-	color: var(--g-ink);
-	text-decoration: underline;
-	text-underline-offset: 2px;
-}
-
-.sakura-admin[data-sakura-page="files-queue"] .queue-object__files:focus-visible {
-	outline: 2px solid var(--g-select-focus);
-	outline-offset: 2px;
-}
-
-.sakura-admin[data-sakura-page="files-queue"] .queue-object__files:disabled {
-	opacity: .55;
-	cursor: default;
-}
-
 .sakura-admin[data-sakura-page="files-queue"] .queue-actions {
 	display: flex;
 	flex-wrap: wrap;
+	align-items: center;
 	gap: 6px;
 }
 
@@ -1081,6 +1053,20 @@
 	.sakura-admin[data-sakura-page="files-users"] .quota-cell input {
 		flex: 1 1 120px;
 		width: 100%;
+	}
+
+	.sakura-admin[data-sakura-page="files-queue"] .queue-actions {
+		justify-content: flex-end;
+		gap: 8px;
+	}
+
+	.sakura-admin[data-sakura-page="files-queue"] .queue-actions .btn {
+		min-height: 32px;
+	}
+
+	.sakura-admin[data-sakura-page="files-queue"] .sakura-files-table td.queue-cell {
+		grid-template-columns: minmax(0, 1fr);
+		row-gap: 6px;
 	}
 
 	.sakura-admin[data-sakura-page="files-queue"] .exec-step__head {

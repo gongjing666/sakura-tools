@@ -283,13 +283,11 @@
 		function review( row, decision, button ) {
 			var titles = {
 				approve: strings.approveTitle,
-				reject: strings.rejectTitle,
-				needs_review: strings.needsTitle
+				reject: strings.rejectTitle
 			};
 			var messages = {
 				approve: strings.approveMessage,
-				reject: strings.rejectMessage,
-				needs_review: strings.needsMessage
+				reject: strings.rejectMessage
 			};
 			var values = { id: row.id };
 
@@ -298,7 +296,7 @@
 				confirmText: decision === 'approve' ? ( strings.approve || strings.confirm ) : ( strings.confirm || '确认' ),
 				cancelText: strings.cancel || '取消',
 				danger: decision === 'reject',
-				tone: decision === 'reject' ? 'danger' : ( decision === 'needs_review' ? 'warn' : 'neutral' )
+				tone: decision === 'reject' ? 'danger' : 'neutral'
 			} ).then( function ( confirmed ) {
 				if ( ! confirmed ) {
 					return;
@@ -375,7 +373,8 @@
 		}
 
 		function actionCell( row ) {
-			var wrap = cell( strings.actionsLabel || '操作', 'queue-actions' );
+			var node = cell( strings.actionsLabel || '操作', 'queue-cell' );
+			var wrap = el( 'div', 'queue-actions' );
 			var status = row.status;
 			var batchId = Number( row.batch_id ) || 0;
 
@@ -386,30 +385,40 @@
 				wrap.appendChild( actionButton( strings.reject || '驳回', 'ghost', function ( button ) {
 					review( row, 'reject', button );
 				} ) );
-				if ( status === 'pending_review' ) {
-					wrap.appendChild( actionButton( strings.needsReview || '需核实', 'ghost', function ( button ) {
-						review( row, 'needs_review', button );
+
+				if ( Number( row.item_count ) > 0 ) {
+					var viewFiles = actionButton( strings.viewFiles || '查看文件', 'ghost', function ( button ) {
+						openFiles( row, button );
+					} );
+					viewFiles.setAttribute( 'aria-label', fill( strings.viewFilesLabel || '查看申请 #{id} 的 {count} 个文件', {
+						id: row.id,
+						count: row.item_count
 					} ) );
+					wrap.appendChild( viewFiles );
 				}
-				return wrap;
+
+				node.appendChild( wrap );
+				return node;
 			}
 
 			if ( status === 'approved' ) {
 				wrap.appendChild( actionButton( strings.revoke || '撤销批准', 'danger', function ( button ) {
 					revoke( row, button );
 				} ) );
-				return wrap;
+				node.appendChild( wrap );
+				return node;
 			}
 
 			if ( ( status === 'queued' || status === 'executing' ) && batchId ) {
 				wrap.appendChild( actionButton( strings.stopBatch || '停止批次', 'danger', function ( button ) {
 					stopBatch( batchId, button );
 				} ) );
-				return wrap;
+				node.appendChild( wrap );
+				return node;
 			}
 
-			wrap.appendChild( el( 'span', 'text-muted', strings.noActions || '—' ) );
-			return wrap;
+			node.appendChild( el( 'span', 'text-muted', strings.noActions || '—' ) );
+			return node;
 		}
 
 		function openFiles( row, button ) {
@@ -480,19 +489,6 @@
 				object.appendChild( el( 'span', '', fill( strings.items || '{count} 项', { count: row.item_count || 0 } ) ) );
 				object.appendChild( el( 'span', '', admin.format.fileSize( row.bytes || 0 ) ) );
 				objectCell.appendChild( object );
-
-				if ( Number( row.item_count ) > 0 ) {
-					var filesButton = el( 'button', 'queue-object__files', strings.viewFiles || '查看文件' );
-					filesButton.type = 'button';
-					filesButton.setAttribute( 'aria-label', fill( strings.viewFilesLabel || '查看申请 #{id} 的 {count} 个文件', {
-						id: row.id,
-						count: row.item_count
-					} ) );
-					filesButton.addEventListener( 'click', function () {
-						openFiles( row, filesButton );
-					} );
-					objectCell.appendChild( filesButton );
-				}
 
 				tr.appendChild( objectCell );
 

@@ -733,6 +733,46 @@ final class Object_Store {
 	}
 
 	/**
+	 * Create a short-lived signed URL for one object.
+	 *
+	 * The SDK signs locally; no network request is made. Callers must treat the
+	 * URL as a bearer credential and never log it.
+	 *
+	 * @param string     $key         Object key.
+	 * @param string|int $expires     Expiry accepted by the SDK, e.g. '+15 minutes'.
+	 * @param string     $disposition Optional Content-Disposition override.
+	 * @param string     $content_type Optional Content-Type override.
+	 * @return string|\WP_Error
+	 */
+	public function presigned_url( $key, $expires = '+15 minutes', $disposition = '', $content_type = '' ) {
+		$key = (string) $key;
+		if ( '' === $key ) {
+			return new \WP_Error( 'sakura_s3_invalid_key', __( '对象 Key 无效。', 'sakura-imgopt' ) );
+		}
+
+		$options = (array) call_user_func( $this->options );
+		$args    = array(
+			'Bucket' => (string) ( $options['bucket'] ?? '' ),
+			'Key'    => $key,
+		);
+		if ( '' !== $disposition ) {
+			$args['ResponseContentDisposition'] = $disposition;
+		}
+		if ( '' !== $content_type ) {
+			$args['ResponseContentType'] = $content_type;
+		}
+
+		try {
+			$client  = call_user_func( $this->client );
+			$command = $client->getCommand( 'GetObject', $args );
+			$request = $client->createPresignedRequest( $command, $expires );
+			return (string) $request->getUri();
+		} catch ( \Throwable $e ) {
+			return new \WP_Error( 'sakura_s3_presign_failed', $e->getMessage() );
+		}
+	}
+
+	/**
 	 * Delete object keys in chunks accepted by the S3 API.
 	 *
 	 * @param string[] $keys Normalized object keys.

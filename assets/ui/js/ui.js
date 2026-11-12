@@ -218,6 +218,472 @@
 		} );
 	}
 
+	var mediaSeq = 0;
+
+	var MEDIA_ICONS = {
+		close: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>',
+		play: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M8 5.5v13l11-6.5z" fill="currentColor"/></svg>',
+		pause: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M8 5h3v14H8zM13 5h3v14h-3z" fill="currentColor"/></svg>',
+		volume: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 9v6h4l5 4V5L8 9H4z" fill="currentColor"/><path d="M16 8.5a5 5 0 010 7M18.5 6a8 8 0 010 12" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>',
+		muted: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 9v6h4l5 4V5L8 9H4z" fill="currentColor"/><path d="M16 9l5 6M21 9l-5 6" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>',
+		fullscreen: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+		download: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 4v11m0 0l-4-4m4 4l4-4M5 20h14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+		file: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M7 3h7l4 4v14H7z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M14 3v5h5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>'
+	};
+
+	function mediaIcon( name ) {
+		return MEDIA_ICONS[ name ] || '';
+	}
+
+	function mediaTime( value ) {
+		var total = Number( value );
+		if ( ! isFinite( total ) || total < 0 ) {
+			total = 0;
+		}
+		total = Math.floor( total );
+		var hours = Math.floor( total / 3600 );
+		var minutes = Math.floor( ( total % 3600 ) / 60 );
+		var seconds = total % 60;
+		if ( hours > 0 ) {
+			return hours + ':' + ( minutes < 10 ? '0' : '' ) + minutes + ':' + ( seconds < 10 ? '0' : '' ) + seconds;
+		}
+		return minutes + ':' + ( seconds < 10 ? '0' : '' ) + seconds;
+	}
+
+	function mediaButton( className, iconName, label ) {
+		var button = document.createElement( 'button' );
+		button.type = 'button';
+		button.className = className;
+		button.setAttribute( 'aria-label', label );
+		button.innerHTML = mediaIcon( iconName );
+		return button;
+	}
+
+	function mediaPlayer( payload, labels, onError ) {
+		var wrap = document.createElement( 'div' );
+		wrap.className = 'sakura-media-player';
+
+		var video = document.createElement( 'video' );
+		video.className = 'sakura-media-player__video';
+		video.preload = 'metadata';
+		video.playsInline = true;
+		video.setAttribute( 'playsinline', '' );
+		video.setAttribute( 'aria-label', payload.name || '' );
+		video.src = payload.url;
+		wrap.appendChild( video );
+
+		var overlay = mediaButton( 'sakura-media-player__overlay', 'play', labels.play );
+		wrap.appendChild( overlay );
+
+		var controls = document.createElement( 'div' );
+		controls.className = 'sakura-media-player__controls';
+
+		var toggle = mediaButton( 'sakura-media-player__control sakura-media-player__toggle', 'play', labels.play );
+		controls.appendChild( toggle );
+
+		var time = document.createElement( 'span' );
+		time.className = 'sakura-media-player__time';
+		time.textContent = '0:00 / 0:00';
+		controls.appendChild( time );
+
+		var seek = document.createElement( 'input' );
+		seek.type = 'range';
+		seek.className = 'sakura-media-player__seek';
+		seek.min = '0';
+		seek.max = '1000';
+		seek.step = '1';
+		seek.value = '0';
+		seek.disabled = true;
+		seek.setAttribute( 'aria-label', labels.seek || labels.play );
+		controls.appendChild( seek );
+
+		var mute = mediaButton( 'sakura-media-player__control', 'volume', labels.mute );
+		controls.appendChild( mute );
+
+		var volume = document.createElement( 'input' );
+		volume.type = 'range';
+		volume.className = 'sakura-media-player__volume';
+		volume.min = '0';
+		volume.max = '100';
+		volume.step = '1';
+		volume.value = '100';
+		volume.setAttribute( 'aria-label', labels.volume || labels.mute );
+		controls.appendChild( volume );
+
+		var full = mediaButton( 'sakura-media-player__control', 'fullscreen', labels.fullscreen );
+		controls.appendChild( full );
+		wrap.appendChild( controls );
+
+		var duration = 0;
+		var lastVolume = 1;
+
+		function setIcon( button, name, label ) {
+			button.innerHTML = mediaIcon( name );
+			button.setAttribute( 'aria-label', label );
+		}
+
+		function updatePlay() {
+			var paused = video.paused || video.ended;
+			wrap.classList.toggle( 'is-playing', ! paused );
+			setIcon( toggle, paused ? 'play' : 'pause', paused ? labels.play : labels.pause );
+			setIcon( overlay, paused ? 'play' : 'pause', paused ? labels.play : labels.pause );
+		}
+
+		function updateVolume() {
+			var muted = video.muted || 0 === video.volume;
+			setIcon( mute, muted ? 'muted' : 'volume', muted ? labels.unmute : labels.mute );
+			volume.value = String( Math.round( ( muted ? 0 : video.volume ) * 100 ) );
+		}
+
+		function togglePlay() {
+			if ( video.paused || video.ended ) {
+				var result = video.play();
+				if ( result && typeof result.catch === 'function' ) {
+					result.catch( function () { /* The error event explains the failure. */ } );
+				}
+				return;
+			}
+			video.pause();
+		}
+
+		function seekTo( ratio ) {
+			if ( ! duration || ! isFinite( duration ) ) {
+				return;
+			}
+			video.currentTime = Math.max( 0, Math.min( duration, duration * ratio ) );
+		}
+
+		toggle.addEventListener( 'click', togglePlay );
+		overlay.addEventListener( 'click', togglePlay );
+		video.addEventListener( 'click', togglePlay );
+
+		seek.addEventListener( 'input', function () {
+			seekTo( Number( seek.value ) / 1000 );
+		} );
+
+		mute.addEventListener( 'click', function () {
+			if ( video.muted || 0 === video.volume ) {
+				video.muted = false;
+				video.volume = lastVolume > 0 ? lastVolume : 1;
+			} else {
+				lastVolume = video.volume;
+				video.muted = true;
+			}
+			updateVolume();
+		} );
+
+		volume.addEventListener( 'input', function () {
+			var next = Number( volume.value ) / 100;
+			video.volume = next;
+			video.muted = 0 === next;
+			if ( next > 0 ) {
+				lastVolume = next;
+			}
+			updateVolume();
+		} );
+
+		full.addEventListener( 'click', function () {
+			if ( document.fullscreenElement ) {
+				if ( document.exitFullscreen ) {
+					document.exitFullscreen();
+				}
+				return;
+			}
+			if ( wrap.requestFullscreen ) {
+				wrap.requestFullscreen().catch( function () {} );
+			}
+		} );
+
+		video.addEventListener( 'loadedmetadata', function () {
+			duration = Number( video.duration ) || 0;
+			seek.disabled = ! duration || ! isFinite( duration );
+			time.textContent = '0:00 / ' + mediaTime( duration );
+		} );
+
+		video.addEventListener( 'timeupdate', function () {
+			if ( duration && isFinite( duration ) && document.activeElement !== seek ) {
+				seek.value = String( Math.round( ( video.currentTime / duration ) * 1000 ) );
+			}
+			time.textContent = mediaTime( video.currentTime ) + ' / ' + mediaTime( duration );
+		} );
+
+		video.addEventListener( 'play', updatePlay );
+		video.addEventListener( 'pause', updatePlay );
+		video.addEventListener( 'ended', updatePlay );
+		video.addEventListener( 'volumechange', updateVolume );
+		video.addEventListener( 'error', function () {
+			onError( labels.videoFailed );
+		} );
+
+		updatePlay();
+		updateVolume();
+		return wrap;
+	}
+
+	/**
+	 * Modern media preview dialog. Supports images, a custom video player and a
+	 * download-only fallback for every other file type.
+	 *
+	 * @param {Object} data    Preview payload from the server.
+	 * @param {Object} options Optional { trigger, labels }.
+	 * @return {Object|null}   { close } when opened.
+	 */
+	function mediaPreview( data, options ) {
+		var payload = data || {};
+		var settings = options || {};
+		var labels = settings.labels || {};
+		var trigger = settings.trigger || document.activeElement;
+		var root = host();
+
+		if ( ! payload.name ) {
+			return null;
+		}
+
+		var text = {
+			close: labels.close || '关闭',
+			download: labels.download || '下载文件',
+			play: labels.play || '播放',
+			pause: labels.pause || '暂停',
+			mute: labels.mute || '静音',
+			unmute: labels.unmute || '取消静音',
+			volume: labels.volume || '音量',
+			seek: labels.seek || '播放进度',
+			fullscreen: labels.fullscreen || '全屏',
+			videoFailed: labels.videoFailed || '视频无法播放，可能格式不受浏览器支持；可直接下载查看。',
+			imageFailed: labels.imageFailed || '图片暂时无法显示，可能已被移动或云端权限不允许读取；可直接下载查看。',
+			unavailable: labels.unavailable || '该文件类型暂不支持在线预览，下载后可用本地应用打开。',
+			noUrl: labels.noUrl || '暂时没有可用的预览地址。',
+			imageErrorTitle: labels.imageErrorTitle || '图片暂时无法显示',
+			videoErrorTitle: labels.videoErrorTitle || '视频暂时无法播放',
+			unavailableTitle: labels.unavailableTitle || '暂不支持在线预览',
+			noUrlTitle: labels.noUrlTitle || '暂无可用预览',
+			local: labels.local || '本地文件',
+			cloud: labels.cloud || '云端对象'
+		};
+
+		var existing = admin.qs( '.sakura-media-dialog[open]', root );
+		if ( existing ) {
+			existing.close();
+		}
+
+		var titleId = 'sakura-media-title-' + ( ++mediaSeq );
+		var dialog = document.createElement( 'dialog' );
+		dialog.className = 'sakura-media-dialog';
+		dialog.setAttribute( 'aria-labelledby', titleId );
+		dialog.setAttribute( 'aria-modal', 'true' );
+		dialog.tabIndex = -1;
+
+		var panel = document.createElement( 'div' );
+		panel.className = 'sakura-media-dialog__panel';
+		panel.addEventListener( 'click', function ( event ) {
+			event.stopPropagation();
+		} );
+
+		var header = document.createElement( 'header' );
+		header.className = 'sakura-media-dialog__head';
+
+		var copy = document.createElement( 'div' );
+		copy.className = 'sakura-media-dialog__copy';
+
+		var eyebrow = document.createElement( 'p' );
+		eyebrow.className = 'sakura-media-dialog__eyebrow';
+		eyebrow.textContent = ( payload.kind_label || '' ) + ( payload.ext ? ' · ' + payload.ext : '' );
+		copy.appendChild( eyebrow );
+
+		var title = document.createElement( 'h2' );
+		title.className = 'sakura-media-dialog__title';
+		title.id = titleId;
+		title.textContent = payload.name;
+		copy.appendChild( title );
+
+		var meta = document.createElement( 'div' );
+		meta.className = 'sakura-media-dialog__meta';
+		[ payload.size_label, payload.status_label, payload.mtime_label ].forEach( function ( value ) {
+			if ( ! value ) {
+				return;
+			}
+			var chip = document.createElement( 'span' );
+			chip.className = 'sakura-media-dialog__chip';
+			chip.textContent = value;
+			meta.appendChild( chip );
+		} );
+		var place = document.createElement( 'span' );
+		place.className = 'sakura-media-dialog__chip sakura-media-dialog__chip--place';
+		place.textContent = payload.local && payload.cloud ? text.local + ' + ' + text.cloud : ( payload.local ? text.local : text.cloud );
+		meta.appendChild( place );
+		copy.appendChild( meta );
+		header.appendChild( copy );
+
+		var closeButton = mediaButton( 'sakura-media-dialog__close', 'close', text.close );
+		header.appendChild( closeButton );
+		panel.appendChild( header );
+
+		var stage = document.createElement( 'div' );
+		stage.className = 'sakura-media-dialog__stage';
+		panel.appendChild( stage );
+
+		function stageMessage( heading, message ) {
+			stage.innerHTML = '';
+			stage.classList.remove( 'is-loading', 'is-video' );
+			var note = document.createElement( 'div' );
+			note.className = 'sakura-media-dialog__note';
+			var icon = document.createElement( 'span' );
+			icon.className = 'sakura-media-dialog__note-icon';
+			icon.innerHTML = mediaIcon( 'file' );
+			note.appendChild( icon );
+			var strong = document.createElement( 'strong' );
+			strong.textContent = heading;
+			note.appendChild( strong );
+			var detail = document.createElement( 'p' );
+			detail.textContent = message || '';
+			note.appendChild( detail );
+			stage.appendChild( note );
+		}
+
+		if ( 'image' === payload.kind ) {
+			if ( ! payload.url ) {
+				stageMessage( text.noUrlTitle, text.noUrl );
+			} else {
+				stage.classList.add( 'is-loading' );
+				var image = document.createElement( 'img' );
+				image.className = 'sakura-media-dialog__image';
+				image.alt = payload.name;
+				image.decoding = 'async';
+				image.loading = 'eager';
+				image.src = payload.url;
+				image.addEventListener( 'load', function () {
+					stage.classList.remove( 'is-loading' );
+				} );
+				image.addEventListener( 'error', function () {
+					stageMessage( text.imageErrorTitle, text.imageFailed );
+				} );
+				stage.appendChild( image );
+			}
+		} else if ( 'video' === payload.kind ) {
+			if ( ! payload.url ) {
+				stageMessage( text.noUrlTitle, text.noUrl );
+			} else {
+				stage.classList.add( 'is-video' );
+				stage.appendChild( mediaPlayer( payload, text, function ( message ) {
+					stageMessage( text.videoErrorTitle, message );
+				} ) );
+			}
+		} else {
+			stageMessage( text.unavailableTitle, text.unavailable );
+		}
+
+		var footer = document.createElement( 'footer' );
+		footer.className = 'sakura-media-dialog__foot';
+
+		var info = document.createElement( 'div' );
+		info.className = 'sakura-media-dialog__info';
+		var path = document.createElement( 'span' );
+		path.className = 'sakura-media-dialog__path';
+		path.textContent = payload.path || payload.key || '';
+		path.title = path.textContent;
+		info.appendChild( path );
+		footer.appendChild( info );
+
+		var actions = document.createElement( 'div' );
+		actions.className = 'sakura-media-dialog__actions';
+		if ( payload.download ) {
+			var download = document.createElement( 'a' );
+			download.className = 'btn btn--primary sakura-media-dialog__download';
+			download.href = payload.download;
+			download.setAttribute( 'download', '' );
+			var downloadIcon = document.createElement( 'span' );
+			downloadIcon.className = 'sakura-media-dialog__download-icon';
+			downloadIcon.innerHTML = mediaIcon( 'download' );
+			download.appendChild( downloadIcon );
+			var downloadLabel = document.createElement( 'span' );
+			downloadLabel.textContent = text.download;
+			download.appendChild( downloadLabel );
+			actions.appendChild( download );
+		}
+		footer.appendChild( actions );
+		panel.appendChild( footer );
+		dialog.appendChild( panel );
+
+		var videoNode = dialog.querySelector( 'video' );
+		var closed = false;
+
+		function close() {
+			if ( closed ) {
+				return;
+			}
+			closed = true;
+			document.documentElement.classList.remove( 'sakura-media-open' );
+			if ( dialog.open ) {
+				dialog.close( 'close' );
+			} else if ( dialog.parentNode ) {
+				dialog.parentNode.removeChild( dialog );
+			}
+		}
+
+		closeButton.addEventListener( 'click', close );
+		dialog.addEventListener( 'click', function ( event ) {
+			if ( event.target === dialog ) {
+				close();
+			}
+		} );
+		dialog.addEventListener( 'cancel', function ( event ) {
+			event.preventDefault();
+			close();
+		} );
+		dialog.addEventListener( 'close', function () {
+			document.documentElement.classList.remove( 'sakura-media-open' );
+			if ( videoNode ) {
+				videoNode.pause();
+				videoNode.removeAttribute( 'src' );
+				videoNode.load();
+			}
+			if ( dialog.parentNode ) {
+				dialog.parentNode.removeChild( dialog );
+			}
+			if ( trigger && typeof trigger.focus === 'function' ) {
+				trigger.focus();
+			}
+		} );
+
+		dialog.addEventListener( 'keydown', function ( event ) {
+			if ( ! videoNode ) {
+				return;
+			}
+			var tag = ( event.target && event.target.tagName ) || '';
+			if ( /^(BUTTON|A|INPUT|TEXTAREA|SELECT)$/.test( tag ) ) {
+				return;
+			}
+			if ( ' ' === event.key ) {
+				event.preventDefault();
+				if ( videoNode.paused || videoNode.ended ) {
+					var result = videoNode.play();
+					if ( result && typeof result.catch === 'function' ) {
+						result.catch( function () {} );
+					}
+				} else {
+					videoNode.pause();
+				}
+				return;
+			}
+			if ( 'ArrowLeft' === event.key || 'ArrowRight' === event.key ) {
+				event.preventDefault();
+				videoNode.currentTime = Math.max( 0, Math.min( videoNode.duration || 0, videoNode.currentTime + ( 'ArrowLeft' === event.key ? -5 : 5 ) ) );
+			}
+		} );
+
+		root.appendChild( dialog );
+		document.documentElement.classList.add( 'sakura-media-open' );
+
+		if ( typeof dialog.showModal === 'function' ) {
+			dialog.showModal();
+		} else {
+			dialog.setAttribute( 'open', '' );
+		}
+		dialog.focus();
+
+		return { close: close };
+	}
+
 	/**
 	 * Confirm links and forms marked with data-sakura-confirm before acting.
 	 */
@@ -266,6 +732,7 @@
 		confirm: confirm,
 		busy: busy,
 		copy: copy,
-		labelTables: labelTables
+		labelTables: labelTables,
+		mediaPreview: mediaPreview
 	};
 }( window, document ) );

@@ -330,6 +330,31 @@ final class Storage_Adapter {
 	}
 
 	/**
+	 * Create a short-lived signed URL for browser preview or download.
+	 *
+	 * Empty output means signing is unavailable; callers should hide the
+	 * preview rather than expose an unsigned private URL.
+	 *
+	 * @param string $key          Object key.
+	 * @param string $expires      Expiry accepted by the SDK.
+	 * @param string $disposition  Optional Content-Disposition override.
+	 * @param string $content_type Optional Content-Type override.
+	 */
+	public function presigned_url( string $key, string $expires = '+15 minutes', string $disposition = '', string $content_type = '' ): string {
+		$key = $this->normalize_key( $key );
+		if ( false === $key ) {
+			return '';
+		}
+
+		try {
+			$url = $this->store()->presigned_url( $key, $expires, $disposition, $content_type );
+			return is_wp_error( $url ) ? '' : (string) $url;
+		} catch ( \Throwable $e ) {
+			return '';
+		}
+	}
+
+	/**
 	 * Delete remote keys.
 	 *
 	 * @param string[] $keys Keys.

@@ -55,6 +55,15 @@
 	background: var(--g-wash);
 }
 
+.sakura-admin[data-sakura-page="storage-connection"] .profile-card:focus {
+	outline: 0;
+}
+
+.sakura-admin[data-sakura-page="storage-connection"] .profile-card:focus-visible {
+	outline: 2px solid var(--g-select-focus);
+	outline-offset: 2px;
+}
+
 .sakura-admin[data-sakura-page="storage-connection"] .profile-card:disabled {
 	cursor: default;
 	opacity: 1;
@@ -62,7 +71,7 @@
 
 .sakura-admin[data-sakura-page="storage-connection"] .profile-card.is-active {
 	background: var(--g-accent-soft);
-	box-shadow: inset 0 0 0 1px var(--g-accent);
+	box-shadow: none;
 }
 
 .sakura-admin[data-sakura-page="storage-connection"] .profile-card__top {

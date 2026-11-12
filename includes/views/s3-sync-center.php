@@ -660,10 +660,20 @@ $sakura_sync_cards = static function () use (
 								$row_size   = (int) ( $row['size'] ?? 0 );
 								$row_has_l  = ! empty( $row['local'] );
 								$row_has_c  = ! empty( $row['cloud'] );
-								$row_id     = (int) ( $row['id'] ?? 0 );
 								$row_mtime  = (int) ( $row['mtime'] ?? 0 );
 								$row_ext    = strtoupper( (string) pathinfo( $row_name, PATHINFO_EXTENSION ) );
-								$detail_url = $row_id ? (string) get_edit_post_link( $row_id, 'raw' ) : add_query_arg( array( 's' => rawurlencode( $row_name ) ), admin_url( 'upload.php' ) );
+								$row_preview = isset( $row['preview'] ) && is_array( $row['preview'] ) ? $row['preview'] : array();
+								if ( empty( $row_preview ) ) {
+									$row_preview = array(
+										'name'     => $row_name,
+										'path'     => $row_path,
+										'kind'     => $row_type,
+										'status'   => $row_status,
+										'size'     => $row_size,
+										'url'      => '',
+										'download' => '',
+									);
+								}
 								?>
 								<tr data-group="<?php echo esc_attr( $row_status ); ?>" data-type="<?php echo esc_attr( $row_type ); ?>" data-key="<?php echo esc_attr( $row_key ); ?>" data-mtime="<?php echo esc_attr( (string) $row_mtime ); ?>">
 									<td class="cell-select"><input type="checkbox" class="row-select" value="<?php echo esc_attr( $row_key ); ?>" data-status="<?php echo esc_attr( $row_status ); ?>" data-local="<?php echo $row_has_l ? '1' : '0'; ?>" data-cloud="<?php echo $row_has_c ? '1' : '0'; ?>" aria-label="<?php echo esc_attr( sprintf( /* translators: %s: file name. */ __( '选择 %s', 'sakura-imgopt' ), $row_name ) ); ?>" /></td>
@@ -695,7 +705,7 @@ $sakura_sync_cards = static function () use (
 											<?php elseif ( 'mismatch' === $row_status ) : ?>
 												<button type="button" class="link-btn" data-sakura-action="row-upload" data-sakura-confirm="REPLACE" data-sakura-key="<?php echo esc_attr( $row_key ); ?>"><?php esc_html_e( '重新上传', 'sakura-imgopt' ); ?></button>
 											<?php endif; ?>
-											<a class="link-btn" href="<?php echo esc_url( $detail_url ); ?>"><?php esc_html_e( '详情', 'sakura-imgopt' ); ?></a>
+											<button type="button" class="link-btn" data-sakura-preview="<?php echo esc_attr( (string) wp_json_encode( $row_preview ) ); ?>" data-sakura-name="<?php echo esc_attr( $row_name ); ?>"><?php esc_html_e( '详情', 'sakura-imgopt' ); ?></button>
 										</div>
 									</td>
 								</tr>

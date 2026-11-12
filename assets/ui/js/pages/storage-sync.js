@@ -743,6 +743,24 @@
 				runRowAction( type, key, '', button );
 			} );
 
+			admin.delegate( tbody, 'click', '[data-sakura-preview]', function ( event, button ) {
+				event.preventDefault();
+				var preview = {};
+				try {
+					preview = JSON.parse( button.getAttribute( 'data-sakura-preview' ) || '{}' );
+				} catch ( error ) {
+					preview = {};
+				}
+				if ( ! preview.name ) {
+					preview.name = button.getAttribute( 'data-sakura-name' ) || '';
+				}
+				if ( admin.ui && 'function' === typeof admin.ui.mediaPreview ) {
+					admin.ui.mediaPreview( preview, { trigger: button } );
+					return;
+				}
+				toast( strings.unknownError, 'bad' );
+			} );
+
 			/* Batches. */
 
 			function batchTransfer( type, keys, confirmValue ) {
@@ -1209,9 +1227,23 @@
 				} else if ( 'mismatch' === status ) {
 					actions.appendChild( actionButton( 'row-upload', key, 'REPLACE', labels.reupload || labels.upload ) );
 				}
-				var detail = document.createElement( 'a' );
+				var preview = row.preview || {};
+				if ( ! preview.name ) {
+					preview = {
+						name: name,
+						path: path,
+						kind: row.type || 'other',
+						status: status,
+						size: hasLocal ? Number( row.size || 0 ) : cloudSize,
+						url: '',
+						download: ''
+					};
+				}
+				var detail = document.createElement( 'button' );
+				detail.type = 'button';
 				detail.className = 'link-btn';
-				detail.href = config.mediaUrl + '?s=' + encodeURIComponent( name );
+				detail.setAttribute( 'data-sakura-preview', JSON.stringify( preview ) );
+				detail.setAttribute( 'data-sakura-name', name );
 				detail.textContent = labels.detail || '';
 				actions.appendChild( detail );
 

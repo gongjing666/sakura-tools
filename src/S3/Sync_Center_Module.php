@@ -13,6 +13,7 @@ use Sakura\ImageOptimizer\Contracts\Module;
 use Sakura\ImageOptimizer\Sync\Action_Worker;
 use Sakura\ImageOptimizer\Sync\Feature;
 use Sakura\ImageOptimizer\Sync\Index_Repository;
+use Sakura\ImageOptimizer\Sync\Kind;
 use Sakura\ImageOptimizer\Sync\Metrics;
 use Sakura\ImageOptimizer\Sync\Scan_Service;
 use Sakura\ImageOptimizer\Sync\Scan_Worker;
@@ -119,6 +120,7 @@ final class Sync_Center_Module implements Module {
 		$hooks->add_action( 'admin_notices', array( $this, 'admin_notices' ) );
 		$hooks->add_action( 'admin_post_sakura_s3_sync_export', array( $this, 'export_csv' ) );
 		$hooks->add_action( 'admin_post_sakura_s3_ignored_save', array( $this, 'save_ignored_paths' ) );
+		$hooks->add_action( 'admin_post_sakura_s3_media_download', array( $this, 'download_media' ) );
 	}
 
 	/**
@@ -633,7 +635,7 @@ final class Sync_Center_Module implements Module {
 
 		wp_send_json_success(
 			array(
-				'rows'     => $page['rows'],
+				'rows'     => $this->decorate_rows( $page['rows'] ),
 				'cursor'   => $page['cursor'],
 				'has_more' => $page['has_more'],
 				'counts'   => $summary['counts'],
@@ -1380,6 +1382,285 @@ final class Sync_Center_Module implements Module {
 	}
 
 	/**
+	 * Stream the current row to the browser as an attachment.
+	 *
+	 * Local files are served by PHP so the request stays authenticated. Cloud
+	 * objects are downloaded through a short-lived signed URL, which keeps the
+	 * bytes out of PHP memory and lets the browser resume large transfers.
+	 */
+	public function download_media(): void {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_die( esc_html__( '权限不足。', 'sakura-imgopt' ) );
+		}
+		check_admin_referer( 'sakura_s3_media_download' );
+
+		$raw_key = isset( $_GET['key'] ) ? sanitize_text_field( wp_unslash( $_GET['key'] ) ) : '';
+		$key     = $this->adapter->normalize_key( $raw_key );
+		$profile = (string) $this->options->active_profile_id();
+		if ( false === $key || '' === $key || '' === $profile ) {
+			wp_die( esc_html__( '文件不存在或尚未选择 S3 配置。', 'sakura-imgopt' ), 404 );
+		}
+
+		$row = $this->index->find( $profile, $key );
+		if ( ! is_array( $row ) ) {
+			if ( Feature::enabled() ) {
+				wp_die( esc_html__( '文件不存在或已被移动，请重新核对。', 'sakura-imgopt' ), 404 );
+			}
+			// Legacy snapshots have no index row; resolve the key directly.
+			$row = array(
+				'object_key' => $key,
+				'local_path' => $key,
+				'seen_local' => 1,
+				'seen_remote' => 1,
+			);
+		}
+
+		$name     = wp_basename( (string) ( $row['object_key'] ?? $key ) );
+		$filetype = wp_check_filetype( $name );
+		$mime     = (string) ( $filetype['type'] ?? '' );
+		$local    = ! empty( $row['seen_local'] );
+
+		if ( $local ) {
+			$file = $this->local_media_path( $key, (string) ( $row['local_path'] ?? '' ) );
+			if ( '' !== $file ) {
+				nocache_headers();
+				header( 'Content-Type: ' . ( '' !== $mime ? $mime : 'application/octet-stream' ) );
+				header( 'Content-Length: ' . (string) filesize( $file ) );
+				header( 'Content-Disposition: ' . $this->attachment_disposition( $name ) );
+				header( 'X-Content-Type-Options: nosniff' );
+				readfile( $file ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_readfile -- Streams an already validated uploads file.
+				exit;
+			}
+		}
+
+		if ( ! empty( $row['seen_remote'] ) ) {
+			$url = $this->adapter->presigned_url( $key, '+10 minutes', $this->attachment_disposition( $name ), $mime );
+			if ( '' !== $url ) {
+				wp_redirect( $url, 302, 'Sakura Tools' ); // phpcs:ignore WordPress.Security.SafeRedirect.wp_redirect_wp_redirect -- Signed URL is generated from the configured bucket.
+				exit;
+			}
+		}
+
+		wp_die( esc_html__( '本地与云端都找不到这个文件，请重新核对后再试。', 'sakura-imgopt' ), 404 );
+	}
+
+	/**
+	 * Add browser preview and download metadata to index rows.
+	 *
+	 * @param array<int,array<string,mixed>> $rows Index rows.
+	 * @return array<int,array<string,mixed>>
+	 */
+	private function decorate_rows( array $rows ): array {
+		$options     = (array) $this->options->all();
+		$upload_path = trim( (string) $this->options->upload_path(), '/' );
+		$uploads     = wp_upload_dir( null, false );
+		$upload_dir  = wp_normalize_path( (string) ( $uploads['basedir'] ?? '' ) );
+		$content_dir = wp_normalize_path( WP_CONTENT_DIR );
+		if ( '' !== $upload_dir && 0 === strpos( $upload_dir, $content_dir ) ) {
+			$local_base = untrailingslashit( content_url( substr( $upload_dir, strlen( $content_dir ) ) ) );
+		} else {
+			$local_base = untrailingslashit( content_url( '/uploads' ) );
+		}
+		$cloud_base  = untrailingslashit( (string) ( $options['upload_url_path'] ?? '' ) );
+		$public      = 'public-read' === $this->options->object_acl();
+
+		foreach ( $rows as $index => $row ) {
+			$rows[ $index ]['preview'] = $this->preview_payload( $row, $upload_path, $local_base, $cloud_base, $public );
+		}
+
+		return $rows;
+	}
+
+	/**
+	 * Build the payload consumed by admin.ui.mediaPreview().
+	 *
+	 * @param array<string,mixed> $row         Index row.
+	 * @param string              $upload_path Object key prefix.
+	 * @param string              $local_base  Local uploads URL base.
+	 * @param string              $cloud_base  Public CDN URL base.
+	 * @param bool                $public      Whether objects are public-read.
+	 * @return array<string,mixed>
+	 */
+	private function preview_payload( array $row, string $upload_path, string $local_base, string $cloud_base, bool $public ): array {
+		$key      = (string) ( $row['key'] ?? '' );
+		$name     = (string) ( $row['name'] ?? wp_basename( $key ) );
+		$path     = (string) ( $row['path'] ?? $key );
+		$kind     = (string) ( $row['type'] ?? Kind::of( $key ) );
+		$status   = (string) ( $row['status'] ?? 'synced' );
+		$local    = ! empty( $row['local'] );
+		$cloud    = ! empty( $row['cloud'] );
+		$mtime    = (int) ( $row['mtime'] ?? 0 );
+		$filetype = wp_check_filetype( $name );
+		$mime     = (string) ( $filetype['type'] ?? '' );
+		$size     = $local ? (int) ( $row['size'] ?? 0 ) : (int) ( $row['cloud_size'] ?? 0 );
+		$size     = $size > 0 ? $size : max( (int) ( $row['size'] ?? 0 ), (int) ( $row['cloud_size'] ?? 0 ) );
+
+		$url = '';
+		if ( in_array( $kind, array( 'image', 'video' ), true ) ) {
+			if ( $local ) {
+				$url = $this->local_media_url( $key, $upload_path, $local_base );
+			}
+			if ( '' === $url && $cloud ) {
+				$url = ( $public && '' !== $cloud_base )
+					? $this->cloud_media_url( $key, $upload_path, $cloud_base )
+					: $this->adapter->presigned_url( $key, '+1 hour', '', $mime );
+			}
+		}
+
+		$kind_labels = array(
+			'image'   => __( '图片', 'sakura-imgopt' ),
+			'video'   => __( '视频', 'sakura-imgopt' ),
+			'archive' => __( '压缩包', 'sakura-imgopt' ),
+			'other'   => __( '文件', 'sakura-imgopt' ),
+		);
+		$status_labels = array(
+			'synced'   => __( '已同步', 'sakura-imgopt' ),
+			'pending'  => __( '待上传', 'sakura-imgopt' ),
+			'failed'   => __( '同步失败', 'sakura-imgopt' ),
+			'remote'   => __( '仅云端', 'sakura-imgopt' ),
+			'mismatch' => __( '内容不一致', 'sakura-imgopt' ),
+		);
+
+		return array(
+			'key'          => $key,
+			'name'         => $name,
+			'path'         => '' !== $key ? $key : $path,
+			'kind'         => $kind,
+			'kind_label'   => $kind_labels[ $kind ] ?? $kind_labels['other'],
+			'mime'         => $mime,
+			'ext'          => strtoupper( (string) pathinfo( $name, PATHINFO_EXTENSION ) ),
+			'status'       => $status,
+			'status_label' => $status_labels[ $status ] ?? $status,
+			'size'         => $size,
+			'size_label'   => Inventory::format_bytes( $size ),
+			'mtime'        => $mtime,
+			'mtime_label'  => $mtime ? wp_date( 'Y/m/d H:i', $mtime ) : '—',
+			'local'        => $local,
+			'cloud'        => $cloud,
+			'url'          => $url,
+			'download'     => wp_nonce_url(
+				add_query_arg(
+					array(
+						'action' => 'sakura_s3_media_download',
+						'key'    => $key,
+					),
+					admin_url( 'admin-post.php' )
+				),
+				'sakura_s3_media_download'
+			),
+		);
+	}
+
+	/**
+	 * Resolve an object key to its local uploads URL.
+	 *
+	 * @param string $key         Object key.
+	 * @param string $upload_path Object key prefix.
+	 * @param string $base        Local uploads URL base.
+	 */
+	private function local_media_url( string $key, string $upload_path, string $base ): string {
+		if ( '' === $base ) {
+			return '';
+		}
+
+		$relative = $this->relative_media_path( $key, $upload_path );
+		if ( '' === $relative ) {
+			return '';
+		}
+
+		return trailingslashit( $base ) . implode( '/', array_map( 'rawurlencode', explode( '/', $relative ) ) );
+	}
+
+	/**
+	 * Resolve an object key to its public CDN URL.
+	 *
+	 * @param string $key         Object key.
+	 * @param string $upload_path Object key prefix.
+	 * @param string $base        Public URL base.
+	 */
+	private function cloud_media_url( string $key, string $upload_path, string $base ): string {
+		if ( '' === $base ) {
+			return '';
+		}
+
+		$relative = $this->relative_media_path( $key, $upload_path );
+		if ( '' === $relative ) {
+			return '';
+		}
+
+		return trailingslashit( $base ) . implode( '/', array_map( 'rawurlencode', explode( '/', $relative ) ) );
+	}
+
+	/**
+	 * Strip the configured uploads prefix from an object key.
+	 *
+	 * @param string $key         Object key.
+	 * @param string $upload_path Object key prefix.
+	 */
+	private function relative_media_path( string $key, string $upload_path ): string {
+		$key = ltrim( $key, '/' );
+		if ( '' === $key ) {
+			return '';
+		}
+		if ( '' !== $upload_path && ( $key === $upload_path || 0 === strpos( $key, $upload_path . '/' ) ) ) {
+			return ltrim( substr( $key, strlen( $upload_path ) ), '/' );
+		}
+
+		return $key;
+	}
+
+	/**
+	 * Resolve a row's local filesystem path, restricted to the uploads tree.
+	 *
+	 * @param string $key        Object key.
+	 * @param string $local_path Stored local path.
+	 */
+	private function local_media_path( string $key, string $local_path ): string {
+		$path = '' !== $local_path ? $local_path : $key;
+		if ( '' === $path || false !== strpos( $path, '..' ) ) {
+			return '';
+		}
+
+		$uploads = wp_upload_dir( null, false );
+		$base    = trailingslashit( wp_normalize_path( (string) ( $uploads['basedir'] ?? '' ) ) );
+		if ( '' === $base ) {
+			return '';
+		}
+
+		if ( '/' !== $path[0] ) {
+			$prefix = trim( (string) $this->options->upload_path(), '/' );
+			if ( '' !== $prefix && 0 === strpos( $path, $prefix . '/' ) ) {
+				$path = substr( $path, strlen( $prefix ) + 1 );
+			}
+			$path = $base . ltrim( $path, '/' );
+		}
+
+		$real = realpath( $path );
+		$root = realpath( $base );
+		if ( false === $real || false === $root || 0 !== strpos( $real, untrailingslashit( $root ) . '/' ) ) {
+			return '';
+		}
+
+		return is_file( $real ) && is_readable( $real ) ? $real : '';
+	}
+
+	/**
+	 * Build a safe attachment disposition for a possibly non-ASCII name.
+	 *
+	 * @param string $name File name.
+	 */
+	private function attachment_disposition( string $name ): string {
+		$name     = str_replace( array( "\r", "\n" ), '', $name );
+		$fallback = (string) preg_replace( '/[^\x20-\x7E]/', '_', $name );
+		$fallback = str_replace( array( '\\', '"' ), '_', $fallback );
+		if ( '' === $fallback ) {
+			$fallback = 'download';
+		}
+
+		return 'attachment; filename="' . $fallback . '"; filename*=UTF-8\'\'' . rawurlencode( $name );
+	}
+
+	/**
 	 * Build view data from the cached snapshot and live sync state.
 	 *
 	 * @return array<string,mixed>
@@ -1560,6 +1841,8 @@ final class Sync_Center_Module implements Module {
 			}
 		);
 		$logs = array_slice( $logs, 0, 100 );
+
+		$rows = $this->decorate_rows( $rows );
 
 		return array(
 			'snapshot'     => $snapshot,

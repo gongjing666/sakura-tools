@@ -208,6 +208,7 @@
 - 分段控件、日志筛选允许换行；不要用横向滚动藏按钮。
 - 表格用 `.table-wrap` 内部滚动，页面本身不横溢。桌面的固定列宽在 ≤782px 必须重置为 `width:auto; min-width:0`。
 - 内容型表格（审核队列、授权流水、套餐编辑器）在窄屏重排为带标签的行：数据行用 `data-label` + `::before` 显示列名，表头隐藏；空标签 `data-label=""` 的单元格保持块级，不加冒号。
+- 审核队列在 ≤782px 不用默认的 92px 标签沟槽，改成「标签 | 值」两行式紧凑列举：行用 `display:grid; gap:9px; padding:14px 0`，单元格是 `grid-template-columns: 62px minmax(0,1fr)` + `align-items:baseline`，列名 12.5px `--g-muted`（不是 11.5px 的暗淡眉标），用户 ID 与大小这类补充行升到 12.5px `--g-muted`。操作行 `grid-template-columns: minmax(0,1fr)`、隐藏 `::before`、上方 1px `--g-line-soft` 分隔线，按钮靠右、高 34px、字 13px。没有操作的行（`td.queue-cell.is-empty`，由 JS 打标）整行隐藏，不要在卡片里留一条孤零零的「—」。验收：390 下每行信息区首行顶到卡片左内边距，按钮右缘等于单元格右缘，320 不横向溢出。
 - 桌面顶栏是三列 grid：品牌左、模块导航绝对居中、状态/动作右；导航中心必须等于页面内容中心，不能被左侧品牌文字宽度推偏。≤1100px 回到 flex-wrap，品牌与状态一行、模块导航整行另起。≤660px 收成「品牌 + 状态」一行；≤340px 隐藏长状态胶囊，避免挤成三行。
 
 ## 8. 常见坑
@@ -367,6 +368,7 @@
 - [ ] 移动端标题区换行、按钮不挤、页面不横溢。
 - [ ] 页签单行完整，最后一个页签在 320px 也不被裁切。
 - [ ] 窄屏内容型表格已重排为带 `data-label` 的行，没有 860px 宽的隐藏溢出。
+- [ ] 审核队列 ≤782px 是「标签 | 值」紧凑两列列表，列名 12.5px 且看得清，操作行靠右且与信息区有分隔线，无操作行不显示空的「—」行。
 - [ ] 每张可编辑卡片是独立表单，表单内有 `Card_Form::fields()`（单数组 option 用 `option_fields()`）标记，点保存只写本卡；未勾选的 checkbox 能保存为 0；页面没有 `.page-savebar` 或浮动保存条残留。
 - [ ] 页面骨架、卡片、表单壳和保存条来自 `UI::page()` / `UI::card()`，视图没有手写这些骨架。
 - [ ] 页面只加载 `assets/ui/` 的 tokens/base/components（可选 layout）和对应 `pages/*.css`，没有旧 `admin-*.css` / `userfiles-admin.*`。

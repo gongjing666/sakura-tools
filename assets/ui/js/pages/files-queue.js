@@ -417,6 +417,7 @@
 				return node;
 			}
 
+			node.classList.add( 'is-empty' );
 			node.appendChild( el( 'span', 'text-muted', strings.noActions || '—' ) );
 			return node;
 		}

@@ -6,7 +6,7 @@
 
 图片压缩 · 缩略图治理 · S3 对象存储 · 同步索引 · 用户文件空间
 
-[![版本](https://img.shields.io/badge/version-1.25.1-e85d8b?style=flat-square)](https://github.com/gongjing666/sakura-tools/releases/latest)
+[![版本](https://img.shields.io/badge/version-1.25.2-e85d8b?style=flat-square)](https://github.com/gongjing666/sakura-tools/releases/latest)
 [![PHPUnit](https://img.shields.io/badge/PHPUnit-10.5-4c1?style=flat-square)](https://github.com/gongjing666/sakura-tools/actions/workflows/tests.yml)
 [![PHPStan](https://img.shields.io/badge/PHPStan-level%205-4c1?style=flat-square)](https://github.com/gongjing666/sakura-tools/actions/workflows/phpstan.yml)
 ![WordPress](https://img.shields.io/badge/WordPress-6.4%2B-21759b?style=flat-square&logo=wordpress&logoColor=white)
@@ -40,6 +40,7 @@
 
 ## 最近更新
 
+- **1.25.2** — 修复「文件核对」卡片点筛选后样式错乱：卡片正文是 grid 且未设 `align-content`，行被拉伸填满卡片，行数从 7 行变成 1 行后上下出现大片空白；反过来行数变多时卡片不重新测量，会压住下面的日志卡片。给正文加 `align-content: start`，并在表格换行、日志筛选与「显示更多」之后发 `layout-refresh` 让画布重新测量。实测工具栏恒 38px、卡片 409 / 886px 随内容切换、与下一张卡间距恒 18px。
 - **1.25.1** — 后台加载提速：插件自己的后台页面不再加载 WordPress 6.9+ 的命令面板（`wp-commands` / `wp-core-commands`），单页传输从约 1.06 MB 降到 76–85 KB，`wp-includes/js/dist` 脚本从 45 个降到 3 个，切页可交互时间从 3.0–3.6 s 降到 0.7–1.4 s。卸载只在四个模块的 13 个页签与隐藏的批量进度页生效，其余后台页面（含区块编辑器）保持原样。
 - **1.25.0** — 后台界面整体重构：13 个页签统一到一套 UI 栈（令牌、页面骨架、卡片、控件、按页加载），新增「系统设置」页（运行时 / 引擎 / 自检 / 扩展 / 布局五卡，可调卡片表面色、圆角与边框），删除 12 个旧后台资源文件与「基础设置」视图；附件核对新增媒体预览弹窗（图片预览 + 下载、视频自绘控件、压缩包仅下载），删除队列文件浏览移入操作列。不改数据表与 REST 路由。
 - **1.24.4** — 覆盖升级自愈：不经过启用流程的升级会在首次请求补跑激活例程（建表、排程、索引回填），同版本 / 降级跳过，失败不阻塞前台；同时修正文档与图谱的钩子、类、测试与文件计数。
@@ -96,7 +97,7 @@ flowchart LR
 | 兼容层 | `includes/`、`includes/views/` | 旧实现与后台模板，仍由启动流程加载，不能盲删 |
 
 <details>
-<summary><strong>代码规模与仓库结构（1.25.1）</strong></summary>
+<summary><strong>代码规模与仓库结构（1.25.2）</strong></summary>
 
 | 指标 | 数值 |
 | --- | --- |
@@ -257,12 +258,12 @@ git clone https://github.com/gongjing666/sakura-tools.git
 
 ## 文档与代码结构
 
-当前版本 1.25.1 的分析产物：
+当前版本 1.25.2 的分析产物：
 
 | 文档 | 内容 |
 | --- | --- |
-| [代码结构文档](docs/sakura-tools-代码结构-1.25.1.md) | 文件树、类职责、调用关系、运行期验证与待确认项，按“结构 → 职责 → 关系 → 验证”组织 |
-| [图谱同步说明](docs/sakura-tools-图谱同步-1.25.1.md) | 3D 图谱的节点 / 连线口径、生成方式与每轮更新记录 |
+| [代码结构文档](docs/sakura-tools-代码结构-1.25.2.md) | 文件树、类职责、调用关系、运行期验证与待确认项，按“结构 → 职责 → 关系 → 验证”组织 |
+| [图谱同步说明](docs/sakura-tools-图谱同步-1.25.2.md) | 3D 图谱的节点 / 连线口径、生成方式与每轮更新记录 |
 | [3D 图谱静态页](docs/graph-preview/index.html) | 模块与类的关系图；GitHub 不执行页面脚本，克隆后用浏览器打开 |
 | [DECISIONS.md](DECISIONS.md) | 关键设计取舍与已知边界 |
 | [DEVELOPMENT.md](DEVELOPMENT.md) | 历史开发记录；文件结构章节停在 1.3.3，现状以代码结构文档为准 |
@@ -297,7 +298,7 @@ composer lint:strict
 本地构建（默认当前 HEAD）：
 
 ```bash
-bin/build-plugin-zip.sh --version 1.25.1 --out dist
+bin/build-plugin-zip.sh --version 1.25.2 --out dist
 ```
 
 补建历史版本包：

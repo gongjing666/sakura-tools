@@ -138,7 +138,17 @@
 		 * Scan, refresh, cancel, resume, retry, index toggle and connection test.
 		 * ----------------------------------------------------------------- */
 
-		function initTools() {
+	/* The cards live on an absolute pixel canvas (layout.js freeLayout), so any
+	 * change in the row count inside a card has to be measured again: the height
+	 * is written onto the card, and a stale height either spreads the content out
+	 * over empty bands or lets one card sit on top of the next. */
+	function notifyLayout() {
+		if ( admin.events ) {
+			admin.events.emit( 'layout-refresh' );
+		}
+	}
+
+	function initTools() {
 			var scanBusy      = false;
 			var scanPollToken = 0;
 
@@ -1276,6 +1286,12 @@
 				if ( table ) {
 					admin.ui.labelTables( table );
 				}
+				/* The table can drop from seven rows to one (filters, search,
+				 * page size, paging). The cards sit on an absolute pixel canvas, so
+				 * their measured height has to be taken again or the card keeps the
+				 * old height and the next card either floats far below or is
+				 * covered. */
+				notifyLayout();
 			}
 
 			function setFilter( value ) {
@@ -1462,6 +1478,10 @@
 						other.classList.toggle( 'is-active', other === chip );
 					} );
 					render();
+					/* Showing every entry even when the level filter is off grows
+					 * the card by a row or two: re-measure or the card ends below
+					 * the canvas the footer is positioned against. */
+					notifyLayout();
 				} );
 			} );
 
@@ -1469,6 +1489,7 @@
 				admin.on( moreButton, 'click', function () {
 					visible += 6;
 					render();
+					notifyLayout();
 				} );
 			}
 

@@ -274,8 +274,6 @@ $sakura_sync_cards = static function () use (
 	$scan_label,
 	$scan_running,
 	$scan_resumable,
-	$scan_phase_label,
-	$scan_processed,
 	$coverage,
 	$synced,
 	$total,
@@ -326,7 +324,6 @@ $sakura_sync_cards = static function () use (
 	$summary_text,
 	$missing_media,
 	$export_url,
-	$action_nonce,
 	$status_labels,
 	$status_tones,
 	$logs,
@@ -402,7 +399,7 @@ $sakura_sync_cards = static function () use (
 				'title'       => __( '任务中心', 'sakura-imgopt' ),
 				'description' => __( '核对、重试与补传都从这里开始；失败任务保留错误与重试次数。', 'sakura-imgopt' ),
 			),
-			static function () use ( $scan_tone, $scan_state, $scan_state_label, $scan_meta_text, $scan_label, $scan_running, $scan_resumable, $scan_phase_label, $scan_processed, $coverage, $synced, $total, $local_files, $cloud_objects, $difference, $index_enabled, $scan_nonce, $refresh_nonce, $retry_nonce, $failed_total, $activity, $activity_max, $activity_ok, $activity_bad, $pending, $failed_count, $remote ): void {
+			static function () use ( $scan_tone, $scan_state, $scan_state_label, $scan_meta_text, $scan_running, $scan_resumable, $coverage, $synced, $total, $local_files, $cloud_objects, $difference, $index_enabled, $scan_nonce, $refresh_nonce, $retry_nonce, $failed_total, $activity, $activity_max, $activity_ok, $activity_bad ): void {
 				?>
 				<div class="task-summary">
 					<div class="task-summary__head">
@@ -575,7 +572,7 @@ $sakura_sync_cards = static function () use (
 					),
 				),
 			),
-			static function () use ( $total, $pending, $failed_count, $remote, $mismatch, $synced, $rows, $page_cursor, $page_more, $page_size, $summary_text, $status_labels, $status_tones, $type_labels ): void {
+			static function () use ( $total, $pending, $failed_count, $remote, $mismatch, $synced, $rows, $page_cursor, $page_more, $page_size, $summary_text, $status_labels, $status_tones ): void {
 				?>
 				<div class="recon-toolbar">
 					<div class="filter-chips" role="tablist" aria-label="<?php esc_attr_e( '差异筛选', 'sakura-imgopt' ); ?>">

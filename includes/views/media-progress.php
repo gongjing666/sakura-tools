@@ -31,8 +31,8 @@ $processed = $has_queue ? max( 0, (int) ( $queue['processed'] ?? 0 ) ) : 0;
 $success   = $has_queue ? max( 0, (int) ( $queue['success'] ?? 0 ) ) : 0;
 $fail      = $has_queue ? max( 0, (int) ( $queue['fail'] ?? 0 ) ) : 0;
 $skipped   = $has_queue ? max( 0, (int) ( $queue['skipped'] ?? 0 ) ) : 0;
-$mode      = $has_queue && 'restore' === ( $queue['mode'] ?? '' ) ? 'restore' : 'optimize';
-$mode_text = 'restore' === $mode ? __( '还原', 'sakura-imgopt' ) : __( '优化', 'sakura-imgopt' );
+$run_mode  = $has_queue && 'restore' === ( $queue['mode'] ?? '' ) ? 'restore' : 'optimize';
+$mode_text = 'restore' === $run_mode ? __( '还原', 'sakura-imgopt' ) : __( '优化', 'sakura-imgopt' );
 $percent   = $total > 0 ? min( 100, (int) round( $processed / $total * 100 ) ) : 0;
 
 UI::page(
@@ -66,7 +66,7 @@ UI::page(
 			),
 		),
 	),
-	function () use ( $has_queue, $total, $processed, $success, $fail, $skipped, $mode, $mode_text, $percent, $batch_size, $delay ) {
+	function () use ( $has_queue, $total, $processed, $success, $fail, $skipped, $run_mode, $mode_text, $percent, $batch_size, $delay ) {
 		if ( ! $has_queue ) {
 			UI::card(
 				array(
@@ -90,7 +90,7 @@ UI::page(
 			return;
 		}
 
-		if ( 'restore' === $mode && $skipped > 0 ) {
+		if ( 'restore' === $run_mode && $skipped > 0 ) {
 			UI::alert(
 				sprintf(
 					/* translators: %s: number of skipped attachments. */
@@ -110,6 +110,10 @@ UI::page(
 				'description' => __( '任务参数在发起批量处理时确定，刷新页面或重试不会改变队列。', 'sakura-imgopt' ),
 			),
 			static function () use ( $total, $mode_text, $batch_size, $delay ) {
+				/* translators: %s: number of images per batch. */
+				$batch_text = sprintf( __( '每批 %1$s 张', 'sakura-imgopt' ), number_format_i18n( max( 1, (int) $batch_size ) ) );
+				/* translators: %s: delay in milliseconds between batches. */
+				$delay_text = sprintf( __( '，间隔 %s ms', 'sakura-imgopt' ), number_format_i18n( max( 0, (int) $delay ) ) );
 				?>
 				<div class="task-facts">
 					<div class="task-fact">
@@ -122,7 +126,7 @@ UI::page(
 					</div>
 					<div class="task-fact">
 						<span class="task-fact__label"><?php echo esc_html__( '节奏', 'sakura-imgopt' ); ?></span>
-						<strong class="task-fact__value"><?php echo esc_html( sprintf( (string) __( '每批 %1$s 张', 'sakura-imgopt' ), number_format_i18n( max( 1, (int) $batch_size ) ) ) ); ?><small><?php echo esc_html( sprintf( (string) __( '，间隔 %s ms', 'sakura-imgopt' ), number_format_i18n( max( 0, (int) $delay ) ) ) ); ?></small></strong>
+						<strong class="task-fact__value"><?php echo esc_html( $batch_text ); ?><small><?php echo esc_html( $delay_text ); ?></small></strong>
 					</div>
 				</div>
 				<?php
@@ -137,7 +141,7 @@ UI::page(
 				'title'       => __( '处理进度', 'sakura-imgopt' ),
 				'description' => __( '进度会自动推进；网络中断时可以在这里重试，剩余的图片仍会继续处理。', 'sakura-imgopt' ),
 			),
-			static function () use ( $total, $processed, $success, $fail, $skipped, $percent, $mode, $mode_text ) {
+			static function () use ( $total, $processed, $success, $fail, $skipped, $percent, $run_mode, $mode_text ) {
 				$initial_status = $processed > 0
 					? sprintf(
 						/* translators: 1: processed count, 2: total count. */
@@ -159,7 +163,7 @@ UI::page(
 					data-success="<?php echo esc_attr( (string) $success ); ?>"
 					data-fail="<?php echo esc_attr( (string) $fail ); ?>"
 					data-skipped="<?php echo esc_attr( (string) $skipped ); ?>"
-					data-mode="<?php echo esc_attr( $mode ); ?>"
+					data-mode="<?php echo esc_attr( $run_mode ); ?>"
 					data-verb="<?php echo esc_attr( $mode_text ); ?>"
 				>
 					<div class="progress-panel__head">

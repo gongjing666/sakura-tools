@@ -5,6 +5,15 @@
  * All values are read from the active theme at runtime. This view never writes
  * theme options: the only forms post to the plugin's own option groups.
  *
+ * Included from \Nboke\UserFiles\Admin\Space_Page::render(), which provides:
+ *
+ * @var array<string,mixed> $settings         Sanitised sufm_space_settings.
+ * @var \Nboke\UserFiles\Services\Zibll_Bridge $bridge Theme gate.
+ * @var array<string,mixed> $breakdown_for_me Derived quota breakdown of the current user.
+ * @var array<string,mixed> $entry_status     Gate / switch snapshot.
+ *
+ * $files_enabled and $files_entry are covered by the phpstan.neon view rule.
+ *
  * @package Sakura_Image_Optimizer
  */
 
@@ -69,7 +78,7 @@ $sufm_space_size = static function ( $bytes ): string {
 	return (string) size_format( max( 0, (int) $bytes ) );
 };
 
-$sufm_space_format_mb = static function ( $mb ) use ( $sufm_space_size ): string {
+$sufm_space_format_mb = static function ( $mb ): string {
 	$mb = (float) $mb;
 	if ( $mb <= 0 ) {
 		return '0 ' . __( 'MB', 'sakura-imgopt' );
@@ -322,7 +331,7 @@ UI::page(
 			'tone'  => $sufm_space_ready === $sufm_space_cap_total ? 'ok' : ( $sufm_space_ready >= 5 ? 'warn' : 'bad' ),
 		),
 	),
-	static function () use ( $sufm_space_option, $sufm_space_caps, $sufm_space_caps_state, $sufm_space_theme, $sufm_space_theme_methods, $sufm_space_allowed, $sufm_space_points_on, $sufm_space_methods_ready, $sufm_space_size, $sufm_space_format_mb, $sufm_space_check, $sufm_space_switch, $sufm_space_bd, $sufm_space_override, $sufm_space_levels, $sufm_space_level_max, $sufm_space_level_total_mb, $sufm_space_vip_rows, $sufm_space_vip_total_mb, $sufm_space_rule, $sufm_space_rule_on, $sufm_space_packages, $sufm_space_points, $sufm_space_ppkgs, $sufm_space_icon, $sufm_space_default_icon, $sufm_space_pay_rate, $sufm_space_cheapest, $sufm_space_points_per_gb, $sufm_space_far, $sufm_space_today_gb, $sufm_space_today_count, $sufm_space_entry_theme, $sufm_space_entry_label, $sufm_space_entry_url, $sufm_space_is_generic, $sufm_space_cash_row, $sufm_space_points_row, $entry_status, $files_enabled, $files_entry ) {
+	static function () use ( $sufm_space_option, $sufm_space_caps, $sufm_space_caps_state, $sufm_space_theme, $sufm_space_theme_methods, $sufm_space_allowed, $sufm_space_points_on, $sufm_space_methods_ready, $sufm_space_size, $sufm_space_format_mb, $sufm_space_check, $sufm_space_switch, $sufm_space_bd, $sufm_space_override, $sufm_space_levels, $sufm_space_level_max, $sufm_space_level_total_mb, $sufm_space_vip_rows, $sufm_space_vip_total_mb, $sufm_space_rule, $sufm_space_rule_on, $sufm_space_packages, $sufm_space_points, $sufm_space_ppkgs, $sufm_space_icon, $sufm_space_default_icon, $sufm_space_pay_rate, $sufm_space_cheapest, $sufm_space_points_per_gb, $sufm_space_far, $sufm_space_today_gb, $sufm_space_today_count, $sufm_space_entry_theme, $sufm_space_entry_label, $sufm_space_entry_url, $sufm_space_is_generic, $sufm_space_cash_row, $sufm_space_points_row, $entry_status, $files_enabled ) {
 		settings_errors();
 		?>
 		<div class="card-grid" data-sakura-layout="files-space" data-sakura-group="main">
@@ -341,7 +350,7 @@ UI::page(
 					'description' => __( '本页所有数值都在运行时读取主题，不写死任何主题侧的名称或价格。', 'sakura-imgopt' ),
 					'wide'        => true,
 				),
-				static function () use ( $sufm_space_caps, $sufm_space_caps_state, $sufm_space_theme, $sufm_space_theme_methods, $sufm_space_allowed, $sufm_space_points_on, $sufm_space_methods_ready, $sufm_space_size, $sufm_space_bd, $sufm_space_override ) {
+				static function () use ( $sufm_space_caps, $sufm_space_caps_state, $sufm_space_theme, $sufm_space_points_on, $sufm_space_methods_ready, $sufm_space_size, $sufm_space_bd, $sufm_space_override ) {
 					?>
 					<div class="zibll-diag-grid">
 						<section class="zibll-block" aria-labelledby="zibll-theme-title">
@@ -396,14 +405,14 @@ UI::page(
 						<h3 class="zibll-block__title" id="zibll-breakdown-title"><?php esc_html_e( '我的派生容量', 'sakura-imgopt' ); ?></h3>
 						<dl class="zibll-meta zibll-meta--wide">
 							<div><dt><?php esc_html_e( '基础', 'sakura-imgopt' ); ?></dt><dd><?php echo esc_html( $sufm_space_size( $sufm_space_bd( 'base' ) ) ); ?></dd></div>
-							<div><dt><?php esc_html_e( '等级加成', 'sakura-imgopt' ); ?></dt><dd><?php echo esc_html( sprintf( __( 'LV%1$s · %2$s', 'sakura-imgopt' ), $sufm_space_bd( 'level' ), $sufm_space_size( $sufm_space_bd( 'level_bytes' ) ) ) ); ?></dd></div>
-							<div><dt><?php esc_html_e( 'VIP 加成', 'sakura-imgopt' ); ?></dt><dd><?php echo esc_html( sprintf( __( 'vip_level=%1$s · %2$s', 'sakura-imgopt' ), $sufm_space_bd( 'vip' ), $sufm_space_size( $sufm_space_bd( 'vip_bytes' ) ) ) ); ?></dd></div>
+							<div><dt><?php esc_html_e( '等级加成', 'sakura-imgopt' ); ?></dt><dd><?php echo esc_html( sprintf( /* translators: 1: theme level number, 2: capacity granted by that level. */ __( 'LV%1$s · %2$s', 'sakura-imgopt' ), $sufm_space_bd( 'level' ), $sufm_space_size( $sufm_space_bd( 'level_bytes' ) ) ) ); ?></dd></div>
+							<div><dt><?php esc_html_e( 'VIP 加成', 'sakura-imgopt' ); ?></dt><dd><?php echo esc_html( sprintf( /* translators: 1: zibll vip level number, 2: capacity granted by that VIP level. */ __( 'vip_level=%1$s · %2$s', 'sakura-imgopt' ), $sufm_space_bd( 'vip' ), $sufm_space_size( $sufm_space_bd( 'vip_bytes' ) ) ) ); ?></dd></div>
 							<div><dt><?php esc_html_e( '已购', 'sakura-imgopt' ); ?></dt><dd><?php echo esc_html( $sufm_space_size( $sufm_space_bd( 'granted_bytes' ) ) ); ?></dd></div>
 							<div><dt><?php esc_html_e( '计算值', 'sakura-imgopt' ); ?></dt><dd><?php echo esc_html( $sufm_space_size( $sufm_space_bd( 'computed' ) ) ); ?></dd></div>
 							<div><dt><?php esc_html_e( '单独设定', 'sakura-imgopt' ); ?></dt><dd><?php echo null === $sufm_space_override || '' === $sufm_space_override ? esc_html__( '未设定', 'sakura-imgopt' ) : esc_html( $sufm_space_size( $sufm_space_override ) ); ?></dd></div>
 							<div><dt><?php esc_html_e( '最终生效', 'sakura-imgopt' ); ?></dt><dd><strong><?php echo esc_html( $sufm_space_size( $sufm_space_bd( 'final' ) ) ); ?></strong></dd></div>
 						</dl>
-						<p class="zibll-muted"><?php echo esc_html( sprintf( __( '封顶语义：%s', 'sakura-imgopt' ), 'replace' === (string) $sufm_space_bd( 'mode', 'cap' ) ? __( '替换（replace）· 单独设定直接覆盖计算值', 'sakura-imgopt' ) : __( '封顶（cap）· 实际容量 = min(单独设定, 计算值)', 'sakura-imgopt' ) ) ); ?></p>
+						<p class="zibll-muted"><?php echo esc_html( sprintf( /* translators: %s: how the final quota is derived from the override and the computed value. */ __( '封顶语义：%s', 'sakura-imgopt' ), 'replace' === (string) $sufm_space_bd( 'mode', 'cap' ) ? __( '替换（replace）· 单独设定直接覆盖计算值', 'sakura-imgopt' ) : __( '封顶（cap）· 实际容量 = min(单独设定, 计算值)', 'sakura-imgopt' ) ) ); ?></p>
 					</section>
 					<?php
 				}
@@ -497,7 +506,7 @@ UI::page(
 					),
 					'save'        => __( '保存入口设置', 'sakura-imgopt' ),
 				),
-				static function () use ( $files_enabled, $files_entry, $sufm_space_entry_theme, $sufm_space_entry_label, $sufm_space_entry_url, $sufm_space_is_generic, $sufm_space_switch ) {
+				static function () use ( $files_enabled, $sufm_space_entry_theme, $sufm_space_entry_label, $sufm_space_entry_url, $sufm_space_is_generic, $sufm_space_switch ) {
 					?>
 					<div class="field field--full">
 						<div class="field__main">
@@ -712,6 +721,7 @@ UI::page(
 													'class'    => 'zibll-cell-field',
 													'attrs'    => array(
 														'data-zibll-mb' => 'level',
+														/* translators: %d: theme level number. */
 														'aria-label'    => sprintf( __( 'LV%d 加成（MB）', 'sakura-imgopt' ), $sufm_space_row['level'] ),
 													),
 												)
@@ -859,7 +869,8 @@ UI::page(
 										'min'   => 1,
 										'step'  => 1,
 										'hint'  => $sufm_space_pay_rate > 0
-											? sprintf( __( '约 %s 元/GB（主题汇率 %s 积分 = 1 元）。', 'sakura-imgopt' ), number_format_i18n( $sufm_space_pay_rate > 0 ? $sufm_space_points_per_gb / $sufm_space_pay_rate : 0, 2 ), number_format_i18n( $sufm_space_pay_rate, 2 ) )
+											/* translators: 1: price in currency per GB, 2: points per currency unit from the theme. */
+											? sprintf( __( '约 %1$s 元/GB（主题汇率 %2$s 积分 = 1 元）。', 'sakura-imgopt' ), number_format_i18n( $sufm_space_pay_rate > 0 ? $sufm_space_points_per_gb / $sufm_space_pay_rate : 0, 2 ), number_format_i18n( $sufm_space_pay_rate, 2 ) )
 											: __( '未取到主题积分汇率（pay_points_rate）。', 'sakura-imgopt' ),
 									)
 								);
@@ -919,12 +930,12 @@ UI::page(
 							<?php if ( null === $sufm_space_cheapest || $sufm_space_cheapest <= 0 ) : ?>
 								<p class="zibll-muted"><?php esc_html_e( '暂无可用现金套餐，无法比较。', 'sakura-imgopt' ); ?></p>
 							<?php else : ?>
-								<p><?php echo esc_html( sprintf( __( '最便宜现金套餐：%s 元/GB。', 'sakura-imgopt' ), number_format_i18n( $sufm_space_cheapest, 2 ) ) ); ?></p>
+								<p><?php echo esc_html( sprintf( /* translators: %s: lowest cash price per GB. */ __( '最便宜现金套餐：%s 元/GB。', 'sakura-imgopt' ), number_format_i18n( $sufm_space_cheapest, 2 ) ) ); ?></p>
 								<?php if ( $sufm_space_far ) : ?>
 									<p><strong><?php esc_html_e( '积分定价明显偏离现金价（超过 2 倍）。', 'sakura-imgopt' ); ?></strong></p>
 								<?php endif; ?>
 							<?php endif; ?>
-							<p class="zibll-muted"><?php echo esc_html( sprintf( __( '今日已兑换 %1$s GB / 上限 %2$s GB（%3$d 笔）。', 'sakura-imgopt' ), number_format_i18n( $sufm_space_today_gb, 2 ), number_format_i18n( max( 1, (int) $sufm_space_points['daily_cap_gb'] ) ), $sufm_space_today_count ) ); ?></p>
+							<p class="zibll-muted"><?php echo esc_html( sprintf( /* translators: 1: GB already redeemed today, 2: daily GB cap, 3: number of redemptions today. */ __( '今日已兑换 %1$s GB / 上限 %2$s GB（%3$d 笔）。', 'sakura-imgopt' ), number_format_i18n( $sufm_space_today_gb, 2 ), number_format_i18n( max( 1, (int) $sufm_space_points['daily_cap_gb'] ) ), $sufm_space_today_count ) ); ?></p>
 						</div>
 
 						<p class="zibll-muted"><?php esc_html_e( '套餐 ID 自动分配（A 为现金、P 为积分），删除后不复用；容量填 0 或价格/积分空着的行在保存时会被丢弃。', 'sakura-imgopt' ); ?></p>

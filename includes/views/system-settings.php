@@ -264,7 +264,7 @@ UI::page(
 			),
 		),
 	),
-	static function () use ( $score, $kpis, $runtime_rows, $engine_rows, $engine, $checks, $summary, $total_checks, $state_labels, $state_tone, $extensions, $gaps, $gaps_option, $gaps_max, $appearance, $appearance_option, $appearance_defaults, $appearance_width_min, $appearance_width_max, $appearance_border_max, $appearance_radius_max ) {
+	static function () use ( $score, $kpis, $runtime_rows, $engine_rows, $checks, $summary, $total_checks, $state_labels, $state_tone, $extensions, $gaps, $gaps_option, $gaps_max, $appearance, $appearance_option, $appearance_defaults, $appearance_width_min, $appearance_width_max, $appearance_border_max, $appearance_radius_max ) {
 		settings_errors();
 		?>
 		<section class="kpis" aria-label="<?php echo esc_attr__( '环境评分', 'sakura-imgopt' ); ?>">
@@ -335,7 +335,7 @@ UI::page(
 					'title'       => __( '图像引擎', 'sakura-imgopt' ),
 					'description' => __( 'WordPress 当前可用的图像处理能力；Imagick 优先，GD 作为回退。', 'sakura-imgopt' ),
 				),
-				static function () use ( $engine_rows, $engine ) {
+				static function () use ( $engine_rows ) {
 					?>
 					<div class="table-scroll">
 						<table class="table table--compact table--responsive">
@@ -353,7 +353,7 @@ UI::page(
 											<?php if ( '' !== (string) $row['value'] ) : ?>
 												<span class="system-value"><?php echo esc_html( (string) $row['value'] ); ?></span>
 											<?php endif; ?>
-											<?php foreach ( (array) ( $row['badges'] ?? array() ) as $badge ) : ?>
+											<?php foreach ( (array) $row['badges'] as $badge ) : ?>
 												<?php UI::badge( (string) $badge[0], (string) $badge[1] ); ?>
 											<?php endforeach; ?>
 										</td>

@@ -254,7 +254,7 @@ final class Delete_Queue_Panel {
 											<td class="cell-select" data-label="<?php esc_attr_e( '选择', 'sakura-imgopt' ); ?>"><input type="checkbox" name="ids[]" value="<?php echo esc_attr( (string) $row['id'] ); ?>" aria-label="<?php echo esc_attr( sprintf( /* translators: %s: object key. */ __( '选择 %s', 'sakura-imgopt' ), $sufm_key ) ); ?>" /></td>
 											<td data-label="<?php esc_attr_e( 'ID', 'sakura-imgopt' ); ?>"><span class="queue-id">#<?php echo esc_html( (string) $row['id'] ); ?></span></td>
 											<td data-label="<?php esc_attr_e( '对象', 'sakura-imgopt' ); ?>"><code class="queue-key" title="<?php echo esc_attr( $sufm_key ); ?>"><?php echo esc_html( $sufm_key ); ?></code></td>
-											<td data-label="<?php esc_attr_e( '状态', 'sakura-imgopt' ); ?>"><?php $ui::badge( $states[ $sufm_state_slug ] ?? $sufm_state_slug, $tones[ $sufm_state_slug ] ?? 'neutral' ); ?></td>
+											<td data-label="<?php esc_attr_e( '状态', 'sakura-imgopt' ); ?>"><?php $ui::badge( $this->state_label( $sufm_state_slug ), $tones[ $sufm_state_slug ] ?? 'neutral' ); ?></td>
 											<td data-label="<?php esc_attr_e( '尝试', 'sakura-imgopt' ); ?>" class="is-num"><?php echo esc_html( (string) (int) $row['attempts'] ); ?></td>
 											<td data-label="<?php esc_attr_e( '最后错误', 'sakura-imgopt' ); ?>"><span class="queue-error<?php echo '' !== $sufm_error ? '' : ' is-empty'; ?>" title="<?php echo esc_attr( $sufm_error ); ?>"><?php echo '' !== $sufm_error ? esc_html( $sufm_error ) : '—'; ?></span></td>
 											<td data-label="<?php esc_attr_e( '更新时间', 'sakura-imgopt' ); ?>"><span class="queue-time"><?php echo esc_html( (string) $row['updated_at'] ); ?></span></td>

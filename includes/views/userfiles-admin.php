@@ -394,14 +394,15 @@ UI::page(
 									foreach ( $group['fields'] as $field ) {
 										$key   = (string) $field['key'];
 										$value = (int) ( $settings[ $key ] ?? 0 );
-										if ( ! empty( $field['mb'] ) ) {
+										$is_mb = ! empty( $field['mb'] );
+										if ( $is_mb ) {
 											$value = round( $value / 1048576, 2 );
 										}
 										UI::field(
 											array(
 												'type'  => 'number',
 												'id'    => 'sufm-' . str_replace( '_', '-', $key ),
-												'name'  => 'sufm_settings[' . ( $field['mb'] ? $key . '_mb' : $key ) . ']',
+												'name'  => 'sufm_settings[' . ( $is_mb ? $key . '_mb' : $key ) . ']',
 												'label' => $field['label'],
 												'value' => (string) $value,
 												'min'   => (int) $field['min'],
@@ -419,7 +420,7 @@ UI::page(
 							<fieldset class="theme-limits">
 								<legend>
 									<?php echo esc_html__( '主题上传限制', 'sakura-imgopt' ); ?>
-									<?php echo UI::badge( __( '同步写入主题', 'sakura-imgopt' ), 'info' ); ?>
+									<?php UI::badge( __( '同步写入主题', 'sakura-imgopt' ), 'info' ); ?>
 								</legend>
 								<p class="field__hint">
 									<?php

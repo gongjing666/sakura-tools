@@ -95,12 +95,16 @@ final class S3_Storage_Page {
 
 				$page_strings = array(
 					'profileCreated' => __( '已勾选「另存为新配置」，填写新的 Access Key 和 Secret 后保存。', 'sakura-imgopt' ),
+					/* translators: %s: time of the last metrics refresh. */
 					'metricsUpdated' => __( '更新于 %s', 'sakura-imgopt' ),
 					'metricsNever'   => __( '尚未记录', 'sakura-imgopt' ),
 					'metricsLoading' => __( '正在刷新…', 'sakura-imgopt' ),
 					'metricsFailed'  => __( '指标刷新失败，请稍后重试。', 'sakura-imgopt' ),
+					/* translators: 1: failed request count, 2: failure rate percentage. */
 					'metricsRate'    => __( '失败 %1$d · 失败率 %2$s', 'sakura-imgopt' ),
+					/* translators: %s: slowest request duration. */
 					'metricsMax'     => __( '最慢 %s', 'sakura-imgopt' ),
+					/* translators: %s: failure rate percentage over the last 14 days. */
 					'metricsWeek'    => __( '近 14 天失败率 %s', 'sakura-imgopt' ),
 					'metricsNoError' => __( '暂无错误记录', 'sakura-imgopt' ),
 				);

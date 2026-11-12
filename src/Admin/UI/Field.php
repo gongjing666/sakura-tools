@@ -115,12 +115,12 @@ final class Field {
 		}
 
 		if ( 'textarea' === $type ) {
-			echo '<textarea' . self::attributes( $args, $id, $hint_id, false ) . '>' . esc_textarea( (string) ( $args['value'] ?? '' ) ) . '</textarea>';
+			echo '<textarea' . self::attributes( $args, $id, $hint_id, false ) . '>' . esc_textarea( (string) ( $args['value'] ?? '' ) ) . '</textarea>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- attributes() escapes every attribute it emits.
 			return;
 		}
 
 		$input_type = in_array( $type, array( 'text', 'number', 'url', 'password', 'email', 'color' ), true ) ? $type : 'text';
-		echo '<input' . self::attributes( $args, $id, $hint_id, true, $input_type ) . ' />';
+		echo '<input' . self::attributes( $args, $id, $hint_id, true, $input_type ) . ' />'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- attributes() escapes every attribute it emits.
 	}
 
 	/**
@@ -140,7 +140,7 @@ final class Field {
 
 		if ( $toggle ) {
 			echo '<label class="switch">';
-			echo '<input type="checkbox" class="switch__input" name="' . esc_attr( $name ) . '" value="' . esc_attr( $value ) . '"' . self::checked( $checked ) . self::disabled( $args ) . self::describedby( $hint_id ) . ' />';
+			echo '<input type="checkbox" class="switch__input" name="' . esc_attr( $name ) . '" value="' . esc_attr( $value ) . '"' . self::checked( $checked ) . self::disabled( $args ) . self::describedby( $hint_id ) . ' />'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- checked()/disabled()/describedby() emit escaped attributes.
 			echo '<span class="switch__track" aria-hidden="true"></span>';
 			if ( '' !== $text ) {
 				echo '<span class="switch__text">' . esc_html( $text ) . '</span>';
@@ -150,7 +150,7 @@ final class Field {
 		}
 
 		echo '<label class="check">';
-		echo '<input type="checkbox" name="' . esc_attr( $name ) . '" value="' . esc_attr( $value ) . '"' . self::checked( $checked ) . self::disabled( $args ) . self::describedby( $hint_id ) . ' />';
+		echo '<input type="checkbox" name="' . esc_attr( $name ) . '" value="' . esc_attr( $value ) . '"' . self::checked( $checked ) . self::disabled( $args ) . self::describedby( $hint_id ) . ' />'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- checked()/disabled()/describedby() emit escaped attributes.
 		echo '<span class="check__box" aria-hidden="true"></span>';
 		if ( '' !== $text ) {
 			echo '<span class="check__text">' . esc_html( $text ) . '</span>';
@@ -174,7 +174,7 @@ final class Field {
 		echo '<div class="check-group" role="radiogroup">';
 		foreach ( self::options( $options ) as $option_value => $option_label ) {
 			echo '<label class="check">';
-			echo '<input type="radio" name="' . esc_attr( $name ) . '" value="' . esc_attr( $option_value ) . '"' . self::checked( $value === $option_value ) . self::disabled( $args ) . self::describedby( $hint_id ) . ' />';
+			echo '<input type="radio" name="' . esc_attr( $name ) . '" value="' . esc_attr( $option_value ) . '"' . self::checked( $value === $option_value ) . self::disabled( $args ) . self::describedby( $hint_id ) . ' />'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- checked()/disabled()/describedby() emit escaped attributes.
 			echo '<span class="check__box" aria-hidden="true"></span>';
 			echo '<span class="check__text">' . esc_html( $option_label ) . '</span>';
 			echo '</label>';
@@ -194,7 +194,7 @@ final class Field {
 		$value   = isset( $args['value'] ) ? (string) $args['value'] : '';
 		$options = isset( $args['options'] ) && is_array( $args['options'] ) ? $args['options'] : array();
 
-		echo '<select' . self::attributes( $args, $id, $hint_id, false ) . '>';
+		echo '<select' . self::attributes( $args, $id, $hint_id, false ) . '>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- attributes() escapes every attribute it emits.
 		foreach ( self::options( $options ) as $option_value => $option_label ) {
 			echo '<option value="' . esc_attr( $option_value ) . '"' . selected( $value, $option_value, false ) . '>' . esc_html( $option_label ) . '</option>';
 		}

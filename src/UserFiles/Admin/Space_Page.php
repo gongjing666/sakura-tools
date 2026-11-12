@@ -163,11 +163,14 @@ final class Space_Page {
 				'invalidWord'        => __( '输入不匹配，操作已取消。', 'sakura-imgopt' ),
 				'reconcileNotChecked' => __( '尚未检查。点击「检查差异」比对已付款订单与授权记录。', 'sakura-imgopt' ),
 				'reconcileChecking'  => __( '正在比对订单与授权…', 'sakura-imgopt' ),
+				/* translators: %s: number of paid orders that have no matching grant. */
 				'reconcileMissing'   => __( '发现 %s 笔「已付款但无授权」的订单。', 'sakura-imgopt' ),
 				'reconcileClean'     => __( '未发现差异。', 'sakura-imgopt' ),
 				'reconcileHealing'   => __( '正在补发授权…', 'sakura-imgopt' ),
+				/* translators: %s: number of grants that were reissued. */
 				'reconcileHealed'    => __( '已补发 %s 笔授权。', 'sakura-imgopt' ),
 				'reconcileFailed'    => __( '对账查询失败。', 'sakura-imgopt' ),
+				/* translators: %s: number of grants about to be reissued. */
 				'reconcileConfirm'   => __( '将按订单快照补发 %s 笔授权，确认？', 'sakura-imgopt' ),
 				'orderNum'           => __( '订单号', 'sakura-imgopt' ),
 				'user'               => __( '用户', 'sakura-imgopt' ),

@@ -4,6 +4,7 @@
  *
  * @package Sakura_Image_Optimizer
  *
+ * @var \Sakura\ImageOptimizer\Image_Optimizer_Module $this Including module (renders log rows).
  * @var \Sakura\ImageOptimizer\Contracts\Stats_Repository_Interface $stats Stats repository.
  */
 

@@ -112,7 +112,7 @@ UI::page(
 			array( 'label' => __( '连接测试', 'sakura-imgopt' ), 'url' => '#sakura-thumb-probe', 'variant' => 'ghost' ),
 		),
 	),
-	static function () use ( $options, $is_zibll, $status, $mode, $stats, $host, $cache_report, $probe_flag, $probe_tone, $probe_label, $mode_labels, $engine_labels, $mode_short, $checked_text, $cache_time, $opcache_label, $cache_backend, $cache_state_label, $cache_groups_text, $cache_note, $size_labels, $styles, $checkbox_control, $form ) {
+	static function () use ( $options, $is_zibll, $status, $mode, $stats, $host, $probe_flag, $probe_tone, $probe_label, $mode_labels, $engine_labels, $checked_text, $cache_time, $opcache_label, $cache_backend, $cache_state_label, $cache_groups_text, $cache_note, $size_labels, $styles, $checkbox_control, $form ) {
 		settings_errors();
 
 		if ( 'ok' === $probe_flag ) {

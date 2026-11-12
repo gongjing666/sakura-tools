@@ -133,7 +133,7 @@ final class Card {
 						}
 					}
 				}
-				echo '>' . esc_html( (string) $action['label'] ) . '</' . $tag . '>';
+				echo '>' . esc_html( (string) $action['label'] ) . '</' . $tag . '>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $tag is the literal 'button' or 'a'.
 			}
 			echo '</div>';
 		}

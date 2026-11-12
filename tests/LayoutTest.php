@@ -133,11 +133,13 @@ final class LayoutTest extends TestCase {
 		$clean = Layout::sanitize( Layout::DEFAULT_LAYOUT );
 
 		// The file space is one screen per tab since 1.20, so each tab carries
-		// its own layout block instead of sharing a single "files" canvas.
+		// its own layout block instead of sharing a single "files" canvas. The
+		// system sheet took over the top-level slug in 1.25 and owns a block too.
 		$this->assertSame(
-			array( 'image', 'thumb', 's3', 'sync', 'files-queue', 'files-users', 'files-settings', 'files-log', 'files-space', 'backup' ),
+			array( 'image', 'thumb', 's3', 'sync', 'files-queue', 'files-users', 'files-settings', 'files-log', 'files-space', 'system-settings', 'backup' ),
 			array_keys( $clean )
 		);
+		$this->assertSame( array( 'runtime', 'engine', 'checks', 'extensions', 'layout' ), $clean['system-settings']['groups']['main']['order'] );
 		$this->assertSame( array( 'thumbs', 'rename', 'compress', 'bulk' ), $clean['image']['groups']['main']['order'] );
 		$this->assertSame( array( 'ignored', 'tasks', 'health', 'storage', 'notes', 'reconcile', 'logs' ), $clean['sync']['groups']['main']['order'] );
 		$this->assertSame( 12, $clean['sync']['groups']['main']['cards']['tasks']['span'] );

@@ -800,17 +800,8 @@
 
 /* -------------------------------------------------------------- delete queue */
 
-.sakura-admin[data-sakura-page="storage-deletes"] .queue-toolbar {
-	display: flex;
-	flex-wrap: wrap;
-	align-items: center;
-	justify-content: space-between;
-	gap: var(--g-space-3);
-}
-
 .sakura-admin[data-sakura-page="storage-deletes"] .queue-stats {
 	display: grid;
-	flex: 1 1 520px;
 	grid-template-columns: repeat(4, minmax(0, 1fr));
 	gap: 8px;
 	min-width: 0;
@@ -859,20 +850,6 @@
 	font-size: 17px;
 	font-weight: 650;
 	line-height: 1.2;
-}
-
-.sakura-admin[data-sakura-page="storage-deletes"] .queue-filter {
-	display: flex;
-	flex: 0 0 auto;
-	flex-wrap: wrap;
-	align-items: center;
-	gap: var(--g-space-2);
-	margin: 0;
-}
-
-.sakura-admin[data-sakura-page="storage-deletes"] .queue-filter select {
-	width: auto;
-	min-width: 140px;
 }
 
 .sakura-admin[data-sakura-page="storage-deletes"] .queue-form {
@@ -1084,7 +1061,6 @@
 	.sakura-admin[data-sakura-page="storage-sync"] .recon-toolbar,
 	.sakura-admin[data-sakura-page="storage-sync"] .recon-tools,
 	.sakura-admin[data-sakura-page="storage-sync"] .log-toolbar,
-	.sakura-admin[data-sakura-page="storage-deletes"] .queue-toolbar,
 	.sakura-admin[data-sakura-page="storage-deletes"] .queue-foot {
 		align-items: stretch;
 	}
@@ -1112,18 +1088,7 @@
 	}
 
 	.sakura-admin[data-sakura-page="storage-deletes"] .queue-stats {
-		flex-basis: 100%;
 		grid-template-columns: repeat(2, minmax(0, 1fr));
-	}
-
-	.sakura-admin[data-sakura-page="storage-deletes"] .queue-filter {
-		width: 100%;
-	}
-
-	.sakura-admin[data-sakura-page="storage-deletes"] .queue-filter select {
-		flex: 1 1 auto;
-		width: auto;
-		min-width: 0;
 	}
 
 	.sakura-admin[data-sakura-page="storage-sync"] .log-item {

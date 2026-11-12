@@ -192,31 +192,18 @@ final class Delete_Queue_Panel {
 			),
 			function () use ( $ui, $rows, $state, $states, $tones, $counts, $total, $paged ): void {
 				?>
-				<div class="queue-toolbar">
-					<nav class="queue-stats" aria-label="<?php esc_attr_e( '队列状态筛选', 'sakura-imgopt' ); ?>">
-						<?php foreach ( $states as $sufm_value => $sufm_choice ) : ?>
-							<?php
-							$sufm_active = $state === $sufm_value;
-							$sufm_url    = Registry::url( 'storage', 'deletes', $sufm_active ? array() : array( 'state' => $sufm_value ) );
-							?>
-							<a class="queue-stat<?php echo $sufm_active ? ' is-active' : ''; ?><?php echo 0 === (int) $counts[ $sufm_value ] ? ' is-zero' : ''; ?>" href="<?php echo esc_url( $sufm_url ); ?>" <?php echo $sufm_active ? 'aria-current="true"' : ''; ?>>
-								<span class="queue-stat__label"><?php echo esc_html( $sufm_choice ); ?></span>
-								<strong class="queue-stat__value"><?php echo esc_html( number_format_i18n( (int) $counts[ $sufm_value ] ) ); ?></strong>
-							</a>
-						<?php endforeach; ?>
-					</nav>
-					<form method="get" action="<?php echo esc_url( admin_url( 'admin.php' ) ); ?>" class="queue-filter" data-sakura-queue-filter>
-						<input type="hidden" name="page" value="<?php echo esc_attr( (string) ( \Sakura\ImageOptimizer\Admin\Registry::modules()['storage']['slug'] ?? '' ) ); ?>" />
-						<input type="hidden" name="t" value="deletes" />
-						<label class="screen-reader-text" for="sufm-delete-state"><?php esc_html_e( '状态', 'sakura-imgopt' ); ?></label>
-						<select id="sufm-delete-state" name="state">
-							<option value=""><?php esc_html_e( '全部状态', 'sakura-imgopt' ); ?></option>
-							<?php foreach ( $states as $sufm_value => $sufm_choice ) : ?>
-								<option value="<?php echo esc_attr( $sufm_value ); ?>"<?php selected( $state, $sufm_value ); ?>><?php echo esc_html( $sufm_choice ); ?></option>
-							<?php endforeach; ?>
-						</select>
-					</form>
-				</div>
+				<nav class="queue-stats" aria-label="<?php esc_attr_e( '队列状态筛选', 'sakura-imgopt' ); ?>">
+					<?php foreach ( $states as $sufm_value => $sufm_choice ) : ?>
+						<?php
+						$sufm_active = $state === $sufm_value;
+						$sufm_url    = Registry::url( 'storage', 'deletes', $sufm_active ? array() : array( 'state' => $sufm_value ) );
+						?>
+						<a class="queue-stat<?php echo $sufm_active ? ' is-active' : ''; ?><?php echo 0 === (int) $counts[ $sufm_value ] ? ' is-zero' : ''; ?>" href="<?php echo esc_url( $sufm_url ); ?>" <?php echo $sufm_active ? 'aria-current="true"' : ''; ?>>
+							<span class="queue-stat__label"><?php echo esc_html( $sufm_choice ); ?></span>
+							<strong class="queue-stat__value"><?php echo esc_html( number_format_i18n( (int) $counts[ $sufm_value ] ) ); ?></strong>
+						</a>
+					<?php endforeach; ?>
+				</nav>
 
 				<?php if ( empty( $rows ) ) : ?>
 					<?php
@@ -224,7 +211,7 @@ final class Delete_Queue_Panel {
 						'' === $state ? __( '队列为空', 'sakura-imgopt' ) : __( '当前筛选下没有记录', 'sakura-imgopt' ),
 						'' === $state
 							? __( '删除对象时任务会自动排进这里。目前没有待执行或失败的记录。', 'sakura-imgopt' )
-							: __( '换个状态看，或把筛选改回「全部状态」。', 'sakura-imgopt' ),
+							: __( '换个状态看，或点击上方当前状态回到全部。', 'sakura-imgopt' ),
 						'' === $state ? array() : array(
 							'label' => __( '查看全部状态', 'sakura-imgopt' ),
 							'url'   => \Sakura\ImageOptimizer\Admin\Registry::url( 'storage', 'deletes' ),

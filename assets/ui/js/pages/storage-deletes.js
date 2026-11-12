@@ -69,24 +69,6 @@
 		return { sync: sync };
 	}
 
-	function initFilter( root ) {
-		var form = admin.qs( '[data-sakura-queue-filter]', root );
-		if ( ! form ) {
-			return;
-		}
-		var select = admin.qs( '#sufm-delete-state', form );
-		if ( ! select ) {
-			return;
-		}
-		admin.on( select, 'change', function () {
-			if ( form.requestSubmit ) {
-				form.requestSubmit();
-			} else {
-				form.submit();
-			}
-		} );
-	}
-
 	function initQueue( root ) {
 		var form = admin.qs( '[data-sakura-queue-form]', root );
 		if ( ! form ) {
@@ -133,7 +115,6 @@
 		if ( ! root ) {
 			return;
 		}
-		initFilter( root );
 		initQueue( root );
 	} );
 }( window, document ) );

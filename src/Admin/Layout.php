@@ -118,12 +118,16 @@ final class Layout implements Module {
 		's3' => array(
 			'groups' => array(
 				'main' => array(
-					'order' => array( 'connection', 'behaviour', 'migrate', 'test' ),
+					// Mirrors the markup order in S3_Storage_Page so "restore
+					// defaults" and a first visit land on the same arrangement.
+					'order' => array( 'profiles', 'behaviour', 'connection', 'test', 'upload-metrics', 'monitoring' ),
 					'cards' => array(
-						'connection' => array( 'span' => 6, 'minH' => 0, 'h' => 0, 'col' => 1, 'top' => 0 ),
-						'behaviour'  => array( 'span' => 6, 'minH' => 0, 'h' => 0, 'col' => 7, 'top' => 0 ),
-						'migrate'    => array( 'span' => 6, 'minH' => 0, 'h' => 0, 'col' => 7, 'top' => 0 ),
-						'test'       => array( 'span' => 6, 'minH' => 0, 'h' => 0, 'col' => 7, 'top' => 0 ),
+						'profiles'       => array( 'span' => 12, 'minH' => 0, 'h' => 0, 'col' => 1, 'top' => 0 ),
+						'behaviour'      => array( 'span' => 6, 'minH' => 0, 'h' => 0, 'col' => 1, 'top' => 0 ),
+						'connection'     => array( 'span' => 6, 'minH' => 0, 'h' => 0, 'col' => 7, 'top' => 0 ),
+						'test'           => array( 'span' => 6, 'minH' => 0, 'h' => 0, 'col' => 7, 'top' => 0 ),
+						'upload-metrics' => array( 'span' => 12, 'minH' => 0, 'h' => 0, 'col' => 1, 'top' => 0 ),
+						'monitoring'     => array( 'span' => 12, 'minH' => 0, 'h' => 0, 'col' => 1, 'top' => 0 ),
 					),
 				),
 			),
@@ -141,6 +145,19 @@ final class Layout implements Module {
 						'notes'     => array( 'span' => 6, 'minH' => 0, 'h' => 0, 'col' => 7, 'top' => 0 ),
 						'reconcile' => array( 'span' => 12, 'minH' => 0, 'h' => 0, 'col' => 1, 'top' => 0 ),
 						'logs'      => array( 'span' => 5, 'minH' => 0, 'h' => 0, 'col' => 1, 'top' => 0 ),
+					),
+				),
+			),
+			'grid' => 1,
+		),
+		// The delete queue is an S3 screen with a single card; it still needs a
+		// block so the card can be dragged once more of them exist.
+		'deletes' => array(
+			'groups' => array(
+				'main' => array(
+					'order' => array( 'queue' ),
+					'cards' => array(
+						'queue' => array( 'span' => 12, 'minH' => 0, 'h' => 0, 'col' => 1, 'top' => 0 ),
 					),
 				),
 			),

@@ -112,6 +112,8 @@ final class S3_Storage_Page {
 				<div class="sakura-admin__data" data-sakura-connection-strings="<?php echo esc_attr( wp_json_encode( array( 'strings' => $page_strings ), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_UNESCAPED_UNICODE ) ); ?>" hidden></div>
 				<?php
 
+				echo '<div class="card-grid" id="sakura-s3-save-form" data-sakura-layout="s3" data-sakura-group="main">';
+
 				UI::card(
 					array(
 						'id'          => 'profiles',
@@ -185,8 +187,6 @@ final class S3_Storage_Page {
 						echo '</div>';
 					}
 				);
-
-				echo '<div class="card-grid" id="sakura-s3-save-form" data-sakura-layout="s3" data-sakura-group="main">';
 
 				UI::card(
 					array(
@@ -496,6 +496,9 @@ final class S3_Storage_Page {
 					}
 				);
 
+				Sync_Center_Panel::render( $this->status ?? new Sync_Status() );
+				Monitoring_Panel::render();
+
 				echo '</div>';
 
 				echo '<form id="sakura-s3-test-form" method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" hidden>';
@@ -503,8 +506,6 @@ final class S3_Storage_Page {
 				wp_nonce_field( 'sakura_s3_test' );
 				echo '</form>';
 
-				Sync_Center_Panel::render( $this->status ?? new Sync_Status() );
-				Monitoring_Panel::render();
 				echo Config_Notice::modal_html( $this->options, 'connection' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- generated with escaped values.
 			}
 		);

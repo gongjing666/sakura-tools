@@ -136,13 +136,24 @@ final class LayoutTest extends TestCase {
 		// its own layout block instead of sharing a single "files" canvas. The
 		// system sheet took over the top-level slug in 1.25 and owns a block too.
 		$this->assertSame(
-			array( 'image', 'thumb', 's3', 'sync', 'files-queue', 'files-users', 'files-settings', 'files-log', 'files-space', 'system-settings', 'backup' ),
+			array( 'image', 'thumb', 's3', 'sync', 'deletes', 'files-queue', 'files-users', 'files-settings', 'files-log', 'files-space', 'system-settings', 'backup' ),
 			array_keys( $clean )
 		);
 		$this->assertSame( array( 'runtime', 'engine', 'checks', 'extensions', 'layout' ), $clean['system-settings']['groups']['main']['order'] );
 		$this->assertSame( array( 'thumbs', 'rename', 'compress', 'bulk' ), $clean['image']['groups']['main']['order'] );
 		$this->assertSame( array( 'ignored', 'tasks', 'health', 'storage', 'notes', 'reconcile', 'logs' ), $clean['sync']['groups']['main']['order'] );
 		$this->assertSame( 12, $clean['sync']['groups']['main']['cards']['tasks']['span'] );
+		// Every storage canvas owns all of its cards: the connection screen
+		// used to keep its profiles/metrics/monitoring cards outside the layout
+		// group, and the deletes tab had no group at all.
+		$this->assertSame(
+			array( 'profiles', 'behaviour', 'connection', 'test', 'upload-metrics', 'monitoring' ),
+			$clean['s3']['groups']['main']['order']
+		);
+		$this->assertSame( 12, $clean['s3']['groups']['main']['cards']['profiles']['span'] );
+		$this->assertSame( 12, $clean['s3']['groups']['main']['cards']['monitoring']['span'] );
+		$this->assertSame( array( 'queue' ), $clean['deletes']['groups']['main']['order'] );
+		$this->assertSame( 12, $clean['deletes']['groups']['main']['cards']['queue']['span'] );
 		$this->assertSame( 1, $clean['backup']['grid'] );
 		$this->assertSame( array( 'queue', 'execute' ), $clean['files-queue']['groups']['main']['order'] );
 		$this->assertSame( 12, $clean['files-queue']['groups']['main']['cards']['queue']['span'] );

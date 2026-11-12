@@ -108,7 +108,10 @@ final class Config_Notice {
 		}
 
 		$is_connection = 'connection' === $context;
-		$primary_href  = $is_connection ? '#sakura-s3-save-form' : Registry::url( 'storage', 'connection' );
+		// The connection screen wraps every card in one layout canvas, so the
+		// old grid id would scroll to whichever card happens to sit at the top.
+		// The connection card owns its own anchor and is the right target.
+		$primary_href  = $is_connection ? '#sakura-s3-connection' : Registry::url( 'storage', 'connection' );
 		$primary_label = $is_connection ? __( '填写连接信息', 'sakura-imgopt' ) : __( '去补全配置', 'sakura-imgopt' );
 		$missing       = array();
 

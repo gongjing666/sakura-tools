@@ -31,8 +31,9 @@
 		image: { thumbs: 12, rename: 6, compress: 6, bulk: 6 },
 		thumb: { switches: 6, scopes: 6, sizes: 12, advanced: 12, probe: 6, stats: 6, rollback: 6, cache: 6 },
 		backup: { usage: 4, policy: 4, access: 4 },
-		s3: { upload: 6, behaviour: 6, connection: 12, test: 6, migrate: 6 },
+		s3: { profiles: 12, behaviour: 6, connection: 6, test: 6, 'upload-metrics': 12, monitoring: 12 },
 		sync: { ignored: 12, tasks: 12, health: 6, storage: 6, reconcile: 12, logs: 8, notes: 4 },
+		deletes: { queue: 12 },
 		'files-space': { space_diag: 12, space_entry: 12, space_gate: 5, space_level: 7, space_vip: 5, space_plans: 12, space_grants: 7, space_reconcile: 5 },
 		'system-settings': { runtime: 6, engine: 6, checks: 12, extensions: 6, layout: 6 }
 	};
@@ -200,7 +201,9 @@
 		} );
 		// A card added after the layout was saved is missing from the stored
 		// order. Appending it would bury it at the bottom of the page, so it is
-		// placed right after its nearest predecessor in the declared order.
+		// placed right after its nearest predecessor in the declared order. A
+		// card declared first — a summary card added above an existing board —
+		// has no predecessor at all and belongs at the top, not at the end.
 		var declared = ( group.getAttribute( 'data-sakura-default-order' ) || '' ).split( ',' );
 
 		cards.forEach( function ( card ) {
@@ -209,21 +212,17 @@
 				return;
 			}
 
-			var anchor = -1;
+			var anchor = 0;
 
 			for ( var i = declared.indexOf( id ) - 1; i >= 0; i-- ) {
 				var pos = order.indexOf( declared[ i ] );
 				if ( pos !== -1 ) {
-					anchor = pos;
+					anchor = pos + 1;
 					break;
 				}
 			}
 
-			if ( anchor === -1 ) {
-				order.push( id );
-			} else {
-				order.splice( anchor + 1, 0, id );
-			}
+			order.splice( anchor, 0, id );
 		} );
 
 		order.forEach( function ( id ) {

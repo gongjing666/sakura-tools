@@ -181,6 +181,8 @@ final class Delete_Queue_Panel {
 			<?php $ui::alert( __( '没有选中的记录。', 'sakura-imgopt' ), 'warn' ); ?>
 		<?php endif; ?>
 
+		<div class="card-grid" data-sakura-layout="deletes" data-sakura-group="main">
+
 		<?php
 		$ui::card(
 			array(
@@ -279,7 +281,11 @@ final class Delete_Queue_Panel {
 				<?php
 			}
 		);
+		?>
 
+		</div>
+
+		<?php
 		$deletes_body = ob_get_clean();
 
 		$ui::page(

@@ -34,6 +34,7 @@ final class Page_Assets {
 		'image-backup'       => 'backup',
 		'storage-connection' => 's3',
 		'storage-sync'       => 'sync',
+		'storage-deletes'    => 'deletes',
 		'files-settings'     => 'files-settings',
 		'files-users'        => 'files-users',
 		'files-queue'        => 'files-queue',

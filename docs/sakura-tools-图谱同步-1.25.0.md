@@ -358,7 +358,7 @@ google-chrome --headless=new --no-sandbox --user-data-dir=/tmp/chrome-graph \
 | 5 | 悬空边 | `graph-inject.mjs` 每次注入前校验 | 0 ✅ |
 | 6 | 同源重建 | 分章 `p1–p6` + `build-code-structure.mjs` 生成块重新组装，与仓库正文比对 | §6.8 清理后 `1c82079ea7777f5d5beeaf6b8a18e6bf`；§7.7 改写后 `f2948e675caf9dbdb3cf58d0395623c9`；§12 三项回写后 `b479d3fb379c695a2c8ce2eac2a1f02b`；上传指标修复稿 `affe363d81b6325cbe739b54aac28446`；删除预览图后 `971f0c3996a10bffb207fe7f6d4dccc6`；空间支付收口稿 `5eb2bf875d00d1e776cf89089e41ae6f`（219,712 字节）；1.22.9 版本稿 `1aba478232bdbb9b1d196eebee1f794e`（220,481 字节）；1.23.0 编辑页面板稿 `4a801b137efc0bc3805f765df8eac822`（238,153 字节）；1.24.0 支付方式/对账/回填稿 `0979157c31883875e25e2b12922f9050`（250,746 字节）；1.24.1 快捷多选稿 `48e0369200f4ea9d2227c63f476aaacd`（266,095 字节）；1.24.2 运维观测稿 `13485930f8e997e0529bca0951c7c238`（274,169 字节）；1.24.2 验证回写稿 `f65d07350edf37b11609c2abccafb546`（288,928 字节）；1.24.3 卸载修复稿 `3325b5e0ce8a359a9a46396fd595c6f6`（290,562 字节）；2026-11-10 覆盖升级稿 `7b457df0269b6ce3e97a4e8c1325a04a`（295,120 字节）；1.24.4 发布稿 `d4be0a7939a44153c187f04c4a485839`（298,733 字节）；2026-11-10 p2/p5 修正稿 `6769bbdc5b704c4275d66199f90285fd`（303,711 字节）✅ |
 | 7 | 注入幂等 | `graph-inject.mjs` dry-run 与页面 `DATA` 比对 | 本轮 `--write` 后 dry-run 报 `changed:false`、`dangling:0`，页面 `DATA` 与 `graph.json` 的结构与计数完全一致 ✅ |
-| 8 | 文档可重装 | `PURPOSES_ZH=docs/tools/purposes.zh.json python3 docs/tools/assemble-doc.py --parts /tmp/docparts --out /tmp/verify-sakura-1250.md` | 与仓库正文逐字节一致，md5 `7dc2a4f5e5b380422f6b33b1702cb5c3`（310,335 字节）✅ |
+| 8 | 文档可重装 | `PURPOSES_ZH=docs/tools/purposes.zh.json python3 docs/tools/assemble-doc.py --parts /tmp/docparts --out /tmp/verify-sakura-1250.md` | 与仓库正文逐字节一致，md5 `ce5eebbfc96e149b72fc99663b9bf169`（310,353 字节）✅ |
 | 9 | 渲染 | Chrome headless + SwiftShader 打开页面核对（截图只写 `/tmp`，不落仓库） | 星簇正常；副标题 `sakura-tools v1.25.0`、174 类 / 17 模块；四角 189 / 191 / 861 / 203；S3 详情 37 文件、`src/Admin` 16 文件 ✅ |
 | 10 | 文件数一致 | `stats.files` = 附录 C 行数 | 189 = 189 ✅ |
 
@@ -410,7 +410,7 @@ google-chrome --headless=new --no-sandbox --user-data-dir=/tmp/chrome-graph \
 
 | 文件 | 大小 | 作用 |
 |---|---:|---|
-| `docs/sakura-tools-代码结构-1.25.0.md` | 303 KB（310,335 字节） | 正文：§0–§13 + 附录 A–D（2026-11-12：后台 UI 重构，生产 189 文件 / 65,108 行） |
+| `docs/sakura-tools-代码结构-1.25.0.md` | 303 KB（310,353 字节） | 正文：§0–§13 + 附录 A–D（2026-11-12：后台 UI 重构，生产 189 文件 / 65,108 行） |
 | `docs/sakura-tools-图谱同步-1.25.0.md` | 48 KB（48,704 字节） | 图谱变更与重建说明（本文） |
 | `docs/graph-preview/index.html` | 172 KB（175,808 字节） | 单文件 3D 图谱（数据内嵌；3d-force-graph 库走 CDN，需联网） |
 | `docs/graph-preview/graph.json` | 210 KB（215,236 字节） | 同数据，供脚本消费 |

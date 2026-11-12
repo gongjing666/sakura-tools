@@ -1478,10 +1478,10 @@ final class Sync_Center_Module implements Module {
 	 * @param string              $upload_path Object key prefix.
 	 * @param string              $local_base  Local uploads URL base.
 	 * @param string              $cloud_base  Public CDN URL base.
-	 * @param bool                $public      Whether objects are public-read.
+	 * @param bool                $is_public   Whether objects are public-read.
 	 * @return array<string,mixed>
 	 */
-	private function preview_payload( array $row, string $upload_path, string $local_base, string $cloud_base, bool $public ): array {
+	private function preview_payload( array $row, string $upload_path, string $local_base, string $cloud_base, bool $is_public ): array {
 		$key      = (string) ( $row['key'] ?? '' );
 		$name     = (string) ( $row['name'] ?? wp_basename( $key ) );
 		$path     = (string) ( $row['path'] ?? $key );
@@ -1501,7 +1501,7 @@ final class Sync_Center_Module implements Module {
 				$url = $this->local_media_url( $key, $upload_path, $local_base );
 			}
 			if ( '' === $url && $cloud ) {
-				$url = ( $public && '' !== $cloud_base )
+				$url = ( $is_public && '' !== $cloud_base )
 					? $this->cloud_media_url( $key, $upload_path, $cloud_base )
 					: $this->adapter->presigned_url( $key, '+1 hour', '', $mime );
 			}

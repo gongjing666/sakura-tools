@@ -136,8 +136,8 @@ $sufm_space_switch = static function ( string $name, string $text, bool $checked
 	echo '</label>';
 };
 
-$sufm_space_bd = static function ( string $key, $default = 0 ) use ( $breakdown_for_me ) {
-	return array_key_exists( $key, $breakdown_for_me ) ? $breakdown_for_me[ $key ] : $default;
+$sufm_space_bd = static function ( string $key, $fallback = 0 ) use ( $breakdown_for_me ) {
+	return array_key_exists( $key, $breakdown_for_me ) ? $breakdown_for_me[ $key ] : $fallback;
 };
 
 $sufm_space_override = $sufm_space_bd( 'override', null );

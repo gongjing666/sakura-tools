@@ -205,6 +205,27 @@ class Image_Optimizer_Module implements Module {
 
 		register_setting(
 			$this->option_group,
+			'sakura_imgopt_quality',
+			array(
+				'type'              => 'integer',
+				'sanitize_callback' => array( $this, 'sanitize_quality' ),
+				'default'           => 82,
+			)
+		);
+		add_settings_field(
+			'sakura_imgopt_quality',
+			__( '压缩质量', 'sakura-imgopt' ),
+			array( $this, 'field_quality_cb' ),
+			$this->menu_slug,
+			'sakura_imgopt_section_compress',
+			array(
+				'label_for' => 'sakura_imgopt_quality',
+				'desc'      => __( '数字越小文件越小，数字越大画质越好。推荐 75 到 85。', 'sakura-imgopt' ),
+			)
+		);
+
+		register_setting(
+			$this->option_group,
 			'sakura_imgopt_convert_format',
 			array(
 				'type'              => 'string',
@@ -237,27 +258,6 @@ class Image_Optimizer_Module implements Module {
 			$this->menu_slug,
 			'sakura_imgopt_section_compress',
 			array( 'label_for' => 'sakura_imgopt_source_formats' )
-		);
-
-		register_setting(
-			$this->option_group,
-			'sakura_imgopt_quality',
-			array(
-				'type'              => 'integer',
-				'sanitize_callback' => array( $this, 'sanitize_quality' ),
-				'default'           => 82,
-			)
-		);
-		add_settings_field(
-			'sakura_imgopt_quality',
-			__( '压缩质量', 'sakura-imgopt' ),
-			array( $this, 'field_quality_cb' ),
-			$this->menu_slug,
-			'sakura_imgopt_section_compress',
-			array(
-				'label_for' => 'sakura_imgopt_quality',
-				'desc'      => __( '数字越小文件越小，数字越大画质越好。推荐 75 到 85。', 'sakura-imgopt' ),
-			)
 		);
 
 		register_setting(
@@ -855,11 +855,11 @@ class Image_Optimizer_Module implements Module {
 			<label>
 				<input type="radio" name="sakura_imgopt_compression_mode" value="compress_only" <?php checked( 'compress_only', $mode ); ?> />
 				<?php esc_html_e( '仅压缩', 'sakura-imgopt' ); ?>
-			</label><br>
+			</label>
 			<label>
 				<input type="radio" name="sakura_imgopt_compression_mode" value="compress_convert" <?php checked( 'compress_convert', $mode ); ?> />
 				<?php esc_html_e( '压缩并转换格式', 'sakura-imgopt' ); ?>
-			</label><br>
+			</label>
 			<label>
 				<input type="radio" name="sakura_imgopt_compression_mode" value="convert_only" <?php checked( 'convert_only', $mode ); ?> />
 				<?php esc_html_e( '仅转换格式', 'sakura-imgopt' ); ?>
@@ -871,7 +871,7 @@ class Image_Optimizer_Module implements Module {
 	public function field_format_cb() {
 		$format = $this->settings->convert_format();
 		?>
-		<select id="sakura_imgopt_convert_format" name="sakura_imgopt_convert_format">
+		<select class="sakura-imgopt-format-select" id="sakura_imgopt_convert_format" name="sakura_imgopt_convert_format">
 			<option value="webp" <?php selected( 'webp', $format ); ?>>WebP</option>
 			<option value="avif" <?php selected( 'avif', $format ); ?>>AVIF</option>
 		</select>
@@ -889,6 +889,7 @@ class Image_Optimizer_Module implements Module {
 
 		$formats = $this->get_supported_source_formats();
 		echo '<fieldset class="sakura-imgopt-source-formats">';
+		echo '<div class="sakura-imgopt-source-format-grid">';
 		foreach ( $formats as $value => $label ) {
 			printf(
 				'<label class="sakura-imgopt-source-format-item"><input type="checkbox" name="%1$s[]" value="%2$s" %3$s /><span>%4$s</span></label>',
@@ -898,9 +899,12 @@ class Image_Optimizer_Module implements Module {
 				esc_html( $label )
 			);
 		}
+		echo '</div>';
+		echo '<div class="sakura-imgopt-source-format-notes">';
 		echo '<p class="description">' . esc_html__( '只有上传图片的源格式命中这里勾选的格式，才会进入压缩/转换流程；未命中的图片只按 WordPress 默认上传流程保存。', 'sakura-imgopt' ) . '</p>';
 		echo '<p class="description">' . esc_html__( '注意：SVG、APNG、AVIF 能否处理，取决于服务器上的图片组件（Imagick 或 GD）是否支持。', 'sakura-imgopt' ) . '</p>';
 		echo '<p class="description">' . esc_html__( 'SVG 默认不勾选：处理 SVG 时通常会被转成普通图片，文件反而变大。确实需要处理再勾选。', 'sakura-imgopt' ) . '</p>';
+		echo '</div>';
 		echo '</fieldset>';
 	}
 

@@ -79,6 +79,8 @@ $stats_url  = \Sakura\ImageOptimizer\Admin\Registry::url( 'image', 'stats' );
 			$full_fields    = array(
 				'sakura_imgopt_disabled_sizes',
 				'sakura_imgopt_rename_rule',
+				'sakura_imgopt_enable_compression',
+				'sakura_imgopt_convert_format',
 				'sakura_imgopt_source_formats',
 				'sakura_imgopt_processing_limits',
 				'sakura_imgopt_backup_enabled',

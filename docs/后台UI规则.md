@@ -207,6 +207,7 @@
 - 布局工具条文案竖排用「一字宽块 + 自然换行」：`width:1.1em; white-space:normal; word-break:break-all; line-height:1.34; text-align:center`，不要用 `writing-mode: vertical-rl`。部分 CJK 回退字体在这里上报的纵向步进只有约 4px，四字会叠成一团（实测标签高 4.17px）；编辑态恢复 `width:auto; white-space:nowrap; word-break:normal`。改完在 1440 和 1101 截图检查四字完整。
 - 重构后按钮/操作入口不见：先按 10.1 的操作清单对照，确认是不是在搬卡片、换布局时删了 DOM；不要用 CSS 补一个只有外观的假按钮，也不要把入口藏进折叠区。
 - 筛选框/输入框铺满整行：全局输入框的 `width:100%` 只填字段列，检查父级是否给了 `flex:1` 或没有 `max-width`；按 10.2 的上限表改父容器，不要在每个页面单独写 `!important`。
+- 多选组（源格式、尺寸等 chip）的说明段落不要放进 grid：`<p class="description">` 会成为网格项，把同一行最后一个 chip 拉到说明块的高度（实测 103px 的竖长框）。说明放在 grid 外的 notes 容器里，用分隔线与 chip 区分。
 - 改完至少验证 1440、1366、1101、782、424、390、320 七个宽度，覆盖全部 13 个后台路由；检查 `document.documentElement.scrollWidth == clientWidth`、`.page-body` 相邻块间距 ≥16px、同一卡片无 `.switch` 与 `.check` 混用、每张表只有一个 `<thead>`，并确认 console 无报错。
 
 ## 9. 组件层与静态资源
@@ -283,6 +284,7 @@
 - 工具栏只放筛选时，控件靠左、按钮 `flex:none`，剩余空间留白；不要把搜索框 `flex:1` 撑满，也不要把下拉写成 `width:100%`。只有需要「搜索 + 右侧动作」时才用 `margin-left:auto` 把动作推到右边。
 - ≤782px 工具栏可以换行，搜索/下拉可以各占一整行（此时 `width:100%` 是允许的），但必须一控件一行、页面不横向溢出；勾选框仍是 18px。
 - 勾选框的外层 `label.check` 可以是整行可点区域，但勾选框本体固定 18×18，文字靠左，不要用 `justify-content:space-between` 把框和文字拉到两端。
+- 多选组（格式/尺寸 chip）用独立的 `grid` 容器：桌面 4 列 `minmax(0,1fr)`、≤500px 改 2 列；chip 等宽、`min-height:40px`，勾选框 18×18；说明文字放 grid 外的 notes 块，不参与列宽计算。
 - 控件宽度要和内容匹配：数字/颜色/端口短，URL/路径长；同组字段宽度不一致时用网格列对齐，不要用空格或固定 margin 凑。下拉选项过长时用省略号或 `title` 提示，不要靠不断加宽下拉解决，筛选下拉保持 180px 上限。
 - 新增控件先选类型再定宽；没有合适类型时用 `custom`，不要在页面里再写一条 `width:100%` 然后靠 `max-width` 一页页补，宽度上限优先加在公共容器/组件上。
 

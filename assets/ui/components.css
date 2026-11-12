@@ -1187,8 +1187,11 @@
  * Media preview dialog
  * ============================================================ */
 
-html.sakura-media-open,
-html.sakura-media-open body {
+/*
+ * Root scroll lock, paired with the body-fixed lock in ui.js.
+ * Do not add body { overflow: hidden } here: Chrome clamps the page back to the top.
+ */
+html.sakura-media-open {
 	overflow: hidden;
 }
 

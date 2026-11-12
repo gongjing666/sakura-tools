@@ -606,17 +606,55 @@
 
 		var videoNode = dialog.querySelector( 'video' );
 		var closed = false;
+		var pageScrollY = 0;
+		var pageBodyStyle = null;
+
+		function lockPage() {
+			pageScrollY = window.pageYOffset || document.documentElement.scrollTop || 0;
+			var body = document.body;
+			var bodyTop = body.getBoundingClientRect().top;
+			pageBodyStyle = {
+				position: body.style.position,
+				top: body.style.top,
+				left: body.style.left,
+				right: body.style.right,
+				width: body.style.width
+			};
+			body.style.position = 'fixed';
+			body.style.top = bodyTop + 'px';
+			body.style.left = '0';
+			body.style.right = '0';
+			body.style.width = '100%';
+			document.documentElement.classList.add( 'sakura-media-open' );
+		}
+
+		function unlockPage() {
+			if ( ! pageBodyStyle ) {
+				return;
+			}
+			var body = document.body;
+			body.style.position = pageBodyStyle.position;
+			body.style.top = pageBodyStyle.top;
+			body.style.left = pageBodyStyle.left;
+			body.style.right = pageBodyStyle.right;
+			body.style.width = pageBodyStyle.width;
+			pageBodyStyle = null;
+			document.documentElement.classList.remove( 'sakura-media-open' );
+			window.scrollTo( 0, pageScrollY );
+		}
 
 		function close() {
 			if ( closed ) {
 				return;
 			}
 			closed = true;
-			document.documentElement.classList.remove( 'sakura-media-open' );
 			if ( dialog.open ) {
 				dialog.close( 'close' );
-			} else if ( dialog.parentNode ) {
-				dialog.parentNode.removeChild( dialog );
+			} else {
+				unlockPage();
+				if ( dialog.parentNode ) {
+					dialog.parentNode.removeChild( dialog );
+				}
 			}
 		}
 
@@ -631,7 +669,7 @@
 			close();
 		} );
 		dialog.addEventListener( 'close', function () {
-			document.documentElement.classList.remove( 'sakura-media-open' );
+			unlockPage();
 			if ( videoNode ) {
 				videoNode.pause();
 				videoNode.removeAttribute( 'src' );
@@ -641,7 +679,7 @@
 				dialog.parentNode.removeChild( dialog );
 			}
 			if ( trigger && typeof trigger.focus === 'function' ) {
-				trigger.focus();
+				trigger.focus( { preventScroll: true } );
 			}
 		} );
 
@@ -672,7 +710,7 @@
 		} );
 
 		root.appendChild( dialog );
-		document.documentElement.classList.add( 'sakura-media-open' );
+		lockPage();
 
 		if ( typeof dialog.showModal === 'function' ) {
 			dialog.showModal();

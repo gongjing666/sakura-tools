@@ -302,9 +302,13 @@
 
 				var filesCell = document.createElement( 'td' );
 				var files = el( 'div', 'files-cell' );
-				files.appendChild( el( 'strong', '', String( Number( row.files ) || 0 ) ) );
-				files.appendChild( el( 'span', '', strings.filesUnit || '' ) );
-				files.appendChild( el( 'span', '', ( Number( row.folders ) || 0 ) + ' ' + ( strings.foldersUnit || '' ) ) );
+				var filesLine = el( 'div', 'files-cell__line' );
+				filesLine.appendChild( el( 'strong', '', String( Number( row.files ) || 0 ) ) );
+				filesLine.appendChild( el( 'span', '', strings.filesUnit || '' ) );
+				files.appendChild( filesLine );
+				var foldersLine = el( 'div', 'files-cell__line' );
+				foldersLine.appendChild( el( 'span', '', ( Number( row.folders ) || 0 ) + ' ' + ( strings.foldersUnit || '' ) ) );
+				files.appendChild( foldersLine );
 				filesCell.appendChild( files );
 				tr.appendChild( filesCell );
 

@@ -626,17 +626,34 @@ UI::page(
 						'kicker'      => 'QUOTA',
 						'title'       => __( '用户容量', 'sakura-imgopt' ),
 						'description' => __( '留空表示使用默认容量；已用容量包含文件空间上传与已纳入账本的媒体库文件。', 'sakura-imgopt' ),
+						'actions'     => array(
+							array(
+								'label'   => __( '重置容量', 'sakura-imgopt' ),
+								'button'  => true,
+								'id'      => 'sufm-reset-quota',
+								'variant' => 'ghost',
+							),
+							array(
+								'label'   => __( '同步容量', 'sakura-imgopt' ),
+								'button'  => true,
+								'id'      => 'sufm-sync-quota',
+								'variant' => 'ghost',
+							),
+							array(
+								'label'   => __( '刷新', 'sakura-imgopt' ),
+								'button'  => true,
+								'id'      => 'sufm-users-refresh',
+								'variant' => 'ghost',
+							),
+						),
 					),
 					static function () use ( $sufm_pager ) {
 						?>
-						<div class="toolbar" role="search">
-							<button type="button" class="btn btn--small btn--ghost" id="sufm-sync-quota"><?php echo esc_html__( '同步容量', 'sakura-imgopt' ); ?></button>
-							<button type="button" class="btn btn--small btn--ghost" id="sufm-reset-quota"><?php echo esc_html__( '重置容量', 'sakura-imgopt' ); ?></button>
-							<label class="toolbar__field toolbar__field--grow">
+						<div class="toolbar toolbar--filter" role="search">
+							<label class="toolbar__field toolbar__field--search">
 								<span class="screen-reader-text"><?php echo esc_html__( '搜索用户', 'sakura-imgopt' ); ?></span>
 								<input type="search" id="sufm-user-search" placeholder="<?php echo esc_attr__( '搜索用户', 'sakura-imgopt' ); ?>" />
 							</label>
-							<button type="button" class="btn btn--small btn--ghost" id="sufm-users-refresh"><?php echo esc_html__( '刷新', 'sakura-imgopt' ); ?></button>
 						</div>
 						<div class="table-scroll">
 							<table class="table table--responsive sakura-files-table">

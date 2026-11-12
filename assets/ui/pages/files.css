@@ -51,6 +51,21 @@
 	flex-basis: 260px;
 }
 
+.sakura-admin[data-sakura-page="files-users"] .toolbar--filter {
+	margin-bottom: 10px;
+}
+
+.sakura-admin[data-sakura-page="files-users"] .toolbar__field--search {
+	flex: 0 1 240px;
+	width: 240px;
+	max-width: 280px;
+}
+
+.sakura-admin[data-sakura-page="files-users"] .toolbar__field--search input {
+	width: 100%;
+	min-width: 0;
+}
+
 .sakura-admin[data-sakura-page="files-settings"] .toolbar__meta,
 .sakura-admin[data-sakura-page="files-users"] .toolbar__meta,
 .sakura-admin[data-sakura-page="files-queue"] .toolbar__meta,
@@ -106,6 +121,63 @@
 	padding-block: 18px;
 	color: var(--g-muted);
 	text-align: center;
+}
+
+.sakura-admin[data-sakura-page="files-users"] .sakura-files-table {
+	table-layout: fixed;
+}
+
+.sakura-admin[data-sakura-page="files-users"] .sakura-files-table th:nth-child(1) {
+	width: 28%;
+}
+
+.sakura-admin[data-sakura-page="files-users"] .sakura-files-table th:nth-child(2) {
+	width: 34%;
+}
+
+.sakura-admin[data-sakura-page="files-users"] .sakura-files-table th:nth-child(3) {
+	width: 90px;
+}
+
+.sakura-admin[data-sakura-page="files-users"] .sakura-files-table th:nth-child(4) {
+	width: 210px;
+	text-align: right;
+}
+
+.sakura-admin[data-sakura-page="files-users"] .sakura-files-table td:nth-child(4) {
+	text-align: right;
+}
+
+.sakura-admin[data-sakura-page="files-users"] .sakura-files-table td:nth-child(4) .quota-cell {
+	justify-content: flex-end;
+}
+
+@media (min-width: 783px) {
+	.sakura-admin[data-sakura-page="files-users"] .user-cell strong,
+	.sakura-admin[data-sakura-page="files-users"] .user-cell span {
+		display: block;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+}
+
+.sakura-admin[data-sakura-page="files-users"] .files-cell {
+	gap: 1px;
+	line-height: 1.45;
+}
+
+.sakura-admin[data-sakura-page="files-users"] .files-cell__line {
+	display: flex;
+	align-items: baseline;
+	gap: 3px;
+	white-space: nowrap;
+}
+
+.sakura-admin[data-sakura-page="files-users"] .files-cell__line strong {
+	color: var(--g-ink);
+	font-size: 13px;
+	font-weight: 600;
 }
 
 .sakura-admin[data-sakura-page="files-queue"] .queue-id {
@@ -886,6 +958,24 @@
 	}
 }
 
+@media (max-width: 1100px) and (min-width: 783px) {
+	.sakura-admin[data-sakura-page="files-users"] .sakura-files-table th:nth-child(1) {
+		width: 26%;
+	}
+
+	.sakura-admin[data-sakura-page="files-users"] .sakura-files-table th:nth-child(2) {
+		width: 32%;
+	}
+
+	.sakura-admin[data-sakura-page="files-users"] .sakura-files-table th:nth-child(3) {
+		width: 76px;
+	}
+
+	.sakura-admin[data-sakura-page="files-users"] .sakura-files-table th:nth-child(4) {
+		width: 192px;
+	}
+}
+
 @media (max-width: 900px) {
 	.sakura-admin[data-sakura-page="files-settings"] .style-choices {
 		grid-template-columns: minmax(0, 1fr);
@@ -898,6 +988,31 @@
 	.sakura-admin[data-sakura-page="files-queue"] .toolbar__field,
 	.sakura-admin[data-sakura-page="files-log"] .toolbar__field {
 		flex: 1 1 100%;
+	}
+
+	.sakura-admin[data-sakura-page="files-users"] .toolbar__field--search {
+		width: 100%;
+		max-width: none;
+	}
+
+	.sakura-admin[data-sakura-page="files-users"] .sakura-files-table {
+		table-layout: auto;
+	}
+
+	.sakura-admin[data-sakura-page="files-users"] .sakura-files-table th:nth-child(1),
+	.sakura-admin[data-sakura-page="files-users"] .sakura-files-table th:nth-child(2),
+	.sakura-admin[data-sakura-page="files-users"] .sakura-files-table th:nth-child(3),
+	.sakura-admin[data-sakura-page="files-users"] .sakura-files-table th:nth-child(4) {
+		width: auto;
+		text-align: left;
+	}
+
+	.sakura-admin[data-sakura-page="files-users"] .sakura-files-table td:nth-child(4) {
+		text-align: left;
+	}
+
+	.sakura-admin[data-sakura-page="files-users"] .sakura-files-table td:nth-child(4) .quota-cell {
+		justify-content: flex-start;
 	}
 
 	.sakura-admin[data-sakura-page="files-settings"] .toolbar .btn,

@@ -388,7 +388,7 @@
 .sakura-admin .page-head {
 	display: grid;
 	grid-template-columns: minmax(0, 1fr) auto;
-	align-items: end;
+	align-items: start;
 	gap: 24px;
 	margin-bottom: var(--g-space-5);
 }
@@ -495,8 +495,24 @@
 
 .sakura-admin .page-head__actions {
 	display: flex;
+	flex-wrap: wrap;
 	align-items: center;
 	gap: 8px;
+	margin-top: 20px;
+}
+
+/* Page-level secondary actions still read as buttons, never as bare text. */
+.sakura-admin .page-head__actions .btn--quiet {
+	border-color: var(--g-line-strong);
+	background: var(--g-card);
+	box-shadow: 0 1px 1px rgba(24, 25, 26, .035);
+	color: var(--g-ink-soft);
+}
+
+.sakura-admin .page-head__actions .btn--quiet:hover {
+	border-color: var(--g-select-border-hover);
+	background: var(--g-wash);
+	color: var(--g-ink);
 }
 
 /* ============================================================

@@ -86,12 +86,12 @@ final class Page {
 		if ( '' !== $lede ) {
 			echo '<p class="page-head__lede">' . esc_html( $lede ) . '</p>';
 		}
+		self::actions( $actions );
 		echo '</div>';
 
-		if ( ! empty( $status ) || ! empty( $actions ) ) {
+		if ( ! empty( $status ) ) {
 			echo '<aside class="page-head__aside">';
 			self::status( $status );
-			self::actions( $actions );
 			echo '</aside>';
 		}
 

@@ -228,11 +228,19 @@
 		muted: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 9v6h4l5 4V5L8 9H4z" fill="currentColor"/><path d="M16 9l5 6M21 9l-5 6" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>',
 		fullscreen: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>',
 		download: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 4v11m0 0l-4-4m4 4l4-4M5 20h14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>',
-		file: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M7 3h7l4 4v14H7z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M14 3v5h5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>'
+		file: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M7 3h7l4 4v14H7z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M14 3v5h5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>',
+		chevronLeft: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+		chevronRight: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>'
 	};
 
 	function mediaIcon( name ) {
 		return MEDIA_ICONS[ name ] || '';
+	}
+
+	function mediaFill( template, values ) {
+		return String( template || '' ).replace( /\{(\w+)\}/g, function ( match, key ) {
+			return Object.prototype.hasOwnProperty.call( values, key ) ? String( values[ key ] ) : match;
+		} );
 	}
 
 	function mediaTime( value ) {
@@ -434,10 +442,22 @@
 		var labels = settings.labels || {};
 		var trigger = settings.trigger || document.activeElement;
 		var root = host();
+		var items = Array.isArray( settings.items ) && settings.items.length ? settings.items.slice() : [ payload ];
+		var index = Number( settings.index );
 
-		if ( ! payload.name ) {
+		items = items.filter( function ( item ) {
+			return item && item.name;
+		} );
+
+		if ( ! items.length ) {
 			return null;
 		}
+
+		if ( ! isFinite( index ) || index < 0 ) {
+			index = 0;
+		}
+		index = Math.min( items.length - 1, Math.floor( index ) );
+		payload = items[ index ];
 
 		var text = {
 			close: labels.close || '关闭',
@@ -458,7 +478,13 @@
 			unavailableTitle: labels.unavailableTitle || '暂不支持在线预览',
 			noUrlTitle: labels.noUrlTitle || '暂无可用预览',
 			local: labels.local || '本地文件',
-			cloud: labels.cloud || '云端对象'
+			cloud: labels.cloud || '云端对象',
+			prev: labels.prev || '上一个文件',
+			next: labels.next || '下一个文件',
+			counter: labels.counter || '{current} / {total}',
+			gallery: labels.gallery || '第 {current} 个，共 {total} 个文件',
+			folderTitle: labels.folderTitle || '文件夹',
+			folderMessage: labels.folderMessage || '这个文件夹申请里没有可预览的文件。'
 		};
 
 		var existing = admin.qs( '.sakura-media-dialog[open]', root );
@@ -487,31 +513,59 @@
 
 		var eyebrow = document.createElement( 'p' );
 		eyebrow.className = 'sakura-media-dialog__eyebrow';
-		eyebrow.textContent = ( payload.kind_label || '' ) + ( payload.ext ? ' · ' + payload.ext : '' );
 		copy.appendChild( eyebrow );
 
 		var title = document.createElement( 'h2' );
 		title.className = 'sakura-media-dialog__title';
 		title.id = titleId;
-		title.textContent = payload.name;
 		copy.appendChild( title );
 
 		var meta = document.createElement( 'div' );
 		meta.className = 'sakura-media-dialog__meta';
-		[ payload.size_label, payload.status_label, payload.mtime_label ].forEach( function ( value ) {
-			if ( ! value ) {
-				return;
-			}
-			var chip = document.createElement( 'span' );
-			chip.className = 'sakura-media-dialog__chip';
-			chip.textContent = value;
-			meta.appendChild( chip );
-		} );
-		var place = document.createElement( 'span' );
-		place.className = 'sakura-media-dialog__chip sakura-media-dialog__chip--place';
-		place.textContent = payload.local && payload.cloud ? text.local + ' + ' + text.cloud : ( payload.local ? text.local : text.cloud );
-		meta.appendChild( place );
 		copy.appendChild( meta );
+
+		function setHeader( item ) {
+			var parts = [];
+			if ( item.kind_label ) {
+				parts.push( item.kind_label );
+			}
+			if ( item.ext ) {
+				parts.push( item.ext );
+			}
+			eyebrow.textContent = parts.join( ' · ' );
+			title.textContent = item.name || '';
+			meta.textContent = '';
+
+			[ item.size_label, item.status_label, item.mtime_label ].forEach( function ( value ) {
+				if ( ! value ) {
+					return;
+				}
+				var chip = document.createElement( 'span' );
+				chip.className = 'sakura-media-dialog__chip';
+				chip.textContent = value;
+				meta.appendChild( chip );
+			} );
+
+			var placeLabel = item.place_label || '';
+			if ( ! placeLabel ) {
+				if ( item.local && item.cloud ) {
+					placeLabel = text.local + ' + ' + text.cloud;
+				} else if ( item.local ) {
+					placeLabel = text.local;
+				} else if ( item.cloud ) {
+					placeLabel = text.cloud;
+				}
+			}
+
+			if ( placeLabel ) {
+				var place = document.createElement( 'span' );
+				place.className = 'sakura-media-dialog__chip sakura-media-dialog__chip--place';
+				place.textContent = placeLabel;
+				meta.appendChild( place );
+			}
+		}
+
+		setHeader( payload );
 		header.appendChild( copy );
 
 		var closeButton = mediaButton( 'sakura-media-dialog__close', 'close', text.close );
@@ -520,10 +574,30 @@
 
 		var stage = document.createElement( 'div' );
 		stage.className = 'sakura-media-dialog__stage';
+
+		var stageBody = document.createElement( 'div' );
+		stageBody.className = 'sakura-media-dialog__stage-body';
+		stage.appendChild( stageBody );
+
+		var gallery = document.createElement( 'div' );
+		gallery.className = 'sakura-media-dialog__gallery';
+
+		var prevButton = mediaButton( 'sakura-media-dialog__gallery-btn sakura-media-dialog__gallery-prev', 'chevronLeft', text.prev );
+		var counter = document.createElement( 'span' );
+		counter.className = 'sakura-media-dialog__gallery-count';
+		var nextButton = mediaButton( 'sakura-media-dialog__gallery-btn sakura-media-dialog__gallery-next', 'chevronRight', text.next );
+		gallery.appendChild( prevButton );
+		gallery.appendChild( counter );
+		gallery.appendChild( nextButton );
+		stage.appendChild( gallery );
 		panel.appendChild( stage );
 
+		var videoNode = null;
+		var renderSeq = 0;
+		var swipeStart = null;
+
 		function stageMessage( heading, message ) {
-			stage.innerHTML = '';
+			stageBody.innerHTML = '';
 			stage.classList.remove( 'is-loading', 'is-video' );
 			var note = document.createElement( 'div' );
 			note.className = 'sakura-media-dialog__note';
@@ -537,13 +611,57 @@
 			var detail = document.createElement( 'p' );
 			detail.textContent = message || '';
 			note.appendChild( detail );
-			stage.appendChild( note );
+			stageBody.appendChild( note );
 		}
 
-		if ( 'image' === payload.kind ) {
-			if ( ! payload.url ) {
-				stageMessage( text.noUrlTitle, text.noUrl );
-			} else {
+		function stopVideo() {
+			if ( ! videoNode ) {
+				return;
+			}
+			videoNode.pause();
+			videoNode.removeAttribute( 'src' );
+			videoNode.load();
+			videoNode = null;
+		}
+
+		function updateGallery() {
+			gallery.hidden = items.length < 2;
+			counter.textContent = mediaFill( text.counter, { current: index + 1, total: items.length } );
+			gallery.setAttribute( 'aria-label', mediaFill( text.gallery, { current: index + 1, total: items.length } ) );
+			prevButton.setAttribute( 'aria-disabled', index <= 0 ? 'true' : 'false' );
+			nextButton.setAttribute( 'aria-disabled', index >= items.length - 1 ? 'true' : 'false' );
+		}
+
+		function go( delta ) {
+			var next = index + delta;
+			if ( next < 0 || next >= items.length ) {
+				return;
+			}
+			renderItem( next );
+		}
+
+		function renderItem( next ) {
+			next = Number( next );
+			if ( ! isFinite( next ) || next < 0 || next >= items.length ) {
+				return;
+			}
+			stopVideo();
+			index = next;
+			payload = items[ index ];
+			var token = ++renderSeq;
+
+			stage.classList.remove( 'is-loading', 'is-video' );
+			stageBody.innerHTML = '';
+			setHeader( payload );
+			setPath( payload );
+			setActions( payload );
+			updateGallery();
+
+			if ( 'image' === payload.kind ) {
+				if ( ! payload.url ) {
+					stageMessage( text.noUrlTitle, text.noUrl );
+					return;
+				}
 				stage.classList.add( 'is-loading' );
 				var image = document.createElement( 'img' );
 				image.className = 'sakura-media-dialog__image';
@@ -552,25 +670,74 @@
 				image.loading = 'eager';
 				image.src = payload.url;
 				image.addEventListener( 'load', function () {
-					stage.classList.remove( 'is-loading' );
+					if ( token === renderSeq ) {
+						stage.classList.remove( 'is-loading' );
+					}
 				} );
 				image.addEventListener( 'error', function () {
-					stageMessage( text.imageErrorTitle, text.imageFailed );
+					if ( token === renderSeq ) {
+						stageMessage( text.imageErrorTitle, text.imageFailed );
+					}
 				} );
-				stage.appendChild( image );
+				stageBody.appendChild( image );
+				return;
 			}
-		} else if ( 'video' === payload.kind ) {
-			if ( ! payload.url ) {
-				stageMessage( text.noUrlTitle, text.noUrl );
-			} else {
+
+			if ( 'video' === payload.kind ) {
+				if ( ! payload.url ) {
+					stageMessage( text.noUrlTitle, text.noUrl );
+					return;
+				}
 				stage.classList.add( 'is-video' );
-				stage.appendChild( mediaPlayer( payload, text, function ( message ) {
-					stageMessage( text.videoErrorTitle, message );
-				} ) );
+				var player = mediaPlayer( payload, text, function ( message ) {
+					if ( token === renderSeq ) {
+						stageMessage( text.videoErrorTitle, message );
+					}
+				} );
+				videoNode = player.querySelector( 'video' );
+				stageBody.appendChild( player );
+				return;
 			}
-		} else {
-			stageMessage( text.unavailableTitle, text.unavailable );
+
+			if ( 'folder' === payload.kind ) {
+				stageMessage( text.folderTitle, payload.message || text.folderMessage );
+				return;
+			}
+
+			stageMessage( text.unavailableTitle, payload.message || text.unavailable );
 		}
+
+		prevButton.addEventListener( 'click', function () {
+			go( -1 );
+		} );
+		nextButton.addEventListener( 'click', function () {
+			go( 1 );
+		} );
+
+		stage.addEventListener( 'touchstart', function ( event ) {
+			if ( event.touches.length !== 1 ) {
+				return;
+			}
+			if ( event.target.closest && event.target.closest( 'input, button, a' ) ) {
+				return;
+			}
+			swipeStart = { x: event.touches[0].clientX, y: event.touches[0].clientY };
+		}, { passive: true } );
+		stage.addEventListener( 'touchend', function ( event ) {
+			if ( ! swipeStart || ! event.changedTouches.length ) {
+				swipeStart = null;
+				return;
+			}
+			var dx = event.changedTouches[0].clientX - swipeStart.x;
+			var dy = event.changedTouches[0].clientY - swipeStart.y;
+			swipeStart = null;
+			if ( Math.abs( dx ) >= 48 && Math.abs( dx ) > Math.abs( dy ) * 1.2 ) {
+				go( dx < 0 ? 1 : -1 );
+			}
+		}, { passive: true } );
+		stage.addEventListener( 'touchcancel', function () {
+			swipeStart = null;
+		}, { passive: true } );
 
 		var footer = document.createElement( 'footer' );
 		footer.className = 'sakura-media-dialog__foot';
@@ -579,17 +746,28 @@
 		info.className = 'sakura-media-dialog__info';
 		var path = document.createElement( 'span' );
 		path.className = 'sakura-media-dialog__path';
-		path.textContent = payload.path || payload.key || '';
-		path.title = path.textContent;
 		info.appendChild( path );
 		footer.appendChild( info );
 
 		var actions = document.createElement( 'div' );
 		actions.className = 'sakura-media-dialog__actions';
-		if ( payload.download ) {
+		footer.appendChild( actions );
+		panel.appendChild( footer );
+		dialog.appendChild( panel );
+
+		function setPath( item ) {
+			path.textContent = item.path || item.key || '';
+			path.title = path.textContent;
+		}
+
+		function setActions( item ) {
+			actions.textContent = '';
+			if ( ! item.download ) {
+				return;
+			}
 			var download = document.createElement( 'a' );
 			download.className = 'btn btn--primary sakura-media-dialog__download';
-			download.href = payload.download;
+			download.href = item.download;
 			download.setAttribute( 'download', '' );
 			var downloadIcon = document.createElement( 'span' );
 			downloadIcon.className = 'sakura-media-dialog__download-icon';
@@ -600,11 +778,7 @@
 			download.appendChild( downloadLabel );
 			actions.appendChild( download );
 		}
-		footer.appendChild( actions );
-		panel.appendChild( footer );
-		dialog.appendChild( panel );
 
-		var videoNode = dialog.querySelector( 'video' );
 		var closed = false;
 		var pageScrollY = 0;
 		var pageBodyStyle = null;
@@ -670,11 +844,7 @@
 		} );
 		dialog.addEventListener( 'close', function () {
 			unlockPage();
-			if ( videoNode ) {
-				videoNode.pause();
-				videoNode.removeAttribute( 'src' );
-				videoNode.load();
-			}
+			stopVideo();
 			if ( dialog.parentNode ) {
 				dialog.parentNode.removeChild( dialog );
 			}
@@ -684,11 +854,19 @@
 		} );
 
 		dialog.addEventListener( 'keydown', function ( event ) {
+			var tag = ( event.target && event.target.tagName ) || '';
+			if ( /^(INPUT|TEXTAREA|SELECT)$/.test( tag ) ) {
+				return;
+			}
+			if ( items.length > 1 && ( 'ArrowLeft' === event.key || 'ArrowRight' === event.key ) && ! event.shiftKey ) {
+				event.preventDefault();
+				go( 'ArrowLeft' === event.key ? -1 : 1 );
+				return;
+			}
 			if ( ! videoNode ) {
 				return;
 			}
-			var tag = ( event.target && event.target.tagName ) || '';
-			if ( /^(BUTTON|A|INPUT|TEXTAREA|SELECT)$/.test( tag ) ) {
+			if ( /^(BUTTON|A)$/.test( tag ) ) {
 				return;
 			}
 			if ( ' ' === event.key ) {
@@ -709,6 +887,7 @@
 			}
 		} );
 
+		renderItem( index );
 		root.appendChild( dialog );
 		lockPage();
 

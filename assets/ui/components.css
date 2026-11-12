@@ -1364,6 +1364,88 @@ html.sakura-media-open {
 	overflow: hidden;
 }
 
+.sakura-admin .sakura-media-dialog__stage-body {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 100%;
+	min-height: 0;
+}
+
+.sakura-admin .sakura-media-dialog__stage.is-video .sakura-media-dialog__stage-body {
+	height: 100%;
+}
+
+.sakura-admin .sakura-media-dialog__gallery {
+	position: absolute;
+	inset: 0;
+	z-index: 2;
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 0 14px;
+	pointer-events: none;
+}
+
+.sakura-admin .sakura-media-dialog__gallery[hidden] {
+	display: none;
+}
+
+.sakura-admin .sakura-media-dialog__gallery-btn {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	pointer-events: auto;
+	width: 42px;
+	height: 42px;
+	padding: 0;
+	border: 1px solid rgba(24, 25, 26, .12);
+	border-radius: 50%;
+	background: rgba(255, 255, 255, .9);
+	box-shadow: 0 6px 18px -10px rgba(24, 25, 26, .45);
+	color: var(--g-ink-soft);
+	cursor: pointer;
+	transition: background .15s ease, color .15s ease, opacity .15s ease;
+}
+
+.sakura-admin .sakura-media-dialog__gallery-btn:hover {
+	background: #ffffff;
+	color: var(--g-ink);
+}
+
+.sakura-admin .sakura-media-dialog__gallery-btn:focus-visible {
+	outline: 2px solid var(--g-accent);
+	outline-offset: 2px;
+}
+
+.sakura-admin .sakura-media-dialog__gallery-btn[aria-disabled="true"] {
+	opacity: .35;
+	cursor: default;
+}
+
+.sakura-admin .sakura-media-dialog__gallery-btn svg {
+	width: 20px;
+	height: 20px;
+}
+
+.sakura-admin .sakura-media-dialog__gallery-count {
+	position: absolute;
+	top: 12px;
+	left: 50%;
+	padding: 4px 11px;
+	border: 1px solid rgba(24, 25, 26, .1);
+	border-radius: var(--g-radius-pill);
+	background: rgba(255, 255, 255, .9);
+	box-shadow: 0 6px 18px -12px rgba(24, 25, 26, .4);
+	color: var(--g-ink-soft);
+	font-size: 11px;
+	font-weight: 600;
+	font-variant-numeric: tabular-nums;
+	letter-spacing: .02em;
+	line-height: 1.5;
+	transform: translateX(-50%);
+}
+
 .sakura-admin .sakura-media-dialog__stage.is-loading::before {
 	content: "";
 	position: absolute;
@@ -1840,6 +1922,20 @@ html.sakura-media-open {
 
 	.sakura-admin .sakura-media-dialog__stage.is-video {
 		min-height: 0;
+	}
+
+	.sakura-admin .sakura-media-dialog__gallery {
+		padding: 0 10px;
+	}
+
+	.sakura-admin .sakura-media-dialog__gallery-btn {
+		width: 38px;
+		height: 38px;
+	}
+
+	.sakura-admin .sakura-media-dialog__gallery-count {
+		top: 10px;
+		font-size: 10.5px;
 	}
 
 	.sakura-admin .sakura-media-dialog__image {

@@ -569,6 +569,7 @@ final class Controller {
 			array( '/batch', 'POST', 'batch', $user ),
 			array( '/operations/(?P<id>\d+)', 'GET', 'operation', $user ),
 			array( '/admin/delete-requests', 'GET', 'admin_queue', $review ),
+			array( '/admin/delete-requests/(?P<id>\d+)/items', 'GET', 'admin_request_items', $review ),
 			array( '/admin/delete-requests/(?P<id>\d+)/review', 'POST', 'admin_review', $review ),
 			array( '/admin/delete-requests/(?P<id>\d+)/revoke', 'POST', 'admin_revoke', $review ),
 			array( '/admin/delete-batches/preview', 'POST', 'admin_batch_preview', $execute ),
@@ -1630,6 +1631,237 @@ final class Controller {
 					'queued'         => $this->requests->count( 0, Requests::QUEUED ),
 				),
 			)
+		);
+	}
+
+	/**
+	 * Files in one request, shaped for the admin media gallery.
+	 *
+	 * The queue response intentionally stays small: this endpoint is loaded only
+	 * when an administrator opens a request, and it never exposes a filesystem
+	 * path. A folder request is expanded to its frozen snapshot so the reviewer
+	 * sees the actual files that would be deleted.
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return WP_REST_Response|WP_Error
+	 */
+	public function admin_request_items( WP_REST_Request $request ): WP_REST_Response|WP_Error {
+		$row = $this->requests->get( (int) $request['id'] );
+
+		if ( ! $row ) {
+			return rest_ensure_response( new WP_Error( 'sufm_request_missing', __( '申请不存在。', 'sakura-imgopt' ), array( 'status' => 404 ) ) );
+		}
+
+		$owner = get_userdata( (int) $row->owner_id );
+
+		return rest_ensure_response(
+			array(
+				'request' => array(
+					'id'         => (int) $row->id,
+					'owner_id'   => (int) $row->owner_id,
+					'owner_name' => $owner ? (string) $owner->display_name : '',
+					'status'     => (string) $row->status,
+				),
+				'items'   => $this->request_gallery( $row ),
+			)
+		);
+	}
+
+	/**
+	 * Expand a request into previewable file entries.
+	 *
+	 * @param object $row Request row.
+	 * @return array<int,array<string,mixed>>
+	 */
+	private function request_gallery( object $row ): array {
+		$labels = $this->request_item_state_labels();
+		$items  = $this->requests->items( (int) $row->id );
+		$out    = array();
+
+		foreach ( $items as $item ) {
+			$state = (string) $item->state;
+
+			if ( 'folder' === (string) $item->object_type ) {
+				$snapshot = json_decode( (string) $item->manifest_snapshot, true );
+				$ids      = array_values( array_filter( array_map( 'absint', (array) ( $snapshot['files'] ?? array() ) ) ) );
+				$children = $this->request_child_files( (int) $row->owner_id, $ids );
+
+				if ( ! $children ) {
+					$out[] = $this->folder_preview( $item, (int) $row->id, $labels );
+					continue;
+				}
+
+				foreach ( $children as $child ) {
+					$out[] = $this->file_preview( $child, (string) ( $item->folder_name ?? '' ), (int) $row->id, $state, $labels );
+				}
+				continue;
+			}
+
+			$out[] = $this->file_preview( $item, '', (int) $row->id, $state, $labels );
+		}
+
+		return $out;
+	}
+
+	/**
+	 * Read the frozen files of a folder request in one query.
+	 *
+	 * @param int        $owner_id Owner id.
+	 * @param array<int> $ids      File ids from the folder snapshot.
+	 * @return array<int,object>
+	 */
+	private function request_child_files( int $owner_id, array $ids ): array {
+		global $wpdb;
+
+		if ( ! $ids ) {
+			return array();
+		}
+
+		$table        = Schema::table( 'files' );
+		$placeholders = implode( ',', array_fill( 0, count( $ids ), '%d' ) );
+		$sql          = "SELECT id,attachment_id,display_name,charged_bytes,storage_state FROM {$table} WHERE owner_id=%d AND id IN ({$placeholders}) ORDER BY id ASC"; // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$rows         = $wpdb->get_results( $wpdb->prepare( $sql, array_merge( array( $owner_id ), $ids ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+
+		return is_array( $rows ) ? $rows : array();
+	}
+
+	/**
+	 * Preview payload for one request file.
+	 *
+	 * @param object               $file     File row or request item.
+	 * @param string               $group    Folder name, when expanded from a folder.
+	 * @param int                  $request_id Request id.
+	 * @param string               $state    Item state.
+	 * @param array<string,string> $labels   State labels.
+	 * @return array<string,mixed>
+	 */
+	private function file_preview( object $file, string $group, int $request_id, string $state, array $labels ): array {
+		$attachment = (int) ( $file->attachment_id ?? 0 );
+		$name       = (string) ( $file->file_name ?? $file->display_name ?? '' );
+		$size       = (int) ( $file->charged_bytes ?? 0 );
+		$path       = $attachment > 0 ? (string) get_attached_file( $attachment ) : '';
+		$mime       = $attachment > 0 ? (string) get_post_mime_type( $attachment ) : '';
+		$filetype   = wp_check_filetype( '' !== $path ? $path : $name );
+
+		if ( '' === $mime && ! empty( $filetype['type'] ) ) {
+			$mime = (string) $filetype['type'];
+		}
+
+		$ext  = strtoupper( (string) pathinfo( '' !== $path ? $path : $name, PATHINFO_EXTENSION ) );
+		$kind = $this->preview_kind( $mime, $path, $name );
+		$url  = $attachment > 0 ? (string) wp_get_attachment_url( $attachment ) : '';
+		$view = in_array( $kind, array( 'image', 'video' ), true ) ? $url : '';
+
+		$download = '';
+		if ( $attachment > 0 ) {
+			$download = add_query_arg(
+				array(
+					'action'     => 'sakura_sufm_download',
+					'attachment' => $attachment,
+					'_wpnonce'   => wp_create_nonce( 'sakura_sufm_download' ),
+				),
+				admin_url( 'admin-post.php' )
+			);
+		}
+
+		$kind_labels = array(
+			'image'   => __( '图片', 'sakura-imgopt' ),
+			'video'   => __( '视频', 'sakura-imgopt' ),
+			'archive' => __( '压缩包', 'sakura-imgopt' ),
+			'folder'  => __( '文件夹', 'sakura-imgopt' ),
+			'other'   => __( '文件', 'sakura-imgopt' ),
+		);
+
+		return array(
+			'id'          => (int) ( $file->id ?? 0 ),
+			'name'        => $name,
+			'path'        => '' !== $group ? $group . ' / ' . $name : sprintf( /* translators: %d: request id. */ __( '申请 #%d', 'sakura-imgopt' ), $request_id ),
+			'kind'        => $kind,
+			'kind_label'  => $kind_labels[ $kind ] ?? $kind_labels['other'],
+			'mime'        => $mime,
+			'ext'         => $ext,
+			'size'        => $size,
+			'size_label'  => size_format( $size ),
+			'status'      => $state,
+			'status_label' => $labels[ $state ] ?? $state,
+			'place_label' => '' !== $group ? __( '文件夹内文件', 'sakura-imgopt' ) : __( '申请文件', 'sakura-imgopt' ),
+			'url'         => $view,
+			'download'    => $download,
+		);
+	}
+
+	/**
+	 * Placeholder for a folder whose snapshot has no readable files.
+	 *
+	 * @param object               $item    Request item.
+	 * @param int                  $request_id Request id.
+	 * @param array<string,string> $labels  State labels.
+	 * @return array<string,mixed>
+	 */
+	private function folder_preview( object $item, int $request_id, array $labels ): array {
+		$snapshot = json_decode( (string) $item->manifest_snapshot, true );
+		$count    = is_array( $snapshot ) ? count( (array) ( $snapshot['files'] ?? array() ) ) : 0;
+		$state    = (string) $item->state;
+
+		return array(
+			'id'          => (int) $item->id,
+			'name'        => (string) ( $item->folder_name ?? __( '文件夹', 'sakura-imgopt' ) ),
+			'path'        => sprintf( /* translators: %d: request id. */ __( '申请 #%d · 文件夹', 'sakura-imgopt' ), $request_id ),
+			'kind'        => 'folder',
+			'kind_label'  => __( '文件夹', 'sakura-imgopt' ),
+			'size'        => 0,
+			'size_label'  => '',
+			'status'      => $state,
+			'status_label' => $labels[ $state ] ?? $state,
+			'place_label' => __( '申请文件', 'sakura-imgopt' ),
+			'url'         => '',
+			'download'    => '',
+			'message'     => sprintf( /* translators: %d: file count. */ __( '该文件夹申请包含 %d 个文件，但快照中没有可读取的附件。', 'sakura-imgopt' ), $count ),
+		);
+	}
+
+	/**
+	 * Classify a file from its MIME type and extension.
+	 *
+	 * @param string $mime MIME type.
+	 * @param string $path Path.
+	 * @param string $name Display name.
+	 * @return string
+	 */
+	private function preview_kind( string $mime, string $path, string $name ): string {
+		$ext = strtolower( (string) pathinfo( '' !== $path ? $path : $name, PATHINFO_EXTENSION ) );
+
+		if ( in_array( $ext, array( 'zip', 'rar', '7z', 'tar', 'gz', 'bz2', 'xz' ), true ) ) {
+			return 'archive';
+		}
+		if ( 0 === strpos( $mime, 'image/' ) ) {
+			return 'image';
+		}
+		if ( 0 === strpos( $mime, 'video/' ) ) {
+			return 'video';
+		}
+
+		return 'other';
+	}
+
+	/**
+	 * Human labels for item states.
+	 *
+	 * @return array<string,string>
+	 */
+	private function request_item_state_labels(): array {
+		return array(
+			'pending'        => __( '待处理', 'sakura-imgopt' ),
+			'pending_review' => __( '待审核', 'sakura-imgopt' ),
+			'approved'       => __( '已批准', 'sakura-imgopt' ),
+			'rejected'       => __( '已驳回', 'sakura-imgopt' ),
+			'revoked'        => __( '已撤销', 'sakura-imgopt' ),
+			'withdrawn'      => __( '已撤回', 'sakura-imgopt' ),
+			'queued'         => __( '待执行', 'sakura-imgopt' ),
+			'executing'      => __( '执行中', 'sakura-imgopt' ),
+			'done'           => __( '已删除', 'sakura-imgopt' ),
+			'failed'         => __( '失败', 'sakura-imgopt' ),
+			'stopped'        => __( '已停止', 'sakura-imgopt' ),
 		);
 	}
 

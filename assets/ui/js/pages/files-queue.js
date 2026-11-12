@@ -412,6 +412,44 @@
 			return wrap;
 		}
 
+		function openFiles( row, button ) {
+			if ( ! admin.ui || typeof admin.ui.mediaPreview !== 'function' ) {
+				if ( admin.ui && typeof admin.ui.toast === 'function' ) {
+					admin.ui.toast( strings.failed || '操作失败，请重试。', 'bad' );
+				}
+				return;
+			}
+
+			admin.ui.busy( button, true );
+			get( 'admin/delete-requests/' + encodeURIComponent( row.id ) + '/items', {} ).then( function ( data ) {
+				admin.ui.busy( button, false );
+				var items = data && Array.isArray( data.items ) ? data.items : [];
+
+				if ( ! items.length ) {
+					admin.ui.toast( strings.filesEmpty || '这条申请没有可查看的文件。', 'warn' );
+					return;
+				}
+
+				admin.ui.mediaPreview( items[0], {
+					items: items,
+					trigger: button,
+					labels: {
+						prev: strings.galleryPrev || '上一个文件',
+						next: strings.galleryNext || '下一个文件',
+						counter: strings.galleryCounter || '{current} / {total}',
+						gallery: strings.galleryLabel || '第 {current} 个，共 {total} 个文件'
+					}
+				} );
+			} ).catch( function ( error ) {
+				admin.ui.busy( button, false );
+				var message = errorText( error );
+				if ( ! message || message === strings.failed ) {
+					message = strings.filesLoadFailed || message || '读取申请文件失败，请重试。';
+				}
+				admin.ui.toast( message, 'bad' );
+			} );
+		}
+
 		function renderQueue( rows ) {
 			body.textContent = '';
 
@@ -442,6 +480,20 @@
 				object.appendChild( el( 'span', '', fill( strings.items || '{count} 项', { count: row.item_count || 0 } ) ) );
 				object.appendChild( el( 'span', '', admin.format.fileSize( row.bytes || 0 ) ) );
 				objectCell.appendChild( object );
+
+				if ( Number( row.item_count ) > 0 ) {
+					var filesButton = el( 'button', 'queue-object__files', strings.viewFiles || '查看文件' );
+					filesButton.type = 'button';
+					filesButton.setAttribute( 'aria-label', fill( strings.viewFilesLabel || '查看申请 #{id} 的 {count} 个文件', {
+						id: row.id,
+						count: row.item_count
+					} ) );
+					filesButton.addEventListener( 'click', function () {
+						openFiles( row, filesButton );
+					} );
+					objectCell.appendChild( filesButton );
+				}
+
 				tr.appendChild( objectCell );
 
 				var statusCell = cell( strings.statusLabel || '状态' );

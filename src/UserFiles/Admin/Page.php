@@ -64,6 +64,7 @@ final class Page {
 		$hooks->add_action( 'admin_init', array( $this, 'register_settings' ) );
 		$hooks->add_action( 'admin_enqueue_scripts', array( $this, 'enqueue' ) );
 		$hooks->add_action( 'update_option_' . Settings::OPTION, array( $this, 'flush_entry_cache' ) );
+		$hooks->add_action( 'admin_post_sakura_sufm_download', array( $this, 'download_request_file' ) );
 
 		/*
 		 * Registering the renderers touches Registry::tabs(), which builds the
@@ -101,6 +102,61 @@ final class Page {
 		if ( class_exists( Generic::class ) ) {
 			Generic::flush_page_cache();
 		}
+	}
+
+	/**
+	 * Stream one attachment from a deletion request as a download.
+	 *
+	 * Uploads live on the object-storage CDN, whose response is inline and whose
+	 * download attribute is ignored across origins. Reviewers need a real
+	 * attachment response before they approve destruction of the file.
+	 *
+	 * @return void
+	 */
+	public function download_request_file(): void {
+		if ( ! Capabilities::can_review() ) {
+			wp_die( esc_html__( '你没有权限下载这个文件。', 'sakura-imgopt' ), '', array( 'response' => 403 ) );
+		}
+
+		check_admin_referer( 'sakura_sufm_download' );
+
+		$attachment = isset( $_GET['attachment'] ) ? absint( $_GET['attachment'] ) : 0;
+		if ( $attachment < 1 ) {
+			wp_die( esc_html__( '文件不存在。', 'sakura-imgopt' ), '', array( 'response' => 404 ) );
+		}
+
+		$path = get_attached_file( $attachment );
+
+		if ( ! $path || ! is_readable( $path ) ) {
+			$url = wp_get_attachment_url( $attachment );
+			if ( $url ) {
+				wp_safe_redirect( $url );
+				exit;
+			}
+
+			wp_die( esc_html__( '文件不存在或无法读取。', 'sakura-imgopt' ), '', array( 'response' => 404 ) );
+		}
+
+		$name = wp_basename( $path );
+		$mime = (string) get_post_mime_type( $attachment );
+		if ( '' === $mime ) {
+			$mime = 'application/octet-stream';
+		}
+
+		$ascii = preg_replace( '/[^A-Za-z0-9._ -]/', '_', $name );
+		$ascii = trim( (string) $ascii );
+		if ( '' === $ascii ) {
+			$ascii = 'download';
+		}
+
+		nocache_headers();
+		header( 'Content-Type: ' . $mime );
+		header( 'Content-Disposition: attachment; filename="' . $ascii . '"; filename*=UTF-8\'\'' . rawurlencode( $name ) );
+		header( 'Content-Length: ' . (string) filesize( $path ) );
+		header( 'X-Content-Type-Options: nosniff' );
+
+		readfile( $path );
+		exit;
 	}
 
 	/**
@@ -220,6 +276,14 @@ final class Page {
 					'countSub'            => __( '已批准待执行 {approved} · 执行中 {queued}', 'sakura-imgopt' ),
 					'ownerId'             => __( 'ID {id}', 'sakura-imgopt' ),
 					'items'               => __( '{count} 项', 'sakura-imgopt' ),
+					'viewFiles'           => __( '查看文件', 'sakura-imgopt' ),
+					'viewFilesLabel'      => __( '查看申请 #{id} 的 {count} 个文件', 'sakura-imgopt' ),
+					'filesLoadFailed'     => __( '读取申请文件失败，请重试。', 'sakura-imgopt' ),
+					'filesEmpty'          => __( '这条申请没有可查看的文件。', 'sakura-imgopt' ),
+					'galleryPrev'         => __( '上一个文件', 'sakura-imgopt' ),
+					'galleryNext'         => __( '下一个文件', 'sakura-imgopt' ),
+					'galleryCounter'      => __( '{current} / {total}', 'sakura-imgopt' ),
+					'galleryLabel'        => __( '第 {current} 个，共 {total} 个文件', 'sakura-imgopt' ),
 					'noActions'           => __( '—', 'sakura-imgopt' ),
 					'idLabel'             => __( '编号', 'sakura-imgopt' ),
 					'userLabel'           => __( '用户', 'sakura-imgopt' ),

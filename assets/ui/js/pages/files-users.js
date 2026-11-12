@@ -346,6 +346,9 @@
 			} ).then( function ( data ) {
 				renderUsers( data.rows || [] );
 				pager.set( data );
+				if ( admin.events ) {
+					admin.events.emit( 'layout-refresh' );
+				}
 			} ).catch( function ( error ) {
 				body.textContent = '';
 				showEmpty( true );
@@ -356,6 +359,9 @@
 					}
 				}
 				admin.ui.toast( errorText( error ), 'bad' );
+				if ( admin.events ) {
+					admin.events.emit( 'layout-refresh' );
+				}
 			} );
 		}
 

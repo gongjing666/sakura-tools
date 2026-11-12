@@ -264,6 +264,10 @@
 		} );
 	}
 
+	if ( admin && admin.events && admin.events.on ) {
+		admin.events.on( 'layout-refresh', reflow );
+	}
+
 	if ( desktops.addEventListener ) {
 		desktops.addEventListener( 'change', reflow );
 	} else if ( desktops.addListener ) {

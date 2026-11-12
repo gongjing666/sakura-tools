@@ -298,6 +298,14 @@
 			load( pager.page() );
 		} );
 
+		/* The event list grows after the AJAX response; the absolute card canvas
+		 * has to be measured again or the WordPress footer sits on top of it. */
+		function notifyLayout() {
+			if ( admin.events ) {
+				admin.events.emit( 'layout-refresh' );
+			}
+		}
+
 		function load( page ) {
 			list.hidden = false;
 			list.textContent = '';
@@ -318,6 +326,7 @@
 				fillResultOptions();
 				renderRows();
 				pager.set( data );
+				notifyLayout();
 			} ).catch( function ( error ) {
 				rows = [];
 				list.textContent = '';
@@ -330,6 +339,7 @@
 					}
 				}
 				admin.ui.toast( errorText( error ), 'bad' );
+				notifyLayout();
 			} );
 		}
 

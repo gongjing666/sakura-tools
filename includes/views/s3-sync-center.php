@@ -710,8 +710,17 @@ $sakura_sync_cards = static function () use (
 				'kicker'      => __( 'Activity', 'sakura-imgopt' ),
 				'title'       => __( '同步日志', 'sakura-imgopt' ),
 				'description' => __( '默认显示最近 6 条；可查询更多，完整日志可在任务详情中查看。', 'sakura-imgopt' ),
+				'actions'     => array(
+					array(
+						'label'   => __( '导出差异表格（CSV）', 'sakura-imgopt' ),
+						'url'     => $export_url,
+						'variant' => 'ghost',
+						'id'      => 'sakura-sync-export-logs',
+						'attrs'   => array( 'data-sakura-role' => 'export' ),
+					),
+				),
 			),
-			static function () use ( $logs, $scan_time, $export_url ): void {
+			static function () use ( $logs, $scan_time ): void {
 				?>
 				<div class="log-toolbar">
 					<div class="filter-chips" aria-label="<?php esc_attr_e( '日志级别', 'sakura-imgopt' ); ?>">
@@ -720,7 +729,6 @@ $sakura_sync_cards = static function () use (
 						<button type="button" class="filter-chip" data-log-level="warning"><?php esc_html_e( '警告', 'sakura-imgopt' ); ?></button>
 						<button type="button" class="filter-chip" data-log-level="info"><?php esc_html_e( '信息', 'sakura-imgopt' ); ?></button>
 					</div>
-					<a class="btn btn--ghost btn--small" id="sakura-sync-export-logs" href="<?php echo esc_url( $export_url ); ?>" data-sakura-role="export"><?php esc_html_e( '导出差异表格（CSV）', 'sakura-imgopt' ); ?></a>
 				</div>
 				<div class="log-list" id="log-list">
 					<?php if ( $logs ) : ?>

@@ -1,40 +1,40 @@
-# sakura-tools 3D 图谱同步说明（v1.24.4）
+# sakura-tools 3D 图谱同步说明（v1.25.0）
 
-> 配套文档：[sakura-tools 代码结构 1.24.4](sakura-tools-代码结构-1.24.4.md) ｜ **代码基线** commit `1660b4c`（1.24.3 发布；1.24.4 覆盖升级与文档修正随本次发布提交），图谱按 1.24.4 工作树生成。本文只回答三件事：**图谱变了什么、怎么和文档对上、以后怎么重建**。
+> 配套文档：[sakura-tools 代码结构 1.25.0](sakura-tools-代码结构-1.25.0.md) ｜ **代码基线** commit `feb1f31`（1.25.0 发布；后台 UI 重构的 43 个提交与文档修正随本次发布提交），图谱按 1.25.0 工作树生成。本文只回答三件事：**图谱变了什么、怎么和文档对上、以后怎么重建**。
 
 ## 0. 结论
 
 - 图谱由同一份扫描事实表与文档同时产出，不是手工对齐的副产物；上一轮（2026-11-09 1.24.2 S3/Sync 运维观测）新增 7 条 `ref`、3 条模块边权与 2 个类节点的 `val`，节点、类、钩子集合不变（§2.9）。
 - 2026-11-09 晚间的三条验证空白补测（Quota、删除审核→Executor、卸载、扫描游标、编辑器覆盖与顺序）没有改插件代码（§2.10）；本轮 1.24.3 修复卸载漏删 `file_tokens`，新增 1 条 `ref` 与 1 条模块边权，节点、类、钩子集合不变（§2.11）。
-- 规模：**179 个生产 PHP 文件 / 164 个类 / 17 个模块 / 181 个节点 / 826 条连线**（612 `ref` + 164 `contains` + 50 `modref`）/ **199 个具名钩子** / **0 悬空边**。
-- 本轮（2026-11-10）新增 `src/Upgrade_Guard.php` 并在 `Plugin::boot()` 接线，节点 180→181、连线 823→826（`ref` +2、`contains` +1）；钩子由 191 修正为 **199**：补扫出 11 条此前漏记的具名注册，同时剔除 2 条通用转发和 1 条 `add_submenu_page`，净 +8；代码本身没有新增钩子（§2.12）。页面四角为 179 / 181 / 826 / 199。
-- 1.24.4 发布只提升版本号、同步文档与图谱标题，节点 / 连线 / 钩子集合不变；页面副标题与 `meta.version` 更新为 1.24.4。
-- 页面四角数字由 `graph.json` 的 `stats` 注入，不再手写；页面显示 179 / 181 / 826 / 199，与文档附录计数一致。
+- 规模：**189 个生产 PHP 文件 / 174 个类 / 17 个模块 / 191 个节点 / 861 条连线**（637 `ref` + 174 `contains` + 50 `modref`）/ **203 个具名钩子** / **0 悬空边**。
+- 本轮（2026-11-12）的后台 UI 重构**净增 10 个类节点**：新增 11 个（`Admin\Appearance`、`Admin\Card_Form`、`Admin\Page_Assets`、`Admin\Route`、`Admin\UI`、`Admin\UI\Card`、`Admin\UI\Feedback`、`Admin\UI\Field`、`Admin\UI\Page`、`Admin\System_Settings_Module`、`S3\Config_Notice`），删除 1 个（`Admin\Basic_Settings_Module`，其视图 `includes/views/basic-settings.php` 同时移除）；节点 181→191、连线 826→861（`ref` +25、`contains` +10），模块集合与 `modref` 仍 17 / 50；钩子 199→**203**（§2.14）。页面四角为 189 / 191 / 861 / 203。
+- 1.25.0 同时提升版本号、重组后台 UI 栈并删除 12 个旧资源文件，图谱按新工作树整体重建；页面副标题与 `meta.version` 更新为 1.25.0。
+- 页面四角数字由 `graph.json` 的 `stats` 注入，不再手写；页面显示 189 / 191 / 861 / 203，与文档附录计数一致。
 - 生成、注入、组装三个脚本已固化到 `docs/tools/`，可在任意机器重跑（§7）。
 
 ## 1. 数据管线：谁生成谁
 
 ```
 scanner.php（token_get_all 三趟静态扫描）
-        │  /tmp/scan.json        179 文件 / 164 类 / 199 钩子 / 全部边
-        ├── collect-hooks.php → 199 条具名钩子（含常量与拼接解析）
-        ├── collect-comments.php → /tmp/comments.json   164 条类注释（"职责"列的依据）
+        │  /tmp/scan.json        189 文件 / 174 类 / 203 钩子 / 全部边
+        ├── collect-hooks.php → 203 条具名钩子（含常量与拼接解析）
+        ├── collect-comments.php → /tmp/comments.json   174 条类注释（"职责"列的依据）
         ▼
 build-code-structure.mjs
         ├── modules.md  class-index.md  file-index.md  hooks.md  module-matrix.md  top-edges.md
         ├── classes/<模块>.md   16 个分类表
-        └── graph.json          181 节点 / 826 连线 / 确定性坐标
+        └── graph.json          191 节点 / 861 连线 / 确定性坐标
         ▼
 graph-inject.mjs ──► docs/graph-preview/index.html（内嵌 DATA）+ graph.json
         ▼
-assemble-doc.py  ──► sakura-tools-代码结构-1.24.4.md（分章正文 + 上述表格）
+assemble-doc.py  ──► sakura-tools-代码结构-1.25.0.md（分章正文 + 上述表格）
 ```
 
 | 步骤 | 命令（在插件根目录下执行） | 产物 |
 |---|---|---|
 | 1 扫描 | `php /root/DSH/plugins/dsh-codegraph/lib/scanner.php . > /tmp/scan.json` | 事实表 |
-| 1b 钩子补扫 | 构建脚本自动调用 `php docs/tools/collect-hooks.php .` | 199 条具名钩子（解析常量、`self::`/`Class::` 与字符串拼接；排除 `add_submenu_page` 与 `Hook_Loader` 通用转发） |
-| 2 注释 | `php docs/tools/collect-comments.php . > /tmp/comments.json` | 164 条类 docblock |
+| 1b 钩子补扫 | 构建脚本自动调用 `php docs/tools/collect-hooks.php .` | 203 条具名钩子（解析常量、`self::`/`Class::` 与字符串拼接；排除 `add_submenu_page` 与 `Hook_Loader` 通用转发） |
+| 2 注释 | `php docs/tools/collect-comments.php . > /tmp/comments.json` | 174 条类 docblock |
 | 3 生成 | `node docs/tools/build-code-structure.mjs /tmp/scan.json /tmp/docparts /tmp/comments.json` | 表格 + graph.json |
 | 4 注入 | `node docs/tools/graph-inject.mjs /tmp/docparts/graph.json docs/graph-preview --write` | index.html + graph.json |
 | 5 组装 | `python3 docs/tools/assemble-doc.py --parts /tmp/docparts --chapters docs/tools/chapters` | 代码结构文档 |
@@ -45,12 +45,12 @@ assemble-doc.py  ──► sakura-tools-代码结构-1.24.4.md（分章正文 + 
 ## 2. 与上一版导出的对比
 
 | 项 | 旧导出（`/tmp/graph.json.bak`） | 当前导出 | 说明 |
-| 文件数 | 181 | 179 | 口径为"生产 PHP"，排除 `tests/`、`stubs/`、`.dsh-ops/`；本轮新增 `src/Upgrade_Guard.php` |
+| 文件数 | 181 | 189 | 口径为"生产 PHP"，排除 `tests/`、`stubs/`、`.dsh-ops/`；1.25.0 新增 11 个 PHP 文件（`src/Admin` 九个外壳类、`includes/views/system-settings.php`、`src/S3/Config_Notice.php`），删除 1 个（`includes/views/basic-settings.php`） |
 | 模块 | 15 | 17 | 根文件统一命名 `根文件`、`src` 单列、`includes` 与 `includes/views` 分开 |
-| 类 | 147 | 164 | 本轮新增 `Upgrade_Guard`；见下方 id 规则变更 |
-| 节点 | 162 | 181 | 164 类 + 17 模块 |
-| 连线 | 761 | 826 | 旧 559 ref + 147 contains + 55 modref → 612 + 164 + 50 |
-| 钩子 | 未收录（页脚写死 111） | 199（`stats.hooks`） | 本轮改为 `collect-hooks.php` 补扫；见 §2.12 |
+| 类 | 147 | 174 | 1.25.0 净增 10 个（新增 11、删除 `Basic_Settings_Module`）；见下方 id 规则变更 |
+| 节点 | 162 | 191 | 174 类 + 17 模块 |
+| 连线 | 761 | 861 | 旧 559 ref + 147 contains + 55 modref → 637 + 174 + 50 |
+| 钩子 | 未收录（页脚写死 111） | 203（`stats.hooks`） | 由 `collect-hooks.php` 补扫；见 §2.12 与 §2.14 |
 | 布局 | 力导向 320 次迭代，radius 1699.4 | 确定性球面，radius 1710，`iterations: 0` | 同数据每次坐标一致，可 diff |
 | 节点 id | 短类名，如 `cls:Alerting` | FQCN，如 `cls:Sakura\ImageOptimizer\S3\Alerting` | 见下方说明 |
 
@@ -220,6 +220,26 @@ assemble-doc.py  ──► sakura-tools-代码结构-1.24.4.md（分章正文 + 
 
 重建产物：主文档 `sakura-tools-代码结构-1.24.4.md` 303,711 字节（md5 `6769bbdc5b704c4275d66199f90285fd`）；页面 `index.html` 168,449 字节（md5 `7705a556669d6287798f6ec04417748e`）；`graph.json` 205,832 字节（md5 `a63b6e4312932923938f79f9108afd53`）。页面副标题与 `meta.version` 均为 1.24.4，四角仍为 179 / 181 / 826 / 199。
 
+### 2.14 本轮增量（2026-11-12 1.25.0 后台 UI 重构）
+
+后台 13 个页签改用统一 UI 内核，图谱在类级整体换血：**净增 10 个类节点**（新增 11、删除 1），模块集合不变。
+
+| 变更 | 图谱对象 | 计数影响 | 文档对应 |
+|---|---|---|---|
+| 新增类节点 ×11 | `Admin\Appearance`（`src/Admin/Appearance.php:15`，val 2.7713）、`Admin\Card_Form`（`src/Admin/Card_Form.php:23`，val 3.5777）、`Admin\Page_Assets`（`src/Admin/Page_Assets.php:17`，val 3.5777）、`Admin\Route`（`src/Admin/Route.php:21`，val 2.7713）、`Admin\UI`（`src/Admin/UI.php:26`，val 4.2332）、`Admin\UI\Card`（`src/Admin/UI/Card.php:22`，1.6）、`Admin\UI\Feedback`（`src/Admin/UI/Feedback.php:17`，3.2）、`Admin\UI\Field`（`src/Admin/UI/Field.php:21`，1.6）、`Admin\UI\Page`（`src/Admin/UI/Page.php:21`，1.6）、`Admin\System_Settings_Module`（`src/Admin/System_Settings_Module.php:24`，3.2）、`S3\Config_Notice`（`src/S3/Config_Notice.php:25`，2.2627） | 类 164→174；文件 179→189（另有 `includes/views/system-settings.php` 进文件索引） | §3.5、§4.3、§6.2 |
+| 删除类节点 ×1 | `Admin\Basic_Settings_Module`，其视图 `includes/views/basic-settings.php` 同时移除，能力并入新的系统设置页 | 类 −1；文件 −1 | §3.5 |
+| 新增 `contains` ×11 | `mod:src/Admin` → 上述 10 个 Admin 类；`mod:src/S3` → `Config_Notice` | `contains` 164→174 | §13 |
+| 删除 `contains` ×1 | `mod:src/Admin` → `Basic_Settings_Module` | 同上 | §13 |
+| 新增 `ref` ×42 | 装配层换血：`Plugin → Admin\System_Settings_Module`(2)、`Admin\System_Settings_Module → {Appearance(12), Card_Form(2), Layout(8), Registry(2), Assets(2), Environment_Report(2), Hook_Loader(1), Contracts\Module(1)}`、`Admin\Page_Assets → {Layout(5), Route(2)}`、`Admin\Assets → {Page_Assets(2), Route(2)}`、`Admin\Menu → {UI(4), Route(2)}`、`Admin\Shell → {UI(2), Route(2)}`、`Admin\Route → Registry(2)`、`Admin\UI → Feedback(8)`、`Admin\UI\Page → {Page_Assets(2), Appearance(2), Shell(2)}`、`Admin\UI\Card → Card_Form(4)`；三个已迁册的旧页面类改挂新内核：`S3\S3_Storage_Page → Admin\UI`(**w=50**)、`S3\Monitoring_Panel → Admin\UI`(14)、`S3\Sync_Center_Panel → Admin\UI`(4)、`Nboke\UserFiles\Admin\Space_Page → Admin\UI`(8)、`Nboke\UserFiles\Admin\Page → {Route(2), Page_Assets(2)}`；保存与提示改走新类：`S3\Settings_Saver → Admin\Card_Form`(2)、`S3\Sync_Center_Module → {Page_Assets(2), Config_Notice(4)}`、`S3\Config_Notice → {S3\Options(2), Admin\Registry(2)}`、`Image_Optimizer_Module → {Card_Form(4), Page_Assets(4)}`、`Media_Library_Module → Page_Assets`(4)、`S3\Delete_Queue_Panel → Page_Assets`(2) | `ref` 612→637（+42 −17 = +25） | §3.5、§6.2、§8 |
+| 删除 `ref` ×17 | 旧外壳与旧视图的连线整体退出：`Admin\Basic_Settings_Module` 的 6 条（Module/Layout(7)/Assets/Registry/Environment_Report/Hook_Loader）、`Plugin → {Admin\Basic_Settings_Module(2), Admin\Assets(1)}`、`Admin\Assets → {Shell(2), Layout(5)}`、`Media_Library_Module → Admin\Assets`(2)、`S3\Delete_Queue_Panel → Admin\Shell`(2)、`S3\S3_Storage_Page → Admin\Shell`(2)、`Nboke\UserFiles\Admin\Space_Page → {Admin\Shell(6), Support\Assets(4), Space_Store(2)}`、`Nboke\UserFiles\Admin\Page → Support\Assets`(4) | 同上 | §13 |
+| 模块集合 | 仍 17 个模块、`modref` 仍 50；`src/Admin` 节点数 7→16、`val` 取 `max(4, 文件数×0.8)` 由 5.6 升到 12.8 | 节点 181→191；连线 826→861 | §4 |
+| 钩子计数 | `stats.hooks` | 199→**203**，净 +4：新增 `admin_print_footer_scripts`（`src/Admin/Page_Assets.php`）、`wp_ajax_sakura_s3_config_notice` 与 `admin_post_sakura_s3_media_download`（均 `S3\Sync_Center_Module`，13→15 条）、`admin_post_sakura_sufm_download`（`Nboke\UserFiles\Admin\Page`，4→5 条）；`Admin\Basic_Settings_Module` 的 2 条随类删除，由 `Admin\System_Settings_Module` 的 2 条等价接替，故不增减 | §9.2 |
+
+**净增量核对**：42 条新增 − 17 条删除 = +25 条 `ref`（612→637）；11 条新增 − 1 条删除 = +10 条 `contains`（164→174）；`modref` 未动（50）。节点 174+17 = 191，连线 637+174+50 = 861，与 §8 的一致性核对一致。
+
+**为什么边会这么多**：1.24.4 之前每个后台页面类各自 `require` 视图、各自拼接 `<div class="…-app">` 外壳，因此图谱里是「页面类 → Shell / Assets / 视图」的散点；1.25.0 把外壳与构件集中到 `Admin\UI::{Page,Card,Field,Feedback}`，于是散点收敛成「多个页面类 → `Admin\UI`」的重边（`S3_Storage_Page → Admin\UI` 单边 w=50 就是 50 处静态调用）。这既是节点数和连线数的来源，也是重构的实际收益：**页面类不再直接触碰外壳**。
+
+
 ## 3. 节点与连线的定义
 
 **节点字段**
@@ -250,13 +270,13 @@ assemble-doc.py  ──► sakura-tools-代码结构-1.24.4.md（分章正文 + 
 | 模块 | 文件数 | 类节点 | 说明 |
 |---|---:|---:|---|
 | `src/UserFiles` | 46 | 46 | 用户文件空间，最大簇 |
-| `src/S3` | 36 | 36 | 对象存储（清理前 37） |
+| `src/S3` | 37 | 37 | 对象存储（新增 `Config_Notice`；1.24.2 清理前为 37） |
 | `src/Sync` | 17 | 17 | 同步索引 |
 | `src/Thumbnail` | 15 | 15 | 缩略图重写 |
 | `includes` | 14 | 14 | 旧层门面与装配 |
 | `includes/views` | 12 | 0 | 后台视图模板，只有文件不含类 |
 | `src/Image` | 10 | 10 | 图片处理 |
-| `src/Admin` | 7 | 7 | 菜单、路由与布局 |
+| `src/Admin` | 16 | 16 | 后台信息架构、UI 内核、资源加载与外观令牌 |
 | `src/Contracts` | 5 | 5 | 5 个接口 |
 | `src` | 5 | 5 | 插件入口、运行时与升级守卫 |
 | `根文件` | 3 | 0 | 主文件、`uninstall.php`、`fast-search.php` |
@@ -266,7 +286,7 @@ assemble-doc.py  ──► sakura-tools-代码结构-1.24.4.md（分章正文 + 
 | `src/Filesystem` | 1 | 1 | 文件系统契约实现 |
 | `src/Settings` | 1 | 1 | 设置仓储 |
 | `src/Stats` | 1 | 1 | 统计仓储 |
-| **合计** | **179** | **164** | 与 §2.2、附录 C 一致 |
+| **合计** | **189** | **174** | 与 §2.2、附录 C 一致 |
 
 ## 5. 最粗的六条模块连线
 
@@ -286,10 +306,10 @@ assemble-doc.py  ──► sakura-tools-代码结构-1.24.4.md（分章正文 + 
 | 图谱元素 | 数量 | 文档中的对应条目 | 共同的生成来源 |
 |---|---:|---|---|
 | 模块节点 | 17 | §2.2 模块总览表（17 行） | `scan.files` 按模块聚合 |
-| 类节点 | 164 | 附录 A 类索引（164 行，每行给 `文件:行`） | `scan.nodes(kind=class)` |
-| `ref` 边 | 612 | §11.1 矩阵、§11.3 最粗 12 条边 | `scan.edges` |
+| 类节点 | 174 | 附录 A 类索引（174 行，每行给 `文件:行`） | `scan.nodes(kind=class)` |
+| `ref` 边 | 637 | §11.1 矩阵、§11.3 最粗 12 条边 | `scan.edges` |
 | `modref` 边 | 50 | §11.1 矩阵的非零格（17×17） | 类边按模块聚合 |
-| 钩子 | 199 | 附录 B（199 行）+ §9.2 分布表 | `collect-hooks.php`（构建时合并） |
+| 钩子 | 203 | 附录 B（203 行）+ §9.2 分布表 | `collect-hooks.php`（构建时合并） |
 | 23 张自定义表 | — | §9.1（图谱不建表节点，避免图噪） | 测试站 `SHOW TABLES` |
 
 ## 7. 重建步骤（可直接复制执行）
@@ -325,22 +345,22 @@ google-chrome --headless=new --no-sandbox --user-data-dir=/tmp/chrome-graph \
 
 **改代码后必须做的事**：重跑 1–5。只要有一步跳过，图表与正文的数字就可能不一致——这正是旧版页面出现"178 / 706 / 111"的原因。第 3 步会在 Node 内自动调用 `docs/tools/collect-hooks.php` 补扫钩子；如果 PHP 不在 `PATH`，用 `PHP_BIN=/path/to/php` 指定。补扫器按文件 `use` 别名、命名空间和类常量解析第一参数，覆盖 `self::CONST`、`Class::CONST` 与字符串拼接；无法解析的通用转发（如 `$hook`）会排除，不会被算成具名钩子。
 
-**维护中文职责**：`docs/tools/purposes.zh.json` 是 164 条"一句话职责"的人工译述表（键为 FQCN）。新增类若缺条目，表的职责列会退回源码注释原文，不会空着；建议补一条中文，便于中文读者扫读。
+**维护中文职责**：`docs/tools/purposes.zh.json` 是"一句话职责"的人工译述表（键为 FQCN；本轮新增的 11 个类暂未补条目，职责列退回 `collect-comments.php` 抓到的类注释原文）。新增类若缺条目，表的职责列会退回源码注释原文，不会空着；建议补一条中文，便于中文读者扫读。
 
 ## 8. 一致性核对（本次已执行）
 
 | # | 检查项 | 方法 | 结果 |
 |---:|---|---|---|
-| 1 | 类节点数 = 附录 A 行数 | 解析 graph.json 与 Markdown 表格 | 164 = 164 ✅ |
+| 1 | 类节点数 = 附录 A 行数 | 解析 graph.json 与 Markdown 表格 | 174 = 174 ✅ |
 | 2 | 模块节点数 = §2.2 行数 | 同上 | 17 = 17 ✅ |
-| 3 | 钩子数 = 附录 B 行数 | 同上 | 199 = 199 ✅ |
-| 4 | 连线数 = 三类之和 | `612 + 164 + 50` | 826 ✅ |
+| 3 | 钩子数 = 附录 B 行数 | 同上 | 203 = 203 ✅ |
+| 4 | 连线数 = 三类之和 | `637 + 174 + 50` | 861 ✅ |
 | 5 | 悬空边 | `graph-inject.mjs` 每次注入前校验 | 0 ✅ |
 | 6 | 同源重建 | 分章 `p1–p6` + `build-code-structure.mjs` 生成块重新组装，与仓库正文比对 | §6.8 清理后 `1c82079ea7777f5d5beeaf6b8a18e6bf`；§7.7 改写后 `f2948e675caf9dbdb3cf58d0395623c9`；§12 三项回写后 `b479d3fb379c695a2c8ce2eac2a1f02b`；上传指标修复稿 `affe363d81b6325cbe739b54aac28446`；删除预览图后 `971f0c3996a10bffb207fe7f6d4dccc6`；空间支付收口稿 `5eb2bf875d00d1e776cf89089e41ae6f`（219,712 字节）；1.22.9 版本稿 `1aba478232bdbb9b1d196eebee1f794e`（220,481 字节）；1.23.0 编辑页面板稿 `4a801b137efc0bc3805f765df8eac822`（238,153 字节）；1.24.0 支付方式/对账/回填稿 `0979157c31883875e25e2b12922f9050`（250,746 字节）；1.24.1 快捷多选稿 `48e0369200f4ea9d2227c63f476aaacd`（266,095 字节）；1.24.2 运维观测稿 `13485930f8e997e0529bca0951c7c238`（274,169 字节）；1.24.2 验证回写稿 `f65d07350edf37b11609c2abccafb546`（288,928 字节）；1.24.3 卸载修复稿 `3325b5e0ce8a359a9a46396fd595c6f6`（290,562 字节）；2026-11-10 覆盖升级稿 `7b457df0269b6ce3e97a4e8c1325a04a`（295,120 字节）；1.24.4 发布稿 `d4be0a7939a44153c187f04c4a485839`（298,733 字节）；2026-11-10 p2/p5 修正稿 `6769bbdc5b704c4275d66199f90285fd`（303,711 字节）✅ |
 | 7 | 注入幂等 | `graph-inject.mjs` dry-run 与页面 `DATA` 比对 | 本轮 `--write` 后 dry-run 报 `changed:false`、`dangling:0`，页面 `DATA` 与 `graph.json` 的结构与计数完全一致 ✅ |
-| 8 | 文档可重装 | `python3 docs/tools/assemble-doc.py --parts /tmp/docparts-wt3 --chapters docs/tools/chapters --out /tmp/verify-sakura-1244.md` | 与仓库正文逐字节一致，md5 `6769bbdc5b704c4275d66199f90285fd`（303,711 字节）✅ |
-| 9 | 渲染 | Chrome headless + SwiftShader 打开页面核对（截图只写 `/tmp`，不落仓库） | 星簇正常；副标题 `sakura-tools v1.24.4`、164 类 / 17 模块；四角 179 / 181 / 826 / 199；S3 详情 36 文件 ✅ |
-| 10 | 文件数一致 | `stats.files` = 附录 C 行数 | 179 = 179 ✅ |
+| 8 | 文档可重装 | `PURPOSES_ZH=docs/tools/purposes.zh.json python3 docs/tools/assemble-doc.py --parts /tmp/docparts --out /tmp/verify-sakura-1250.md` | 与仓库正文逐字节一致，md5 `7dc2a4f5e5b380422f6b33b1702cb5c3`（310,335 字节）✅ |
+| 9 | 渲染 | Chrome headless + SwiftShader 打开页面核对（截图只写 `/tmp`，不落仓库） | 星簇正常；副标题 `sakura-tools v1.25.0`、174 类 / 17 模块；四角 189 / 191 / 861 / 203；S3 详情 37 文件、`src/Admin` 16 文件 ✅ |
+| 10 | 文件数一致 | `stats.files` = 附录 C 行数 | 189 = 189 ✅ |
 
 > 第 9 项是必要的：DSH 内置浏览器没有 WebGL，页面会渲染成空白 canvas，用它"看图谱"会得出错误结论。从 2026-11-08 起仓库不再保存渲染截图，核对用截图只写到临时目录。第 7 项的幂等判据是页面 `DATA` 与 `graph.json` 的结构、计数、悬空边一致，不是 HTML 文件字节不变；`meta.generatedAt` 会随生成时间变化，重建时以 dry-run 的 `changed`、节点/连线计数和悬空边为准。
 
@@ -390,16 +410,16 @@ google-chrome --headless=new --no-sandbox --user-data-dir=/tmp/chrome-graph \
 
 | 文件 | 大小 | 作用 |
 |---|---:|---|
-| `docs/sakura-tools-代码结构-1.24.4.md` | 297 KB（303,711 字节） | 正文：§0–§13 + 附录 A–D（2026-11-10：覆盖升级自愈 + 计数复核；生产 61,562 行） |
-| `docs/sakura-tools-图谱同步-1.24.4.md` | 42 KB（43,165 字节） | 图谱变更与重建说明 |
-| `docs/graph-preview/index.html` | 165 KB（168,449 字节） | 单文件 3D 图谱（数据内嵌；3d-force-graph 库走 CDN，需联网） |
-| `docs/graph-preview/graph.json` | 201 KB（205,832 字节） | 同数据，供脚本消费 |
+| `docs/sakura-tools-代码结构-1.25.0.md` | 303 KB（310,335 字节） | 正文：§0–§13 + 附录 A–D（2026-11-12：后台 UI 重构，生产 189 文件 / 65,108 行） |
+| `docs/sakura-tools-图谱同步-1.25.0.md` | 48 KB（48,704 字节） | 图谱变更与重建说明（本文） |
+| `docs/graph-preview/index.html` | 172 KB（175,808 字节） | 单文件 3D 图谱（数据内嵌；3d-force-graph 库走 CDN，需联网） |
+| `docs/graph-preview/graph.json` | 210 KB（215,236 字节） | 同数据，供脚本消费 |
 | `docs/tools/build-code-structure.mjs` | 16 KB（16,036 字节） | 事实表 → 表格 + graph.json |
 | `docs/tools/graph-inject.mjs` | 3.1 KB（3,180 字节） | graph.json → index.html（含悬空边校验、幂等） |
 | `docs/tools/collect-hooks.php` | 17 KB（17,673 字节） | 补扫 `add_action`/`add_filter` 的常量与拼接钩子，输出 hooks.json |
 | `docs/tools/assemble-doc.py` | 2.5 KB（2,591 字节） | 分章 + 表格 → 正文 |
 | `docs/tools/collect-comments.php` | 3.0 KB（3,098 字节） | 类 docblock 提取 |
-| `docs/tools/purposes.zh.json` | 15 KB（15,802 字节） | 163 条中文职责（Upgrade_Guard 走类注释回退） |
-| `docs/tools/chapters/p1–p6.md` | 228 KB（233,486 字节） | 正文源片段（改正文改这里，再重组装） |
+| `docs/tools/purposes.zh.json` | 17 KB（17,000 字节） | 174 条中文职责（覆盖附录 A 全部类，含本轮新增的 11 个） |
+| `docs/tools/chapters/p1–p6.md` | 233 KB（238,140 字节） | 正文源片段（改正文改这里，再重组装） |
 
 > 图谱可视化只交付 `index.html`（数据内嵌）与 `graph.json`；从 2026-11-08 起不再保存 `preview.png` 或其他渲染截图。

@@ -4,7 +4,7 @@ Tags: image optimization, webp, avif, imagick, media library
 Requires at least: 6.4
 Tested up to: 7.1.4
 Requires PHP: 8.2
-Stable tag: 1.24.4
+Stable tag: 1.25.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -20,15 +20,15 @@ License URI: https://www.gnu.org/licenses/gpl-2.0.html
 * 媒体库支持按格式筛选、批量优化，并显示处理进度。
 * 可选把图片同步到云存储（支持 Cloudflare R2、MinIO、缤纷云等 S3 兼容服务）。
 * 可选给缩略图地址加上尺寸参数，并让列表、侧边栏和正文分别使用指定尺寸。
-* 「基础设置」页集中展示 PHP-FPM 运行参数、图像引擎与扩展状态，方便先确认环境再开功能。
+* 「系统设置」页集中展示 PHP-FPM 运行参数、图像引擎与扩展状态，并可调整卡片表面色、圆角与边框，方便先确认环境再开功能。
 * 用户文件空间：为投稿者提供虚拟文件夹、容量配额和上传权限，删除必须走「申请 → 管理员审核 → 后台确认执行」，媒体库可直接查看归属、容量与申请状态。
 
 == Installation ==
 
 1. 将 `sakura-tools` 目录上传到 `/wp-content/plugins/`。
 2. 在「插件」页面启用。
-3. 打开「樱花工具箱 → 基础设置」确认 PHP 与图像引擎状态，再到「图像优化」配置处理模式与格式。
-4. 建议在「备份管理」中确认备份目录不可通过 Web 直接访问。
+3. 打开「樱花工具箱 → 系统设置 → 环境自检」确认 PHP 与图像引擎状态，再到「图片优化 → 优化规则」配置处理模式与格式。
+4. 建议在「图片优化 → 备份还原」中确认备份目录不可通过 Web 直接访问。
 
 == Frequently Asked Questions ==
 
@@ -78,6 +78,19 @@ Access Key 和 Secret 会加密后存进数据库，页面和源码都不会显�
 插件目前没有接管这个跳转。等出现「既要防直链、又要保留购买校验」的需求时再研发，方向是在主题之前拦截下载请求，由插件代理输出或签发短时有效的预签名地址；若暂时需要这层保护，请关闭「上传后删除本地文件」，让文件保留在本地。
 
 == Changelog ==
+
+= 1.25.0 =
+* 后台界面整体重构：图片优化、对象存储、文件空间与系统设置四组共 13 个页签统一到一套 UI 栈，外观、控件尺寸、间距与响应式断点由 `assets/ui/` 的令牌驱动，不再每页各写一份 CSS。
+* 新增 UI 内核：`src/Admin/UI.php` 与 `src/Admin/UI/{Page,Card,Field,Feedback}.php` 负责页面骨架、卡片、表单控件与提示；`src/Admin/{Card_Form,Appearance,Page_Assets,Route}.php` 负责按卡片保存、外观令牌注入、按页加载资源与路由判定。视图只声明内容，样式不再散落在模板里。
+* 新增「系统设置」页，替代原「基础设置」：运行时、图像引擎、环境自检、扩展、布局五张卡片；布局卡可调整卡片表面色、圆角（0–40 px）与边框（0–6 px），保存后作用于全部插件页面。顶级菜单地址仍是 `sakura-tools`，旧链接继续可用。
+* 删除旧后台资源栈：`assets/admin.css`、`admin.js`、`admin-ext.css`、`admin-layout.css`、`admin-shell.css`、`admin-unify.css`、两个内联 SVG，以及 `userfiles-admin.{css,js}`、`userfiles-space-admin.{css,js}`，共 12 个文件；同时删除 `includes/views/basic-settings.php`。资源加载改由 `src/Admin/Page_Assets.php` 按页白名单输出，非插件页面不再加载这些 CSS/JS。
+* 设置改为按卡片保存：每张卡片独立提交与提示，改一项不必重填整页；页头操作按钮移到说明文字下方，异步表格刷新后重新计算布局，不再出现首屏卡片闪烁。
+* 附件核对行新增媒体预览弹窗：图片按需加载并可在弹窗内下载（本地文件走 `admin-post` + nonce，云端对象走 10 分钟预签名地址），视频使用自绘控件播放（原生控件在黑底上不可用），压缩包与其他类型只提供下载并显示文件信息；弹窗打开时保留页面滚动位置，舞台底色改为与插件一致的暖白。
+* 删除队列：文件浏览入口移入操作列，可直接按行查看该请求涉及的媒体与容量；窄屏收紧表格与筛选项，去掉重复的筛选控件。
+* 统一选择控件与选中态，补「对象存储未配置」提示对话框（选择「稍后」后 12 小时内不再打扰），修正移动端间距与旧版蓝色强调色残留。
+* 文档：新增 `docs/后台UI规则.md`（令牌表、组件用法、响应式与验收口径）与 `docs/后台UI重构方案.md`（分阶段迁移记录）；代码结构文档与图谱同步说明更新到 1.25.0。
+* 本次不改数据表、REST 路由与已注册钩子的语义；后台新增 `admin_post_sakura_s3_media_download`、`admin_post_sakura_sufm_download`、`wp_ajax_sakura_s3_config_notice` 三个处理器，另挂 `admin_print_footer_scripts` 输出提示对话框。升级后首次进入后台即生效，不需要重新保存设置。
+* 规模：生产 PHP 189 文件 / 65,108 行 / 174 个类与接口 / 203 个注册钩子 / 23 张自定义表；图谱 191 节点 / 861 连线。全量测试 441 tests / 1,327 assertions / 5 skipped，PHPStan level 5 与 PHPCS 均无错误。
 
 = 1.24.4 =
 * 修复：覆盖升级（不经过插件启用流程）时不再漏跑激活例程；首次前台请求会检测版本并补创建表、排程与索引回填。

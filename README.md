@@ -6,7 +6,7 @@
 
 图片压缩 · 缩略图治理 · S3 对象存储 · 同步索引 · 用户文件空间
 
-[![版本](https://img.shields.io/badge/version-1.24.4-e85d8b?style=flat-square)](https://github.com/gongjing666/sakura-tools/releases/latest)
+[![版本](https://img.shields.io/badge/version-1.25.0-e85d8b?style=flat-square)](https://github.com/gongjing666/sakura-tools/releases/latest)
 [![PHPUnit](https://img.shields.io/badge/PHPUnit-10.5-4c1?style=flat-square)](https://github.com/gongjing666/sakura-tools/actions/workflows/tests.yml)
 [![PHPStan](https://img.shields.io/badge/PHPStan-level%205-4c1?style=flat-square)](https://github.com/gongjing666/sakura-tools/actions/workflows/phpstan.yml)
 ![WordPress](https://img.shields.io/badge/WordPress-6.4%2B-21759b?style=flat-square&logo=wordpress&logoColor=white)
@@ -40,11 +40,11 @@
 
 ## 最近更新
 
+- **1.25.0** — 后台界面整体重构：13 个页签统一到一套 UI 栈（令牌、页面骨架、卡片、控件、按页加载），新增「系统设置」页（运行时 / 引擎 / 自检 / 扩展 / 布局五卡，可调卡片表面色、圆角与边框），删除 12 个旧后台资源文件与「基础设置」视图；附件核对新增媒体预览弹窗（图片预览 + 下载、视频自绘控件、压缩包仅下载），删除队列文件浏览移入操作列。不改数据表与 REST 路由。
 - **1.24.4** — 覆盖升级自愈：不经过启用流程的升级会在首次请求补跑激活例程（建表、排程、索引回填），同版本 / 降级跳过，失败不阻塞前台；同时修正文档与图谱的钩子、类、测试与文件计数。
 - **1.24.3** — 修复开启「卸载时删除数据」后仍残留 `sufm_file_tokens` 的问题；卸载删表清单改为直接读取 `UserFiles\Schema`，并补回归测试。
 - **1.24.2** — 新增只读 `wp sakura-s3 health`（16 项指标）、`remote-operations count` 与分页，以及 4 个 Prometheus 运维 gauge；上传事件表不自动裁剪，守卫 `uncertain` 仍需人工 `release`。
 - **1.24.1** — 用户中心与编辑页文件面板支持 Shift 连选、Ctrl/⌘ 点选、Ctrl/⌘A 全选与 Esc 清空；补齐网格全选按钮，并修复 Shift 点击时浏览器默认勾选覆盖选区的问题。
-- **1.24.0** — 空间扩容的支付方式改为后台显式勾选，默认只启用余额；积分入口改为独立开关；对账失败按 15 分钟到 6 小时退避；新增 `wp sufm grants` 历史授权审计。
 
 [完整更新日志](readme.txt) · [所有 Release](https://github.com/gongjing666/sakura-tools/releases)
 
@@ -91,18 +91,19 @@ flowchart LR
 | 组合根 | `src/Plugin.php` | 创建仓储与模块，统一交给 `Hook_Loader` 注册 |
 | 业务子系统 | `src/Image`、`src/Thumbnail`、`src/S3`、`src/Sync`、`src/UserFiles` | 图片、缩略图、对象存储、索引、文件空间 |
 | 后台信息架构 | `src/Admin/Registry.php`、`src/Admin/Menu.php` | 四个模块、页签权限、renderer 分发 |
+| 后台 UI 栈 | `src/Admin/UI.php`、`src/Admin/UI/`、`src/Admin/Page_Assets.php`、`assets/ui/` | 页面骨架、卡片与控件、外观令牌、按页加载资源 |
 | 兼容层 | `includes/`、`includes/views/` | 旧实现与后台模板，仍由启动流程加载，不能盲删 |
 
 <details>
-<summary><strong>代码规模与仓库结构（1.24.4）</strong></summary>
+<summary><strong>代码规模与仓库结构（1.25.0）</strong></summary>
 
 | 指标 | 数值 |
 | --- | --- |
-| 生产 PHP | 179 文件 / 61,562 行 |
-| 类与接口 | 164（含 7 个接口） |
-| 注册钩子 | 199 |
+| 生产 PHP | 189 文件 / 65,108 行 |
+| 类与接口 | 174（含 7 个接口） |
+| 注册钩子 | 203 |
 | 自定义表 | 23 |
-| 后台模块 | 4 |
+| 后台模块 | 4（13 个页签） |
 
 ```text
 sakura-tools/
@@ -110,15 +111,18 @@ sakura-tools/
 ├── uninstall.php             # 卸载入口
 ├── src/
 │   ├── Plugin.php            # 组合根
-│   ├── Admin/                # 后台信息架构与菜单
+│   ├── Admin/                # 后台信息架构、菜单、UI 内核与资源加载
 │   ├── Image/                # 图片处理
 │   ├── Thumbnail/            # 缩略图策略
 │   ├── S3/                   # 对象存储
 │   ├── Sync/                 # 同步索引
 │   └── UserFiles/            # 用户文件空间
 ├── includes/                 # 兼容层与后台视图（仍承重）
-├── assets/                   # 后台与前台资源
-├── docs/                     # 代码结构文档与静态图谱
+├── assets/
+│   ├── ui/                   # 后台唯一样式栈：令牌、组件、布局、分页脚本
+│   ├── css/ js/              # 前台与媒体库资源
+│   └── wp-media/             # 媒体库扩展样式
+├── docs/                     # 代码结构文档、UI 规则与静态图谱
 ├── tests/                    # PHPUnit
 └── vendor/s3/                # 内置、命名空间隔离的 AWS SDK
 ```
@@ -162,7 +166,7 @@ git clone https://github.com/gongjing666/sakura-tools.git
 
 | 顺序 | 页面 | 建议动作 |
 | --- | --- | --- |
-| 1 | 系统 → 环境自检 | 确认 PHP、Imagick / GD、数据库与计划任务；有红色项先处理 |
+| 1 | 系统设置 → 环境自检 | 确认 PHP、Imagick / GD、数据库与计划任务；有红色项先处理 |
 | 2 | 图片优化 → 优化规则 | 开启上传压缩，选择保持原格式或 WebP / AVIF，设置质量与尺寸上限 |
 | 3 | 图片优化 → 缩略图 | 关掉不需要的尺寸；需要 URL 尺寸参数时再开启重写 |
 | 4 | 图片优化 → 备份还原 | 设置保留时间与容量上限，点一次「检测是否可被公网访问」 |
@@ -176,7 +180,7 @@ git clone https://github.com/gongjing666/sakura-tools.git
 
 | 模块 | 页面 |
 | --- | --- |
-| 系统 | 环境自检 |
+| 系统设置 | 环境自检 |
 | 图片优化 | 优化规则、缩略图、备份还原、统计 |
 | 对象存储 | 连接配置、同步中心、删除队列 |
 | 文件空间 | 样式与策略、用户容量、审核与执行、最近操作、子比专属（Zibll 可用时） |
@@ -252,12 +256,12 @@ git clone https://github.com/gongjing666/sakura-tools.git
 
 ## 文档与代码结构
 
-当前版本 1.24.4 的分析产物：
+当前版本 1.25.0 的分析产物：
 
 | 文档 | 内容 |
 | --- | --- |
-| [代码结构文档](docs/sakura-tools-代码结构-1.24.4.md) | 文件树、类职责、调用关系、运行期验证与待确认项，按“结构 → 职责 → 关系 → 验证”组织 |
-| [图谱同步说明](docs/sakura-tools-图谱同步-1.24.4.md) | 3D 图谱的节点 / 连线口径、生成方式与每轮更新记录 |
+| [代码结构文档](docs/sakura-tools-代码结构-1.25.0.md) | 文件树、类职责、调用关系、运行期验证与待确认项，按“结构 → 职责 → 关系 → 验证”组织 |
+| [图谱同步说明](docs/sakura-tools-图谱同步-1.25.0.md) | 3D 图谱的节点 / 连线口径、生成方式与每轮更新记录 |
 | [3D 图谱静态页](docs/graph-preview/index.html) | 模块与类的关系图；GitHub 不执行页面脚本，克隆后用浏览器打开 |
 | [DECISIONS.md](DECISIONS.md) | 关键设计取舍与已知边界 |
 | [DEVELOPMENT.md](DEVELOPMENT.md) | 历史开发记录；文件结构章节停在 1.3.3，现状以代码结构文档为准 |
@@ -292,7 +296,7 @@ composer lint:strict
 本地构建（默认当前 HEAD）：
 
 ```bash
-bin/build-plugin-zip.sh --version 1.24.4 --out dist
+bin/build-plugin-zip.sh --version 1.25.0 --out dist
 ```
 
 补建历史版本包：

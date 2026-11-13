@@ -4,7 +4,7 @@ Tags: image optimization, webp, avif, imagick, media library
 Requires at least: 6.4
 Tested up to: 7.1.4
 Requires PHP: 8.2
-Stable tag: 1.26.1
+Stable tag: 1.26.2
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -79,6 +79,10 @@ Access Key 和 Secret 会加密后存进数据库，页面和源码都不会显�
 
 == Changelog ==
 
+= 1.26.2 =
+* 修复：对象存储「监控与告警」卡片里三个数字输入框（失败率阈值 / 最少尝试次数 / 冷却时间）在标签折行不一致时起点错位。根因是 `.field` 只是普通 block，标签多一行就把自己的控件往下推；现在同一网格行的字段等高，控件改为贴底对齐，标签随便折行也不影响输入框对齐。
+* 修复：同一组三个输入框此前被塞进字段网格的单个半宽列里，桌面 1440 下每个输入框只有 72px 宽。现在整行铺满（162px），并在 `≤1100` 正常回落单列。
+* 影响范围：`components.css` 的 `.field`、`storage.css` 的 `.monitor-fields`、`Monitoring_Panel.php` 的容器类；不改数据、不改路由。
 = 1.26.1 =
 * 修复：1.26.0 的默认布局顺序与部分页面的实际渲染顺序不一致——对象存储把「上传指标」排在「连接测试」之前、同步中心把「备注」排在「核对/日志」之前、文件空间少算了「支付方式」与「套餐」两张卡。只影响「恢复默认」和首次安装时的初始排布，不改用户已保存的布局。
 * 修复：同步中心顶部失败提示的状态列写法恒真/恒假（`'bad' === $notice[0]` 永远不成立，改成 `'error'` 后永远成立），静态分析报 alwaysFalse / alwaysTrue。这一列本来就是死的，已删除，失败提示统一用 bad 样式。

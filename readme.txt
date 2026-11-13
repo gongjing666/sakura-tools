@@ -4,7 +4,7 @@ Tags: image optimization, webp, avif, imagick, media library
 Requires at least: 6.4
 Tested up to: 7.1.4
 Requires PHP: 8.2
-Stable tag: 1.26.2
+Stable tag: 1.27.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -79,6 +79,14 @@ Access Key 和 Secret 会加密后存进数据库，页面和源码都不会显�
 
 == Changelog ==
 
+= 1.27.0 =
+* **移除卡片拖拽布局引擎**：后台卡片改为服务端确定的静态排布。此前的位置来自一个 JS 引擎——它把每张卡改成绝对定位并重写文档高度，于是长页面会跳动、卡片会晚一帧出现、首屏还曾整页空白两秒。现在每张卡的行号、起始列和跨列数由 `Layout::PAGES` 声明，直接写成 `grid-row` / `grid-column`，浏览器首帧即最终形态。
+* 一并删掉：`layout.js`、`layout.css`（约 2600 行）、右侧「布局修改」工具栏、拖拽与缩放、`LAYOUT_PAGES` / `has_layout()` / `sakura-layout-enabled` 与 46px 预留留白、`Layout` 的保存端点与按用户存的 `_sakura_imgopt_layout` 元数据。卡片排布将成为出厂设置，不再随用户变化。
+* 默认排布取测试环境确认过的版本：系统设置、图片四页、对象存储三页、文件空间五页共 13 个页面全部按该版本固定。行号显式声明，因为视图按代码顺序输出卡片、未必等于阅读顺序；只靠列宽会让 CSS 按 DOM 顺序打包而留下空洞。
+* **提示弹窗加入动画**：入场 220ms 上浮 8–10px 并淡入，遮罩 180ms 交叉淡入，图标延后 60ms 带轻微过冲落定；关闭 150ms 反向播放，`animationend` 后才真正隐藏（另有定时器兜底）。全部在 `prefers-reduced-motion` 下关闭。动画期间滚动位置与焦点返回逻辑不受影响。
+* 布局测试重写：新增「卡片不得越出 12 栅格」「同行卡片不得重叠」「`order` 与 `cards` 必须描述同一批卡」以及「顺序必须与视图渲染顺序一致」四项，从视图文件直接读卡片 id，避免再次错位。
+* 《后台 UI 规则》删去全部布局引擎相关描述，写明静态排布契约：为什么行号要显式、为什么不允许再有「加载后用 JS 改布局」的机制、如何给新页面登记排布。
+* 影响范围：`assets/ui/`（删两个文件、改两个）、`src/Admin/`（`Layout`、`Card`、`Page_Assets`、`Page`、`Plugin`）、`tests/LayoutTest.php` 与 UI 规则文档。不改数据表、路由、option 键与钩子语义。
 = 1.26.2 =
 * 修复：对象存储「监控与告警」卡片里三个数字输入框（失败率阈值 / 最少尝试次数 / 冷却时间）在标签折行不一致时起点错位。根因是 `.field` 只是普通 block，标签多一行就把自己的控件往下推；现在同一网格行的字段等高，控件改为贴底对齐，标签随便折行也不影响输入框对齐。
 * 修复：同一组三个输入框此前被塞进字段网格的单个半宽列里，桌面 1440 下每个输入框只有 72px 宽。现在整行铺满（162px），并在 `≤1100` 正常回落单列。

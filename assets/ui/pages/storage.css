@@ -519,6 +519,43 @@
 	background: var(--g-accent);
 }
 
+.sakura-admin[data-sakura-page="storage-sync"] .storage-mix__hint {
+	margin: 0;
+	color: var(--g-muted);
+	font-size: var(--g-fs-meta);
+}
+
+/* The empty ring means "no reconcile yet", so say it instead of drawing a 0% donut. */
+.sakura-admin[data-sakura-page="storage-sync"] .storage-mix__empty {
+	display: grid;
+	justify-items: center;
+	gap: var(--g-space-2);
+	padding: var(--g-space-5) var(--g-space-4);
+	border: 1px dashed var(--g-line);
+	border-radius: var(--g-radius-sm);
+	background: var(--g-wash);
+	text-align: center;
+}
+
+.sakura-admin[data-sakura-page="storage-sync"] .storage-mix__empty-title {
+	color: var(--g-ink);
+	font-size: 14px;
+	font-weight: 650;
+}
+
+.sakura-admin[data-sakura-page="storage-sync"] .storage-mix__empty-text {
+	max-width: 46ch;
+	margin: 0;
+	color: var(--g-muted);
+	font-size: var(--g-fs-meta);
+	line-height: 1.7;
+}
+
+.sakura-admin[data-sakura-page="storage-sync"] .storage-mix__empty .button-row {
+	justify-content: center;
+	margin-top: var(--g-space-1);
+}
+
 .sakura-admin[data-sakura-page="storage-sync"] .storage-mix__foot {
 	display: flex;
 	flex-wrap: wrap;

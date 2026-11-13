@@ -1788,7 +1788,7 @@ final class Sync_Center_Module implements Module {
 			$logs[] = array(
 				'time'    => time(),
 				'level'   => 'info',
-				'message' => __( '索引为空：点击“开始对账”扫描本地目录与对象存储。', 'sakura-imgopt' ),
+				'message' => __( '索引为空：点击“开始完整核对”扫描本地目录与对象存储。', 'sakura-imgopt' ),
 			);
 		}
 		if ( 'done' === $scan_state ) {

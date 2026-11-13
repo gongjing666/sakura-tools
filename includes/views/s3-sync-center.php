@@ -134,6 +134,52 @@ $mix_gradient = $mix_stops ? 'conic-gradient(' . implode( ', ', $mix_stops ) . '
 $cloud_value  = $cloud_bytes >= 1073741824 ? $cloud_bytes / 1073741824 : $cloud_bytes / 1048576;
 $cloud_unit   = $cloud_bytes >= 1073741824 ? 'GB' : 'MB';
 
+/*
+ * The mix is written by the full reconcile only, so an empty ring is ambiguous:
+ * it can mean "never scanned", "scan interrupted", "scanning right now" or
+ * "the bucket really is empty". Tell those apart instead of drawing a donut
+ * that looks broken, and say it in the card itself so nobody has to guess.
+ */
+$scan_total = $scan_obj ? (int) $scan_obj->total_remote : 0;
+$mix_state  = 'ready';
+$mix_title  = '';
+$mix_desc   = '';
+
+if ( ! $index_enabled ) {
+	$mix_state = 'compat';
+} elseif ( $scan_running ) {
+	$mix_state = 0 === $scan_total ? 'scanning' : 'ready';
+} elseif ( $scan_resumable ) {
+	$mix_state = 'interrupted';
+} elseif ( ! $scan_obj ) {
+	$mix_state = 'unscanned';
+} elseif ( 0 === $scan_total ) {
+	$mix_state = 'empty';
+}
+
+if ( 'unscanned' === $mix_state ) {
+	$mix_title = __( '还没有核对记录', 'sakura-imgopt' );
+	$mix_desc  = __( '这张卡片的占比只来自完整核对写入的记录。点“开始完整核对”扫描本地目录与对象存储后，这里会按图片、视频、压缩包、其他显示云端体积占比。', 'sakura-imgopt' );
+} elseif ( 'scanning' === $mix_state ) {
+	$mix_title = __( '正在核对', 'sakura-imgopt' );
+	$mix_desc  = __( '核对跑完之后，这里会自动显示云端对象的类型占比，无需手动刷新。', 'sakura-imgopt' );
+} elseif ( 'interrupted' === $mix_state ) {
+	$mix_title = __( '上次核对没有跑完', 'sakura-imgopt' );
+	$mix_desc  = __( '云端对象还没统计完，所以暂时没有分布数据。点“继续核对”会从断点续跑，跑完这里就会出现占比。', 'sakura-imgopt' );
+} elseif ( 'empty' === $mix_state ) {
+	$mix_title = __( '云端暂时没有对象', 'sakura-imgopt' );
+	$mix_desc  = __( '完整核对已经跑过，对象存储里目前没有可统计的文件。上传后需要再核对一次，占比才会更新。', 'sakura-imgopt' );
+} elseif ( 'compat' === $mix_state ) {
+	$mix_title = __( '云端暂时没有对象', 'sakura-imgopt' );
+	$mix_desc  = __( '兼容模式下实时读取云端清单，当前没有可统计的对象。', 'sakura-imgopt' );
+} elseif ( $scan_running ) {
+	$mix_desc = __( '核对正在进行，下面的占比来自上一次核对结果，跑完会自动刷新。', 'sakura-imgopt' );
+} elseif ( $scan_time ) {
+	$mix_desc = sprintf( /* translators: %s: scan time. */ __( '数据来自 %s 的完整核对；之后单张上传不会改变这里的占比，重新核对才会更新。', 'sakura-imgopt' ), wp_date( 'm-d H:i', $scan_time ) );
+} else {
+	$mix_desc = __( '数据来自上一次没跑完的核对，占比可能不完整；续跑后可得到准确数字。', 'sakura-imgopt' );
+}
+
 $activity = array();
 for ( $day_offset = 6; $day_offset >= 0; $day_offset-- ) {
 	$timestamp            = strtotime( '-' . $day_offset . ' days' );
@@ -312,6 +358,9 @@ $sakura_sync_cards = static function () use (
 	$settings_url,
 	$mix,
 	$mix_gradient,
+	$mix_state,
+	$mix_title,
+	$mix_desc,
 	$cloud_value,
 	$cloud_unit,
 	$local_bytes,
@@ -509,22 +558,41 @@ $sakura_sync_cards = static function () use (
 				'kicker' => __( 'Storage Mix', 'sakura-imgopt' ),
 				'title'  => __( '云端体积分布', 'sakura-imgopt' ),
 			),
-			static function () use ( $mix, $mix_gradient, $cloud_value, $cloud_unit, $cloud_objects, $local_bytes, $cloud_bytes, $type_labels ): void {
+			static function () use ( $mix, $mix_gradient, $cloud_value, $cloud_unit, $cloud_objects, $local_bytes, $cloud_bytes, $type_labels, $mix_state, $mix_title, $mix_desc, $scan_nonce ): void {
 				?>
-				<div class="storage-mix">
-					<div class="storage-mix__donut-wrap">
-						<div class="storage-mix__donut" role="img" aria-label="<?php esc_attr_e( '云端文件体积分布', 'sakura-imgopt' ); ?>" style="background:<?php echo esc_attr( $mix_gradient ); ?>">
-							<div class="storage-mix__center">
-								<strong><?php echo esc_html( number_format_i18n( $cloud_value, 2 ) ); ?></strong>
-								<span><?php echo esc_html( $cloud_unit . ' · ' . number_format_i18n( $cloud_objects ) ); ?> <?php esc_html_e( '个文件', 'sakura-imgopt' ); ?></span>
+				<div class="storage-mix storage-mix--<?php echo esc_attr( $mix_state ); ?>">
+					<?php if ( 'unscanned' === $mix_state || 'scanning' === $mix_state || 'interrupted' === $mix_state ) : ?>
+						<div class="storage-mix__empty">
+							<strong class="storage-mix__empty-title"><?php echo esc_html( $mix_title ); ?></strong>
+							<p class="storage-mix__empty-text"><?php echo esc_html( $mix_desc ); ?></p>
+							<?php if ( 'unscanned' === $mix_state ) : ?>
+								<div class="button-row">
+									<button type="button" class="btn btn--primary btn--small" data-sakura-action="scan" data-sakura-nonce="<?php echo esc_attr( $scan_nonce ); ?>"><?php esc_html_e( '开始完整核对', 'sakura-imgopt' ); ?></button>
+									<a class="btn btn--ghost btn--small" href="#tasks"><?php esc_html_e( '查看任务中心', 'sakura-imgopt' ); ?></a>
+								</div>
+							<?php elseif ( 'interrupted' === $mix_state ) : ?>
+								<div class="button-row">
+									<button type="button" class="btn btn--primary btn--small" data-sakura-action="resume" data-sakura-nonce="<?php echo esc_attr( wp_create_nonce( 'sakura_s3_sync_resume' ) ); ?>"><?php esc_html_e( '继续核对', 'sakura-imgopt' ); ?></button>
+									<a class="btn btn--ghost btn--small" href="#tasks"><?php esc_html_e( '查看任务中心', 'sakura-imgopt' ); ?></a>
+								</div>
+							<?php endif; ?>
+						</div>
+					<?php else : ?>
+						<div class="storage-mix__donut-wrap">
+							<div class="storage-mix__donut" role="img" aria-label="<?php esc_attr_e( '云端文件体积分布', 'sakura-imgopt' ); ?>" style="background:<?php echo esc_attr( $mix_gradient ); ?>">
+								<div class="storage-mix__center">
+									<strong><?php echo esc_html( number_format_i18n( $cloud_value, 2 ) ); ?></strong>
+									<span><?php echo esc_html( $cloud_unit . ' · ' . number_format_i18n( $cloud_objects ) ); ?> <?php esc_html_e( '个文件', 'sakura-imgopt' ); ?></span>
+								</div>
+							</div>
+							<div class="storage-mix__legend">
+								<?php foreach ( $mix as $mix_type => $mix_item ) : ?>
+									<div class="storage-mix__legend-row"><span class="storage-mix__swatch" style="background:<?php echo esc_attr( $mix_item['color'] ); ?>"></span><?php echo esc_html( $type_labels[ $mix_type ] ); ?> <strong><?php echo esc_html( number_format_i18n( $mix_item['pct'], 1 ) ); ?>%</strong></div>
+								<?php endforeach; ?>
 							</div>
 						</div>
-						<div class="storage-mix__legend">
-							<?php foreach ( $mix as $mix_type => $mix_item ) : ?>
-								<div class="storage-mix__legend-row"><span class="storage-mix__swatch" style="background:<?php echo esc_attr( $mix_item['color'] ); ?>"></span><?php echo esc_html( $type_labels[ $mix_type ] ); ?> <strong><?php echo esc_html( number_format_i18n( $mix_item['pct'], 1 ) ); ?>%</strong></div>
-							<?php endforeach; ?>
-						</div>
-					</div>
+						<p class="storage-mix__hint"><?php echo esc_html( $mix_desc ); ?></p>
+					<?php endif; ?>
 					<div class="storage-mix__foot">
 						<span><?php echo esc_html( sprintf( /* translators: %s: size. */ __( '本地 %s', 'sakura-imgopt' ), Inventory::format_bytes( $local_bytes ) ) ); ?></span>
 						<strong><?php echo esc_html( sprintf( /* translators: %s: size. */ __( '云端 %s', 'sakura-imgopt' ), Inventory::format_bytes( $cloud_bytes ) ) ); ?></strong>

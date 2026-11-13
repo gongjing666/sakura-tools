@@ -1,14 +1,14 @@
-# sakura-tools 3D 图谱同步说明（v1.25.3）
+# sakura-tools 3D 图谱同步说明（v1.25.4）
 
-> 配套文档：[sakura-tools 代码结构 1.25.3](sakura-tools-代码结构-1.25.3.md) ｜ **代码基线** commit `9b25158`（1.25.2 发布）＋随本版发布的 1.25.3 提交（布局画布合并：`Layout.php`、`Page_Assets.php`、`S3_Storage_Page.php`、`Delete_Queue_Panel.php`、`Config_Notice.php`、`layout.js` 与 `LayoutTest.php`），图谱按 1.25.3 工作树生成。本文只回答三件事：**图谱变了什么、怎么和文档对上、以后怎么重建**。
+> 配套文档：[sakura-tools 代码结构 1.25.4](sakura-tools-代码结构-1.25.4.md) ｜ **代码基线** commit `f3ddeaa`（1.25.3 发布）＋随本版发布的 1.25.4 提交（「云端体积分布」空态提示：`includes/views/s3-sync-center.php`、`assets/ui/pages/storage.css`、`src/S3/Sync_Center_Module.php` 的一条日志文案），图谱按 1.25.4 工作树生成。本文只回答三件事：**图谱变了什么、怎么和文档对上、以后怎么重建**。
 
 ## 0. 结论
 
 - 图谱由同一份扫描事实表与文档同时产出，不是手工对齐的副产物；上一轮（2026-11-09 1.24.2 S3/Sync 运维观测）新增 7 条 `ref`、3 条模块边权与 2 个类节点的 `val`，节点、类、钩子集合不变（§2.9）。
 - 2026-11-09 晚间的三条验证空白补测（Quota、删除审核→Executor、卸载、扫描游标、编辑器覆盖与顺序）没有改插件代码（§2.10）；本轮 1.24.3 修复卸载漏删 `file_tokens`，新增 1 条 `ref` 与 1 条模块边权，节点、类、钩子集合不变（§2.11）。
 - 规模：**189 个生产 PHP 文件 / 174 个类 / 17 个模块 / 191 个节点 / 861 条连线**（637 `ref` + 174 `contains` + 50 `modref`）/ **204 个具名钩子** / **0 悬空边**。
-- 本轮（2026-11-12）的后台 UI 重构**净增 10 个类节点**：新增 11 个（`Admin\Appearance`、`Admin\Card_Form`、`Admin\Page_Assets`、`Admin\Route`、`Admin\UI`、`Admin\UI\Card`、`Admin\UI\Feedback`、`Admin\UI\Field`、`Admin\UI\Page`、`Admin\System_Settings_Module`、`S3\Config_Notice`），删除 1 个（`Admin\Basic_Settings_Module`，其视图 `includes/views/basic-settings.php` 同时移除）；节点 181→191、连线 826→861（`ref` +25、`contains` +10），模块集合与 `modref` 仍 17 / 50；钩子 199→**203**（§2.14）。1.25.1 只新增 1 个 `admin_enqueue_scripts` 闭包，钩子 203→**204**，节点与连线不变（§2.15）。1.25.2 只改 1 个 CSS 与 1 个 JS 文件、不碰 PHP，节点 191、连线 861、钩子 204、模块 17 全部不变，仅 `meta.version`、`generatedAt`、页面副标题与后台资源行数（14,932→14,958）更新（§2.16）。1.25.3 把对象存储三屏的卡片并进同一张布局画布，只改渲染结构与 `layout.js` 的插入规则，类、钩子、模块集合都不变，节点 191、连线 861、钩子 204 保持，生产 PHP 65,137→65,165 行、`assets/ui/` 14,958→14,957 行（§2.17）。页面四角为 189 / 191 / 861 / 204。
-- 1.25.0 同时提升版本号、重组后台 UI 栈并删除 12 个旧资源文件，图谱按新工作树整体重建；1.25.1 更新 `meta.version`、`generatedAt`、页面副标题与钩子计数（203→204）；1.25.2 同样只更新元信息与页面副标题，拓扑零变化；1.25.3 重建后拓扑仍零变化，只有行数与版本元信息更新。页面副标题与 `meta.version` 现在均为 1.25.3。
+- 本轮（2026-11-12）的后台 UI 重构**净增 10 个类节点**：新增 11 个（`Admin\Appearance`、`Admin\Card_Form`、`Admin\Page_Assets`、`Admin\Route`、`Admin\UI`、`Admin\UI\Card`、`Admin\UI\Feedback`、`Admin\UI\Field`、`Admin\UI\Page`、`Admin\System_Settings_Module`、`S3\Config_Notice`），删除 1 个（`Admin\Basic_Settings_Module`，其视图 `includes/views/basic-settings.php` 同时移除）；节点 181→191、连线 826→861（`ref` +25、`contains` +10），模块集合与 `modref` 仍 17 / 50；钩子 199→**203**（§2.14）。1.25.1 只新增 1 个 `admin_enqueue_scripts` 闭包，钩子 203→**204**，节点与连线不变（§2.15）。1.25.2 只改 1 个 CSS 与 1 个 JS 文件、不碰 PHP，节点 191、连线 861、钩子 204、模块 17 全部不变，仅 `meta.version`、`generatedAt`、页面副标题与后台资源行数（14,932→14,958）更新（§2.16）。1.25.3 把对象存储三屏的卡片并进同一张布局画布，只改渲染结构与 `layout.js` 的插入规则，类、钩子、模块集合都不变，节点 191、连线 861、钩子 204 保持，生产 PHP 65,137→65,165 行、`assets/ui/` 14,958→14,957 行（§2.17）。1.25.4 给「云端体积分布」补上状态机与空态提示，只改一个视图、一个样式表与一条日志文案，类、方法、钩子、模块集合同样不变，节点 191、连线 861、钩子 204 保持，生产 PHP 65,165→65,233 行、`assets/ui/` 14,957→14,994 行（§2.18）。页面四角为 189 / 191 / 861 / 204。
+- 1.25.0 同时提升版本号、重组后台 UI 栈并删除 12 个旧资源文件，图谱按新工作树整体重建；1.25.1 更新 `meta.version`、`generatedAt`、页面副标题与钩子计数（203→204）；1.25.2 同样只更新元信息与页面副标题，拓扑零变化；1.25.3 与 1.25.4 重建后拓扑仍零变化，只有行数与版本元信息更新。页面副标题与 `meta.version` 现在均为 1.25.4。
 - 页面四角数字由 `graph.json` 的 `stats` 注入，不再手写；页面显示 189 / 191 / 861 / 204，与文档附录计数一致。
 - 生成、注入、组装三个脚本已固化到 `docs/tools/`，可在任意机器重跑（§7）。
 
@@ -27,7 +27,7 @@ build-code-structure.mjs
         ▼
 graph-inject.mjs ──► docs/graph-preview/index.html（内嵌 DATA）+ graph.json
         ▼
-assemble-doc.py  ──► sakura-tools-代码结构-1.25.3.md（分章正文 + 上述表格）
+assemble-doc.py  ──► sakura-tools-代码结构-1.25.4.md（分章正文 + 上述表格）
 ```
 
 | 步骤 | 命令（在插件根目录下执行） | 产物 |
@@ -278,7 +278,7 @@ assemble-doc.py  ──► sakura-tools-代码结构-1.25.3.md（分章正文 + 
 
 重建产物（1.25.2，历史）：主文档 `sakura-tools-代码结构-1.25.2.md` 323,189 字节（md5 `796d2d7ccfe7f80b59b34ee249e61cfb`）；页面 `index.html` 175,808 字节（md5 `4d4517e2888d2aecb51ecac78047c18d`）；`graph.json` 215,236 字节（md5 `0681f17deede3b6835a96c7580dd9ba3`）；页面副标题与 `meta.version` 均为 1.25.2，四角为 189 / 191 / 861 / 204。
 
-### 2.17 本轮增量（2026-11-13 1.25.3 布局画布合并）
+### 2.17 上一轮增量（2026-11-13 1.25.3 布局画布合并）
 
 1.25.3 把「对象存储」三屏的卡片并进同一张布局画布，同时清掉一处历史残留。改动全部落在**渲染结构与布局元数据**，没有新增或删除类、方法、钩子、数据表或模块：
 
@@ -303,7 +303,32 @@ assemble-doc.py  ──► sakura-tools-代码结构-1.25.3.md（分章正文 + 
 
 回到本轮的运行验证：数字与命令见主文档 §10.21（连接页六张卡全部可拖、`data-sakura-col` 7→2、刷新后保持、恢复默认与首次访问一致、删除队列页组已生效、900px 退化为单列）。
 
-重建产物：主文档 `sakura-tools-代码结构-1.25.3.md` 331,168 字节（md5 `e1cc061f8cad18d3f3a89e44454fa4ba`）；页面 `index.html` 175,808 字节（md5 `717172663adb522425119b6c870c279c`）；`graph.json` 215,236 字节（md5 `e62f685bfae34a12a0f4f68f37f600bd`）。页面副标题与 `meta.version` 均为 1.25.3，四角为 189 / 191 / 861 / 204。
+重建产物（1.25.3，历史）：主文档 `sakura-tools-代码结构-1.25.3.md` 331,168 字节（md5 `e1cc061f8cad18d3f3a89e44454fa4ba`）；页面 `index.html` 175,808 字节（md5 `717172663adb522425119b6c870c279c`）；`graph.json` 215,236 字节（md5 `e62f685bfae34a12a0f4f68f37f600bd`）。页面副标题与 `meta.version` 均为 1.25.3，四角为 189 / 191 / 861 / 204。
+
+### 2.18 本轮增量（2026-11-13 1.25.4 云端体积分布空态提示）
+
+1.25.4 给「云端体积分布」补上核对状态提示，改动全部落在**一个视图、一个样式表与一条日志文案**，没有新增或删除类、方法、钩子、数据表或模块：
+
+- `includes/views/s3-sync-center.php:137-181`：新增状态机，按 `compat` → `scanning` / `ready` → `interrupted` → `unscanned` → `empty` → `ready` 的优先级算出 `$mix_state`，并为每个状态准备 `$mix_title` / `$mix_desc`。
+- `includes/views/s3-sync-center.php:561-600`：storage 卡改用 `.storage-mix storage-mix--{state}` 根节点；`scanning` / `interrupted` / `unscanned` 三态渲染 `.storage-mix__empty` 提示块（可带「开始完整核对」/「继续核对」按钮），其余状态渲染环图并在下方加 `.storage-mix__hint` 说明；`.storage-mix__foot` 始终保留。
+- `assets/ui/pages/storage.css:522-557`：新增 `.storage-mix__hint`、`.storage-mix__empty`、`.storage-mix__empty-title`、`.storage-mix__empty-text` 与按钮行居中四条规则（虚线框 + `--g-wash` 底）。
+- `src/S3/Sync_Center_Module.php:1791`：日志文案「点击“开始对账”…」→「点击“开始完整核对”…」，与卡内按钮一致。
+
+| 变更 | 图谱对象 | 计数影响 | 文档对应 |
+|---|---|---|---|
+| 无新增/删除类 | — | 类 174、模块 17、节点 **191** 不变 | §2.2、§4 |
+| 无新增/删除连线 | — | `ref` 637、`contains` 174、`modref` 50、连线 **861** 不变 | §11.1、§13 |
+| 钩子计数 | `stats.hooks` | **204** 不变（本轮没有新增具名钩子） | §9.2、附录 B |
+| 文件行数 | 生产 PHP | 65,165 → **65,233 行 / 189 文件** | 附录 C |
+| 后台资源行数 | `assets/`（不入图谱） | 34,455 → **34,492**，其中 `assets/ui/` 14,957 → **14,994** | §0.3、§2.2 |
+
+**净增量核对**：类 174 + 模块 17 = 191 节点；637 + 174 + 50 = 861 连线；204 = 204。生产 PHP 净增 68 行（`includes/views` 5,391 → 5,459 增 68 行，`src/S3` 11,934 行不变），后台资源净增 37 行（`assets/ui/pages/storage.css` 1159 → 1196 行）。拓扑零变化。
+
+**为什么这轮仍要重建**：`meta.version`、页面副标题与 `generatedAt` 由生成器从工作树读取，版本号变了就必须重跑；同时主文档 §0.3 的生产行数与附录 C 的文件行数都是生成值，必须与重新统计的 65,233 / 34,492 对齐。
+
+回到本轮的运行验证：数字与命令见主文档 §10.22（六种状态逐态截图与卡高、卡内「开始完整核对」与「继续核对」端到端点测、900px 断点、`.storage-mix__foot` 始终存在）。
+
+重建产物（1.25.4）：主文档 `sakura-tools-代码结构-1.25.4.md` 340,039 字节（md5 `1cfc57ea542e7f1ce99b0a8021052780`）；页面 `index.html` 175,808 字节（md5 `88afdf0345cdf8b2aba694f98a1e29ba`）；`graph.json` 215,236 字节（md5 `d60ac3da2371d9a60d62cf07d580cffa`）。页面副标题与 `meta.version` 均为 1.25.4，四角为 189 / 191 / 861 / 204。
 
 
 
@@ -423,10 +448,10 @@ google-chrome --headless=new --no-sandbox --user-data-dir=/tmp/chrome-graph \
 | 3 | 钩子数 = 附录 B 行数 | 同上 | 204 = 204 ✅ |
 | 4 | 连线数 = 三类之和 | `637 + 174 + 50` | 861 ✅ |
 | 5 | 悬空边 | `graph-inject.mjs` 每次注入前校验 | 0 ✅ |
-| 6 | 同源重建 | 分章 `p1–p6` + `build-code-structure.mjs` 生成块重新组装，与仓库正文比对 | §6.8 清理后 `1c82079ea7777f5d5beeaf6b8a18e6bf`；§7.7 改写后 `f2948e675caf9dbdb3cf58d0395623c9`；§12 三项回写后 `b479d3fb379c695a2c8ce2eac2a1f02b`；上传指标修复稿 `affe363d81b6325cbe739b54aac28446`；删除预览图后 `971f0c3996a10bffb207fe7f6d4dccc6`；空间支付收口稿 `5eb2bf875d00d1e776cf89089e41ae6f`（219,712 字节）；1.22.9 版本稿 `1aba478232bdbb9b1d196eebee1f794e`（220,481 字节）；1.23.0 编辑页面板稿 `4a801b137efc0bc3805f765df8eac822`（238,153 字节）；1.24.0 支付方式/对账/回填稿 `0979157c31883875e25e2b12922f9050`（250,746 字节）；1.24.1 快捷多选稿 `48e0369200f4ea9d2227c63f476aaacd`（266,095 字节）；1.24.2 运维观测稿 `13485930f8e997e0529bca0951c7c238`（274,169 字节）；1.24.2 验证回写稿 `f65d07350edf37b11609c2abccafb546`（288,928 字节）；1.24.3 卸载修复稿 `3325b5e0ce8a359a9a46396fd595c6f6`（290,562 字节）；2026-11-10 覆盖升级稿 `7b457df0269b6ce3e97a4e8c1325a04a`（295,120 字节）；1.24.4 发布稿 `d4be0a7939a44153c187f04c4a485839`（298,733 字节）；2026-11-10 p2/p5 修正稿 `6769bbdc5b704c4275d66199f90285fd`（303,711 字节）；1.25.0 后台 UI 重构稿 `ce5eebbfc96e149b72fc99663b9bf169`（310,353 字节）；1.25.1 命令面板卸载稿 `934d9b763d3018cdba1aa83130c5a590`（317,233 字节）；1.25.2 卡片重排稿 `796d2d7ccfe7f80b59b34ee249e61cfb`（323,189 字节）；1.25.3 布局画布合并稿 `e1cc061f8cad18d3f3a89e44454fa4ba`（331,168 字节）✅ |
+| 6 | 同源重建 | 分章 `p1–p6` + `build-code-structure.mjs` 生成块重新组装，与仓库正文比对 | §6.8 清理后 `1c82079ea7777f5d5beeaf6b8a18e6bf`；§7.7 改写后 `f2948e675caf9dbdb3cf58d0395623c9`；§12 三项回写后 `b479d3fb379c695a2c8ce2eac2a1f02b`；上传指标修复稿 `affe363d81b6325cbe739b54aac28446`；删除预览图后 `971f0c3996a10bffb207fe7f6d4dccc6`；空间支付收口稿 `5eb2bf875d00d1e776cf89089e41ae6f`（219,712 字节）；1.22.9 版本稿 `1aba478232bdbb9b1d196eebee1f794e`（220,481 字节）；1.23.0 编辑页面板稿 `4a801b137efc0bc3805f765df8eac822`（238,153 字节）；1.24.0 支付方式/对账/回填稿 `0979157c31883875e25e2b12922f9050`（250,746 字节）；1.24.1 快捷多选稿 `48e0369200f4ea9d2227c63f476aaacd`（266,095 字节）；1.24.2 运维观测稿 `13485930f8e997e0529bca0951c7c238`（274,169 字节）；1.24.2 验证回写稿 `f65d07350edf37b11609c2abccafb546`（288,928 字节）；1.24.3 卸载修复稿 `3325b5e0ce8a359a9a46396fd595c6f6`（290,562 字节）；2026-11-10 覆盖升级稿 `7b457df0269b6ce3e97a4e8c1325a04a`（295,120 字节）；1.24.4 发布稿 `d4be0a7939a44153c187f04c4a485839`（298,733 字节）；2026-11-10 p2/p5 修正稿 `6769bbdc5b704c4275d66199f90285fd`（303,711 字节）；1.25.0 后台 UI 重构稿 `ce5eebbfc96e149b72fc99663b9bf169`（310,353 字节）；1.25.1 命令面板卸载稿 `934d9b763d3018cdba1aa83130c5a590`（317,233 字节）；1.25.2 卡片重排稿 `796d2d7ccfe7f80b59b34ee249e61cfb`（323,189 字节）；1.25.3 布局画布合并稿 `e1cc061f8cad18d3f3a89e44454fa4ba`（331,168 字节）；1.25.4 云端体积分布空态稿 `1cfc57ea542e7f1ce99b0a8021052780`（340,039 字节）✅ |
 | 7 | 注入幂等 | `graph-inject.mjs` dry-run 与页面 `DATA` 比对 | 本轮 `--write` 后 dry-run 报 `changed:false`、`dangling:0`，页面 `DATA` 与 `graph.json` 的结构与计数完全一致 ✅ |
-| 8 | 文档可重装 | `python3 docs/tools/assemble-doc.py --parts /tmp/docparts-1253b --chapters docs/tools/chapters`（默认 `--out` 已指向 1.25.3） | 与仓库正文逐字节一致，md5 `e1cc061f8cad18d3f3a89e44454fa4ba`（331,168 字节）✅ |
-| 9 | 渲染 | Chrome headless + SwiftShader 打开页面核对（截图只写 `/tmp`，不落仓库） | 星簇正常；副标题 `sakura-tools v1.25.3`、174 类 / 17 模块；四角 189 / 191 / 861 / 204；S3 详情 37 文件、`src/Admin` 16 文件 ✅ |
+| 8 | 文档可重装 | `python3 docs/tools/assemble-doc.py --parts /tmp/docparts-1254 --chapters docs/tools/chapters`（默认 `--out` 已指向 1.25.4） | 与仓库正文逐字节一致，md5 `1cfc57ea542e7f1ce99b0a8021052780`（340,039 字节）✅ |
+| 9 | 渲染 | Chrome headless + SwiftShader 打开页面核对（截图只写 `/tmp`，不落仓库） | 星簇正常；副标题 `sakura-tools v1.25.4`、174 类 / 17 模块；四角 189 / 191 / 861 / 204；S3 详情 37 文件、`src/Admin` 16 文件 ✅ |
 | 10 | 文件数一致 | `stats.files` = 附录 C 行数 | 189 = 189 ✅ |
 
 > 第 9 项是必要的：DSH 内置浏览器没有 WebGL，页面会渲染成空白 canvas，用它"看图谱"会得出错误结论。从 2026-11-08 起仓库不再保存渲染截图，核对用截图只写到临时目录。第 7 项的幂等判据是页面 `DATA` 与 `graph.json` 的结构、计数、悬空边一致，不是 HTML 文件字节不变；`meta.generatedAt` 会随生成时间变化，重建时以 dry-run 的 `changed`、节点/连线计数和悬空边为准。
@@ -477,8 +502,8 @@ google-chrome --headless=new --no-sandbox --user-data-dir=/tmp/chrome-graph \
 
 | 文件 | 大小 | 作用 |
 |---|---:|---|
-| `docs/sakura-tools-代码结构-1.25.3.md` | 324 KB（331,168 字节，md5 `e1cc061f8cad18d3f3a89e44454fa4ba`） | 正文：§0–§13 + 附录 A–D（2026-11-13：对象存储布局画布合并，生产 189 文件 / 65,165 行 / 204 钩子；后台资源 41 文件 / 34,455 行） |
-| `docs/sakura-tools-图谱同步-1.25.3.md` | 53 KB | 图谱变更与重建说明（本文） |
+| `docs/sakura-tools-代码结构-1.25.4.md` | 332 KB（340,039 字节，md5 `1cfc57ea542e7f1ce99b0a8021052780`） | 正文：§0–§13 + 附录 A–D（2026-11-13：云端体积分布空态提示，生产 189 文件 / 65,233 行 / 204 钩子；后台资源 41 文件 / 34,492 行） |
+| `docs/sakura-tools-图谱同步-1.25.4.md` | 59 KB | 图谱变更与重建说明（本文） |
 | `docs/graph-preview/index.html` | 172 KB（175,808 字节） | 单文件 3D 图谱（数据内嵌；3d-force-graph 库走 CDN，需联网） |
 | `docs/graph-preview/graph.json` | 210 KB（215,236 字节） | 同数据，供脚本消费 |
 | `docs/tools/build-code-structure.mjs` | 16 KB（16,036 字节） | 事实表 → 表格 + graph.json |

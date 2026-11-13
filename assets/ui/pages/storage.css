@@ -11,8 +11,8 @@
 	gap: var(--g-space-4);
 	/* Grid rows default to stretch, so a card taller than its content shares the
 	 * leftover height out between the toolbar, the table and the pager and the
-	 * gaps turn into large empty bands. The cards keep their measured height
-	 * (see layout.js freeLayout) and the rows only take what they need. */
+	 * gaps turn into large empty bands. Cards keep their content height and the
+	 * rows only take what they need. */
 	align-content: start;
 }
 

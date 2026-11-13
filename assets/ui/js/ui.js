@@ -1135,6 +1135,11 @@
 
 		return { lock: lock, unlock: unlock };
 	}() );
+	/** Whether the operator asked for reduced motion. */
+	function reducedMotion() {
+		return !! ( window.matchMedia && window.matchMedia( '(prefers-reduced-motion: reduce)' ).matches );
+	}
+
 	/**
 	 * Prompt dialog controller (.sakura-modal).
 	 *
@@ -1191,10 +1196,34 @@
 			if ( modal.getAttribute( 'data-sakura-modal-open' ) !== '1' ) {
 				return;
 			}
-			modal.setAttribute( 'hidden', '' );
-			modal.setAttribute( 'aria-hidden', 'true' );
 			modal.removeAttribute( 'data-sakura-modal-open' );
 			document.removeEventListener( 'keydown', onKeydown );
+
+			/*
+			 * Play the exit before hiding. is-closing drives the reverse keyframes;
+			 * hidden lands on animationend so the dialog really is gone, and a timer
+			 * covers the reduced-motion case where no animation runs at all.
+			 */
+			var hide = function () {
+				modal.setAttribute( 'hidden', '' );
+				modal.classList.remove( 'is-closing' );
+			};
+			modal.setAttribute( 'aria-hidden', 'true' );
+			modal.classList.add( 'is-closing' );
+
+			if ( reducedMotion() ) {
+				hide();
+			} else {
+				var finished = false;
+				var finish = function () {
+					if ( finished ) { return; }
+					finished = true;
+					modal.removeEventListener( 'animationend', finish );
+					hide();
+				};
+				modal.addEventListener( 'animationend', finish );
+				window.setTimeout( finish, 260 );
+			}
 
 			// Only pull focus back when it is still inside the dialog; the operator
 			// may have tabbed to another control in the page behind it.

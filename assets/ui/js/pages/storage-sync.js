@@ -345,10 +345,9 @@
 		 * Scan, refresh, cancel, resume, retry, index toggle and connection test.
 		 * ----------------------------------------------------------------- */
 
-	/* The cards live on an absolute pixel canvas (layout.js freeLayout), so any
-	 * change in the row count inside a card has to be measured again: the height
-	 * is written onto the card, and a stale height either spreads the content out
-	 * over empty bands or lets one card sit on top of the next. */
+	/* Cards are laid out by CSS Grid, so a row-count change needs no remeasure.
+	 * The event is still emitted because other listeners may want to know that
+	 * the table contents changed. */
 	function notifyLayout() {
 		if ( admin.events ) {
 			admin.events.emit( 'layout-refresh' );

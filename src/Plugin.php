@@ -151,7 +151,8 @@ final class Plugin {
 
 		if ( is_admin() ) {
 			$modules[] = new Media_Library_Module( $processor, $backup, $stats, $files, $settings );
-			$modules[] = new \Sakura\ImageOptimizer\Admin\Layout();
+			// Card placement is a static table rendered straight into CSS; it
+			// registers no hooks and is not a module.
 		}
 
 		$thumb_module = new Thumbnail_Optimizer_Module();

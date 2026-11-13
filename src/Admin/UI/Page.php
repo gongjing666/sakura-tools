@@ -10,7 +10,6 @@ declare( strict_types=1 );
 namespace Sakura\ImageOptimizer\Admin\UI;
 
 use Sakura\ImageOptimizer\Admin\Appearance;
-use Sakura\ImageOptimizer\Admin\Page_Assets;
 use Sakura\ImageOptimizer\Admin\Shell;
 
 defined( 'ABSPATH' ) || exit;
@@ -34,9 +33,6 @@ final class Page {
 		$chrome = isset( $args['chrome'] ) && is_array( $args['chrome'] ) ? $args['chrome'] : array();
 
 		$classes = 'sakura-admin';
-		if ( Page_Assets::has_layout( $id ) ) {
-			$classes .= ' sakura-layout-enabled';
-		}
 
 		$style = Appearance::inline_style();
 

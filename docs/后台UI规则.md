@@ -9,11 +9,11 @@
 1. `assets/ui/tokens.css`：设计令牌，只有 `:root`。
 2. `assets/ui/base.css`：画布、共享顶栏、模块切换、页签、页头、通用排版与 WP 管理页槽位重置。
 3. `assets/ui/components.css`：卡片、表单、按钮、状态、保存条、弹窗（含全局提示弹窗 `.sakura-modal`）、表格、提示等组件。
-4. `assets/ui/layout.css`：12 栏卡片拖拽布局，只给登记在 `Page_Assets::LAYOUT_PAGES` 的页面加载。
+4. 卡片列宽不单独加载样式：`UI::card()` 按 `Layout::PAGES` 把 `grid-row` / `grid-column` 直接写成行内样式（样式仍在 `components.css` 的 `.card-grid`）。
 5. `assets/ui/pages/{module}.css`：模块级样式；模块名取页面 id 的第一段，例如 `image-rules` → `image.css`。
 6. `assets/ui/pages/{page}.css`：单个页面的补充样式，只在文件存在时加载。
 
-脚本顺序固定为 `core.js` → `api.js` → `ui.js` →（可选）`layout.js` → `pages/{page}.js`。
+脚本顺序固定为 `core.js` → `api.js` → `ui.js` → `pages/{page}.js`。**没有布局脚本**：卡片位置在服务端就确定，首帧即最终形态。
 
 规则：
 
@@ -270,7 +270,7 @@
 - 勾选框最容易出现「看着能点，但勾没勾一个样」：基础态选择器特异性高于 `:checked` 时，白底会把深樱勾选态盖掉；要在同一特异性补 `:checked`。
 - 勾选框白点跑到左上角：先看 `::before` 的计算样式。根因通常是 WP 后台 `forms.css` 的 `checked::before` 负 margin 与 grid/flex 居中冲突；按第 6 节改成绝对定位 + `margin:0`，不要用 `!important` 硬盖。
 - 支付方式少了支付宝：页面只渲染主题实际启用的通道。测试站先查 `zibll_options['pay_alipay_sdk_options']` 是否为 `null`；生产为 `official_alipay` 且 `pay_sdk_order.alipay=1`。这是主题数据差异，不要把支付宝开关硬编码进视图。
-- 右侧「布局修改」消失：按顺序查 `data-sakura-layout` 属性、`Page_Assets::LAYOUT_PAGES` 登记、布局 id 是否等于生产已存组名；三者缺一都不会加载 `layout.css` 和工具栏。系统设置页的页面 id 与布局 id 都是 `system-settings`。
+- 卡片宽度不对：查 `Layout::PAGES[布局 id]['cards']` 里有没有这张卡，以及 `Layout::layout_for_page()` 的别名对不对。系统设置页页面 id 与布局 id 都是 `system-settings`。
 - 布局工具条文案竖排用「一字宽块 + 自然换行」：`width:1.1em; white-space:normal; word-break:break-all; line-height:1.34; text-align:center`，不要用 `writing-mode: vertical-rl`。部分 CJK 回退字体在这里上报的纵向步进只有约 4px，四字会叠成一团（实测标签高 4.17px）；编辑态恢复 `width:auto; white-space:nowrap; word-break:normal`。改完在 1440 和 1101 截图检查四字完整。
 - 重构后按钮/操作入口不见：先按 10.1 的操作清单对照，确认是不是在搬卡片、换布局时删了 DOM；不要用 CSS 补一个只有外观的假按钮，也不要把入口藏进折叠区。
 - 筛选框/输入框铺满整行：全局输入框的 `width:100%` 只填字段列，检查父级是否给了 `flex:1` 或没有 `max-width`；按 10.2 的上限表改父容器，不要在每个页面单独写 `!important`。
@@ -307,20 +307,18 @@
 - 在 `src/Admin/Registry.php` 注册页面与 tab；页面 id 同时决定 CSS/JS 文件名。默认 tab 可以省略 `t`。
 - 渲染前把该页需要的运行时数据交给 `Page_Assets::set_data( $page, $data )`，再调用 `Assets::enqueue_page()`。数据会进入前端 `SakuraAdmin.data`。
 - 页面 CSS 命名：`assets/ui/pages/{module}.css` 是模块共享样式，`assets/ui/pages/{page}.css` 是可选页面样式；JS 只加载 `assets/ui/js/pages/{page}.js`。
-- 需要卡片拖拽布局的页面，在 `Page_Assets::LAYOUT_PAGES` 登记 `页面 id => 布局 id`；布局根节点输出 `data-sakura-ready`、`data-sakura-layout`，每张卡同时带 `data-sakura-card`。系统设置页也走同一套，5 张卡（runtime / engine / checks / extensions / layout）默认为 6/6/12/6/6 跨列。
-- 映射右侧的布局 id 必须是生产已存的布局组名。改页面 id 或文件名时不要顺手改布局 id：文件空间-子比专属的页面 id 是 `files-zibll`，布局 id 必须保持 `files-space`，否则旧布局丢失，右侧「布局修改」工具栏也不会出现。
-- 布局页的 46px 右侧留白由 `Page_Assets::has_layout()` 在服务端输出 `sakura-layout-enabled`，首屏就预留，不能等 `layout.js` 到页尾再补类，否则内容区会在加载后突然变窄。`freeLayout()` 第一次把卡片改成绝对定位时加 `is-initializing` 关闭 0.18s 过渡，否则卡片会从左上角散开。
-- **`arranged` 决定加载形态**：页面级存 `arranged`（`Layout::SCHEMA = 5`）。为 1 时加载即重建自由画布（还原用户排好的样子）；为 0 时走普通文档流（无 `is-free`、无内联 `height`、无绝对坐标），页面不闪、卡片不延迟。
-  - 只有**退出编辑器**才把 `arranged` 置 1 并 `persist()` —— 用户确认过的排布才值得在下次加载重建。
-  - 「恢复默认」把 `arranged` 清 0（用 `resetting` 标记避免紧接着的退出又把它写回 1），刷新后回到默认流式。
+- **卡片位置是静态的**（1.27 起）：`src/Admin/Layout.php` 的 `Layout::PAGES` 为每个页面声明 `order`（阅读顺序）与每张卡的 `array( 行, 列, 跨列数 )`，`UI::card()` 把它们写成行内 `grid-row` / `grid-column`。视图根节点输出 `data-sakura-layout="布局 id"`，每张卡带 `data-sakura-card`；新卡的布局 id 由 `Layout::layout_for_page()` 解析（`storage-deletes` → `deletes` 等）。
+- 布局 id 与页面 id 可以不同（如 `files-zibll` 用 `files-space` 的排布）。改页面 id 时别顺手改布局 id，否则得同步改 `Layout::layout_for_page()` 的别名，卡片会退回默认宽度。
+- 没有右侧工具栏、没有拖拽、没有 46px 预留留白，也没有 `sakura-layout-enabled` 类。卡片用 `grid-auto-rows: min-content`，一行只取该行最高卡的实际高度。
+- 行号是显式的：视图按代码顺序输出卡片，未必等于阅读顺序，只靠 `grid-column` 会让 CSS 按 DOM 顺序打包而留下空洞。改排布时**同时改 `order` 与 `cards` 的行列**，两者必须描述同一批卡片（有测试守着）。
   - **不要再靠推断**（顺序、`col`、单个 `h`）判断「有没有排过」：引擎每次加载都会把自己的顺序/列写回，旧数据里也残留过零散高度值，推断会把没排过的页面误判成排过，于是又闪。
 - `reflow()`（`layout-refresh` / 断点切换）只在 `editing` 为真时重打包，否则一次 AJAX 重绘会把普通页面悄悄切成画布。
 - 保存过的高度（`data-sakura-h`）在流式下退化为 `min-height`：保住用户设定的下限，又不会把卡片拔出文档流。
-- **首屏隐藏卡片的那条 CSS 只对 `.is-free` 生效**（`layout.css` 的 `@media (min-width: 1101px)`）。历史教训：它曾经命中 `.card-grid`，而默认看板只满足「隐藏」不满足「`.is-laid` 显示」，整页卡片空白两秒才被兜底动画放出来——就是「卡片被延迟加载」。改这条规则前先确认选择器里带 `.is-free`。
+- **不要给卡片加首屏隐藏规则**。1.27 之前有一条 `visibility: hidden` 等 JS 落位后再显示的规则，落位失败时整页卡片空白两秒（就是「卡片被延迟加载」）。现在卡片位置在服务端就定了，首帧即可见。
 - 页面脚本只用 `window.SakuraAdmin`：`ready`、`qs`、`qsa`、`on`、`delegate`、`closest`、`dataBlock`、`format`；请求用 `admin.api.ajax/post`；提示/确认/忙碌用 `admin.ui.toast/confirm/busy`。不要引入 jQuery。
 - 所有可见文案走 PHP 的 `__()` 后放进 `Page_Assets::set_data()`，JS 不内嵌未翻译中文。
-- 布局页里的表格/列表如果是 AJAX 渲染，渲染完成后必须 `admin.events.emit('layout-refresh')`；`layout.js` 会重新测量绝对定位画布。否则画布仍按加载行高度固定，异步内容会压到 WordPress 页脚。
-- 迁移/新增页面后验证 1440/1366/1101/782/424/390/320、逐卡保存、拖拽布局与控制台；不要留下半迁移页面。
+- 表格/列表 AJAX 渲染后可以继续 `admin.events.emit('layout-refresh')`，但**不再需要重排**：卡片由 CSS Grid 排布，行高随内容自适应，异步内容不会压到页脚，也不会重新定位卡片。
+- 迁移/新增页面后验证 1440/1366/1101/782/424/390/320、逐卡保存与控制台；**不测拖拽**（已移除）。
 
 ## 10. 重构守恒与控件尺寸
 
@@ -332,7 +330,7 @@
 - 动手前在 1440 和 424 各截一张图，并清点当前页面的操作入口（按钮、链接、下拉、保存条）和表单控件（输入框、勾选框、单选、文本域）的数量与文案。改完用同一份清单逐项对照：操作入口数量不得减少，表单控件不得减少；确认重复或被等价控件替代的除外，但要在清单里写明替代关系。按钮文案不得悄悄换成同义但更难懂的说法。
 - 不允许以「统一」「精简」「更像新版」为理由，把卡头操作、保存按钮、导出、刷新、返回等入口删掉、藏进折叠区、降级成纯文字或移到页面底部。要删或合并入口，必须同时满足：只有这一个入口重复、替代入口可见且能完成同一件事、在提交说明里写明删了什么、为什么删、替代入口在哪。
 - 去重时保留一个可见入口，不要整组删掉。删除队列用卡内四个状态块替代「全部状态」下拉，但状态块和空状态的返回入口必须保留；S3 文件核对把操作移到卡头后，筛选行、搜索框和原有 JS 绑定仍要在。
-- 桌面默认布局守恒：页头（眉标 → 标题 → 说明 → 操作，状态卡在右）、卡片顺序、卡头操作（右上）、卡内保存条（右下）、筛选行（卡内第一块）都保持原位。允许因文案变长、控件换行带来的高度变化，不允许无故换列、换行、把卡头按钮搬到卡内、把保存条搬到页面底部。需要调整顺序时改 DOM，不要只用 `order` 或 `grid-area` 把视觉顺序和键盘顺序拆开；布局引擎的拖拽排序是已知例外，按 `layout.js` 的焦点和键盘操作单独验证。
+- 桌面默认布局守恒：页头（眉标 → 标题 → 说明 → 操作，状态卡在右）、卡片顺序、卡头操作（右上）、卡内保存条（右下）、筛选行（卡内第一块）都保持原位。允许因文案变长、控件换行带来的高度变化，不允许无故换列、换行、把卡头按钮搬到卡内、把保存条搬到页面底部。需要调整顺序时改 `Layout::PAGES` 的 `order`，不要只靠 `order` 属性让视觉顺序与 DOM 顺序脱节——键盘 Tab 顺序跟着 DOM 走。
 - 窄屏重排是唯一允许的大幅位移：≤1100 / ≤782 可以单列、换行、把动作落到标题下方，但 1440 的默认布局不能先按移动版堆叠。
 - 一次提交只做一类事：布局重构不要顺手改路由、改文案、改 option 名、改组件 API；反过来，功能改动也不要夹带整页样式重写。单页重构尽量一页一个提交；共享组件改动要列出受影响页面。提交说明写清保留了什么、移动了什么、删除了什么。
 - 如果页面确实需要重新设计而不是修样式，按新页面处理：先说明目标与信息架构，拿到确认，提供改版前后 1440/424 截图，不要混在「样式微调」里。
@@ -401,11 +399,11 @@
 - [ ] 同一张卡片里的布尔项全部是勾选框，没有 `.switch` 与 `.check` 混用，也没有 `type=toggle`。
 - [ ] `.page-body` 直接子块之间至少 16px（桌面 20px），KPI 网格 `gap` 使用同一令牌，没有 0 间距贴合。
 - [ ] 每张表只有一个 `<thead>`，没有重复表头。
-- [ ] 布局页的 `data-sakura-layout` 与 `Page_Assets::LAYOUT_PAGES` 一致，右侧「布局修改」存在且旧布局能恢复；竖排四字完整，编辑态恢复横排。
+- [ ] 页面的 `data-sakura-layout` 与 `Layout::PAGES` 的键一致，每张卡都拿到 `grid-row` + `grid-column`；页面上**没有**右侧「布局修改」工具栏。
 - [ ] 顶栏模块导航中心与页面内容中心偏差 ≤1px；≤1100px 已回到两行 flex 布局。
 - [ ] 刷新布局页时首屏不横向跳变，卡片没有从堆叠到散开的动画；首屏 HTML 的根节点已带 `sakura-layout-enabled`。
-- [ ] **布局页加载不闪、不延迟**：任意布局页 `document.querySelector('.sakura-layout-grid').className` 里没有 `is-free`、没有内联 `height`，卡片 `style` 里没有 `left/top`；所有卡片 `getComputedStyle(c).visibility === 'visible'`（不得出现空白卡片等 2s）；滚动位置加载全程不跳。已保存的高度以 `min-height` 体现，不是绝对定位。
-- [ ] 「布局修改」可进入自由画布、可拖动；**退出后布局保持排好的样子，刷新后仍然保持**（`arranged=1` 会重建画布）；点「恢复默认」后刷新回到文档流。
+- [ ] **卡片加载不闪、不延迟**：所有卡片 `getComputedStyle(c).visibility === 'visible'`（不得出现空白卡片等待）；卡片 `style` 只有 `grid-row` / `grid-column`，没有 `left` / `top` / `height`；加载 1 秒内 `layout-shift` 累计 < 0.1 且卡片 `getBoundingClientRect().top` 不变化。
+- [ ] 卡片按 `Layout::PAGES` 的位置出现：无拖拽工具栏、无绝对定位、无内联 `height`；每张卡带 `grid-row` + `grid-column`；页面加载全程 `layout-shift` 累计 < 0.1 且卡片位置不移动。
 - [ ] AJAX 表格/列表加载完成后画布重新排版，WordPress 页脚不覆盖最后一行内容。
 - [ ] 提示弹窗（`.sakura-modal`）居中、可 Esc / 点遮罩 / 关闭按钮关闭、关后焦点回到触发元素（页面重载的场景靠 `return_to` 指回触发按钮，不能落到 `<body>`）；「不再提醒」持久化；同一问题没有重复的顶部提示。
 - [ ] **弹窗不改变位置**：在 `scrollY=1500` 这类深位置打开弹窗，再用 X / 按钮 / Esc / 遮罩四种方式关闭，`scrollY` 必须回到原值（误差 0）；页面内容 `getBoundingClientRect().left/width` 前后一致；焦点回到触发元素但**不得把页面滚进视野**。三类弹窗（`.sakura-modal` / `.sakura-dialog` / `.sakura-media-dialog`）逐类验。
@@ -423,7 +421,7 @@
 - [ ] 页头按钮在说明下方、不与状态卡同排；所有页头按钮都有 1px 描边。
 - [ ] 卡头三个动作与标题同排；≤782px 落到标题下方右对齐，按钮可换行，标题没有被挤窄。
 - [ ] 改版前后操作入口（按钮/链接/保存条）和表单控件清单一致，没有误删，也没有被 `display:none` / `visibility:hidden` 藏掉；删除或合并的入口有可见替代路径和说明。
-- [ ] 页头、卡片顺序、卡头动作、卡内保存条位置没有被无理由大挪；1440 默认布局仍按原信息层级，只有 ≤1100/≤782 才重排；除布局引擎拖拽排序外，DOM 顺序与视觉顺序一致。
+- [ ] 页头、卡片顺序、卡头动作、卡内保存条位置没有被无理由大挪；1440 默认布局仍按原信息层级，只有 ≤1100/≤782 才重排；视觉顺序与 `Layout::PAGES[order]` 一致。
 - [ ] 列表筛选行搜索框 ≤280px、下拉 ≤180px，没有用 `flex:1` 或 `width:100%` 拉满；≤782px 才允许整行。卡头已有三个按钮时，搜索框没有被塞成第四个控件。
 - [ ] 用户容量等固定列宽表格在 783–1100px 不内滚，≤782px 已重置为 `table-layout:auto` / `width:auto`；行内文件/文件夹分成两行而不是三段竖排。
 - [ ] 字段控件有宽度上限：短文本 ≤360px、URL/路径 ≤560px、密钥 ≤420px、数字 ≤140px、颜色 ≤56px；勾选/单选固定 18×18，不被容器拉伸。
@@ -447,8 +445,8 @@
 
 ### 13.1 接入前：先把数据契约定下来
 
-1. **页面 id 决定一切**：`Registry` 里的 tab id 同时是 `assets/ui/pages/{page}.js` 的文件名、`data-sakura-page` 的值、以及 `LAYOUT_PAGES` 的键。定错之后 CSS 作用域、资源和布局全部对不上。
-2. **要拖拽布局的页面**：在 `Page_Assets::LAYOUT_PAGES` 登记 `页面 id => 布局 id`；布局 id 必须是**生产已存**的组名（如 `files-zibll` → `files-space`），改名等于清空用户布局。
+1. **页面 id 决定一切**：`Registry` 里的 tab id 同时是 `assets/ui/pages/{page}.js` 的文件名、`data-sakura-page` 的值、以及 `Layout::PAGES` 的键（经 `layout_for_page()` 映射）。定错之后 CSS 作用域、资源和布局全部对不上。
+2. **有卡片的页面**：在 `Layout::PAGES` 补一条 `order` + `cards`（每张卡 `array( 行, 列, 跨列数 )`）；若页面 id 与布局 id 不同，在 `Layout::layout_for_page()` 补别名（如 `files-zibll` → `files-space`）。漏了不会报错，卡片会退化成组件默认宽度。
 3. **新增一张卡**：在 `Layout::DEFAULT_LAYOUT` 对应页面补 `order` 与 `cards` 条目。漏了不会报错，卡片会被追加到画布末尾。
 
 ### 13.2 写视图：用组件，不要手写骨架
@@ -470,7 +468,7 @@
 
 | 判据 | 怎么验 |
 | --- | --- |
-| 加载不闪、卡片不延迟 | 卡片 `visibility` 全为 `visible`；`.sakura-layout-grid` 无 `is-free`、无内联 `height`；卡片 `style` 无 `left/top` |
+| 加载不闪、卡片不延迟 | 卡片 `visibility` 全为 `visible`；卡片 `style` 只有 `grid-row`/`grid-column`；加载 1s 内 `layout-shift` < 0.1 且卡片 `top` 不变 |
 | 保存不跳顶部 | 滚到卡片保存条附近点保存，弹窗出现那一帧 `body.style.top` 已等于原 `scrollY`，关闭后位置误差 0 |
 | 弹窗不改位置 | 深位置（如 `scrollY=1500`）用 X / 按钮 / Esc / 遮罩四种方式关闭，`scrollY` 均回到原值；焦点回触发元素但**不把页面滚进视野** |
 | 页面不横溢 | `document.documentElement.scrollWidth === clientWidth`（1440 / 390 / 320 各测） |
@@ -480,11 +478,11 @@
 
 - 锁滚动用 `admin.ui.scrollLock`，**不要用 `body { overflow: hidden }`**：它会让视口变宽、整页横向抖动，Chrome 还会把页面拉回顶部。
 - 保存往返（POST → 302 → 新文档）要把 `路径|page + scrollY` 存进 `sessionStorage.sakuraAdminSaveScroll`，**在自动弹窗打开之前恢复**；screen key 不含 `t`（部分 saver 重定向回来不带 tab）。
-- 布局加载失败的两个历史原因：`isCustomised()` 靠推断（顺序/`col`/零散 `h`）判断「排过布局」——引擎自己会写回这些值，推断必然误判；以及首屏隐藏规则命中 `.card-grid` 却要求 `.is-laid` 才显示，导致整页空白两秒。现在由 `arranged` 显式标记决定，隐藏规则只对 `.is-free` 生效。
+- **不要再引入任何"加载后用 JS 改布局"的机制**。1.27 之前有过一版拖拽引擎：它把卡片改成绝对定位并重写文档高度，导致长页面跳动、卡片晚一帧出现、以及首屏隐藏规则误命中 `.card-grid` 而整页空白两秒。静态 `grid-row`/`grid-column` 从根上消除了这三类问题。
 
 ### 13.5 交付前
 
 - 静态先行：`php -l` 改过的 PHP、`node --check` 改过的 JS、CSS 花括号配平、`git diff --check`。
 - 浏览器实测：至少 1440 一次完整路径（保存一次、开一次弹窗、关一次），390 抽查不横溢。
-- 改到共享层（`tokens` / `base` / `components` / `layout.js` / `ui.js`）时，1440 覆盖全部后台路由，390 抽查至少 3 页代表页。
+- 改到共享层（`tokens` / `base` / `components` / `ui.js`）时，1440 覆盖全部后台路由，390 抽查至少 3 页代表页。
 - 本文件同步更新：新增规则、或推翻旧规则时**删掉旧的**，不要两份并存。

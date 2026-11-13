@@ -10,6 +10,7 @@ declare( strict_types=1 );
 namespace Sakura\ImageOptimizer\Admin\UI;
 
 use Sakura\ImageOptimizer\Admin\Card_Form;
+use Sakura\ImageOptimizer\Admin\Layout;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -51,6 +52,30 @@ final class Card {
 		$anchor = isset( $args['anchor'] ) ? sanitize_key( (string) $args['anchor'] ) : '';
 
 		echo '<section class="' . esc_attr( implode( ' ', $classes ) ) . '" data-sakura-card="' . esc_attr( $id ) . '"';
+
+		/*
+		 * Placement is resolved on the server so the card paints at its final
+		 * size on the first frame: no script, no absolute positioning, no reflow
+		 * after load.
+		 *
+		 * order carries the reading sequence, because a view renders its cards in
+		 * code order, which is not always the order the operator reads them in.
+		 */
+		$style = array();
+		$placement = self::placement( $args, $id, $wide );
+		if ( null !== $placement ) {
+			// Explicit row keeps the card where the table put it instead of letting
+			// CSS pack by DOM order; column + span give it its width.
+			if ( $placement[0] > 0 ) {
+				$style[] = 'grid-row:' . $placement[0];
+			}
+			$style[] = 'grid-column:' . $placement[1] . ' / span ' . $placement[2];
+		}
+
+		if ( array() !== $style ) {
+			echo ' style="' . esc_attr( implode( ';', $style ) ) . '"';
+		}
+
 		if ( '' !== $anchor ) {
 			echo ' id="' . esc_attr( $anchor ) . '"';
 		}
@@ -71,6 +96,37 @@ final class Card {
 
 		echo '</div>';
 		echo '</section>';
+	}
+
+	/**
+	 * Column and span for one card.
+	 *
+	 * Resolution order: an explicit grid_column argument, the placement table for
+	 * the current page, then the component default (wide cards span the row).
+	 *
+	 * @param array<string,mixed> $args Card arguments.
+	 * @param string              $id   Card id.
+	 * @param bool                $wide Whether the card was declared wide.
+	 * @return array{0:int,1:int,2:int}|null Row (0 = let CSS decide), column, span.
+	 */
+	private static function placement( array $args, string $id, bool $wide ): ?array {
+		if ( ! empty( $args['grid_column'] ) && is_array( $args['grid_column'] ) && 2 === count( $args['grid_column'] ) ) {
+			$parts = array_values( $args['grid_column'] );
+
+			return array( 0, max( 1, min( 12, (int) $parts[0] ) ), max( 1, min( 12, (int) $parts[1] ) ) );
+		}
+
+		$layout = Layout::current_layout();
+		if ( '' !== $layout ) {
+			$placed = Layout::card( $layout, $id );
+			if ( null !== $placed ) {
+				return $placed;
+			}
+		}
+
+		// No table entry: keep the historical default so a new card still lands
+		// somewhere sane instead of collapsing to auto placement.
+		return $wide ? array( 0, 1, 12 ) : null;
 	}
 
 	/**

@@ -24,26 +24,6 @@ final class Page_Assets {
 	private static array $data = array();
 
 	/**
-	 * Page id to layout id.
-	 *
-	 * @var array<string, string>
-	 */
-	private const LAYOUT_PAGES = array(
-		'image-rules'        => 'image',
-		'image-thumb'        => 'thumb',
-		'image-backup'       => 'backup',
-		'storage-connection' => 's3',
-		'storage-sync'       => 'sync',
-		'storage-deletes'    => 'deletes',
-		'files-settings'     => 'files-settings',
-		'files-users'        => 'files-users',
-		'files-queue'        => 'files-queue',
-		'files-log'          => 'files-log',
-		'files-zibll'        => 'files-space',
-		'system-settings'    => 'system-settings',
-	);
-
-	/**
 	 * Attach data to one page. Must run before Assets::enqueue_page().
 	 *
 	 * @param string              $page Page id.
@@ -56,19 +36,6 @@ final class Page_Assets {
 		}
 
 		self::$data[ $page ] = array_merge( self::$data[ $page ], $data );
-	}
-
-	/**
-	 * Whether a page gets the card layout engine and its docked toolbar.
-	 *
-	 * The page shell needs this before render so the right-hand gutter is
-	 * reserved in the first paint instead of being added by JavaScript later.
-	 *
-	 * @param string $page Page id.
-	 * @return bool
-	 */
-	public static function has_layout( string $page ): bool {
-		return isset( self::LAYOUT_PAGES[ $page ] );
 	}
 
 	/**
@@ -114,23 +81,18 @@ final class Page_Assets {
 			self::group_version( array( 'assets/ui/components.css' ) )
 		);
 
-		$has_layout = isset( self::LAYOUT_PAGES[ $page ] );
-
-		if ( $has_layout ) {
-			wp_enqueue_style(
-				$base . '-layout',
-				SAKURA_TOOLS_URL . 'assets/ui/layout.css',
-				array( $base . '-components' ),
-				self::group_version( array( 'assets/ui/layout.css' ) )
-			);
-		}
-
+		/*
+		 * Card placement needs no stylesheet: UI::card() writes grid-column and
+		 * order straight onto each card from the table in src/Admin/Layout.php,
+		 * so the first paint already has the final arrangement. There is no drag
+		 * engine, no absolute positioning and no script to run on load.
+		 */
 		$page_css = 'assets/ui/pages/' . $module . '.css';
 		if ( is_readable( SAKURA_TOOLS_PATH . $page_css ) ) {
 			wp_enqueue_style(
 				$base . '-page-' . $module,
 				SAKURA_TOOLS_URL . $page_css,
-				array( $has_layout ? $base . '-layout' : $base . '-components' ),
+				array( $base . '-components' ),
 				self::group_version( array( $page_css ) )
 			);
 		}
@@ -153,10 +115,6 @@ final class Page_Assets {
 			'ui'   => array( 'assets/ui/js/ui.js', array( $base . '-api' ), true ),
 		);
 
-		if ( $has_layout ) {
-			$scripts['layout'] = array( 'assets/ui/js/layout.js', array( $base . '-ui' ), true );
-		}
-
 		foreach ( $scripts as $name => $definition ) {
 			wp_enqueue_script(
 				$base . '-' . $name,
@@ -167,26 +125,12 @@ final class Page_Assets {
 			);
 		}
 
-		if ( $has_layout ) {
-			/*
-			 * WordPress prints footer scripts in enqueue order. Core and the
-			 * block editor are enqueued before this page renders, so the layout
-			 * engine would otherwise land after more than a hundred kilobytes
-			 * of editor payload and run only after the browser had already
-			 * painted the cards in their default grid. Printing the dependency
-			 * chain at the front of the footer keeps the first placement ahead
-			 * of that payload, and WP_Scripts still marks the handles done so
-			 * the normal footer pass does not print them twice.
-			 */
-			add_action( 'admin_print_footer_scripts', array( __CLASS__, 'print_layout_scripts' ), 1 );
-		}
-
 		$page_js = 'assets/ui/js/pages/' . $page . '.js';
 		if ( is_readable( SAKURA_TOOLS_PATH . $page_js ) ) {
 			wp_enqueue_script(
 				$base . '-page-' . $page,
 				SAKURA_TOOLS_URL . $page_js,
-				array( $has_layout ? $base . '-layout' : $base . '-ui' ),
+				array( $base . '-ui' ),
 				self::group_version( array( $page_js ) ),
 				true
 			);
@@ -208,41 +152,8 @@ final class Page_Assets {
 			),
 		);
 
-		if ( $has_layout ) {
-			$config['layout'] = array(
-				'page'    => self::LAYOUT_PAGES[ $page ],
-				'ajaxUrl' => admin_url( 'admin-ajax.php' ),
-				'nonce'   => wp_create_nonce( Layout::NONCE ),
-				'pages'   => Layout::saved(),
-				'strings' => array(
-					'edit'  => __( '布局修改', 'sakura-imgopt' ),
-					'save'  => __( '布局保存', 'sakura-imgopt' ),
-					'reset' => __( '恢复默认', 'sakura-imgopt' ),
-					'grid'  => __( '显示网格', 'sakura-imgopt' ),
-					'drag'  => __( '拖动以调整位置', 'sakura-imgopt' ),
-					'hint'  => __( '拖标题移动，拖边缘调整大小。', 'sakura-imgopt' ),
-				),
-			);
-		}
-
 		wp_localize_script( $base . '-core', 'sakuraPage', $config );
 		wp_set_script_translations( $base . '-core', 'sakura-imgopt', SAKURA_TOOLS_PATH . 'languages' );
-	}
-
-	/**
-	 * Print the layout dependency chain at the start of the footer.
-	 *
-	 * The normal footer pass follows at priority 20; handles printed here are
-	 * marked done, so only the remaining page scripts are emitted there.
-	 *
-	 * @return void
-	 */
-	public static function print_layout_scripts(): void {
-		if ( ! self::has_layout( Route::current_page() ) ) {
-			return;
-		}
-
-		wp_print_scripts( array( 'sakura-admin-layout' ) );
 	}
 
 	/**

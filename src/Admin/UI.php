@@ -16,6 +16,7 @@ namespace Sakura\ImageOptimizer\Admin;
 use Sakura\ImageOptimizer\Admin\UI\Card as Card_View;
 use Sakura\ImageOptimizer\Admin\UI\Feedback;
 use Sakura\ImageOptimizer\Admin\UI\Field as Field_View;
+use Sakura\ImageOptimizer\Admin\UI\Modal as Modal_View;
 use Sakura\ImageOptimizer\Admin\UI\Page as Page_View;
 
 defined( 'ABSPATH' ) || exit;
@@ -101,5 +102,33 @@ final class UI {
 	 */
 	public static function notice( string $message, string $tone = 'info' ): void {
 		Feedback::notice( $message, $tone );
+	}
+
+	/**
+	 * Centered prompt dialog.
+	 *
+	 * Use this for anything that happens *after* the operator acts — a save
+	 * result, a connection test, a destructive action confirming itself — so the
+	 * plugin has one answer shape instead of a red WordPress notice on one page
+	 * and a green strip on another. Persistent state descriptions stay in the
+	 * page body as UI::alert()/UI::notice().
+	 *
+	 * @param array<string,mixed> $args Modal arguments; see UI\Modal::render().
+	 * @return void
+	 */
+	public static function modal( array $args ): void {
+		Modal_View::render( $args );
+	}
+
+	/**
+	 * Markup for a prompt dialog, for callers that buffer their body.
+	 *
+	 * @param array<string,mixed> $args Modal arguments.
+	 * @return string
+	 */
+	public static function modal_html( array $args ): string {
+		ob_start();
+		Modal_View::render( $args );
+		return (string) ob_get_clean();
 	}
 }

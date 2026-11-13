@@ -332,7 +332,6 @@ UI::page(
 		),
 	),
 	static function () use ( $sufm_space_option, $sufm_space_caps, $sufm_space_caps_state, $sufm_space_theme, $sufm_space_theme_methods, $sufm_space_allowed, $sufm_space_points_on, $sufm_space_methods_ready, $sufm_space_size, $sufm_space_format_mb, $sufm_space_check, $sufm_space_switch, $sufm_space_bd, $sufm_space_override, $sufm_space_levels, $sufm_space_level_max, $sufm_space_level_total_mb, $sufm_space_vip_rows, $sufm_space_vip_total_mb, $sufm_space_rule, $sufm_space_rule_on, $sufm_space_packages, $sufm_space_points, $sufm_space_ppkgs, $sufm_space_icon, $sufm_space_default_icon, $sufm_space_pay_rate, $sufm_space_cheapest, $sufm_space_points_per_gb, $sufm_space_far, $sufm_space_today_gb, $sufm_space_today_count, $sufm_space_entry_theme, $sufm_space_entry_label, $sufm_space_entry_url, $sufm_space_is_generic, $sufm_space_cash_row, $sufm_space_points_row, $entry_status, $files_enabled ) {
-		settings_errors();
 		?>
 		<div class="card-grid" data-sakura-layout="files-space" data-sakura-group="main">
 			<?php if ( empty( $entry_status['enabled'] ) ) : ?>

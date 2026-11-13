@@ -1334,27 +1334,29 @@ final class Media_Hooks {
 			? absint( wp_unslash( (string) $_GET['sufm_delete_blocked'] ) )
 			: 0;
 
-		if ( $delete_blocked > 0 ) {
-			echo '<div class="notice notice-warning is-dismissible"><p>'
-				. esc_html(
-					sprintf(
-						/* translators: %d: number of managed attachments. */
-						__( '有 %d 个文件属于“用户文件空间”，不能从媒体库直接删除。请让文件所有者到用户中心提交删除申请，管理员在“樱花工具箱 → 文件管理”批准并执行。', 'sakura-imgopt' ),
-						$delete_blocked
-					)
-				)
-				. '</p></div>';
-			return;
-		}
+			if ( $delete_blocked > 0 ) {
+				echo \Sakura\ImageOptimizer\Admin\UI\Feedback::admin_notice_html( // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Component escapes internally.
+					esc_html(
+						sprintf(
+							/* translators: %d: number of managed attachments. */
+							__( '有 %d 个文件属于“用户文件空间”，不能从媒体库直接删除。请让文件所有者到用户中心提交删除申请，管理员在“樱花工具箱 → 文件管理”批准并执行。', 'sakura-imgopt' ),
+							$delete_blocked
+						)
+					),
+					'warn'
+				);
+				return;
+			}
 
-		if ( $blocked < 1 ) {
-			return;
-		}
+			if ( $blocked < 1 ) {
+				return;
+			}
 
-		echo '<div class="notice notice-warning is-dismissible"><p>'
-			. esc_html__( '未跳转：只能选择你本人名下、未在删除申请中的“用户文件空间”文件。本次操作未修改任何数据。', 'sakura-imgopt' )
-			. '</p></div>';
-	}
+			echo \Sakura\ImageOptimizer\Admin\UI\Feedback::admin_notice_html( // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Component escapes internally.
+				esc_html__( '未跳转：只能选择你本人名下、未在删除申请中的“用户文件空间”文件。本次操作未修改任何数据。', 'sakura-imgopt' ),
+				'warn'
+			);
+		}
 
 	/**
 	 * Render the owner filter. Administrators only.

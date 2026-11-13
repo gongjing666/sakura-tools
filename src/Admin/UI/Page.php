@@ -59,7 +59,77 @@ final class Page {
 		$body();
 		echo '</div>';
 		echo '</main>';
+
+		/*
+		 * Every card form posts to options.php, so WordPress answers with its own
+		 * green notice above the page. Turn that answer into the shared prompt:
+		 * it is an event (the operator just clicked 保存), it belongs in the same
+		 * dialog as every other result, and the stock notice renders outside the
+		 * .sakura-admin root where none of our tokens reach it.
+		 */
+		self::settings_feedback();
+
 		echo '</div>';
+	}
+
+	/**
+	 * Convert pending settings errors into the prompt dialog.
+	 *
+	 * Runs once per page render. Anything left over (the Settings API kept it in
+	 * a transient) is still surfaced, just in our own shape.
+	 *
+	 * @return void
+	 */
+	private static function settings_feedback(): void {
+		if ( ! function_exists( 'settings_errors' ) ) {
+			return;
+		}
+
+		/*
+		 * Print into a buffer and keep nothing: settings_errors() without the
+		 * $clear argument pops and prints the stack in one go, so this both reads
+		 * the messages and stops WordPress from rendering them again further down
+		 * the page (views that call settings_errors() themselves would otherwise
+		 * leave a second copy).
+		 */
+		ob_start();
+		settings_errors();
+		$stock = (string) ob_get_clean();
+
+		if ( '' === trim( $stock ) ) {
+			return;
+		}
+
+		$ok       = false !== strpos( $stock, 'notice-success' );
+		$warn     = false !== strpos( $stock, 'notice-warning' );
+		$messages = array();
+
+		if ( preg_match_all( '/<p[^>]*>(.*?)<\/p>/s', $stock, $found ) ) {
+			foreach ( $found[1] as $fragment ) {
+				$text = trim( wp_strip_all_tags( $fragment ) );
+				if ( '' !== $text ) {
+					$messages[] = $text;
+				}
+			}
+		}
+
+		if ( array() === $messages ) {
+			return;
+		}
+
+		$tone = $ok ? 'ok' : ( $warn ? 'warn' : 'bad' );
+
+		\Sakura\ImageOptimizer\Admin\UI::modal(
+			array(
+				'id'        => 'sakura-settings-result-modal',
+				'return_to' => '.page-body .btn--primary',
+				'tone'    => $tone,
+				'size'    => 'compact',
+				'kicker'  => 'SETTINGS / SAVED',
+				'title'   => 'ok' === $tone ? __( '设置已保存', 'sakura-imgopt' ) : ( 'warn' === $tone ? __( '已保存，但有需要注意的地方', 'sakura-imgopt' ) : __( '设置未保存', 'sakura-imgopt' ) ),
+				'message' => implode( ' ', $messages ),
+			)
+		);
 	}
 
 	/**

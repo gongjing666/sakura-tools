@@ -556,15 +556,13 @@ final class Storage implements Module {
 		if ( ! current_user_can( 'manage_options' ) ) {
 			return;
 		}
-		printf(
-			'<div class="notice notice-error"><p>%s</p></div>',
-			esc_html(
-				sprintf(
-					/* translators: %s: comma-separated missing configuration fields. */
-					__( '樱花工具箱：S3 已启用但配置不完整（%s），已暂停媒体 URL 接管、图片上传与手动同步。', 'sakura-imgopt' ),
-					implode( ', ', $this->options->configuration_errors() )
-				)
-			)
+		echo \Sakura\ImageOptimizer\Admin\UI\Feedback::admin_notice_html( // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Component escapes internally.
+			sprintf(
+				/* translators: %s: comma-separated missing configuration fields. */
+				esc_html__( '樱花工具箱：S3 已启用但配置不完整（%s），已暂停媒体 URL 接管、图片上传与手动同步。', 'sakura-imgopt' ),
+				esc_html( implode( ', ', $this->options->configuration_errors() ) )
+			),
+			'bad'
 		);
 	}
 
@@ -612,10 +610,10 @@ final class Storage implements Module {
 			);
 		}
 
-		printf(
-			'<div class="notice notice-warning"><p>%s <a href="%s">%s</a></p></div>',
+		echo \Sakura\ImageOptimizer\Admin\UI\Feedback::admin_notice_html( // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Component escapes internally.
 			esc_html( implode( ' ', $messages ) ),
-			esc_url( \Sakura\ImageOptimizer\Admin\Registry::url( 'storage', 'connection' ) ),
+			'warn',
+			\Sakura\ImageOptimizer\Admin\Registry::url( 'storage', 'connection' ),
 			esc_html__( '查看并重试', 'sakura-imgopt' )
 		);
 	}

@@ -633,11 +633,10 @@ final class Sync_Center_Module implements Module {
 		}
 
 		foreach ( $notices as $notice ) {
-			printf(
-				'<div class="notice notice-%1$s"><p>%2$s <a href="%3$s">%4$s</a></p></div>',
-				esc_attr( $notice[0] ),
+			echo \Sakura\ImageOptimizer\Admin\UI\Feedback::admin_notice_html( // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Component escapes internally.
 				esc_html( $notice[1] ),
-				esc_url( add_query_arg( array( 'page' => self::MENU_SLUG ), admin_url( 'admin.php' ) ) ),
+				'bad' === $notice[0] ? 'bad' : 'warn',
+				add_query_arg( array( 'page' => self::MENU_SLUG ), admin_url( 'admin.php' ) ),
 				esc_html__( '打开同步中心', 'sakura-imgopt' )
 			);
 		}

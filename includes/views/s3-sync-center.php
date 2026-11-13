@@ -474,7 +474,18 @@ $sakura_sync_cards = static function () use (
 			),
 			static function () use ( $ignored_saved, $ignored_rules ): void {
 				if ( $ignored_saved ) {
-					\Sakura\ImageOptimizer\Admin\UI::notice( __( '忽略规则已保存。点击「重新核对（本地 + 云端）」后生效。', 'sakura-imgopt' ), 'ok' );
+					// A save result, so it gets the shared prompt instead of a strip.
+					\Sakura\ImageOptimizer\Admin\UI::modal(
+						array(
+							'id'        => 'sakura-ignored-saved-modal',
+							'return_to' => '#sakura-s3-ignored-form .card__savebar .btn',
+							'tone'    => 'ok',
+							'size'    => 'compact',
+							'kicker'  => 'SYNC RULES / SAVED',
+							'title'   => __( '忽略规则已保存', 'sakura-imgopt' ),
+							'message' => __( '新规则会从下一次核对开始生效。点「重新核对（本地 + 云端）」可以立刻重跑。', 'sakura-imgopt' ),
+						)
+					);
 				}
 				\Sakura\ImageOptimizer\Admin\UI::field(
 					array(

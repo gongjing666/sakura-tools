@@ -113,12 +113,37 @@ UI::page(
 		),
 	),
 	static function () use ( $options, $is_zibll, $status, $mode, $stats, $host, $probe_flag, $probe_tone, $probe_label, $mode_labels, $engine_labels, $checked_text, $cache_time, $opcache_label, $cache_backend, $cache_state_label, $cache_groups_text, $cache_note, $size_labels, $styles, $checkbox_control, $form ) {
-		settings_errors();
 
+		/*
+		 * A probe is an action result, so it opens the shared prompt. The two
+		 * theme/mode conditions below are states and stay inline: they remain true
+		 * after the dialog is dismissed, and a modal for them would nag on every
+		 * visit.
+		 */
 		if ( 'ok' === $probe_flag ) {
-			UI::alert( __( '连接测试成功，结果已保存。', 'sakura-imgopt' ), 'success' );
+			UI::modal(
+				array(
+					'id'        => 'sakura-thumb-probe-modal',
+					'return_to' => '#sakura-thumb-probe',
+					'tone'      => 'ok',
+					'size'    => 'compact',
+					'kicker'  => 'THUMBNAIL / PROBE',
+					'title'   => __( '连接测试成功', 'sakura-imgopt' ),
+					'message' => __( '结果已保存，缩略图链接会按当前设置生效。', 'sakura-imgopt' ),
+				)
+			);
 		} elseif ( 'fail' === $probe_flag ) {
-			UI::alert( __( '连接测试未通过，地址改写会保持「不处理」。请查看下面的测试结果。', 'sakura-imgopt' ), 'warning' );
+			UI::modal(
+				array(
+					'id'        => 'sakura-thumb-probe-modal',
+					'return_to' => '#sakura-thumb-probe',
+					'tone'      => 'bad',
+					'size'    => 'compact',
+					'kicker'  => 'THUMBNAIL / PROBE',
+					'title'   => __( '连接测试未通过', 'sakura-imgopt' ),
+					'message' => __( '地址改写会保持「不处理」。具体原因见下方的测试结果。', 'sakura-imgopt' ),
+				)
+			);
 		}
 		if ( ! $is_zibll ) {
 			UI::alert( __( '当前主题不是子比（Zibll）主题；命名样式仍可使用，但请自己检查前台效果。', 'sakura-imgopt' ), 'info', __( '主题提示', 'sakura-imgopt' ) );

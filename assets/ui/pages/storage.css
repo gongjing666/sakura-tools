@@ -1001,64 +1001,11 @@
 	padding: 0 4px;
 }
 
-/* -------------------------------------------------- shared config notice modal
- * Config_Notice still renders the legacy markup (it lives in a shared file);
- * these scoped rules keep it usable on the connection screen without loading
- * the legacy admin stylesheet. The sync center mounts the same component for
- * its setup and first-reconciliation prompts, so every rule below is scoped to
- * both pages through :is().
+/* -------------------------------------------------- config prompt extras
+ * The prompt dialog itself now lives in components.css so every screen can
+ * mount UI::modal(). What stays here is the object-storage-only furniture:
+ * the missing-field chips and the muted "do not remind me" row.
  */
-
-.sakura-admin:is([data-sakura-page="storage-connection"], [data-sakura-page="storage-sync"]) .sakura-modal {
-	position: fixed;
-	inset: 0;
-	z-index: 100000;
-	display: grid;
-	place-items: center;
-	padding: var(--g-space-4);
-}
-
-.sakura-admin:is([data-sakura-page="storage-connection"], [data-sakura-page="storage-sync"]) .sakura-modal[hidden] {
-	display: none;
-}
-
-.sakura-admin:is([data-sakura-page="storage-connection"], [data-sakura-page="storage-sync"]) .sakura-modal__backdrop {
-	position: absolute;
-	inset: 0;
-	background: var(--g-overlay);
-}
-
-.sakura-admin:is([data-sakura-page="storage-connection"], [data-sakura-page="storage-sync"]) .sakura-modal__card {
-	position: relative;
-	width: min(560px, 100%);
-	max-height: calc(100vh - 2 * var(--g-space-4));
-	overflow-y: auto;
-	padding: var(--g-space-5);
-	border-radius: var(--g-radius-lg);
-	background: var(--g-card);
-	box-shadow: var(--g-shadow-pop);
-}
-
-.sakura-admin:is([data-sakura-page="storage-connection"], [data-sakura-page="storage-sync"]) .sakura-modal__close {
-	position: absolute;
-	top: var(--g-space-2);
-	right: var(--g-space-2);
-	width: 32px;
-	height: 32px;
-	border: 0;
-	background: none;
-	color: var(--g-muted);
-	font-size: 20px;
-	cursor: pointer;
-}
-
-.sakura-admin:is([data-sakura-page="storage-connection"], [data-sakura-page="storage-sync"]) .sakura-modal__card h2 {
-	margin: var(--g-space-1) 0 var(--g-space-2);
-	font-size: var(--g-fs-h2);
-	/* Centred heading, left-aligned copy: the prompt reads as a title card but
-	 * the paragraph keeps a straight left edge for scanning. */
-	text-align: center;
-}
 
 .sakura-admin:is([data-sakura-page="storage-connection"], [data-sakura-page="storage-sync"]) .sakura-config-missing {
 	display: flex;
@@ -1076,15 +1023,6 @@
 	font-size: var(--g-fs-meta);
 }
 
-.sakura-admin:is([data-sakura-page="storage-connection"], [data-sakura-page="storage-sync"]) .sakura-modal__actions {
-	display: flex;
-	flex-wrap: wrap;
-	align-items: center;
-	justify-content: space-between;
-	gap: var(--g-space-2);
-	margin-top: var(--g-space-4);
-}
-
 .sakura-admin:is([data-sakura-page="storage-connection"], [data-sakura-page="storage-sync"]) .sakura-config-remember {
 	display: inline-flex;
 	align-items: center;
@@ -1099,83 +1037,7 @@
 	gap: var(--g-space-2);
 }
 
-.sakura-admin:is([data-sakura-page="storage-connection"], [data-sakura-page="storage-sync"]) .sakura-modal__kicker {
-	margin: 0;
-	color: var(--g-muted);
-	font-size: var(--g-fs-eyebrow);
-	letter-spacing: 0.08em;
-	text-align: center;
-	text-transform: uppercase;
-}
-
-.sakura-admin:is([data-sakura-page="storage-connection"], [data-sakura-page="storage-sync"]) .sakura-modal__kicker + h2 {
-	margin-top: var(--g-space-2);
-}
-
-.sakura-admin:is([data-sakura-page="storage-connection"], [data-sakura-page="storage-sync"]) .sakura-modal__icon {
-	/* The head block is centred over the card while the body copy stays left
-	 * aligned. An inline-level box ignores auto side margins, so this is a
-	 * block-level flex box; the fixed size keeps the square shape. */
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	width: 46px;
-	height: 46px;
-	margin: 0 auto var(--g-space-3);
-	border-radius: var(--g-radius-md);
-	background: var(--g-accent-soft);
-	color: var(--g-ink-soft);
-}
-
-.sakura-admin:is([data-sakura-page="storage-connection"], [data-sakura-page="storage-sync"]) .sakura-modal__icon--neutral {
-	background: var(--g-wash);
-	color: var(--g-muted);
-}
-
-.sakura-admin:is([data-sakura-page="storage-connection"], [data-sakura-page="storage-sync"]) .sakura-modal__card > p:not(.sakura-modal__kicker) {
-	margin: 0;
-	color: var(--g-muted);
-	font-size: var(--g-fs-body);
-	line-height: 1.65;
-	/* No measure cap: with the head centred, a 46ch paragraph left an empty
-	 * gutter on the right that read as a layout mistake. The card is already
-	 * narrow enough that a full-width line stays comfortable. */
-	max-width: none;
-}
-
-.sakura-admin:is([data-sakura-page="storage-connection"], [data-sakura-page="storage-sync"]) .sakura-modal__close {
-	display: inline-flex;
-	align-items: center;
-	justify-content: center;
-	border-radius: var(--g-radius-xs);
-}
-
-.sakura-admin:is([data-sakura-page="storage-connection"], [data-sakura-page="storage-sync"]) .sakura-modal__close:hover,
-.sakura-admin:is([data-sakura-page="storage-connection"], [data-sakura-page="storage-sync"]) .sakura-modal__close:focus-visible {
-	background: var(--g-accent-soft);
-	color: var(--g-ink);
-}
-
-/* The heading takes focus when the dialog opens so screen readers announce
- * the prompt; the browser ring on a non-interactive heading reads as a bug. */
-.sakura-admin:is([data-sakura-page="storage-connection"], [data-sakura-page="storage-sync"]) .sakura-modal__card:focus,
-.sakura-admin:is([data-sakura-page="storage-connection"], [data-sakura-page="storage-sync"]) .sakura-modal__card h2:focus {
-	outline: none;
-}
-
-/* The dialogs lock the page behind them, like the media preview does. */
-body.sakura-modal-open {
-	overflow: hidden;
-}
-
 @media (max-width: 520px) {
-	/* Stacked, the mute checkbox belongs above the buttons: the primary action
-	 * has to stay the last thing under the reading order, not the first. */
-	.sakura-admin:is([data-sakura-page="storage-connection"], [data-sakura-page="storage-sync"]) .sakura-modal__actions {
-		flex-direction: column;
-		align-items: stretch;
-	}
-
 	.sakura-admin:is([data-sakura-page="storage-connection"], [data-sakura-page="storage-sync"]) .sakura-config-buttons {
 		flex-direction: column;
 		align-items: stretch;
@@ -1185,7 +1047,6 @@ body.sakura-modal-open {
 		width: 100%;
 	}
 }
-
 
 /* --------------------------------------------------------------- responsive */
 

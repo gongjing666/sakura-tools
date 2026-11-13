@@ -75,8 +75,26 @@ final class S3_Storage_Page {
 				),
 			),
 			function () use ( $notice, $credentials_bad, $constants_locked, $saved_profiles, $options, $active_id, $active_name, $provider_counts, $upload_path, $upload_path_src, $concurrency, $parallel, $effective ) {
+				/*
+				 * A save or a connection test is an event, not a state: it gets the
+				 * shared prompt dialog so the operator cannot miss the result while
+				 * scrolling a long form. Persistent conditions below keep the inline
+				 * strip, because they are still true tomorrow.
+				 */
 				if ( '' !== (string) $notice['message'] ) {
-					UI::alert( (string) $notice['message'], (string) $notice['tone'] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Component escapes internally.
+					UI::modal(
+						array(
+							'id'        => 'sakura-s3-result-modal',
+							'return_to' => '#sakura-s3-save-form .card__savebar .btn, #sakura-s3-test-connection',
+							'tone'    => (string) $notice['tone'],
+							'size'    => 'compact',
+							'kicker'  => 'OBJECT STORAGE / RESULT',
+							'title'   => 'ok' === (string) $notice['tone']
+								? __( '操作已完成', 'sakura-imgopt' )
+								: __( '没有完成', 'sakura-imgopt' ),
+							'message' => (string) $notice['message'],
+						)
+					);
 				}
 
 				if ( $credentials_bad ) {

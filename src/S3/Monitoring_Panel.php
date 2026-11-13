@@ -45,7 +45,18 @@ final class Monitoring_Panel {
 
 				if ( null !== $notice ) {
 					$notice_tone = 'success' === $notice['type'] ? 'ok' : ( 'error' === $notice['type'] ? 'bad' : 'info' );
-					\Sakura\ImageOptimizer\Admin\UI::notice( (string) $notice['message'], $notice_tone );
+					// Saving the endpoint or firing a test webhook is an event: prompt it.
+					\Sakura\ImageOptimizer\Admin\UI::modal(
+						array(
+							'id'        => 'sakura-monitor-result-modal',
+							'return_to' => '.monitor-savebar .btn',
+							'tone'    => $notice_tone,
+							'size'    => 'compact',
+							'kicker'  => 'MONITORING / RESULT',
+							'title'   => 'ok' === $notice_tone ? __( '操作已完成', 'sakura-imgopt' ) : ( 'bad' === $notice_tone ? __( '没有完成', 'sakura-imgopt' ) : __( '已处理', 'sakura-imgopt' ) ),
+							'message' => (string) $notice['message'],
+						)
+					);
 				}
 				?>
 				<div class="monitor-grid">

@@ -70,7 +70,6 @@ UI::page(
 		),
 	),
 	static function () use ( $usage, $backup_path, $probe_server, $probe_message, $probe_tone, $retention_days, $max_mb, $delete_data, $checkbox_control, $backup_group ) {
-		settings_errors();
 		?>
 		<div class="card-grid" data-sakura-layout="backup" data-sakura-group="main">
 			<?php

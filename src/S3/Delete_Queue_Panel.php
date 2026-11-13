@@ -173,13 +173,36 @@ final class Delete_Queue_Panel {
 
 		ob_start();
 		?>
-		<?php if ( 'retried' === $notice ) : ?>
-			<?php $ui::alert( sprintf( /* translators: %d: number of rows. */ __( '已重排 %d 个任务。', 'sakura-imgopt' ), $count ), 'ok' ); ?>
-		<?php elseif ( 'dropped' === $notice ) : ?>
-			<?php $ui::alert( sprintf( /* translators: %d: number of rows. */ __( '已删除 %d 行队列记录。', 'sakura-imgopt' ), $count ), 'ok' ); ?>
-		<?php elseif ( 'none' === $notice ) : ?>
-			<?php $ui::alert( __( '没有选中的记录。', 'sakura-imgopt' ), 'warn' ); ?>
-		<?php endif; ?>
+		<?php
+		/*
+		 * These three are action results — the operator just clicked a button — so
+		 * they use the shared prompt dialog instead of a strip that scrolls away.
+		 * The queue itself stays a state panel; only the outcome is prompted.
+		 */
+		$sufm_result = '';
+		$sufm_tone   = 'ok';
+		if ( 'retried' === $notice ) {
+			$sufm_result = sprintf( /* translators: %d: number of rows. */ __( '已重排 %d 个任务。', 'sakura-imgopt' ), $count );
+		} elseif ( 'dropped' === $notice ) {
+			$sufm_result = sprintf( /* translators: %d: number of rows. */ __( '已删除 %d 行队列记录。', 'sakura-imgopt' ), $count );
+		} elseif ( 'none' === $notice ) {
+			$sufm_result = __( '没有选中的记录。', 'sakura-imgopt' );
+			$sufm_tone   = 'warn';
+		}
+		if ( '' !== $sufm_result ) {
+			$ui::modal(
+				array(
+					'id'        => 'sakura-deletes-result-modal',
+					'return_to' => '.queue-toolbar .btn, .card__actions .btn',
+					'tone'    => $sufm_tone,
+					'size'    => 'compact',
+					'kicker'  => 'DELETE QUEUE / RESULT',
+					'title'   => 'ok' === $sufm_tone ? __( '操作已完成', 'sakura-imgopt' ) : __( '没有执行', 'sakura-imgopt' ),
+					'message' => $sufm_result,
+				)
+			);
+		}
+		?>
 
 		<div class="card-grid" data-sakura-layout="deletes" data-sakura-group="main">
 

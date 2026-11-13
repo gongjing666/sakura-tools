@@ -8,7 +8,7 @@
 
 1. `assets/ui/tokens.css`：设计令牌，只有 `:root`。
 2. `assets/ui/base.css`：画布、共享顶栏、模块切换、页签、页头、通用排版与 WP 管理页槽位重置。
-3. `assets/ui/components.css`：卡片、表单、按钮、状态、保存条、弹窗、表格、提示等组件（提示弹窗 `.sakura-modal` 是例外，样式在对象存储的模块 stylesheet 里，见 5.1）。
+3. `assets/ui/components.css`：卡片、表单、按钮、状态、保存条、弹窗（含全局提示弹窗 `.sakura-modal`）、表格、提示等组件。
 4. `assets/ui/layout.css`：12 栏卡片拖拽布局，只给登记在 `Page_Assets::LAYOUT_PAGES` 的页面加载。
 5. `assets/ui/pages/{module}.css`：模块级样式；模块名取页面 id 的第一段，例如 `image-rules` → `image.css`。
 6. `assets/ui/pages/{page}.css`：单个页面的补充样式，只在文件存在时加载。
@@ -162,11 +162,24 @@
 - 顶栏状态胶囊支持 `ok / off / warn / error`：未传 tone 时是中性灰点；`ok` 绿点，`off` 灰字，`warn` 琥珀，`error` 淡红。不要所有状态都用绿点。
 - 页头状态卡与页头内的小状态标签同样遵循语义，不要用绿色表示「等待配置」。
 
-### 5.1 提示弹窗（`.sakura-modal`）
+### 5.1 提示弹窗（`.sakura-modal`）—— 全局组件
 
-用于「需要用户立即处理、且忽略后会影响功能」的状态：S3 未配置、已配置但停用、配好了但还没核对过。这类信息不要再用顶部 `notice`，同一问题不能「顶部提示 + 弹窗」重复出现。
+**两条通道，别混用：**
 
-- **标记与样式分居两处**：结构与文案由 `src/S3/Config_Notice.php:180` 的 `render_modal()` 输出，样式全部在 `assets/ui/pages/storage.css:1006-1181`，除 `body.sakura-modal-open` 外每一条规则的前缀都是 `.sakura-admin:is([data-sakura-page="storage-connection"], [data-sakura-page="storage-sync"])`。它**不在** `components.css` 里，换到别的页面复用这组类名不会有任何效果；要复用得先把 `:is()` 里的页面清单扩上去。
+| 场景 | 用什么 | 例子 |
+| --- | --- | --- |
+| **动作结果**（用户刚点了按钮） | 居中提示弹窗 `UI::modal()` | 保存成功/失败、连接测试结果、重置统计、批量重排、投递测试 |
+| **持续状态**（明天还在） | 页内 `UI::alert()` / `UI::notice()` | 对象存储已停用、兼容模式、密钥无法解密、主题不是子比、待处理差异 |
+| **AJAX 小动作**（不离开当前页） | 右下角 toast `admin.ui.toast()` | 复制成功、异步刷新失败、指标刷新 |
+
+判断标准只有一句：**这个提示是「刚刚发生的一件事」还是「现在的一个状态」**。前者弹窗，后者页内。不要两者都来一遍——同一个事实不允许「顶部 notice + 弹窗」重复出现。
+
+不允许再用 WordPress 原生 `notice notice-*` 输出（`admin_notices` 钩子也一样）：跨页面的维护类提示走 `\Sakura\ImageOptimizer\Admin\UI\Feedback::admin_notice_html( $message, $tone, $link, $label )`，它自己带一个 `.sakura-admin-notice-root` 外壳，样式与页内 `.alert` 同源。
+
+- **样式在 `components.css` 的「Prompt modal」段**（全局，没有页面前缀），结构由两处输出：
+  - `src/Admin/UI/Modal.php` + `UI::modal( $args )` / `UI::modal_html( $args )` —— 保存结果、检测结果、任何一次性事件都用它。`$args`：`id`、`tone`（ok/bad/warn/info/neutral，决定图标配色）、`kicker`、`title`、`message`、`body`、`size`（`compact` = 440px，报告类用；省略 = 560px）、`button`、`variant`、`autoshow`、`return_to`。
+  - `src/S3/Config_Notice.php` —— 对象存储的三条**拦截式**提示（配置缺失 / 已停用 / 未核对），自带「不再提醒」与主按钮，用的是同一套类名。对象存储的缺失项胶囊样式仍在 `storage.css`（`.sakura-config-missing` 等），那是页面专属家具。
+- **图标五色**：`--ok` 绿、`--bad` 赤、`--warn` 琥珀、`--info` 灰紫、`--neutral` 暖灰。成功不要用主按钮的樱红，否则和「失败」分不开。
 - **尺寸**：`width: min(560px, 100%)`、`padding: var(--g-space-5)`（24px）、`border-radius: var(--g-radius-lg)`（22px）、白底 `--g-card`、`--g-shadow-pop` 阴影；**没有边框**，靠阴影与暖白画布分层。`max-height: calc(100vh - 2 * var(--g-space-4))`（视口高 −36px），内容超高时卡片内部滚动（`overflow-y: auto`）。外层 `.sakura-modal` 是 `position: fixed` + `inset: 0` + `z-index: 100000` 的自绘遮罩，`padding: var(--g-space-4)`（18px）保证窄屏不贴边。
 - **`.sakura-modal--config` 只是语义标记**：仓库里它没有任何 CSS 规则，判断是否为提示弹窗看的是最外层 `.sakura-modal`，不是这个修饰类。
 - **结构固定**：图标（46×46、`--g-radius-md`）→ 大写眉标 → 标题 → 1–2 行说明 →（可选）缺失项面板 → 底部「不再提醒」+ 次按钮 + 主按钮。三个变体共用 `render_modal()`，差别只在中段：
@@ -183,7 +196,7 @@
   - 未勾选时**不写任何东西**：X、Esc、点背景、次按钮「暂不处理」都只关掉这一次，刷新后状态仍然成立就继续弹。理由是这个弹窗是页面上唯一说明「功能坏了 / 桶不再收文件」的地方，把「关掉」当成「处理过」会让问题静默存在。
   - 1.25.6 及更早的 12 小时 snooze（`sakura_imgopt_s3_config_notice_snoozed_until`）已废弃：升级后读到残留时间戳直接删除，不再压制弹窗。
 - **主按钮跳转下一页时**保留 sessionStorage 一次性跳过（`sakuraS3ConfigSkipOnce`），只作为 AJAX 写入失败时的兜底，不能当长期静默用。
-- **锁滚动用 `body { overflow: hidden }`**：`body.sakura-modal-open`（`storage.css:1161`），由 `storage-sync.js` 的 `lockScroll()` 增删。这套自绘遮罩用 `overflow` 就够——实测在 `scrollY=600` 处加类不会把页面拉回顶部。连接页的同款弹窗（`storage-connection.js:333`）只负责延时打开，没有加锁，两处行为尚不一致，新增页面请照同步中心的写法。
+- **锁滚动用 `body { overflow: hidden }`**：`body.sakura-modal-open`（`components.css` 的 Prompt modal 段），由 `ui.js` 的 `openModal()` 增删；`storage-sync.js` 的 `lockScroll()` 是同一语义的历史实现。这套自绘遮罩用 `overflow` 就够——实测在 `scrollY=600` 处加类不会把页面拉回顶部。连接页的同款弹窗（`storage-connection.js:333`）只负责延时打开，没有加锁，两处行为尚不一致，新增页面请照同步中心的写法。
 - **节点必须由页面根节点输出**，遮罩才盖满整个视口；不要依赖旧 `.app` 的堆叠上下文（同步中心把弹窗 echo 在 `ob_get_clean()` 之前正是这个原因）。
 - 提示弹窗没有入场动画，`prefers-reduced-motion` 在这里是空条件，不要为它单写动画开关。
 
@@ -280,7 +293,7 @@
   - `hidden`：额外 hidden 字段。
 - 字段用 `UI::field( $args )`，类型支持 `text/number/url/password/email/color/select/textarea/checkbox/radio/toggle/hidden/custom`；复杂控件用 `custom` + `control` 回调，只外包标签与间距。
 - `toggle` 仅为历史兼容保留；后台卡片不要使用，布尔项统一 `checkbox`（见第 6 节）。
-- 反馈用 `UI::badge()`、`UI::alert()`、`UI::notice()`、`UI::empty_state()`。
+- 反馈用 `UI::badge()`、`UI::alert()`、`UI::notice()`、`UI::empty_state()`、`UI::modal()`。动作结果用 `UI::modal()`，持续状态用 `alert`/`notice`，AJAX 小动作用 `admin.ui.toast()`（见 5.1）。
 - 新页面不要手写 `section.card > .card__head > .card__body` 骨架，也不要在视图里重复 nonce、卡片标记和保存按钮。特殊版式通过 `wide` / `class` 传给组件，不改组件结构。
 - 组件在 `src/Admin/UI.php` 与 `src/Admin/UI/`，`Card_Form` 在 `src/Admin/Card_Form.php`，均由 PSR-4 自动加载。
 
@@ -381,7 +394,9 @@
 - [ ] 顶栏模块导航中心与页面内容中心偏差 ≤1px；≤1100px 已回到两行 flex 布局。
 - [ ] 刷新布局页时首屏不横向跳变，卡片没有从堆叠到散开的动画；首屏 HTML 的根节点已带 `sakura-layout-enabled`。多卡组在慢速首次加载时也不会先露出默认两列（`is-laid` 前隐藏，禁用 JS 2s 后可见）。
 - [ ] AJAX 表格/列表加载完成后画布重新排版，WordPress 页脚不覆盖最后一行内容。
-- [ ] 提示弹窗（`.sakura-modal`）居中、可 Esc / 点遮罩 / 关闭按钮关闭、关后焦点回到触发元素；「不再提醒」持久化；同一问题没有重复的顶部提示。
+- [ ] 提示弹窗（`.sakura-modal`）居中、可 Esc / 点遮罩 / 关闭按钮关闭、关后焦点回到触发元素（页面重载的场景靠 `return_to` 指回触发按钮，不能落到 `<body>`）；「不再提醒」持久化；同一问题没有重复的顶部提示。
+- [ ] 保存与检测结果只以提示弹窗出现：DOM 里没有 `notice-success` / `settings-error` 之类的 WordPress 原生提示，也没有同一事实的页内副本（`settings_errors()` 只由页面外壳消费一次）。
+- [ ] 全站 `admin_notices` 输出走 `Feedback::admin_notice_html()`，页面里没有裸的 `notice notice-*`。
 - [ ] 确认弹窗（`.sakura-dialog`）只有标题 + 一句正文 + 两个按钮；危险动作用 `.btn--danger`，取消用 ghost；Esc 可关；打开后不锁页面滚动。
 - [ ] 文件核对详情打开媒体预览而不是跳媒体库：图片显示 + 下载、视频自绘控件 + 下载、其他类型只有说明 + 下载；PHP 首屏与 AJAX 重绘两处按钮一致。
 - [ ] 媒体弹窗 1440 下图片四周留白 ≥20px、无内滚动条；≤782px 全屏、无横向溢出；弹窗没有 UA 黑描边/焦点环；关闭后焦点回到触发项、页面仍停在打开前的滚动位置，视频已暂停。

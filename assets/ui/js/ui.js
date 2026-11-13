@@ -939,9 +939,106 @@
 		} );
 	}
 
+	/**
+	 * Prompt dialog controller (.sakura-modal).
+	 *
+	 * Three ways out — the X, the acknowledge button, Escape — and none of them
+	 * write anything. The dialog only reports. Focus goes to the heading on open
+	 * and back to whatever had it before on close, so a keyboard operator ends up
+	 * where they were, not at the top of the document.
+	 */
+	function openModal( modal, trigger ) {
+		if ( ! modal || modal.getAttribute( 'data-sakura-modal-open' ) === '1' ) {
+			return null;
+		}
+
+		var card    = admin.qs( '.sakura-modal__card', modal );
+		var focusOn = admin.qs( '[data-sakura-modal-focus]', modal ) || card;
+		var opener  = trigger || document.activeElement;
+
+		modal.removeAttribute( 'hidden' );
+		modal.setAttribute( 'aria-hidden', 'false' );
+		modal.setAttribute( 'data-sakura-modal-open', '1' );
+		document.body.classList.add( 'sakura-modal-open' );
+
+		if ( focusOn && typeof focusOn.focus === 'function' ) {
+			window.setTimeout( function () {
+				focusOn.focus( { preventScroll: true } );
+			}, 40 );
+		}
+
+		function close() {
+			if ( modal.getAttribute( 'data-sakura-modal-open' ) !== '1' ) {
+				return;
+			}
+			modal.setAttribute( 'hidden', '' );
+			modal.setAttribute( 'aria-hidden', 'true' );
+			modal.removeAttribute( 'data-sakura-modal-open' );
+			document.body.classList.remove( 'sakura-modal-open' );
+			document.removeEventListener( 'keydown', onKeydown );
+
+			// Only pull focus back when it is still inside the dialog; the operator
+			// may have tabbed to another control in the page behind it.
+			if ( modal.contains( document.activeElement ) && document.activeElement !== document.body ) {
+				document.activeElement.blur();
+			}
+
+			/*
+			 * Autoshow prompts survive a post-and-redirect: the node that was the
+			 * trigger belongs to the previous document, so focus would fall to
+			 * <body> and a keyboard operator would restart at the top of the page.
+			 * A data-sakura-modal-return selector names the control to come back to
+			 * instead (the save button of the card that was submitted).
+			 */
+			var fallback = modal.getAttribute( 'data-sakura-modal-return' );
+			// <body> is the "nothing was focused" placeholder, not an opener: on a
+			// post-and-redirect prompt it is always what document.activeElement
+			// reports, so treat it as absent and let the selector win.
+			var useful = opener && opener !== document.body && document.contains( opener ) ? opener : null;
+			var target = useful || ( fallback ? admin.qs( fallback ) : null );
+
+			if ( target && typeof target.focus === 'function' ) {
+				target.focus( { preventScroll: true } );
+			}
+		}
+
+		function onKeydown( event ) {
+			if ( 'Escape' !== event.key ) {
+				return;
+			}
+			event.preventDefault();
+			close();
+		}
+
+		modal.addEventListener( 'click', function ( event ) {
+			var closer = event.target.closest ? event.target.closest( '[data-sakura-modal-close]' ) : null;
+			if ( closer && modal.contains( closer ) ) {
+				event.preventDefault();
+				close();
+			}
+		} );
+
+		document.addEventListener( 'keydown', onKeydown );
+
+		return { close: close };
+	}
+
+	/**
+	 * Mount servers that opt in with data-sakura-modal-autoshow.
+	 */
+	function initModals() {
+		admin.qsa( '.sakura-modal[data-sakura-modal-autoshow="1"]' ).forEach( function ( modal, index ) {
+			// Stagger, so two prompts never fight for focus in the same frame.
+			window.setTimeout( function () {
+				openModal( modal, null );
+			}, 180 + index * 120 );
+		} );
+	}
+
 	admin.ready( function () {
 		labelTables( document );
 		initConfirmations();
+		initModals();
 	} );
 
 	admin.ui = {
@@ -950,6 +1047,7 @@
 		busy: busy,
 		copy: copy,
 		labelTables: labelTables,
-		mediaPreview: mediaPreview
+		mediaPreview: mediaPreview,
+		openModal: openModal
 	};
 }( window, document ) );

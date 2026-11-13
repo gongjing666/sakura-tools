@@ -49,7 +49,6 @@ $stats_url  = \Sakura\ImageOptimizer\Admin\Registry::url( 'image', 'stats' );
 		),
 	),
 	static function () use ( $sections, $fields, $sufm_order, $option_group ) {
-		settings_errors();
 
 		echo '<div class="card-grid" data-sakura-layout="image" data-sakura-group="main">';
 

@@ -827,6 +827,26 @@
 	color: inherit;
 }
 
+/* Admin notices rendered outside a .sakura-admin page (media library, thumbnail
+ * screens). The helper in Feedback::admin_notice_html() adds its own root so the
+ * tokens apply; this only relaxes the page-root typography contract. */
+.sakura-admin-notice-root {
+	margin: 12px 20px 12px 2px;
+	color: var(--g-ink);
+	font-family: var(--g-font);
+	font-size: var(--g-fs-body);
+	line-height: var(--g-lh-body);
+}
+
+.sakura-admin-notice-root .alert {
+	margin: 0;
+}
+
+.sakura-admin-notice-root .alert a {
+	color: var(--g-accent);
+	text-decoration-color: currentColor;
+}
+
 .sakura-admin .notice-inline {
 	margin: 10px 0 0;
 	padding: 9px 12px;
@@ -1207,6 +1227,195 @@
 	justify-content: flex-end;
 	gap: 8px;
 	padding: 16px 22px 20px;
+}
+
+/* ============================================================
+ * Prompt modal (Centered)
+ * ============================================================ */
+
+/*
+ * One prompt dialog for the whole plugin: save results, connection tests,
+ * setup prompts and first-run nudges all mount this markup. It lives here, in
+ * the shared component layer, so every screen gets the same look; the object
+ * storage pages used to own it and the rules only matched two page ids.
+ *
+ * Structure (see UI::modal()):
+ *   .sakura-modal > .sakura-modal__backdrop + .sakura-modal__card
+ *     .sakura-modal__close (X)
+ *     .sakura-modal__icon--{ok|bad|warn|info|neutral}
+ *     .sakura-modal__kicker / h2 / p / body / .sakura-modal__actions
+ */
+.sakura-admin .sakura-modal {
+	position: fixed;
+	inset: 0;
+	z-index: 100000;
+	display: grid;
+	place-items: center;
+	padding: var(--g-space-4);
+}
+
+.sakura-admin .sakura-modal[hidden] {
+	display: none;
+}
+
+.sakura-admin .sakura-modal__backdrop {
+	position: absolute;
+	inset: 0;
+	background: var(--g-overlay);
+	backdrop-filter: blur(3px);
+}
+
+.sakura-admin .sakura-modal__card {
+	position: relative;
+	width: min(560px, 100%);
+	max-height: calc(100vh - 2 * var(--g-space-4));
+	overflow-y: auto;
+	padding: var(--g-space-5);
+	border-radius: var(--g-radius-lg);
+	background: var(--g-card-surface);
+	box-shadow: var(--g-shadow-pop);
+}
+
+/* A prompt that only reports ("saved", "connection ok") is narrower than the
+ * setup prompt, which carries a chip panel and a primary action. */
+.sakura-admin .sakura-modal__card[data-modal-size="compact"] {
+	width: min(440px, 100%);
+}
+
+.sakura-admin .sakura-modal__close {
+	position: absolute;
+	top: var(--g-space-2);
+	right: var(--g-space-2);
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 32px;
+	height: 32px;
+	padding: 0;
+	border: 0;
+	border-radius: var(--g-radius-xs);
+	background: none;
+	color: var(--g-muted);
+	font-size: 20px;
+	cursor: pointer;
+}
+
+.sakura-admin .sakura-modal__close:hover,
+.sakura-admin .sakura-modal__close:focus-visible {
+	background: var(--g-accent-soft);
+	color: var(--g-ink);
+}
+
+.sakura-admin .sakura-modal__icon {
+	/* Centred over left-aligned copy. An inline-level box ignores auto side
+	 * margins, so this is a block-level flex box with a fixed square size. */
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 46px;
+	height: 46px;
+	margin: 0 auto var(--g-space-3);
+	border-radius: var(--g-radius-md);
+	background: var(--g-accent-soft);
+	color: var(--g-ink-soft);
+}
+
+.sakura-admin .sakura-modal__icon--ok {
+	background: var(--g-ok-bg);
+	color: var(--g-ok);
+}
+
+.sakura-admin .sakura-modal__icon--bad {
+	background: var(--g-bad-bg);
+	color: var(--g-bad);
+}
+
+.sakura-admin .sakura-modal__icon--warn {
+	background: var(--g-warn-bg);
+	color: var(--g-warn);
+}
+
+.sakura-admin .sakura-modal__icon--info {
+	background: var(--g-info-bg);
+	color: var(--g-info);
+}
+
+.sakura-admin .sakura-modal__icon--neutral {
+	background: var(--g-wash);
+	color: var(--g-muted);
+}
+
+.sakura-admin .sakura-modal__kicker {
+	margin: 0;
+	color: var(--g-faint);
+	font-size: var(--g-fs-eyebrow);
+	font-weight: 650;
+	letter-spacing: .12em;
+	line-height: 1.4;
+	text-align: center;
+	text-transform: uppercase;
+}
+
+.sakura-admin .sakura-modal__card h2 {
+	margin: var(--g-space-1) 0 var(--g-space-2);
+	font-size: var(--g-fs-h2);
+	/* Centred heading, left-aligned copy: the prompt reads as a title card but
+	 * the paragraph keeps a straight left edge for scanning. */
+	text-align: center;
+}
+
+.sakura-admin .sakura-modal__kicker + h2 {
+	margin-top: var(--g-space-2);
+}
+
+.sakura-admin .sakura-modal__card > p:not(.sakura-modal__kicker) {
+	margin: 0;
+	color: var(--g-muted);
+	font-size: var(--g-fs-body);
+	line-height: 1.65;
+	/* No measure cap: with the head centred, a 46ch paragraph left an empty
+	 * gutter on the right that read as a layout mistake. */
+	max-width: none;
+}
+
+.sakura-admin .sakura-modal__actions {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--g-space-2);
+	margin-top: var(--g-space-4);
+}
+
+/* A prompt with a single acknowledge button puts it on the right where the
+ * primary action always sits. */
+.sakura-admin .sakura-modal__actions[data-align="end"] {
+	justify-content: flex-end;
+}
+
+/* The heading takes focus when the dialog opens so screen readers announce the
+ * prompt; the browser ring on a non-interactive heading reads as a bug. */
+.sakura-admin .sakura-modal__card:focus,
+.sakura-admin .sakura-modal__card h2:focus {
+	outline: none;
+}
+
+/* The dialogs lock the page behind them, like the media preview does. */
+body.sakura-modal-open {
+	overflow: hidden;
+}
+
+@media (max-width: 520px) {
+	/* Stacked, the mute checkbox belongs above the buttons: the primary action
+	 * has to stay the last thing in the reading order, not the first. */
+	.sakura-admin .sakura-modal__actions {
+		flex-direction: column;
+		align-items: stretch;
+	}
+
+	.sakura-admin .sakura-modal__actions .btn {
+		width: 100%;
+	}
 }
 
 /* ============================================================

@@ -105,7 +105,18 @@ UI::page(
 	),
 	static function () use ( $stats, $logs, $rows_html, $total_logs, $avg_ratio, $reset, $kpis ) {
 		if ( '1' === $reset ) {
-			UI::alert( __( '统计已重置。', 'sakura-imgopt' ), 'success' );
+			// The operator just confirmed a destructive reset: prompt the outcome.
+			UI::modal(
+				array(
+					'id'        => 'sakura-stats-reset-modal',
+					'return_to' => '[data-sakura-confirm]',
+					'tone'    => 'ok',
+					'size'    => 'compact',
+					'kicker'  => 'STATISTICS / RESET',
+					'title'   => __( '统计已重置', 'sakura-imgopt' ),
+					'message' => __( '汇总数字已清零，每张图片的处理记录仍保留在下面的历史里。', 'sakura-imgopt' ),
+				)
+			);
 		}
 		?>
 		<section class="kpis" aria-label="<?php echo esc_attr__( '统计摘要', 'sakura-imgopt' ); ?>">

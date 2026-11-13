@@ -253,7 +253,6 @@ UI::page(
 	),
 	static function () use ( $sufm_tab, $settings, $enabled, $entry_status, $sufm_entry_label, $sufm_entry_theme, $sufm_theme_limits, $sufm_type_labels, $sufm_accent_labels, $sufm_style_labels, $sufm_appearance_form, $sufm_policy_form, $sufm_policy_groups, $sufm_checkbox, $sufm_pager ) {
 		if ( 'settings' === $sufm_tab ) {
-			settings_errors();
 
 			$sufm_moved = $enabled
 				/* translators: %s: detected entry label */

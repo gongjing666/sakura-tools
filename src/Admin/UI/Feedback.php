@@ -59,6 +59,30 @@ final class Feedback {
 	}
 
 	/**
+	 * Markup for a WordPress admin notice, skinned as the plugin alert.
+	 *
+	 * These render through the admin_notices hook on screens that have no
+	 * .sakura-admin root (media library, thumbnail screens), so the wrapper
+	 * carries its own root class to pick up the tokens and type.
+	 *
+	 * @param string $message Message (already escaped by the caller or safe HTML).
+	 * @param string $tone    info, ok, warn or bad.
+	 * @param string $link    Optional action URL.
+	 * @param string $label   Optional action label.
+	 * @return string
+	 */
+	public static function admin_notice_html( string $message, string $tone = 'info', string $link = '', string $label = '' ): string {
+		$tone  = self::tone( $tone );
+		$html  = '<div class="sakura-admin sakura-admin-notice-root"><div class="alert alert--' . esc_attr( $tone ) . '" role="status"><div class="alert__body">' . wp_kses_post( $message );
+		if ( '' !== $link && '' !== $label ) {
+			$html .= ' <a href="' . esc_url( $link ) . '">' . esc_html( $label ) . '</a>';
+		}
+		$html .= '</div></div></div>';
+
+		return $html;
+	}
+
+	/**
 	 * Empty state.
 	 *
 	 * @param string              $title   Title.

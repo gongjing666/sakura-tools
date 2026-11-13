@@ -338,17 +338,17 @@ class Thumbnail_Optimizer_Module implements Module {
 
 		if ( get_transient( 'sakura_imgopt_thumb_probe_reset' ) ) {
 			delete_transient( 'sakura_imgopt_thumb_probe_reset' );
-			printf(
-				'<div class="notice notice-info"><p>%s</p></div>',
-				esc_html__( '存储配置（厂商 / 图片域名 / 端点）已变更，之前的探测结论与缓存的缩略图地址已作废，改写暂时关闭。请重新探测确认后再启用。', 'sakura-imgopt' )
+			echo \Sakura\ImageOptimizer\Admin\UI\Feedback::admin_notice_html( // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Component escapes internally.
+				esc_html__( '存储配置（厂商 / 图片域名 / 端点）已变更，之前的探测结论与缓存的缩略图地址已作废，改写暂时关闭。请重新探测确认后再启用。', 'sakura-imgopt' ),
+				'info'
 			);
 		}
 
 		foreach ( Settings::conflicts() as $conflict ) {
-			printf(
-				'<div class="notice notice-%1$s"><p>%2$s</p></div>',
-				esc_attr( (string) ( $conflict['severity'] ?? 'warning' ) ),
-				esc_html( (string) ( $conflict['message'] ?? '' ) )
+			$severity = (string) ( $conflict['severity'] ?? 'warning' );
+			echo \Sakura\ImageOptimizer\Admin\UI\Feedback::admin_notice_html( // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Component escapes internally.
+				esc_html( (string) ( $conflict['message'] ?? '' ) ),
+				'error' === $severity ? 'bad' : ( 'info' === $severity ? 'info' : 'warn' )
 			);
 		}
 	}

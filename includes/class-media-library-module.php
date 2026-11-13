@@ -368,15 +368,15 @@ class Media_Library_Module implements Module {
 			return;
 		}
 
-		printf(
-			'<div class="notice notice-warning is-dismissible"><p>%s</p></div>',
+		echo \Sakura\ImageOptimizer\Admin\UI\Feedback::admin_notice_html( // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Component escapes internally.
 			esc_html(
 				sprintf(
 					/* translators: %s: number of skipped attachments. */
 					__( '已跳过 %s 个由对象存储/CDN 托管的附件：本地备份还原不会更新桶内对象，因此未执行还原。', 'sakura-imgopt' ),
 					number_format_i18n( $blocked )
 				)
-			)
+			),
+			'warn'
 		);
 	}
 
@@ -394,9 +394,9 @@ class Media_Library_Module implements Module {
 			return;
 		}
 
-		printf(
-			'<div class="notice notice-error is-dismissible"><p>%s</p></div>',
-			esc_html__( '没有可处理的附件：你没有编辑这些附件的权限。', 'sakura-imgopt' )
+		echo \Sakura\ImageOptimizer\Admin\UI\Feedback::admin_notice_html( // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Component escapes internally.
+			esc_html__( '没有可处理的附件：你没有编辑这些附件的权限。', 'sakura-imgopt' ),
+			'bad'
 		);
 	}
 

@@ -937,12 +937,20 @@
 	// same load inherits it so its close target matches the visible position.
 	var restoredOffset = null;
 
+	/*
+	 * Identity of the screen, used to decide whether a stored offset belongs here.
+	 *
+	 * Only path + page: WordPress redirects some savers back to a URL WITHOUT the
+	 * tab argument (the object-storage saver returns page=sakura-tools-storage
+	 * with no t=), so including 't' made the key mismatch and the offset was
+	 * silently dropped. The tab is part of the page id anyway on these screens,
+	 * and a tab switch is a link, not a submit, so nothing is stored.
+	 */
 	function screenKey() {
 		var params = new URLSearchParams( window.location.search );
 		return [
 			window.location.pathname,
-			params.get( 'page' ) || '',
-			params.get( 't' ) || ''
+			params.get( 'page' ) || ''
 		].join( '|' );
 	}
 

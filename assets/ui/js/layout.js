@@ -225,32 +225,43 @@
 			order.splice( anchor, 0, id );
 		} );
 
-		var customised = isCustomised( group, data );
-
 		order.forEach( function ( id ) {
 			var card = byId[ id ];
 			if ( ! card ) {
 				return;
 			}
 			group.appendChild( card );
+			// Span and saved span-width only; the card stays in the grid. Absolute
+			// placement is applied exclusively while the editor is open.
 			applyCard( card, data.cards[ id ], page, id );
 			addResizeHandles( card, groupName );
 			enableDrag( card, group, page, groupName );
 		} );
 
 		/*
-		 * Default board: keep the plain document flow.
+		 * Load always paints the plain document flow.
 		 *
-		 * Only pack into the free canvas once the operator has actually arranged
-		 * something. Doing it on every load is what made pages flicker — the flow is
-		 * painted first, then replaced by a packed canvas of a different height.
-		 * The toolbar still renders, so the editor is reachable from here.
+		 * Free canvas rewrites every card into absolute placement and changes the
+		 * document height, which makes a long page jump and makes cards appear a
+		 * beat late. A board is only packed while its editor is open — where the
+		 * operator is looking at it on purpose and a re-layout is expected.
+		 */
+		var customised = isCustomised( group, data );
+		group.classList.remove( 'is-free', 'is-initializing', 'is-laid' );
+		group.style.removeProperty( 'height' );
+
+		/*
+		 * A user-chosen height is a floor, not a packed box: keep it as a min-height
+		 * so the board still reads the way it was arranged, without taking the
+		 * cards out of the document flow.
 		 */
 		if ( customised ) {
-			freeLayout( group );
-		} else {
-			group.classList.remove( 'is-free', 'is-initializing', 'is-laid' );
-			group.style.removeProperty( 'height' );
+			cardsOf( group ).forEach( function ( card ) {
+				var savedH = parseInt( card.getAttribute( 'data-sakura-h' ), 10 ) || 0;
+				if ( savedH > 0 ) {
+					card.style.minHeight = savedH + 'px';
+				}
+			} );
 		}
 
 		buildToolbar();
@@ -274,7 +285,16 @@
 					applyCard( card, data.cards[ id ], page, id );
 				}
 			} );
-			freeLayout( group );
+
+			/*
+			 * Re-pack only while the editor is open. An AJAX redraw on a normal
+			 * page must not silently switch the board into the free canvas — that
+			 * was the same flicker, just triggered by a table refresh instead of a
+			 * page load.
+			 */
+			if ( editing ) {
+				freeLayout( group );
+			}
 		} );
 	}
 
@@ -1179,20 +1199,27 @@
 			persist( firstPage() );
 
 			/*
-			 * Leaving the editor returns a board nobody rearranged to plain flow,
-			 * so the page stops being a packed canvas again — the same look it had
-			 * on load, without the flash that packing on every load caused.
+			 * Leaving the editor always returns the board to plain flow.
+			 *
+			 * Not conditional on isCustomised(): persist() runs just above and
+			 * rewrites the stored rows from the live canvas, so the check would
+			 * read the data the editor itself just wrote and keep the page packed.
+			 * Flow is what every load paints, so this keeps the look consistent.
 			 */
 			document.querySelectorAll( '[data-sakura-layout]' ).forEach( function ( group ) {
-				var page = pageOf( group );
-				var groupName = group.getAttribute( 'data-sakura-group' ) || 'main';
-				if ( ! page ) {
-					return;
-				}
-				if ( ! isCustomised( group, groupState( page, groupName ) ) ) {
-					group.classList.remove( 'is-free', 'is-initializing', 'is-laid' );
-					group.style.removeProperty( 'height' );
-				}
+				var cards = cardsOf( group );
+				group.classList.remove( 'is-free', 'is-initializing', 'is-laid' );
+				group.style.removeProperty( 'height' );
+				cards.forEach( function ( card ) {
+					// Drop the absolute coordinates; the span stays.
+					[ 'left', 'top', 'width', 'min-height', 'height' ].forEach( function ( prop ) {
+						card.style.removeProperty( prop );
+					} );
+					var savedH = parseInt( card.getAttribute( 'data-sakura-h' ), 10 ) || 0;
+					if ( savedH > 0 ) {
+						card.style.minHeight = savedH + 'px';
+					}
+				} );
 			} );
 		}
 	}

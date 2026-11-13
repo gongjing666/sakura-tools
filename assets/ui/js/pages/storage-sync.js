@@ -345,6 +345,22 @@
 		}
 	}
 
+	// Storage switched off freezes every action that would read from or write
+	// to the bucket. The server renders those buttons disabled and flags the
+	// page state; these helpers keep rows and batches rebuilt by AJAX in the
+	// same state, and stop a stray click from reaching the REST layer.
+	function isFrozen() {
+		var node = admin.qs( '#sakura-sync-state' );
+		return !! node && '1' === node.getAttribute( 'data-frozen' );
+	}
+
+	function applyFrozen( button ) {
+		if ( button && isFrozen() ) {
+			button.disabled = true;
+		}
+		return button;
+	}
+
 	function initTools() {
 			var scanBusy      = false;
 			var scanPollToken = 0;
@@ -567,6 +583,13 @@
 				if ( ! action || 0 === action.indexOf( 'row-' ) ) {
 					return;
 				}
+				// Disabled buttons do not fire clicks, but the scan buttons are also
+				// reachable through the dialogs and the batch bar is rebuilt on every
+				// page load, so refuse here as well instead of trusting the markup.
+				if ( isFrozen() || button.disabled ) {
+					event.preventDefault();
+					return;
+				}
 				event.preventDefault();
 				if ( 'scan' === action ) {
 					startScan( button );
@@ -716,11 +739,18 @@
 			}
 
 			function setBatchButtonsDisabled( disabled ) {
-				[ batchUpload, batchDownload, batchDelete, batchClear ].forEach( function ( button ) {
+				// Only the three actions that touch the bucket follow the busy flag
+				// and the frozen state. "清除选择" is local bookkeeping, so it stays
+				// clickable even while a screen is frozen.
+				var frozen = isFrozen();
+				[ batchUpload, batchDownload, batchDelete ].forEach( function ( button ) {
 					if ( button ) {
-						button.disabled = disabled;
+						button.disabled = disabled || frozen;
 					}
 				} );
+				if ( batchClear ) {
+					batchClear.disabled = false;
+				}
 			}
 
 			function updateBatchBar() {
@@ -911,6 +941,10 @@
 			admin.delegate( tbody, 'click', 'button[data-sakura-action]', function ( event, button ) {
 				var action = button.getAttribute( 'data-sakura-action' ) || '';
 				if ( 0 !== action.indexOf( 'row-' ) || actionBusy ) {
+					return;
+				}
+				if ( isFrozen() || button.disabled ) {
+					event.preventDefault();
 					return;
 				}
 				event.preventDefault();
@@ -1342,7 +1376,9 @@
 					button.setAttribute( 'data-sakura-confirm', confirmValue );
 				}
 				button.textContent = text || '';
-				return button;
+				// Rows are rebuilt on every page of results, so the markup the server
+				// rendered no longer applies here; re-apply the frozen state.
+				return applyFrozen( button );
 			}
 
 			function makeRow( row ) {

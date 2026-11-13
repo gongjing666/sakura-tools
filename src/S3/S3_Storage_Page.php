@@ -172,7 +172,7 @@ final class S3_Storage_Page {
 							echo '</button>';
 							echo '</form>';
 
-							echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" class="profile-item__delete" data-sakura-confirm="' . esc_attr__( '确定删除这个已保存的配置吗？删除后不可恢复，但不会影响当前活动配置。', 'sakura-imgopt' ) . '" data-sakura-confirm-title="' . esc_attr__( '删除已保存的配置', 'sakura-imgopt' ) . '">';
+							echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" class="profile-item__delete" data-sakura-confirm="' . esc_attr__( '确定删除这个已保存的配置吗？删除后不可恢复，它对应的核对记录、计数与日志也会一起清空，但不会影响当前活动配置。', 'sakura-imgopt' ) . '" data-sakura-confirm-title="' . esc_attr__( '删除已保存的配置', 'sakura-imgopt' ) . '">';
 							echo '<input type="hidden" name="action" value="sakura_s3_delete" />';
 							echo '<input type="hidden" name="profile_id" value="' . esc_attr( $profile_id ) . '" />';
 							wp_nonce_field( 'sakura_s3_delete_' . $profile_id );
@@ -549,7 +549,12 @@ final class S3_Storage_Page {
 		if ( isset( $_GET['saved'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only redirect notice; it does not change state.
 			// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only redirect notice; it does not change state.
 			if ( '1' === sanitize_key( wp_unslash( $_GET['saved'] ) ) ) {
-				$success['message'] = __( '云存储设置已保存。', 'sakura-imgopt' );
+				// Changing the target of a saved profile starts a new one; the old
+				// config and its reconciliation records stay untouched, which is
+				// not what "已保存" alone would suggest.
+				$success['message'] = isset( $_GET['created'] ) // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only redirect notice; it does not change state.
+					? __( '已保存为新的存储配置：切换了服务商、存储桶或服务地址，原配置与它的核对记录保持不变。', 'sakura-imgopt' )
+					: __( '云存储设置已保存。', 'sakura-imgopt' );
 				return $success;
 			}
 

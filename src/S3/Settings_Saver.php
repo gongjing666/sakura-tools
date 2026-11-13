@@ -28,6 +28,34 @@ final class Settings_Saver {
 	}
 
 	/**
+	 * Pick the profile a save writes to, minting a new id when the target moved.
+	 *
+	 * A saved profile *is* a target. Editing one in place to point at a
+	 * different provider, bucket or endpoint made the sync center — which reads
+	 * by profile id — print the previous bucket's counts under the new name, and
+	 * left queued delete jobs aimed at objects the entry no longer claims. A new
+	 * id keeps both profiles and their records separate, so deleting a config
+	 * later is the only thing that can discard its reconciliation data.
+	 *
+	 * @param array<string,array<string,mixed>> $profiles     Saved profiles keyed by id.
+	 * @param string                            $submitted_id Profile the form was editing ('' for none).
+	 * @param bool                              $save_as_new  Whether the operator asked for a copy.
+	 * @param string                            $provider     Submitted provider.
+	 * @param string                            $bucket       Submitted bucket.
+	 * @param string                            $endpoint     Submitted endpoint ('' when empty).
+	 */
+	public static function profile_id_for_save( array $profiles, string $submitted_id, bool $save_as_new, string $provider, string $bucket, string $endpoint ): string {
+		if ( $save_as_new || '' === $submitted_id || ! isset( $profiles[ $submitted_id ] ) ) {
+			return Options::new_profile_id();
+		}
+		$existing = $profiles[ $submitted_id ];
+		$moved    = (string) ( $existing['provider'] ?? '' ) !== $provider
+			|| (string) ( $existing['bucket'] ?? '' ) !== $bucket
+			|| (string) ( $existing['endpoint'] ?? '' ) !== $endpoint;
+		return $moved ? Options::new_profile_id() : $submitted_id;
+	}
+
+	/**
 	 * Normalize an access key or secret without rewriting its characters.
 	 *
 	 * `sanitize_text_field()` strips `%`, `<` and tags, which silently corrupts
@@ -69,18 +97,13 @@ final class Settings_Saver {
 		$submitted_id     = isset( $_POST['profile_id'] ) ? sanitize_key( wp_unslash( $_POST['profile_id'] ) ) : '';
 		$save_as_new      = ! empty( $_POST['save_as_new'] );
 		$profile_name     = isset( $_POST['profile_name'] ) ? sanitize_text_field( wp_unslash( $_POST['profile_name'] ) ) : '';
-		$profile_id       = ( ! $save_as_new && '' !== $submitted_id && isset( $profiles[ $submitted_id ] ) )
-			? $submitted_id
-			: Options::new_profile_id();
-		// Changing provider must not overwrite the existing profile.
-		if ( ! $save_as_new && '' !== $submitted_id && isset( $profiles[ $submitted_id ] ) && (string) ( $profiles[ $submitted_id ]['provider'] ?? '' ) !== $provider ) {
-			$profile_id = Options::new_profile_id();
-		}
-		$endpoint_raw = isset( $_POST['endpoint'] ) ? trim( wp_unslash( $_POST['endpoint'] ) ) : '';
-		$endpoint     = '' === $endpoint_raw ? '' : esc_url_raw( $endpoint_raw, array( 'http', 'https' ) );
+		$bucket_raw       = isset( $_POST['bucket'] ) ? sanitize_text_field( wp_unslash( $_POST['bucket'] ) ) : '';
+		$endpoint_raw     = isset( $_POST['endpoint'] ) ? trim( wp_unslash( $_POST['endpoint'] ) ) : '';
+		$endpoint         = '' === $endpoint_raw ? '' : esc_url_raw( $endpoint_raw, array( 'http', 'https' ) );
 		if ( '' !== $endpoint_raw && '' === $endpoint ) {
 			$this->redirect( array( 'saved' => '0', 'error' => 'endpoint' ) );
 		}
+		$profile_id       = self::profile_id_for_save( $profiles, $submitted_id, $save_as_new, $provider, $bucket_raw, $endpoint );
 		$url_raw    = isset( $_POST['upload_url_path'] ) ? trim( wp_unslash( $_POST['upload_url_path'] ) ) : '';
 		$upload_url = '' === $url_raw ? '' : esc_url_raw( untrailingslashit( $url_raw ), array( 'http', 'https' ) );
 		if ( '' !== $url_raw && '' === $upload_url ) {
@@ -100,7 +123,7 @@ final class Settings_Saver {
 		$options     = array(
 			'enabled'         => isset( $_POST['enabled'] ) ? 'true' : 'false',
 			'provider'        => $provider,
-			'bucket'          => isset( $_POST['bucket'] ) ? sanitize_text_field( wp_unslash( $_POST['bucket'] ) ) : '',
+			'bucket'          => $bucket_raw,
 			'region'          => isset( $_POST['region'] ) ? sanitize_text_field( wp_unslash( $_POST['region'] ) ) : 'us-east-1',
 			'endpoint'        => $endpoint,
 			'key'             => '' !== $key ? $key : ( $provider_changed ? '' : (string) ( $old['key'] ?? '' ) ),
@@ -202,7 +225,15 @@ final class Settings_Saver {
 		} else {
 			Upload_URL::restore( (string) ( $old['upload_url_path'] ?? $upload_url ) );
 		}
-		$this->redirect( array( 'saved' => '1' ) );
+
+		// Editing the target of a saved profile mints a new id instead of
+		// repointing the old one, so say that out loud: the operator is looking
+		// at a different profile now, and the previous one kept its records.
+		$redirect = array( 'saved' => '1' );
+		if ( '' !== $submitted_id && $submitted_id !== $profile_id ) {
+			$redirect['created'] = '1';
+		}
+		$this->redirect( $redirect );
 	}
 
 	/**

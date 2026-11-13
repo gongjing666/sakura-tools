@@ -1991,7 +1991,14 @@ final class Index_Repository {
 	}
 
 	/**
-	 * Remove every index row/counter for a profile (CLI full rebuild).
+	 * Remove every row this profile owns: the index itself, its counters, its
+	 * queued actions, its scans and its event log.
+	 *
+	 * The scan row is what the sync center reads for "云端 N 个文件" and the
+	 * event log is what the log card prints, so a purge that skipped them would
+	 * leave a profile showing numbers for a bucket it no longer points at. Both
+	 * callers (CLI `sync purge` and deleting a saved profile) mean "forget this
+	 * target completely".
 	 *
 	 * @param string $profile_id Profile.
 	 */
@@ -2000,6 +2007,8 @@ final class Index_Repository {
 		$wpdb->query( $wpdb->prepare( "DELETE FROM {$this->index} WHERE profile_id=%s", $profile_id ) );
 		$wpdb->query( $wpdb->prepare( "DELETE FROM {$this->counts} WHERE profile_id=%s", $profile_id ) );
 		$wpdb->query( $wpdb->prepare( "DELETE FROM {$this->jobs} WHERE profile_id=%s", $profile_id ) );
+		$wpdb->query( $wpdb->prepare( "DELETE FROM {$this->scans} WHERE profile_id=%s", $profile_id ) );
+		$wpdb->query( $wpdb->prepare( "DELETE FROM {$this->events} WHERE profile_id=%s", $profile_id ) );
 	}
 
 	/**

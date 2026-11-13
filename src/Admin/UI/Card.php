@@ -33,6 +33,7 @@ final class Card {
 		$form  = isset( $args['form'] ) && is_array( $args['form'] ) ? $args['form'] : array();
 		$save  = isset( $args['save'] ) ? (string) $args['save'] : '';
 		$wide  = ! empty( $args['wide'] );
+		$save_disabled = ! empty( $args['save_disabled'] );
 		$class = isset( $args['class'] ) ? (string) $args['class'] : '';
 
 		if ( '' === $id ) {
@@ -64,7 +65,7 @@ final class Card {
 		$body();
 
 		if ( ! empty( $form ) ) {
-			self::savebar( $save );
+			self::savebar( $save, $save_disabled );
 			echo '</form>';
 		}
 
@@ -185,12 +186,16 @@ final class Card {
 	/**
 	 * Save row.
 	 *
-	 * @param string $label Button label.
+	 * A disabled bar keeps the button in place so the card does not reflow when a
+	 * screen freezes it; the label stays readable and the tooltip explains why.
+	 *
+	 * @param string $label    Button label.
+	 * @param bool   $disabled Whether the submit button is disabled.
 	 * @return void
 	 */
-	private static function savebar( string $label ): void {
+	private static function savebar( string $label, bool $disabled = false ): void {
 		echo '<div class="card__savebar">';
-		echo '<button type="submit" class="btn btn--primary">' . esc_html( '' !== $label ? $label : __( '保存更改', 'sakura-imgopt' ) ) . '</button>';
+		echo '<button type="submit" class="btn btn--primary"' . ( $disabled ? ' disabled' : '' ) . '>' . esc_html( '' !== $label ? $label : __( '保存更改', 'sakura-imgopt' ) ) . '</button>';
 		echo '</div>';
 	}
 }

@@ -381,7 +381,7 @@ final class CLI {
 	}
 
 	/**
-	 * Delete every index row and count for a profile.
+	 * Delete every row a profile owns: index, counts, jobs, scans and events.
 	 *
 	 * ## OPTIONS
 	 *
@@ -400,9 +400,9 @@ final class CLI {
 			\WP_CLI::error( __( '尚未选择 S3 配置。', 'sakura-imgopt' ) );
 		}
 
-		\WP_CLI::confirm( sprintf( /* translators: %s: S3 profile id. */ __( '将删除 profile %s 的全部索引、计数与任务，继续？', 'sakura-imgopt' ), $profile ), $assoc );
+		\WP_CLI::confirm( sprintf( /* translators: %s: S3 profile id. */ __( '将删除 profile %s 的全部索引、计数、任务、核对记录与事件日志，继续？', 'sakura-imgopt' ), $profile ), $assoc );
 		$this->index->purge_index( $profile );
-		\WP_CLI::success( __( '索引已清空。', 'sakura-imgopt' ) );
+		\WP_CLI::success( __( '该配置的同步数据已清空。', 'sakura-imgopt' ) );
 	}
 
 	/**

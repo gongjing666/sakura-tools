@@ -765,6 +765,16 @@
 	color: var(--g-bad);
 }
 
+/* A frozen screen keeps the row actions in place instead of hiding them: the
+   column would collapse and every row would shift. Dim them to the same weight
+   the buttons get from .btn:disabled so the two read as one state. */
+.sakura-admin[data-sakura-page="storage-sync"] .link-btn:disabled {
+	color: var(--g-faint);
+	cursor: not-allowed;
+	text-decoration: none;
+	opacity: 0.6;
+}
+
 .sakura-admin[data-sakura-page="storage-sync"] .empty-row:hover {
 	background: transparent;
 }

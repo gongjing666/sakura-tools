@@ -143,6 +143,12 @@ class S3_Storage_Module implements Module {
 			$this->redirect( array( 'saved' => '0', 'error' => $error ) );
 		}
 
+		// The sync center reads by profile id, so dropping the profile without
+		// its rows would leave a bucket's counts, scans and event log in the
+		// tables forever with no screen able to show or clear them. The profile
+		// is gone for good here — it was never the active one — so forget it.
+		( new Index_Repository() )->purge_index( $profile_id );
+
 		$this->redirect(
 			array(
 				'saved'   => '1',

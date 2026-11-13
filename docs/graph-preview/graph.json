@@ -1,10 +1,10 @@
 {
  "meta": {
   "plugin": "sakura-tools",
-  "version": "1.25.7",
-  "generatedAt": "2026-11-13T04:54:43.089Z",
+  "version": "1.25.8",
+  "generatedAt": "2026-11-13T07:10:11.020Z",
   "source": "dsh-codegraph lib/scanner.php（token_get_all 三趟静态扫描）",
-  "doc": "sakura-tools-代码结构-1.25.7.md"
+  "doc": "sakura-tools-代码结构-1.25.8.md"
  },
  "stats": {
   "files": 190,
@@ -1288,7 +1288,7 @@
    "kind": "class",
    "file": "src/S3/Settings_Saver.php",
    "line": 12,
-   "val": 3.2,
+   "val": 3.577708763999664,
    "color": "#5aa9ff",
    "x": -412,
    "y": 1193.6,
@@ -3618,6 +3618,16 @@
   },
   {
    "source": "cls:Sakura\\ImageOptimizer\\S3_Storage_Module",
+   "target": "cls:Sakura\\ImageOptimizer\\Sync\\Index_Repository",
+   "type": "ref",
+   "kinds": [
+    "new",
+    "type"
+   ],
+   "w": 3
+  },
+  {
+   "source": "cls:Sakura\\ImageOptimizer\\S3_Storage_Module",
    "target": "cls:Sakura\\ImageOptimizer\\S3\\Upload_Metrics",
    "type": "ref",
    "kinds": [
@@ -3642,16 +3652,6 @@
    "kinds": [
     "static",
     "call"
-   ],
-   "w": 2
-  },
-  {
-   "source": "cls:Sakura\\ImageOptimizer\\S3_Storage_Module",
-   "target": "cls:Sakura\\ImageOptimizer\\Sync\\Index_Repository",
-   "type": "ref",
-   "kinds": [
-    "new",
-    "type"
    ],
    "w": 2
   },
@@ -5597,8 +5597,8 @@
    "type": "ref",
    "kinds": [
     "type",
-    "call",
     "static",
+    "call",
     "new"
    ],
    "w": 17

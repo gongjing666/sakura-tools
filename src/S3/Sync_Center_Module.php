@@ -369,7 +369,7 @@ final class Sync_Center_Module implements Module {
 	 * @return bool
 	 */
 	private function is_calibration_stale( array $data ): bool {
-		if ( empty( $data['index_enabled'] ) ) {
+		if ( empty( $data['index_enabled'] ) || empty( $data['is_enabled'] ) ) {
 			return false;
 		}
 

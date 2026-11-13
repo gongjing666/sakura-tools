@@ -77,6 +77,14 @@ $scan_phase_labels = array(
 $index_enabled    = isset( $index_enabled ) ? (bool) $index_enabled : true;
 $is_configured    = isset( $is_configured ) ? (bool) $is_configured : false;
 $storage_enabled  = isset( $storage_enabled ) ? (bool) $storage_enabled : false;
+// Switching storage off stops uploads, downloads and deletes in the Storage
+// layer, and a reconcile cannot run against a target the plugin refuses to
+// talk to. Disable those controls up front instead of letting each one fail
+// after a round trip. A site that was never configured is not "paused" — it
+// gets the setup dialog — so only a complete configuration that is switched
+// off freezes the page. The connection screen is the way back, so it stays
+// live.
+$frozen           = $is_configured && ! $storage_enabled;
 $legacy_error     = isset( $legacy_error ) ? (string) $legacy_error : '';
 $legacy_built     = isset( $legacy_built ) ? (int) $legacy_built : 0;
 $metrics          = isset( $metrics ) && is_array( $metrics ) ? $metrics : array();
@@ -275,38 +283,26 @@ $missing_media = ( new \Sakura\ImageOptimizer\Sync\Attachment_Adopter() )->count
 $ignored_rules = \Sakura\ImageOptimizer\S3\Ignored_Paths::all();
 $ignored_saved = isset( $_GET['ignored_saved'] ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Display-only flag set by our own redirect.
 
-// The sub line restates the same three states as the value above it. Printing
-// a coverage number next to "配置不完整" read as if the connection were fine and
-// only the percentage was odd.
-if ( ! $is_configured ) {
-	$page_status_sub = sprintf(
-		/* translators: %s: storage provider. */
-		__( '%s · 待补全配置', 'sakura-imgopt' ),
-		$provider_label
-	);
-} elseif ( ! $storage_enabled ) {
-	$page_status_sub = sprintf(
-		/* translators: %s: storage provider. */
-		__( '%s · 连接信息完整，开关关闭', 'sakura-imgopt' ),
-		$provider_label
-	);
-} else {
-	$page_status_sub = sprintf(
-		/* translators: 1: provider, 2: coverage. */
-		__( '%1$s · 覆盖率 %2$s%%', 'sakura-imgopt' ),
-		$provider_label,
-		number_format_i18n( $coverage, 1 )
-	);
-}
+// The head answers "which bucket is this?", because the screen follows the
+// active profile: two profiles can share a provider, and only the bucket name
+// tells them apart. The sub line restates the state from above; a coverage
+// percentage there read as if the connection were fine when it was not, and
+// the KPI strip already carries that number with room for context.
+$bucket_label    = '' !== $bucket ? $bucket : __( '未配置', 'sakura-imgopt' );
+$page_status_sub = $provider_label . ' · ' . $status_text;
 
 ob_start();
 ?>
-<div id="sakura-sync-state" data-scan-id="<?php echo esc_attr( (string) ( isset( $scan_id ) ? (int) $scan_id : 0 ) ); ?>" data-scan-state="<?php echo esc_attr( $scan_state ); ?>" data-scan-resumable="<?php echo $scan_resumable ? '1' : '0'; ?>" data-index-enabled="<?php echo $index_enabled ? '1' : '0'; ?>" hidden></div>
+<div id="sakura-sync-state" data-scan-id="<?php echo esc_attr( (string) ( isset( $scan_id ) ? (int) $scan_id : 0 ) ); ?>" data-scan-state="<?php echo esc_attr( $scan_state ); ?>" data-scan-resumable="<?php echo $scan_resumable ? '1' : '0'; ?>" data-index-enabled="<?php echo $index_enabled ? '1' : '0'; ?>" data-frozen="<?php echo $frozen ? '1' : '0'; ?>" hidden></div>
+
+<?php if ( $frozen ) : ?>
+	<?php \Sakura\ImageOptimizer\Admin\UI::notice( __( '对象存储已停用：核对、上传、下载与删除都暂时停下，下方的数字停留在停用之前。重新启用后可以继续。', 'sakura-imgopt' ), 'warn' ); ?>
+<?php endif; ?>
 
 <?php if ( ! $index_enabled ) : ?>
 	<?php \Sakura\ImageOptimizer\Admin\UI::alert( $legacy_message, 'warn', __( '兼容模式', 'sakura-imgopt' ) ); ?>
 	<div class="button-row">
-		<button type="button" class="btn btn--small" data-sakura-action="toggle-index" data-sakura-enabled="1" data-sakura-nonce="<?php echo esc_attr( $toggle_nonce ); ?>"><?php esc_html_e( '启用同步记录', 'sakura-imgopt' ); ?></button>
+		<button type="button" class="btn btn--small" data-sakura-action="toggle-index" data-sakura-enabled="1" data-sakura-nonce="<?php echo esc_attr( $toggle_nonce ); ?>" <?php disabled( $frozen ); ?>><?php esc_html_e( '启用同步记录', 'sakura-imgopt' ); ?></button>
 	</div>
 <?php endif; ?>
 
@@ -319,7 +315,7 @@ ob_start();
 	?>
 <?php endif; ?>
 
-<?php if ( $calibrate_stale ) : ?>
+<?php if ( $calibrate_stale && ! $frozen ) : ?>
 	<?php
 	// Copy about a date is copied once and read for years; a relative phrase
 	// ("1 月") reads as a calendar month and needs plural handling that
@@ -327,7 +323,7 @@ ob_start();
 	\Sakura\ImageOptimizer\Admin\UI::notice( __( '云端数据已超过 30 天未校准，期间的对象增删不会体现在下方统计里。校准会自动排队，也可以用下面的按钮现在开始。', 'sakura-imgopt' ), 'warn' );
 	?>
 	<div class="button-row">
-		<button type="button" class="btn btn--small" data-sakura-action="scan" data-sakura-nonce="<?php echo esc_attr( $scan_nonce ); ?>"><?php esc_html_e( '立即校准', 'sakura-imgopt' ); ?></button>
+		<button type="button" class="btn btn--small" data-sakura-action="scan" data-sakura-nonce="<?php echo esc_attr( $scan_nonce ); ?>" <?php disabled( $frozen ); ?>><?php esc_html_e( '立即校准', 'sakura-imgopt' ); ?></button>
 	</div>
 <?php endif; ?>
 
@@ -446,7 +442,8 @@ $sakura_sync_cards = static function () use (
 	$logs,
 	$scan_time,
 	$ignored_saved,
-	$ignored_rules
+	$ignored_rules,
+	$frozen
 ): void {
 	?>
 	<div class="card-grid" data-sakura-layout="sync" data-sakura-group="main">
@@ -454,14 +451,15 @@ $sakura_sync_cards = static function () use (
 		<?php
 		\Sakura\ImageOptimizer\Admin\UI::card(
 			array(
-				'id'          => 'ignored',
-				'anchor'      => 'ignored',
-				'class'       => 'card--wide',
-				'kicker'      => __( 'Exclusions', 'sakura-imgopt' ),
-				'title'       => __( '忽略规则', 'sakura-imgopt' ),
-				'description' => __( '核对与迁移会跳过这些路径。插件默认忽略自己的备份目录与缓存目录，这里追加你自己的规则：每行一条，相对于 uploads 根目录，可以写目录（如 2024/05），也可以写单个文件（如 .htaccess）。', 'sakura-imgopt' ),
-				'save'        => __( '保存规则', 'sakura-imgopt' ),
-				'form'        => array(
+				'id'            => 'ignored',
+				'anchor'        => 'ignored',
+				'class'         => 'card--wide',
+				'kicker'        => __( 'Exclusions', 'sakura-imgopt' ),
+				'title'         => __( '忽略规则', 'sakura-imgopt' ),
+				'description'   => __( '核对与迁移会跳过这些路径。插件默认忽略自己的备份目录与缓存目录，这里追加你自己的规则：每行一条，相对于 uploads 根目录，可以写目录（如 2024/05），也可以写单个文件（如 .htaccess）。', 'sakura-imgopt' ),
+				'save'          => __( '保存规则', 'sakura-imgopt' ),
+				'save_disabled' => $frozen,
+				'form'          => array(
 					'id'      => 'sakura-s3-ignored-form',
 					'action'  => admin_url( 'admin-post.php' ),
 					'markers' => 'none',
@@ -516,7 +514,7 @@ $sakura_sync_cards = static function () use (
 				'title'       => __( '任务中心', 'sakura-imgopt' ),
 				'description' => __( '核对、重试与补传都从这里开始；失败任务保留错误与重试次数。', 'sakura-imgopt' ),
 			),
-			static function () use ( $scan_tone, $scan_state, $scan_state_label, $scan_meta_text, $scan_running, $scan_resumable, $coverage, $synced, $total, $local_files, $cloud_objects, $difference, $index_enabled, $scan_nonce, $refresh_nonce, $retry_nonce, $failed_total, $activity, $activity_max, $activity_ok, $activity_bad ): void {
+			static function () use ( $scan_tone, $scan_state, $scan_state_label, $scan_meta_text, $scan_running, $scan_resumable, $coverage, $synced, $total, $local_files, $cloud_objects, $difference, $index_enabled, $scan_nonce, $refresh_nonce, $retry_nonce, $failed_total, $activity, $activity_max, $activity_ok, $activity_bad, $frozen ): void {
 				?>
 				<div class="task-summary">
 					<div class="task-summary__head">
@@ -541,11 +539,11 @@ $sakura_sync_cards = static function () use (
 						<span class="task-stat"><span><?php esc_html_e( '待处理', 'sakura-imgopt' ); ?></span><strong><?php echo esc_html( number_format_i18n( $difference ) ); ?></strong></span>
 					</div>
 					<div class="button-row task-actions">
-						<button type="button" class="btn btn--primary btn--small" data-sakura-action="scan" data-sakura-nonce="<?php echo esc_attr( $scan_nonce ); ?>" <?php disabled( ! $index_enabled ); ?>><?php esc_html_e( '开始完整核对', 'sakura-imgopt' ); ?></button>
-						<button type="button" class="btn btn--small" data-sakura-action="refresh" data-sakura-nonce="<?php echo esc_attr( $refresh_nonce ); ?>" <?php disabled( ! $index_enabled ); ?>><?php esc_html_e( '刷新差异', 'sakura-imgopt' ); ?></button>
-						<button type="button" class="btn btn--small" id="sakura-sync-cancel" data-sakura-action="cancel" data-sakura-nonce="<?php echo esc_attr( wp_create_nonce( 'sakura_s3_sync_cancel' ) ); ?>" <?php echo $scan_running ? '' : 'hidden'; ?>><?php esc_html_e( '停止核对', 'sakura-imgopt' ); ?></button>
-						<button type="button" class="btn btn--primary btn--small" id="sakura-sync-resume" data-sakura-action="resume" data-sakura-nonce="<?php echo esc_attr( wp_create_nonce( 'sakura_s3_sync_resume' ) ); ?>" <?php echo $scan_resumable ? '' : 'hidden'; ?>><?php esc_html_e( '继续核对', 'sakura-imgopt' ); ?></button>
-						<button type="button" class="btn btn--small" id="sakura-sync-retry-all" data-sakura-action="retry-all" data-sakura-attachment="0" data-sakura-nonce="<?php echo esc_attr( $retry_nonce ); ?>" <?php disabled( 0 === $failed_total ); ?>><?php echo esc_html( sprintf( /* translators: %d: failed. */ __( '重试失败 (%d)', 'sakura-imgopt' ), $failed_total ) ); ?></button>
+						<button type="button" class="btn btn--primary btn--small" data-sakura-action="scan" data-sakura-nonce="<?php echo esc_attr( $scan_nonce ); ?>" <?php disabled( $frozen || ! $index_enabled ); ?>><?php esc_html_e( '开始完整核对', 'sakura-imgopt' ); ?></button>
+						<button type="button" class="btn btn--small" data-sakura-action="refresh" data-sakura-nonce="<?php echo esc_attr( $refresh_nonce ); ?>" <?php disabled( $frozen || ! $index_enabled ); ?>><?php esc_html_e( '刷新差异', 'sakura-imgopt' ); ?></button>
+						<button type="button" class="btn btn--small" id="sakura-sync-cancel" data-sakura-action="cancel" data-sakura-nonce="<?php echo esc_attr( wp_create_nonce( 'sakura_s3_sync_cancel' ) ); ?>" <?php echo $scan_running ? '' : 'hidden'; ?> <?php disabled( $frozen ); ?>><?php esc_html_e( '停止核对', 'sakura-imgopt' ); ?></button>
+						<button type="button" class="btn btn--primary btn--small" id="sakura-sync-resume" data-sakura-action="resume" data-sakura-nonce="<?php echo esc_attr( wp_create_nonce( 'sakura_s3_sync_resume' ) ); ?>" <?php echo $scan_resumable ? '' : 'hidden'; ?> <?php disabled( $frozen ); ?>><?php esc_html_e( '继续核对', 'sakura-imgopt' ); ?></button>
+						<button type="button" class="btn btn--small" id="sakura-sync-retry-all" data-sakura-action="retry-all" data-sakura-attachment="0" data-sakura-nonce="<?php echo esc_attr( $retry_nonce ); ?>" <?php disabled( $frozen || 0 === $failed_total ); ?>><?php echo esc_html( sprintf( /* translators: %d: failed. */ __( '重试失败 (%d)', 'sakura-imgopt' ), $failed_total ) ); ?></button>
 						<a class="btn btn--ghost btn--small" href="#logs"><?php esc_html_e( '查看日志', 'sakura-imgopt' ); ?></a>
 					</div>
 				</div>
@@ -589,7 +587,7 @@ $sakura_sync_cards = static function () use (
 				'kicker' => __( 'Connection', 'sakura-imgopt' ),
 				'title'  => __( '连接与队列健康', 'sakura-imgopt' ),
 			),
-			static function () use ( $health_text, $health_warn, $provider_label, $bucket, $endpoint, $media_label, $scan_label, $local_files, $cloud_objects, $jobs, $queue_waiting, $queue_dead, $metric_pages, $metric_batches, $metric_batch_ms, $metric_429, $metric_5xx, $cron_next, $index_enabled, $toggle_nonce, $test_nonce, $settings_url ): void {
+			static function () use ( $health_text, $health_warn, $provider_label, $bucket, $endpoint, $media_label, $scan_label, $local_files, $cloud_objects, $jobs, $queue_waiting, $queue_dead, $metric_pages, $metric_batches, $metric_batch_ms, $metric_429, $metric_5xx, $cron_next, $index_enabled, $toggle_nonce, $test_nonce, $settings_url, $frozen ): void {
 				?>
 				<div class="health">
 					<div class="health__status<?php echo $health_warn ? ' is-warn' : ''; ?>">
@@ -609,8 +607,8 @@ $sakura_sync_cards = static function () use (
 						<div class="health__row"><dt><?php esc_html_e( '凭据', 'sakura-imgopt' ); ?></dt><dd><?php esc_html_e( '已加密', 'sakura-imgopt' ); ?> · <?php esc_html_e( '未展示', 'sakura-imgopt' ); ?></dd></div>
 					</dl>
 					<div class="button-row health__actions">
-						<button type="button" class="btn btn--small" data-sakura-action="toggle-index" data-sakura-enabled="<?php echo $index_enabled ? '0' : '1'; ?>" data-sakura-nonce="<?php echo esc_attr( $toggle_nonce ); ?>"><?php echo $index_enabled ? esc_html__( '停用同步记录', 'sakura-imgopt' ) : esc_html__( '启用同步记录', 'sakura-imgopt' ); ?></button>
-						<button type="button" class="btn btn--small" data-sakura-action="test-connection" data-sakura-nonce="<?php echo esc_attr( $test_nonce ); ?>"><?php esc_html_e( '测试连接', 'sakura-imgopt' ); ?></button>
+						<button type="button" class="btn btn--small" data-sakura-action="toggle-index" data-sakura-enabled="<?php echo $index_enabled ? '0' : '1'; ?>" data-sakura-nonce="<?php echo esc_attr( $toggle_nonce ); ?>" <?php disabled( $frozen ); ?>><?php echo $index_enabled ? esc_html__( '停用同步记录', 'sakura-imgopt' ) : esc_html__( '启用同步记录', 'sakura-imgopt' ); ?></button>
+						<button type="button" class="btn btn--small" data-sakura-action="test-connection" data-sakura-nonce="<?php echo esc_attr( $test_nonce ); ?>" <?php disabled( $frozen ); ?>><?php esc_html_e( '测试连接', 'sakura-imgopt' ); ?></button>
 						<a class="btn btn--ghost btn--small" href="<?php echo esc_url( $settings_url ); ?>"><?php esc_html_e( '连接设置', 'sakura-imgopt' ); ?></a>
 					</div>
 				</div>
@@ -626,7 +624,7 @@ $sakura_sync_cards = static function () use (
 				'kicker' => __( 'Storage Mix', 'sakura-imgopt' ),
 				'title'  => __( '云端体积分布', 'sakura-imgopt' ),
 			),
-			static function () use ( $mix, $mix_gradient, $cloud_value, $cloud_unit, $cloud_objects, $local_bytes, $cloud_bytes, $type_labels, $mix_state, $mix_title, $mix_desc, $scan_nonce ): void {
+			static function () use ( $mix, $mix_gradient, $cloud_value, $cloud_unit, $cloud_objects, $local_bytes, $cloud_bytes, $type_labels, $mix_state, $mix_title, $mix_desc, $scan_nonce, $frozen ): void {
 				?>
 				<div class="storage-mix storage-mix--<?php echo esc_attr( $mix_state ); ?>">
 					<?php if ( 'unscanned' === $mix_state || 'scanning' === $mix_state || 'interrupted' === $mix_state ) : ?>
@@ -635,12 +633,12 @@ $sakura_sync_cards = static function () use (
 							<p class="storage-mix__empty-text"><?php echo esc_html( $mix_desc ); ?></p>
 							<?php if ( 'unscanned' === $mix_state ) : ?>
 								<div class="button-row">
-									<button type="button" class="btn btn--primary btn--small" data-sakura-action="scan" data-sakura-nonce="<?php echo esc_attr( $scan_nonce ); ?>"><?php esc_html_e( '开始完整核对', 'sakura-imgopt' ); ?></button>
+									<button type="button" class="btn btn--primary btn--small" data-sakura-action="scan" data-sakura-nonce="<?php echo esc_attr( $scan_nonce ); ?>" <?php disabled( $frozen ); ?>><?php esc_html_e( '开始完整核对', 'sakura-imgopt' ); ?></button>
 									<a class="btn btn--ghost btn--small" href="#tasks"><?php esc_html_e( '查看任务中心', 'sakura-imgopt' ); ?></a>
 								</div>
 							<?php elseif ( 'interrupted' === $mix_state ) : ?>
 								<div class="button-row">
-									<button type="button" class="btn btn--primary btn--small" data-sakura-action="resume" data-sakura-nonce="<?php echo esc_attr( wp_create_nonce( 'sakura_s3_sync_resume' ) ); ?>"><?php esc_html_e( '继续核对', 'sakura-imgopt' ); ?></button>
+									<button type="button" class="btn btn--primary btn--small" data-sakura-action="resume" data-sakura-nonce="<?php echo esc_attr( wp_create_nonce( 'sakura_s3_sync_resume' ) ); ?>" <?php disabled( $frozen ); ?>><?php esc_html_e( '继续核对', 'sakura-imgopt' ); ?></button>
 									<a class="btn btn--ghost btn--small" href="#tasks"><?php esc_html_e( '查看任务中心', 'sakura-imgopt' ); ?></a>
 								</div>
 							<?php endif; ?>
@@ -690,6 +688,7 @@ $sakura_sync_cards = static function () use (
 							'data-sakura-action' => 'scan',
 							'data-sakura-nonce'  => $scan_nonce,
 						),
+						'disabled' => $frozen,
 					),
 					array(
 						'label'   => __( '导出当前筛选', 'sakura-imgopt' ),
@@ -704,11 +703,11 @@ $sakura_sync_cards = static function () use (
 						'variant' => 'ghost',
 						'id'      => 'sakura-sync-adopt',
 						'attrs'   => array( 'data-sakura-action' => 'adopt' ),
-						'disabled' => 0 === (int) $missing_media,
+						'disabled' => $frozen || 0 === (int) $missing_media,
 					),
 				),
 			),
-			static function () use ( $total, $pending, $failed_count, $remote, $mismatch, $synced, $rows, $page_cursor, $page_more, $page_size, $summary_text, $status_labels, $status_tones ): void {
+			static function () use ( $total, $pending, $failed_count, $remote, $mismatch, $synced, $rows, $page_cursor, $page_more, $page_size, $summary_text, $status_labels, $status_tones, $frozen ): void {
 				?>
 				<div class="recon-toolbar">
 					<div class="filter-chips" role="tablist" aria-label="<?php esc_attr_e( '差异筛选', 'sakura-imgopt' ); ?>">
@@ -746,9 +745,9 @@ $sakura_sync_cards = static function () use (
 				<div class="batch-bar" id="recon-batch" hidden>
 					<span class="batch-bar__count"><strong id="batch-count">0</strong> <?php esc_html_e( '项已选', 'sakura-imgopt' ); ?> <span class="small-text"><?php esc_html_e( '最多 100 项', 'sakura-imgopt' ); ?></span></span>
 					<div class="button-row">
-						<button type="button" class="btn btn--quiet btn--small" id="batch-upload"><?php esc_html_e( '批量上传', 'sakura-imgopt' ); ?></button>
-						<button type="button" class="btn btn--quiet btn--small" id="batch-download"><?php esc_html_e( '批量下载', 'sakura-imgopt' ); ?></button>
-						<button type="button" class="btn btn--danger btn--small" id="batch-delete"><?php esc_html_e( '批量删除远端', 'sakura-imgopt' ); ?></button>
+						<button type="button" class="btn btn--quiet btn--small" id="batch-upload" <?php disabled( $frozen ); ?>><?php esc_html_e( '批量上传', 'sakura-imgopt' ); ?></button>
+						<button type="button" class="btn btn--quiet btn--small" id="batch-download" <?php disabled( $frozen ); ?>><?php esc_html_e( '批量下载', 'sakura-imgopt' ); ?></button>
+						<button type="button" class="btn btn--danger btn--small" id="batch-delete" <?php disabled( $frozen ); ?>><?php esc_html_e( '批量删除远端', 'sakura-imgopt' ); ?></button>
 						<button type="button" class="btn btn--quiet btn--small" id="batch-clear"><?php esc_html_e( '清除选择', 'sakura-imgopt' ); ?></button>
 					</div>
 				</div>
@@ -826,17 +825,17 @@ $sakura_sync_cards = static function () use (
 										<div class="action-cell">
 											<?php if ( 'failed' === $row_status ) : ?>
 												<?php if ( $row_has_l ) : ?>
-													<button type="button" class="link-btn" data-sakura-action="row-upload" data-sakura-key="<?php echo esc_attr( $row_key ); ?>" data-sakura-confirm="<?php echo $row_has_c ? 'REPLACE' : ''; ?>"><?php esc_html_e( '重新上传', 'sakura-imgopt' ); ?></button>
+													<button type="button" class="link-btn" data-sakura-action="row-upload" data-sakura-key="<?php echo esc_attr( $row_key ); ?>" data-sakura-confirm="<?php echo $row_has_c ? 'REPLACE' : ''; ?>" <?php disabled( $frozen ); ?>><?php esc_html_e( '重新上传', 'sakura-imgopt' ); ?></button>
 												<?php else : ?>
-													<button type="button" class="link-btn" data-sakura-action="row-download" data-sakura-key="<?php echo esc_attr( $row_key ); ?>"><?php esc_html_e( '下载', 'sakura-imgopt' ); ?></button>
+													<button type="button" class="link-btn" data-sakura-action="row-download" data-sakura-key="<?php echo esc_attr( $row_key ); ?>" <?php disabled( $frozen ); ?>><?php esc_html_e( '下载', 'sakura-imgopt' ); ?></button>
 												<?php endif; ?>
 											<?php elseif ( 'pending' === $row_status ) : ?>
-												<button type="button" class="link-btn" data-sakura-action="row-upload" data-sakura-key="<?php echo esc_attr( $row_key ); ?>"><?php esc_html_e( '上传', 'sakura-imgopt' ); ?></button>
+												<button type="button" class="link-btn" data-sakura-action="row-upload" data-sakura-key="<?php echo esc_attr( $row_key ); ?>" <?php disabled( $frozen ); ?>><?php esc_html_e( '上传', 'sakura-imgopt' ); ?></button>
 											<?php elseif ( 'remote' === $row_status ) : ?>
-												<button type="button" class="link-btn" data-sakura-action="row-download" data-sakura-key="<?php echo esc_attr( $row_key ); ?>"><?php esc_html_e( '下载', 'sakura-imgopt' ); ?></button>
-												<button type="button" class="link-btn link-btn--danger" data-sakura-action="row-delete" data-sakura-key="<?php echo esc_attr( $row_key ); ?>" data-sakura-name="<?php echo esc_attr( $row_name ); ?>" data-sakura-size="<?php echo esc_attr( Inventory::format_bytes( (int) ( $row['cloud_size'] ?? 0 ) ) ); ?>"><?php esc_html_e( '删除远端', 'sakura-imgopt' ); ?></button>
+												<button type="button" class="link-btn" data-sakura-action="row-download" data-sakura-key="<?php echo esc_attr( $row_key ); ?>" <?php disabled( $frozen ); ?>><?php esc_html_e( '下载', 'sakura-imgopt' ); ?></button>
+												<button type="button" class="link-btn link-btn--danger" data-sakura-action="row-delete" data-sakura-key="<?php echo esc_attr( $row_key ); ?>" data-sakura-name="<?php echo esc_attr( $row_name ); ?>" data-sakura-size="<?php echo esc_attr( Inventory::format_bytes( (int) ( $row['cloud_size'] ?? 0 ) ) ); ?>" <?php disabled( $frozen ); ?>><?php esc_html_e( '删除远端', 'sakura-imgopt' ); ?></button>
 											<?php elseif ( 'mismatch' === $row_status ) : ?>
-												<button type="button" class="link-btn" data-sakura-action="row-upload" data-sakura-confirm="REPLACE" data-sakura-key="<?php echo esc_attr( $row_key ); ?>"><?php esc_html_e( '重新上传', 'sakura-imgopt' ); ?></button>
+												<button type="button" class="link-btn" data-sakura-action="row-upload" data-sakura-confirm="REPLACE" data-sakura-key="<?php echo esc_attr( $row_key ); ?>" <?php disabled( $frozen ); ?>><?php esc_html_e( '重新上传', 'sakura-imgopt' ); ?></button>
 											<?php endif; ?>
 											<button type="button" class="link-btn" data-sakura-preview="<?php echo esc_attr( (string) wp_json_encode( $row_preview ) ); ?>" data-sakura-name="<?php echo esc_attr( $row_name ); ?>"><?php esc_html_e( '详情', 'sakura-imgopt' ); ?></button>
 										</div>
@@ -974,8 +973,8 @@ $sync_body = ob_get_clean();
 		'title'   => __( 'S3 同步中心', 'sakura-imgopt' ),
 		'lede'    => __( '把本地媒体库和云存储放在一起对照：看清哪些已同步、哪些只在一端、哪些失败，并能继续迁移。', 'sakura-imgopt' ),
 		'status'  => array(
-			'label' => __( '连接状态', 'sakura-imgopt' ),
-			'value' => $status_text,
+			'label' => __( '当前存储桶', 'sakura-imgopt' ),
+			'value' => $bucket_label,
 			'sub'   => $page_status_sub,
 			'tone'  => $status_tone,
 		),

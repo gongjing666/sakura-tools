@@ -933,6 +933,9 @@
 	 * refresh starts clean at the top.
 	 */
 	var SAVE_SCROLL_KEY = 'sakuraAdminSaveScroll';
+	// The offset this document restored after a save; the prompt mounted on the
+	// same load inherits it so its close target matches the visible position.
+	var restoredOffset = null;
 
 	function screenKey() {
 		var params = new URLSearchParams( window.location.search );
@@ -983,31 +986,52 @@
 		return saved.y;
 	}
 
+	/**
+	 * Put the viewport back where the save round-trip started.
+	 *
+	 * This runs BEFORE any prompt opens. The previous version deferred to the
+	 * dialog, which opens ~180ms later — long enough for the browser to paint the
+	 * fresh document at scroll 0, so the operator saw the page jump to the top,
+	 * then the dialog, then a second jump back. Restoring first means the very
+	 * first painted frame after reload is already at the saved offset, and the
+	 * dialog simply opens on top of it.
+	 *
+	 * @return {number|null} The applied offset, or null when there was nothing to do.
+	 */
 	function restoreScrollAfterSave() {
 		var target = readPendingScroll();
 		if ( null === target ) {
-			return;
-		}
-
-		function apply() {
-			window.scrollTo( 0, target );
-			try {
-				window.sessionStorage.removeItem( SAVE_SCROLL_KEY );
-			} catch ( error ) {}
+			return null;
 		}
 
 		/*
-		 * When a prompt is about to open, it owns the viewport: it locks the page
-		 * and later restores the offset it was given. Handing it this target (see
-		 * openModal's pendingRestore) means the dialog closes onto the saved
-		 * position, so restore here would race it. Otherwise, restore now.
+		 * Apply immediately so the first paint is already correct, then once more
+		 * after layout settles: images and web fonts arrive after DOMContentLoaded
+		 * and can grow the document above the saved offset, which silently clamps a
+		 * scroll applied too early. The second pass is cheap and idempotent.
 		 */
-		var prompt = admin.qs( '.sakura-modal[data-sakura-modal-autoshow="1"]' );
-		if ( prompt ) {
-			return;
+		function apply() {
+			window.scrollTo( 0, target );
 		}
 
 		apply();
+		if ( document.readyState === 'complete' ) {
+			apply();
+		} else {
+			window.addEventListener( 'load', function () {
+			if ( Math.round( window.pageYOffset || 0 ) !== target ) {
+				apply();
+			}
+		}, { once: true } );
+		}
+
+		// Forget the offset: a later manual refresh must start at the top.
+		try {
+			window.sessionStorage.removeItem( SAVE_SCROLL_KEY );
+		} catch ( error ) {}
+
+		restoredOffset = target;
+		return target;
 	}
 
 	/**
@@ -1131,9 +1155,22 @@
 		 * save round-trip). In that case the pending restore target is the honest
 		 * answer, and it is also what the dialog must hand back on close.
 		 */
-		var pendingRestore = readPendingScroll();
 		var currentY = Math.round( window.pageYOffset || 0 );
-		modal.setAttribute( 'data-sakura-modal-scroll', String( pendingRestore !== null ? pendingRestore : currentY ) );
+		/*
+		 * An autoshow prompt is mounted on a freshly loaded document. restoreScroll
+		 * has usually already moved the viewport, but if anything re-clamped it to 0
+		 * (late layout) locking here would bake in the wrong offset and the close
+		 * would land at the top. Prefer the pending value while it is still valid.
+		 */
+		var intended = readPendingScroll();
+		if ( intended === null && null !== restoredOffset ) {
+			intended = restoredOffset;
+		}
+		var targetY  = intended !== null ? intended : currentY;
+		if ( targetY > 0 && currentY !== targetY ) {
+			window.scrollTo( 0, targetY );
+		}
+		modal.setAttribute( 'data-sakura-modal-scroll', String( targetY ) );
 		scrollLock.lock();
 
 		if ( focusOn && typeof focusOn.focus === 'function' ) {
@@ -1229,11 +1266,19 @@
 	}
 
 	admin.ready( function () {
+		/*
+		 * Restore the post-save offset FIRST, before anything else can paint or
+		 * move the viewport. initModals() only schedules timers, but the prompt it
+		 * schedules fires ~180ms later — and by then the browser has long since
+		 * shown the fresh document at scroll 0. Doing this first is what removes
+		 * the visible "top of page, then dialog, then jump back" sequence.
+		 */
+		restoreScrollAfterSave();
+
 		labelTables( document );
 		initConfirmations();
 		rememberScrollOnSave();
 		initModals();
-		restoreScrollAfterSave();
 	} );
 
 	admin.ui = {

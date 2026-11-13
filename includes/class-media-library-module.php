@@ -368,7 +368,7 @@ class Media_Library_Module implements Module {
 			return;
 		}
 
-		echo \Sakura\ImageOptimizer\Admin\UI\Feedback::admin_notice_html( // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Component escapes internally.
+		$html = \Sakura\ImageOptimizer\Admin\UI\Feedback::admin_notice_html(
 			esc_html(
 				sprintf(
 					/* translators: %s: number of skipped attachments. */
@@ -378,6 +378,7 @@ class Media_Library_Module implements Module {
 			),
 			'warn'
 		);
+		echo $html; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Built from escaped fragments.
 	}
 
 	/**

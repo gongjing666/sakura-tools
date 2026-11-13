@@ -1335,7 +1335,7 @@ final class Media_Hooks {
 			: 0;
 
 			if ( $delete_blocked > 0 ) {
-				echo \Sakura\ImageOptimizer\Admin\UI\Feedback::admin_notice_html( // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Component escapes internally.
+				$html = \Sakura\ImageOptimizer\Admin\UI\Feedback::admin_notice_html(
 					esc_html(
 						sprintf(
 							/* translators: %d: number of managed attachments. */
@@ -1345,6 +1345,7 @@ final class Media_Hooks {
 					),
 					'warn'
 				);
+				echo $html; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Built from escaped fragments.
 				return;
 			}
 

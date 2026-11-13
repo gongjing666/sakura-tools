@@ -619,26 +619,35 @@ final class Sync_Center_Module implements Module {
 			return;
 		}
 
+		/*
+		 * Both conditions below are failures, so every entry is rendered with the
+		 * bad tone. Keep the list as plain messages: a tone column that is always
+		 * the same value is the kind of thing a static analyser (rightly) flags as
+		 * a dead branch.
+		 */
 		$notices = array();
 		$profile = (string) $this->options->active_profile_id();
 		if ( '' !== $profile ) {
 			$scan = $this->index->latest_scan( $profile );
 			if ( $scan && 'failed' === (string) $scan->state && ( time() - (int) strtotime( (string) $scan->updated_at . ' UTC' ) ) < DAY_IN_SECONDS ) {
-				$notices[] = array( 'error', sprintf( /* translators: %s: error message. */ __( '最近一次对账失败：%s', 'sakura-imgopt' ), (string) $scan->error_message ) );
+				$notices[] = sprintf( /* translators: %s: error message. */ __( '最近一次对账失败：%s', 'sakura-imgopt' ), (string) $scan->error_message );
 			}
 		}
 		$dead = $this->index->dead_jobs_count();
 		if ( $dead > 0 ) {
-			$notices[] = array( 'error', sprintf( /* translators: %d: dead jobs. */ __( '动作队列有 %d 个任务已标记 dead，请在任务中心处理。', 'sakura-imgopt' ), $dead ) );
+			$notices[] = sprintf( /* translators: %d: dead jobs. */ __( '动作队列有 %d 个任务已标记 dead，请在任务中心处理。', 'sakura-imgopt' ), $dead );
 		}
 
-		foreach ( $notices as $notice ) {
-			echo \Sakura\ImageOptimizer\Admin\UI\Feedback::admin_notice_html( // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Component escapes internally.
-				esc_html( $notice[1] ),
-				'bad' === $notice[0] ? 'bad' : 'warn',
-				add_query_arg( array( 'page' => self::MENU_SLUG ), admin_url( 'admin.php' ) ),
+		$link = add_query_arg( array( 'page' => self::MENU_SLUG ), admin_url( 'admin.php' ) );
+
+		foreach ( $notices as $message ) {
+			$html = \Sakura\ImageOptimizer\Admin\UI\Feedback::admin_notice_html(
+				esc_html( $message ),
+				'bad',
+				esc_url( $link ),
 				esc_html__( '打开同步中心', 'sakura-imgopt' )
 			);
+			echo $html; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Built from escaped fragments.
 		}
 	}
 

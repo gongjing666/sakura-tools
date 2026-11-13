@@ -610,12 +610,15 @@ final class Storage implements Module {
 			);
 		}
 
-		echo \Sakura\ImageOptimizer\Admin\UI\Feedback::admin_notice_html( // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Component escapes internally.
-			esc_html( implode( ' ', $messages ) ),
+		// Messages are escaped where they are built (esc_html__ + sprintf), and the
+		// helper runs the result through wp_kses_post, so nothing is output raw.
+		$html = \Sakura\ImageOptimizer\Admin\UI\Feedback::admin_notice_html(
+			implode( ' ', $messages ),
 			'warn',
 			\Sakura\ImageOptimizer\Admin\Registry::url( 'storage', 'connection' ),
 			esc_html__( '查看并重试', 'sakura-imgopt' )
 		);
+		echo $html; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Built from escaped fragments.
 	}
 
 	/**

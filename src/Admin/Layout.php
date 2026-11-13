@@ -101,7 +101,7 @@ final class Layout implements Module {
 				'main' => array(
 					// Tuned default (2026-11): the engine/pair reads first, probe under it,
 					// then the scene + scope switches, with the tall tables last.
-					'order' => array( 'switches', 'advanced', 'probe', 'scenes', 'scopes', 'sizes', 'cache', 'stats', 'rollback' ),
+					'order' => array( 'switches', 'scopes', 'scenes', 'sizes', 'advanced', 'probe', 'stats', 'rollback', 'cache' ),
 					'cards' => array(
 						'switches' => array( 'span' => 6, 'minH' => 0, 'h' => 390, 'col' => 1, 'top' => 0 ),
 						'advanced' => array( 'span' => 6, 'minH' => 0, 'h' => 570, 'col' => 7, 'top' => 0 ),
@@ -122,7 +122,7 @@ final class Layout implements Module {
 				'main' => array(
 					// Mirrors the markup order in S3_Storage_Page so "restore
 					// defaults" and a first visit land on the same arrangement.
-					'order' => array( 'profiles', 'behaviour', 'connection', 'upload-metrics', 'test', 'monitoring' ),
+					'order' => array( 'profiles', 'behaviour', 'connection', 'test', 'upload-metrics', 'monitoring' ),
 					'cards' => array(
 						'profiles'       => array( 'span' => 12, 'minH' => 0, 'h' => 0, 'col' => 1, 'top' => 0 ),
 						'behaviour'      => array( 'span' => 6, 'minH' => 0, 'h' => 0, 'col' => 1, 'top' => 0 ),
@@ -138,7 +138,7 @@ final class Layout implements Module {
 		'sync' => array(
 			'groups' => array(
 				'main' => array(
-					'order' => array( 'ignored', 'tasks', 'health', 'storage', 'notes', 'reconcile', 'logs' ),
+					'order' => array( 'ignored', 'tasks', 'health', 'storage', 'reconcile', 'logs', 'notes' ),
 					'cards' => array(
 						'ignored'   => array( 'span' => 12, 'minH' => 0, 'h' => 0, 'col' => 1, 'top' => 0 ),
 						'tasks'     => array( 'span' => 12, 'minH' => 0, 'h' => 0, 'col' => 1, 'top' => 0 ),
@@ -218,7 +218,7 @@ final class Layout implements Module {
 				'main' => array(
 					// Tuned default: payment and entry sit together, then the capacity
 					// gate/level pair, the VIP gate/editor pair, and the two tables last.
-					'order' => array( 'space_diag', 'space_payment', 'space_entry', 'space_gate', 'space_editor', 'space_level', 'space_vip', 'space_reconcile', 'space_plans', 'space_grants' ),
+					'order' => array( 'space_diag', 'space_payment', 'space_entry', 'space_editor', 'space_gate', 'space_level', 'space_vip', 'space_plans', 'space_grants', 'space_reconcile' ),
 					'cards' => array(
 						'space_diag'      => array( 'span' => 12, 'minH' => 0, 'h' => 0, 'col' => 1, 'top' => 0 ),
 						'space_payment'   => array( 'span' => 12, 'minH' => 0, 'h' => 0, 'col' => 1, 'top' => 0 ),

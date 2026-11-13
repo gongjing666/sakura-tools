@@ -8,7 +8,7 @@
 
 1. `assets/ui/tokens.css`：设计令牌，只有 `:root`。
 2. `assets/ui/base.css`：画布、共享顶栏、模块切换、页签、页头、通用排版与 WP 管理页槽位重置。
-3. `assets/ui/components.css`：卡片、表单、按钮、状态、保存条、弹窗、表格、提示等组件。
+3. `assets/ui/components.css`：卡片、表单、按钮、状态、保存条、弹窗、表格、提示等组件（提示弹窗 `.sakura-modal` 是例外，样式在对象存储的模块 stylesheet 里，见 5.1）。
 4. `assets/ui/layout.css`：12 栏卡片拖拽布局，只给登记在 `Page_Assets::LAYOUT_PAGES` 的页面加载。
 5. `assets/ui/pages/{module}.css`：模块级样式；模块名取页面 id 的第一段，例如 `image-rules` → `image.css`。
 6. `assets/ui/pages/{page}.css`：单个页面的补充样式，只在文件存在时加载。
@@ -145,32 +145,51 @@
 - 卡头已经有三个按钮时（用户容量：重置容量 / 同步容量 / 刷新），搜索框不要挤成卡头第四个控件；它留在卡内工具行、左对齐 240px，≤782px 才整行。搜索框不是按钮，但也不靠“它是筛选”这个理由破例。
 - 列多的用户容量表按生产版固定列宽：用户 28%、容量使用 34%、文件 90px、单独容量 210px，`table-layout: fixed`；最后一列表头与内容右对齐，输入框和保存按钮靠右。≤1100px 收窄为 26% / 32% / 76px / 192px，≤782px 必须恢复 `table-layout: auto` 与 `width: auto`，否则窄屏会内滚。表内多段文字用两条 `.files-cell__line`，不要让三段竖排把行高顶到 84px。
 
-## 5. 页头与状态
+## 5. 页头、状态与弹窗
 
 - 页头由 `UI::page()` 输出：上方眉标（`.page-head__eyebrow`）、标题、1–2 行说明（`.page-head__lede`），说明下方是可选的页头操作（`.page-head__actions`，靠左，与说明间距 20px）；状态卡单独放右侧，不与操作按钮同排。页头底部一条 `--g-line` 分隔线。不要再使用粉蓝渐变、樱花插画或高对比大面积色块。
 - 背景默认是暖白底 + 柔和云雾径向渐变（`base.css` 的 `.sakura-admin` 画布）；系统设置可以换成单一纯色，但默认值必须保持这套暖白渐变，禁止贴图。
 - 顶栏状态胶囊支持 `ok / off / warn / error`：未传 tone 时是中性灰点；`ok` 绿点，`off` 灰字，`warn` 琥珀，`error` 淡红。不要所有状态都用绿点。
 - 页头状态卡与页头内的小状态标签同样遵循语义，不要用绿色表示「等待配置」。
 
-## 5.1 弹窗
+### 5.1 提示弹窗（`.sakura-modal`）
 
-- 需要用户立即处理、且忽略后会影响功能的配置缺失（如 S3 未配置），用居中 modal，不再用顶部 `notice`。同一问题不能「顶部提示 + 弹窗」重复出现。
-- 复用 `.sakura-modal` 结构，配置类加 `.sakura-modal--config`：560px 宽、18px 圆角、1px `--g-line` 边框、白底、深而柔的阴影；`max-height: calc(100dvh - 32px)`，内容超高时卡片内部滚动。
-- 结构固定为：图标 → 大写眉标（`.sakura-modal__kicker`）→ 标题 → 1–2 行说明 → 缺失项面板（小标 + 胶囊列表）→ 底部「不再提醒」+ 次按钮 + 主按钮。底部操作区与正文用 `--g-line-soft` 分隔。
-- 对齐：图标、眉标、标题三行居中（图标用 `display:flex` + `margin:0 auto`，inline 级盒子会被 auto margin 忽略）；说明段与底部操作区保持左对齐 / 两端对齐。说明段不要加 `max-width: 46ch` 之类的行宽上限，中文在这张卡里只排到 23 字就折行，右侧会空出一大块，看着像排版错误。
-- 配置缺失不是错误：图标、胶囊用暖灰/琥珀状态点，不用红色；红色只留给破坏性操作。
-- ≤520px 时底部操作区纵向排列，「不再提醒」靠左、按钮整宽；次按钮保留描边和暖白底，不能变成无边界的一行文字。390/320 下弹窗不得横向溢出。
-- 行为：配置不完整时延迟约 220ms 自动打开；`role=dialog` / `aria-modal` / `aria-hidden` 成对；打开后焦点进标题，Tab 焦点圈在弹窗内，Esc / 背景 / 关闭按钮都能关闭，关闭后焦点回到触发前元素。
-- 关闭分两档，且只有一档会写库：
-  - 「不再提醒」按用户持久化（`sakura_imgopt_s3_config_notice_dismissed`），勾选后不论用哪种方式关闭都永久保存，直到手动清除该 user meta。
-  - 未勾选时**不写任何东西**：X、Esc、点背景、次按钮「暂不处理」都只是关掉这一次，刷新后状态仍然成立就继续弹。理由是这个弹窗是页面上唯一说明「功能坏了 / 桶不再收文件」的地方，把「关掉」当成「处理过」会让问题静默存在。
-  - 1.25.6 及更早版本的 12 小时 snooze（`sakura_imgopt_s3_config_notice_snoozed_until`）已废弃：升级后读到残留时间戳会直接删除，不再压制弹窗。
-- 主按钮跳转下一页时保留 sessionStorage 一次性跳过，作为 AJAX 写入失败时的兜底；不能把 sessionStorage 当作长期静默，长期状态只认 user meta。
-- 锚点主按钮关闭弹窗后滚动到表单并聚焦第一个空字段。
-- 弹窗节点由页面根节点输出，遮罩覆盖整个视口；不要依赖旧 `.app` 的堆叠上下文。
-- 打开时锁 body 滚动；`prefers-reduced-motion` 下关闭入场动画。
+用于「需要用户立即处理、且忽略后会影响功能」的状态：S3 未配置、已配置但停用、配好了但还没核对过。这类信息不要再用顶部 `notice`，同一问题不能「顶部提示 + 弹窗」重复出现。
 
-## 5.2 媒体预览弹窗
+- **标记与样式分居两处**：结构与文案由 `src/S3/Config_Notice.php:180` 的 `render_modal()` 输出，样式全部在 `assets/ui/pages/storage.css:1006-1181`，除 `body.sakura-modal-open` 外每一条规则的前缀都是 `.sakura-admin:is([data-sakura-page="storage-connection"], [data-sakura-page="storage-sync"])`。它**不在** `components.css` 里，换到别的页面复用这组类名不会有任何效果；要复用得先把 `:is()` 里的页面清单扩上去。
+- **尺寸**：`width: min(560px, 100%)`、`padding: var(--g-space-5)`（24px）、`border-radius: var(--g-radius-lg)`（22px）、白底 `--g-card`、`--g-shadow-pop` 阴影；**没有边框**，靠阴影与暖白画布分层。`max-height: calc(100vh - 2 * var(--g-space-4))`（视口高 −36px），内容超高时卡片内部滚动（`overflow-y: auto`）。外层 `.sakura-modal` 是 `position: fixed` + `inset: 0` + `z-index: 100000` 的自绘遮罩，`padding: var(--g-space-4)`（18px）保证窄屏不贴边。
+- **`.sakura-modal--config` 只是语义标记**：仓库里它没有任何 CSS 规则，判断是否为提示弹窗看的是最外层 `.sakura-modal`，不是这个修饰类。
+- **结构固定**：图标（46×46、`--g-radius-md`）→ 大写眉标 → 标题 → 1–2 行说明 →（可选）缺失项面板 → 底部「不再提醒」+ 次按钮 + 主按钮。三个变体共用 `render_modal()`，差别只在中段：
+  - `modal_html( $options, $context )`（`:233`）—— 配置缺失，有 `.sakura-config-missing` 胶囊面板（小标 + 缺哪几项），主按钮按上下文指向连接页或 `#sakura-s3-connection`。
+  - `paused_html( $options )`（`:312`）—— 已停用，无胶囊，主按钮固定去连接页（`Registry::url( 'storage', 'connection' )`）。它只挂在同步中心：连接页上开关就在眼前，再弹一个模态会挡住用户正要点的控件。
+  - `reconcile_html( $options, $configured, $has_scan, $busy )`（`:283`）—— 已配置但从未核对，无胶囊，主按钮是 `[data-sakura-action="scan"]`，走页面自己的扫描流程；核对完页面重载、`$has_scan` 成立，弹窗自然不再出现，**不需要**额外的「成功才关闭」状态机。
+- **一次只弹一个**：`includes/views/s3-sync-center.php:956-963` 按「缺字段 → 停用 → 未核对」取第一个非空结果渲染，注释是 `One dialog at a time, most blocking first`。新增变体要插进这条链，不要在页面里各弹各的。
+- **对齐**：图标、眉标、标题三行居中（图标用 `display: flex` + `margin: 0 auto`，inline 级盒子会被 auto margin 忽略）；说明段与底部操作区保持左对齐 / 两端对齐。说明段不要加 `max-width: 46ch` 之类的行宽上限——中文在这张卡里排到 23 字就折行，右侧空出一大块，看着像排版错误。
+- **配置缺失不是错误**：图标用暖灰 `--g-accent-soft` 或中性灰 `.sakura-modal__icon--neutral`，缺失胶囊用 `--g-warn-bg` / `--g-warn`；红色只留给破坏性操作。
+- **≤520px**：底部操作区纵向排列、「不再提醒」在上、按钮整宽；次按钮保留描边和暖白底，不能变成无边界的一行字。390 / 320 下弹窗不得横向溢出。
+- **打开与焦点**：延迟约 220ms 打开（同一页有多个候选时第 n 个再累加 `120ms × n`）；`role="dialog"` / `aria-modal` / `aria-hidden` 与 `hidden` 成对切换；打开后 40ms 焦点落标题，所以标题要 `outline: none`（浏览器在非交互元素上画焦点环看着像 bug）；Tab 焦点圈在弹窗内首尾回绕；Esc / 点遮罩 / 关闭按钮都能关；关闭后焦点回到触发前元素。
+- **关闭分两档，且只有一档会写库**：
+  - 勾选「不再提醒」后，不论用哪种方式关闭都写 `sakura_imgopt_s3_config_notice_dismissed`，永久保存，直到手动清除该 user meta。
+  - 未勾选时**不写任何东西**：X、Esc、点背景、次按钮「暂不处理」都只关掉这一次，刷新后状态仍然成立就继续弹。理由是这个弹窗是页面上唯一说明「功能坏了 / 桶不再收文件」的地方，把「关掉」当成「处理过」会让问题静默存在。
+  - 1.25.6 及更早的 12 小时 snooze（`sakura_imgopt_s3_config_notice_snoozed_until`）已废弃：升级后读到残留时间戳直接删除，不再压制弹窗。
+- **主按钮跳转下一页时**保留 sessionStorage 一次性跳过（`sakuraS3ConfigSkipOnce`），只作为 AJAX 写入失败时的兜底，不能当长期静默用。
+- **锁滚动用 `body { overflow: hidden }`**：`body.sakura-modal-open`（`storage.css:1161`），由 `storage-sync.js` 的 `lockScroll()` 增删。这套自绘遮罩用 `overflow` 就够——实测在 `scrollY=600` 处加类不会把页面拉回顶部。连接页的同款弹窗（`storage-connection.js:333`）只负责延时打开，没有加锁，两处行为尚不一致，新增页面请照同步中心的写法。
+- **节点必须由页面根节点输出**，遮罩才盖满整个视口；不要依赖旧 `.app` 的堆叠上下文（同步中心把弹窗 echo 在 `ob_get_clean()` 之前正是这个原因）。
+- 提示弹窗没有入场动画，`prefers-reduced-motion` 在这里是空条件，不要为它单写动画开关。
+
+### 5.2 二次确认弹窗（`.sakura-dialog`）
+
+破坏性操作与「需要一句确认才继续」的动作走 `SakuraAdmin.ui.confirm( message, options )`（`assets/ui/js/ui.js:75`），不要用 `window.confirm`。列表里的按钮只要写 `data-sakura-confirm="<说明>"`，`ui.js:907` 的 `initConfirmations()` 会自动接管，并默认按危险样式处理。
+
+- **结构**：原生 `<dialog class="sakura-dialog">` + `showModal()`；内部 `form.sakura-dialog__form`（`method="dialog"`）→ `.dialog__body`（`h2.dialog__title` + `p.dialog__message`）→ `.dialog__actions`。**没有图标、没有眉标、没有复选框**，就是标题 + 一句正文 + 两个按钮；不要为了「和提示弹窗一致」给它加图标或第三颗按钮。
+- **样式在 `components.css:1138-1184`**，不带页面前缀，任何后台页都能用：`width: min(440px, calc(100vw - 32px))`、`border: 1px solid var(--g-line)`、`border-radius: var(--g-radius-card)`（18px）、白底 `--g-card`、`--g-shadow-pop`；`::backdrop` 是 `--g-overlay` + `blur(2px)`。注意这三项与提示弹窗**是两套外观**：提示弹窗 560px / 22px 圆角 / 无边框，确认弹窗 440px / 18px 圆角 / 有 1px 描边，不要互相「对齐」。
+- **底部动作区是 `.dialog__body` 的兄弟节点，不放在 body 里**：`.dialog__body` 内边距 `22px 22px 8px`，`.dialog__actions` 是 `16px 22px 20px` + `justify-content: flex-end` + `gap: 8px`。新增变体请保持这个层级；塞进 body 会让左右内边距变成 22/45px（`files-zibll.js` 的输入框变体就是这种写法，属现存的小不一致）。
+- **按钮语义**：取消是 `.btn--ghost`，确认在 `danger: true` 时是 `.btn--danger`、否则 `.btn--primary`。`confirm` 返回 Promise：点确认 resolve `true`，取消 / Esc resolve `false`。
+- **焦点**：`showModal()` 后主动 `focus()` 确认按钮（`ui.js:140`），所以打开后直接回车就是「确认」——破坏性操作请在文案里把这个后果写清楚，不要靠按钮位置防误触。
+- **行为差异要记住**：Esc 能关；**点遮罩不关**（与媒体预览相反）；**不锁页面滚动**——确认弹窗足够小，锁滚动反而会让背景跳位。
+- **输入型变体**（`files-zibll.js:100` 的 `ask()`）用于需要填一个值才能继续的动作（延长授权天数、输入「撤销」二字）。输入框沿用第 6 节的 38px 高 / 10px 圆角 / 1px `--g-line-strong`；校验不通过时不要关闭弹窗，也不要把按钮文字改成错误提示。
+
+### 5.3 媒体预览弹窗
 
 - 「文件核对」等列表的文件详情不再跳媒体库，统一用 `SakuraAdmin.ui.mediaPreview(payload, { trigger })` 打开预览。触发元素是 `button[data-sakura-preview]`，属性里放 JSON；PHP 首屏和 AJAX 重绘（`storage-sync.js` 的 `makeRow`）必须输出同一份字段，不能只改一边。
 - 多文件浏览：传 `{ items: [payload, ...], index?, labels: { prev, next, counter, gallery } }`。`items` 顺序就是文件顺序，弹窗打开后左右两侧出现 42px 圆形按钮（≤782px 为 38px），舞台顶部居中显示 `当前 / 总数` 胶囊；只有 1 个文件时整组导航隐藏。键盘 ←/→ 切换，触摸横向滑动 ≥48px 且横向位移大于纵向 1.2 倍时切换；切换视频前必须 `pause()`、移除 `src` 并 `load()`。下载按钮、头部大小/状态/位置胶囊和底部路径都跟随当前文件更新，不能只换舞台。
@@ -351,7 +370,8 @@
 - [ ] 顶栏模块导航中心与页面内容中心偏差 ≤1px；≤1100px 已回到两行 flex 布局。
 - [ ] 刷新布局页时首屏不横向跳变，卡片没有从堆叠到散开的动画；首屏 HTML 的根节点已带 `sakura-layout-enabled`。多卡组在慢速首次加载时也不会先露出默认两列（`is-laid` 前隐藏，禁用 JS 2s 后可见）。
 - [ ] AJAX 表格/列表加载完成后画布重新排版，WordPress 页脚不覆盖最后一行内容。
-- [ ] 配置类弹窗居中、可 Esc/背景关闭、焦点可回退；「不再提醒」持久化；没有重复的顶部提示。
+- [ ] 提示弹窗（`.sakura-modal`）居中、可 Esc / 点遮罩 / 关闭按钮关闭、关后焦点回到触发元素；「不再提醒」持久化；同一问题没有重复的顶部提示。
+- [ ] 确认弹窗（`.sakura-dialog`）只有标题 + 一句正文 + 两个按钮；危险动作用 `.btn--danger`，取消用 ghost；Esc 可关；打开后不锁页面滚动。
 - [ ] 文件核对详情打开媒体预览而不是跳媒体库：图片显示 + 下载、视频自绘控件 + 下载、其他类型只有说明 + 下载；PHP 首屏与 AJAX 重绘两处按钮一致。
 - [ ] 媒体弹窗 1440 下图片四周留白 ≥20px、无内滚动条；≤782px 全屏、无横向溢出；弹窗没有 UA 黑描边/焦点环；关闭后焦点回到触发项、页面仍停在打开前的滚动位置，视频已暂停。
 - [ ] 删除申请「查看文件」能看到申请内全部文件及冻结文件夹快照；多文件时左右按钮、计数、键盘 ←/→ 和横向滑动都能切换，首尾按钮禁用，下载/标题/路径随文件更新。

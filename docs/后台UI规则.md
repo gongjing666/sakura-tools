@@ -184,6 +184,7 @@
   - **滚动位置**：打开前 `scrollY` 是多少，关闭后必须还是多少，误差 0；弹窗内部滚动不继承给页面。锁滚动不要用 `body { overflow: hidden }`（会让页面宽变窄、有滚动条的桌面出现横向跳动），改为 `position: fixed` + `top: -scrollY` 的经典锁法，关闭时恢复并 `scrollTo` 回原位。
   - **焦点位置**：打开时焦点落标题、关闭时回到触发元素，但**两次焦点都必须 `focus({ preventScroll: true })`**，且关闭时若目标已在视口外，不能把它滚进视野——用户停在哪就停在哪。目标控件已被移走（重定向后常见）时，焦点回到 `<body>` 或页面根，绝不用滚动去追。
   - **视口坐标**：打开前后 `getBoundingClientRect()` 的页面内容位置不得变化；用 `visualViewport` 或 `innerWidth - clientWidth` 复核滚动条补偿，禁止出现 1–20px 的横向抖动。
+  - **保存后的整页往返**：卡片表单提交到 `options.php` / `admin-post.php` 是 POST + 302 + 重新加载，浏览器必然从 `scrollY=0` 画新文档——这不是弹窗造成的，但用户会一起感知成「位置丢了」。`ui.js` 在 submit 时把 `路径|page|tab + scrollY` 写进 `sessionStorage.sakuraAdminSaveScroll`，新文档加载后校验同一 screen key 再恢复；有自动弹窗时由弹窗接管（它把该值当作自己的关闭目标），没有弹窗时直接恢复，读完即删。新增「提交后跳转」的表单不用另写逻辑，但换页面 id 或改成 AJAX 时要确认这条路径仍然成立。
 - **尺寸**：`width: min(560px, 100%)`、`padding: var(--g-space-5)`（24px）、`border-radius: var(--g-radius-lg)`（22px）、白底 `--g-card`、`--g-shadow-pop` 阴影；**没有边框**，靠阴影与暖白画布分层。`max-height: calc(100vh - 2 * var(--g-space-4))`（视口高 −36px），内容超高时卡片内部滚动（`overflow-y: auto`）。外层 `.sakura-modal` 是 `position: fixed` + `inset: 0` + `z-index: 100000` 的自绘遮罩，`padding: var(--g-space-4)`（18px）保证窄屏不贴边。
 - **`.sakura-modal--config` 只是语义标记**：仓库里它没有任何 CSS 规则，判断是否为提示弹窗看的是最外层 `.sakura-modal`，不是这个修饰类。
 - **结构固定**：图标（46×46、`--g-radius-md`）→ 大写眉标 → 标题 → 1–2 行说明 →（可选）缺失项面板 → 底部「不再提醒」+ 次按钮 + 主按钮。三个变体共用 `render_modal()`，差别只在中段：
@@ -400,6 +401,7 @@
 - [ ] AJAX 表格/列表加载完成后画布重新排版，WordPress 页脚不覆盖最后一行内容。
 - [ ] 提示弹窗（`.sakura-modal`）居中、可 Esc / 点遮罩 / 关闭按钮关闭、关后焦点回到触发元素（页面重载的场景靠 `return_to` 指回触发按钮，不能落到 `<body>`）；「不再提醒」持久化；同一问题没有重复的顶部提示。
 - [ ] **弹窗不改变位置**：在 `scrollY=1500` 这类深位置打开弹窗，再用 X / 按钮 / Esc / 遮罩四种方式关闭，`scrollY` 必须回到原值（误差 0）；页面内容 `getBoundingClientRect().left/width` 前后一致；焦点回到触发元素但**不得把页面滚进视野**。三类弹窗（`.sakura-modal` / `.sakura-dialog` / `.sakura-media-dialog`）逐类验。
+- [ ] **保存不把人弹回顶部**：滚到卡片保存条附近点保存，弹窗关闭后 `scrollY` 与点击前一致（误差 0）；换到另一个页面再保存，不会套用上一页的位置；普通刷新不受影响（key 已消费）。
 - [ ] 保存与检测结果只以提示弹窗出现：DOM 里没有 `notice-success` / `settings-error` 之类的 WordPress 原生提示，也没有同一事实的页内副本（`settings_errors()` 只由页面外壳消费一次）。
 - [ ] 全站 `admin_notices` 输出走 `Feedback::admin_notice_html()`，页面里没有裸的 `notice notice-*`。
 - [ ] 确认弹窗（`.sakura-dialog`）只有标题 + 一句正文 + 两个按钮；危险动作用 `.btn--danger`，取消用 ghost；Esc 可关；打开后不锁页面滚动。

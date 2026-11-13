@@ -918,6 +918,98 @@
 		return { close: close };
 	}
 
+
+	/*
+	 * Keep the reader where they were across a save.
+	 *
+	 * Card forms post to options.php, WordPress redirects back, and the browser
+	 * paints a fresh document at scroll 0 — so saving a card near the bottom throws
+	 * the user back to the top even though the dialog itself is careful about
+	 * position. Remember the offset before the POST and restore it on the next
+	 * load of the same screen.
+	 *
+	 * Scoped per URL (path + page + tab) so a redirect to a different screen does
+	 * not get the previous screen's offset, and cleared on read so a later manual
+	 * refresh starts clean at the top.
+	 */
+	var SAVE_SCROLL_KEY = 'sakuraAdminSaveScroll';
+
+	function screenKey() {
+		var params = new URLSearchParams( window.location.search );
+		return [
+			window.location.pathname,
+			params.get( 'page' ) || '',
+			params.get( 't' ) || ''
+		].join( '|' );
+	}
+
+	function rememberScrollOnSave() {
+		document.addEventListener( 'submit', function ( event ) {
+			var form = event.target;
+			if ( ! form || 'FORM' !== form.tagName ) {
+				return;
+			}
+			// Only a full navigation loses the scroll; an AJAX form keeps its page.
+			var action = form.getAttribute( 'action' ) || '';
+			if ( action && -1 === action.indexOf( 'options.php' ) && -1 === action.indexOf( 'admin-post.php' ) ) {
+				return;
+			}
+			try {
+				window.sessionStorage.setItem( SAVE_SCROLL_KEY, JSON.stringify( {
+					key: screenKey(),
+					y: Math.round( window.pageYOffset || 0 )
+				} ) );
+			} catch ( error ) {}
+		}, true );
+	}
+
+	/**
+	 * Pending offset from a save round-trip that belongs to THIS screen, or null.
+	 */
+	function readPendingScroll() {
+		var saved = null;
+		try {
+			var raw = window.sessionStorage.getItem( SAVE_SCROLL_KEY );
+			if ( ! raw ) {
+				return null;
+			}
+			saved = JSON.parse( raw );
+		} catch ( error ) {
+			return null;
+		}
+		if ( ! saved || saved.key !== screenKey() || ! ( saved.y > 0 ) ) {
+			return null;
+		}
+		return saved.y;
+	}
+
+	function restoreScrollAfterSave() {
+		var target = readPendingScroll();
+		if ( null === target ) {
+			return;
+		}
+
+		function apply() {
+			window.scrollTo( 0, target );
+			try {
+				window.sessionStorage.removeItem( SAVE_SCROLL_KEY );
+			} catch ( error ) {}
+		}
+
+		/*
+		 * When a prompt is about to open, it owns the viewport: it locks the page
+		 * and later restores the offset it was given. Handing it this target (see
+		 * openModal's pendingRestore) means the dialog closes onto the saved
+		 * position, so restore here would race it. Otherwise, restore now.
+		 */
+		var prompt = admin.qs( '.sakura-modal[data-sakura-modal-autoshow="1"]' );
+		if ( prompt ) {
+			return;
+		}
+
+		apply();
+	}
+
 	/**
 	 * Confirm links and forms marked with data-sakura-confirm before acting.
 	 */
@@ -1031,8 +1123,17 @@
 		modal.removeAttribute( 'hidden' );
 		modal.setAttribute( 'aria-hidden', 'false' );
 		modal.setAttribute( 'data-sakura-modal-open', '1' );
-		// Recorded before the lock so the restore target is the user's own position.
-		modal.setAttribute( 'data-sakura-modal-scroll', String( Math.round( window.pageYOffset || 0 ) ) );
+		/*
+		 * Recorded before the lock so the restore target is the user's own position.
+		 *
+		 * An autoshow prompt appears on a freshly loaded document, so the live offset
+		 * is 0 even when the operator had scrolled far down the previous screen (the
+		 * save round-trip). In that case the pending restore target is the honest
+		 * answer, and it is also what the dialog must hand back on close.
+		 */
+		var pendingRestore = readPendingScroll();
+		var currentY = Math.round( window.pageYOffset || 0 );
+		modal.setAttribute( 'data-sakura-modal-scroll', String( pendingRestore !== null ? pendingRestore : currentY ) );
 		scrollLock.lock();
 
 		if ( focusOn && typeof focusOn.focus === 'function' ) {
@@ -1130,7 +1231,9 @@
 	admin.ready( function () {
 		labelTables( document );
 		initConfirmations();
+		rememberScrollOnSave();
 		initModals();
+		restoreScrollAfterSave();
 	} );
 
 	admin.ui = {

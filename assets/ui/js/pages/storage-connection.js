@@ -192,6 +192,7 @@
 		var dontRemind = admin.qs( '[data-config-dont-remind]', modal );
 		var skipKey    = 'sakuraS3ConfigSkipOnce';
 		var lastFocus  = null;
+		var lastScroll = 0;
 		var sent       = false;
 		var open       = false;
 
@@ -222,8 +223,13 @@
 			persistChoice();
 			modal.hidden = true;
 			modal.setAttribute( 'aria-hidden', 'true' );
+			var restoreY = lastScroll;
 			if ( lastFocus && lastFocus.focus ) {
 				lastFocus.focus( { preventScroll: true } );
+			}
+			// Closing must not relocate the reader: if focus moved the page, undo it.
+			if ( isFinite( restoreY ) && Math.round( window.pageYOffset || 0 ) !== restoreY ) {
+				window.scrollTo( 0, restoreY );
 			}
 		}
 
@@ -232,6 +238,7 @@
 				return;
 			}
 			lastFocus = document.activeElement;
+			lastScroll = Math.round( window.pageYOffset || 0 );
 			open = true;
 			modal.hidden = false;
 			modal.setAttribute( 'aria-hidden', 'false' );

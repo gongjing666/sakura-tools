@@ -180,6 +180,10 @@
   - `src/Admin/UI/Modal.php` + `UI::modal( $args )` / `UI::modal_html( $args )` —— 保存结果、检测结果、任何一次性事件都用它。`$args`：`id`、`tone`（ok/bad/warn/info/neutral，决定图标配色）、`kicker`、`title`、`message`、`body`、`size`（`compact` = 440px，报告类用；省略 = 560px）、`button`、`variant`、`autoshow`、`return_to`。
   - `src/S3/Config_Notice.php` —— 对象存储的三条**拦截式**提示（配置缺失 / 已停用 / 未核对），自带「不再提醒」与主按钮，用的是同一套类名。对象存储的缺失项胶囊样式仍在 `storage.css`（`.sakura-config-missing` 等），那是页面专属家具。
 - **图标五色**：`--ok` 绿、`--bad` 赤、`--warn` 琥珀、`--info` 灰紫、`--neutral` 暖灰。成功不要用主按钮的樱红，否则和「失败」分不开。
+- **弹窗不得改变用户的位置**（新窗口、关闭都一样）。这条是硬性的，验收时按下面三项量：
+  - **滚动位置**：打开前 `scrollY` 是多少，关闭后必须还是多少，误差 0；弹窗内部滚动不继承给页面。锁滚动不要用 `body { overflow: hidden }`（会让页面宽变窄、有滚动条的桌面出现横向跳动），改为 `position: fixed` + `top: -scrollY` 的经典锁法，关闭时恢复并 `scrollTo` 回原位。
+  - **焦点位置**：打开时焦点落标题、关闭时回到触发元素，但**两次焦点都必须 `focus({ preventScroll: true })`**，且关闭时若目标已在视口外，不能把它滚进视野——用户停在哪就停在哪。目标控件已被移走（重定向后常见）时，焦点回到 `<body>` 或页面根，绝不用滚动去追。
+  - **视口坐标**：打开前后 `getBoundingClientRect()` 的页面内容位置不得变化；用 `visualViewport` 或 `innerWidth - clientWidth` 复核滚动条补偿，禁止出现 1–20px 的横向抖动。
 - **尺寸**：`width: min(560px, 100%)`、`padding: var(--g-space-5)`（24px）、`border-radius: var(--g-radius-lg)`（22px）、白底 `--g-card`、`--g-shadow-pop` 阴影；**没有边框**，靠阴影与暖白画布分层。`max-height: calc(100vh - 2 * var(--g-space-4))`（视口高 −36px），内容超高时卡片内部滚动（`overflow-y: auto`）。外层 `.sakura-modal` 是 `position: fixed` + `inset: 0` + `z-index: 100000` 的自绘遮罩，`padding: var(--g-space-4)`（18px）保证窄屏不贴边。
 - **`.sakura-modal--config` 只是语义标记**：仓库里它没有任何 CSS 规则，判断是否为提示弹窗看的是最外层 `.sakura-modal`，不是这个修饰类。
 - **结构固定**：图标（46×46、`--g-radius-md`）→ 大写眉标 → 标题 → 1–2 行说明 →（可选）缺失项面板 → 底部「不再提醒」+ 次按钮 + 主按钮。三个变体共用 `render_modal()`，差别只在中段：
@@ -196,7 +200,7 @@
   - 未勾选时**不写任何东西**：X、Esc、点背景、次按钮「暂不处理」都只关掉这一次，刷新后状态仍然成立就继续弹。理由是这个弹窗是页面上唯一说明「功能坏了 / 桶不再收文件」的地方，把「关掉」当成「处理过」会让问题静默存在。
   - 1.25.6 及更早的 12 小时 snooze（`sakura_imgopt_s3_config_notice_snoozed_until`）已废弃：升级后读到残留时间戳直接删除，不再压制弹窗。
 - **主按钮跳转下一页时**保留 sessionStorage 一次性跳过（`sakuraS3ConfigSkipOnce`），只作为 AJAX 写入失败时的兜底，不能当长期静默用。
-- **锁滚动用 `body { overflow: hidden }`**：`body.sakura-modal-open`（`components.css` 的 Prompt modal 段），由 `ui.js` 的 `openModal()` 增删；`storage-sync.js` 的 `lockScroll()` 是同一语义的历史实现。这套自绘遮罩用 `overflow` 就够——实测在 `scrollY=600` 处加类不会把页面拉回顶部。连接页的同款弹窗（`storage-connection.js:333`）只负责延时打开，没有加锁，两处行为尚不一致，新增页面请照同步中心的写法。
+- **锁滚动用共享实现 `admin.ui.scrollLock.lock()/unlock()`**（`ui.js`）：`position: fixed` + `top: -scrollY` 钉住 body，根节点加 `html.sakura-scroll-locked`；关闭时还原内联样式并 `window.scrollTo(0, 记录值)`。**不要用 `body { overflow: hidden }`**（滚动条消失会让视口变宽、整页横向抖动，且 Chrome 会把页面拉回顶部）。Prompt modal、对象存储配置弹窗、媒体预览三处都走这套；新增弹窗不要另写锁。
 - **节点必须由页面根节点输出**，遮罩才盖满整个视口；不要依赖旧 `.app` 的堆叠上下文（同步中心把弹窗 echo 在 `ob_get_clean()` 之前正是这个原因）。
 - 提示弹窗没有入场动画，`prefers-reduced-motion` 在这里是空条件，不要为它单写动画开关。
 
@@ -395,6 +399,7 @@
 - [ ] 刷新布局页时首屏不横向跳变，卡片没有从堆叠到散开的动画；首屏 HTML 的根节点已带 `sakura-layout-enabled`。多卡组在慢速首次加载时也不会先露出默认两列（`is-laid` 前隐藏，禁用 JS 2s 后可见）。
 - [ ] AJAX 表格/列表加载完成后画布重新排版，WordPress 页脚不覆盖最后一行内容。
 - [ ] 提示弹窗（`.sakura-modal`）居中、可 Esc / 点遮罩 / 关闭按钮关闭、关后焦点回到触发元素（页面重载的场景靠 `return_to` 指回触发按钮，不能落到 `<body>`）；「不再提醒」持久化；同一问题没有重复的顶部提示。
+- [ ] **弹窗不改变位置**：在 `scrollY=1500` 这类深位置打开弹窗，再用 X / 按钮 / Esc / 遮罩四种方式关闭，`scrollY` 必须回到原值（误差 0）；页面内容 `getBoundingClientRect().left/width` 前后一致；焦点回到触发元素但**不得把页面滚进视野**。三类弹窗（`.sakura-modal` / `.sakura-dialog` / `.sakura-media-dialog`）逐类验。
 - [ ] 保存与检测结果只以提示弹窗出现：DOM 里没有 `notice-success` / `settings-error` 之类的 WordPress 原生提示，也没有同一事实的页内副本（`settings_errors()` 只由页面外壳消费一次）。
 - [ ] 全站 `admin_notices` 输出走 `Feedback::admin_notice_html()`，页面里没有裸的 `notice notice-*`。
 - [ ] 确认弹窗（`.sakura-dialog`）只有标题 + 一句正文 + 两个按钮；危险动作用 `.btn--danger`，取消用 ghost；Esc 可关；打开后不锁页面滚动。

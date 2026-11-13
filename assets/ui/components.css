@@ -1400,8 +1400,16 @@
 	outline: none;
 }
 
-/* The dialogs lock the page behind them, like the media preview does. */
-body.sakura-modal-open {
+/*
+ * Scroll lock for the prompt dialogs.
+ *
+ * This deliberately does NOT use body { overflow: hidden }: removing the
+ * scrollbar widens the viewport and every centred column shifts sideways the
+ * instant a dialog opens. ui.js pins the body with position:fixed and a
+ * negative offset instead, and this class only stops the root from scrolling
+ * behind the pinned body. Closing restores the offset the user was on.
+ */
+html.sakura-scroll-locked {
 	overflow: hidden;
 }
 
@@ -1424,10 +1432,13 @@ body.sakura-modal-open {
 
 /*
  * Root scroll lock, paired with the body-fixed lock in ui.js.
- * Do not add body { overflow: hidden } here: Chrome clamps the page back to the top.
+ * Do not add body { overflow: hidden } here: Chrome clamps the page back to the
+ * top. Hiding the root scrollbar would also widen the viewport by its width and
+ * shift the centre column, so compensate with the matching gutter.
  */
 html.sakura-media-open {
 	overflow: hidden;
+	scrollbar-gutter: stable;
 }
 
 .sakura-admin .sakura-media-dialog {

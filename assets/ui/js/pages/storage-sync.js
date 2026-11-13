@@ -164,14 +164,16 @@
 				maybeSkip = false;
 			}
 
+			/*
+			 * Delegates to the shared lock in ui.js: body { overflow: hidden } widened
+			 * the viewport by the scrollbar width and nudged the centred column
+			 * sideways the moment the setup prompt opened.
+			 */
 			function lockScroll( on ) {
-				if ( ! document.body ) {
-					return;
-				}
 				if ( on ) {
-					document.body.classList.add( 'sakura-modal-open' );
+					admin.scrollLock.lock();
 				} else {
-					document.body.classList.remove( 'sakura-modal-open' );
+					admin.scrollLock.unlock();
 				}
 			}
 
@@ -189,6 +191,7 @@
 				var focusFirst = admin.qs( '[data-config-focus]', modal );
 				var dontRemind = admin.qs( '[data-config-dont-remind]', modal );
 				var lastFocus  = null;
+				var lastScroll = 0;
 				var sent       = false;
 				var open       = false;
 
@@ -225,8 +228,14 @@
 					persist();
 					modal.hidden = true;
 					modal.setAttribute( 'aria-hidden', 'true' );
+					var restoreY = lastScroll;
+					// Focus first, then re-assert the offset: a focus call can still scroll
+					// even with preventScroll when the node sits outside the viewport.
 					if ( lastFocus && lastFocus.focus ) {
 						lastFocus.focus( { preventScroll: true } );
+					}
+					if ( isFinite( restoreY ) && Math.round( window.pageYOffset || 0 ) !== restoreY ) {
+						window.scrollTo( 0, restoreY );
 					}
 				}
 
@@ -235,6 +244,7 @@
 						return;
 					}
 					lastFocus = document.activeElement;
+					lastScroll = Math.round( window.pageYOffset || 0 );
 					open = true;
 					active += 1;
 					lockScroll( true );

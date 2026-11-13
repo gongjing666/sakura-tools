@@ -79,6 +79,11 @@
 		}
 
 		return new Promise( function ( resolve ) {
+			// Remember where the operator was: showModal() moves focus into the
+			// dialog, and removing the node on close would otherwise drop focus to
+			// <body> and leave a keyboard user with nothing to continue from.
+			var opener    = document.activeElement;
+			var openScroll = Math.round( window.pageYOffset || 0 );
 			var dialog = document.createElement( 'dialog' );
 			dialog.className = 'sakura-dialog';
 			if ( settings.tone ) {
@@ -133,6 +138,18 @@
 				if ( dialog.parentNode ) {
 					dialog.parentNode.removeChild( dialog );
 				}
+
+				// Put the reader back exactly where they were before the prompt: focus on
+				// the control that asked, viewport on the same scroll offset. preventScroll
+				// keeps the focus call from jumping; the explicit scrollTo covers the
+				// cases where the browser moves anyway.
+				if ( opener && opener !== document.body && document.contains( opener ) && opener.focus ) {
+					opener.focus( { preventScroll: true } );
+				}
+				if ( Math.round( window.pageYOffset || 0 ) !== openScroll ) {
+					window.scrollTo( 0, openScroll );
+				}
+
 				resolve( confirmed );
 			}, { once: true } );
 
@@ -939,6 +956,61 @@
 		} );
 	}
 
+	/*
+	 * One scroll lock for every dialog in the plugin.
+	 *
+	 * `body { overflow: hidden }` is the tempting one-liner and it is wrong here:
+	 * it removes the scrollbar, the viewport widens by that width, and every
+	 * centred column on the page jumps a few pixels sideways the moment a dialog
+	 * opens. Pinning the body with position:fixed and a negative offset keeps the
+	 * layout exactly as it was; closing restores the inline styles and scrolls
+	 * back to the pixel the user was on.
+	 */
+	var scrollLock = ( function () {
+		var saved = null;
+
+		function lock() {
+			if ( saved || ! document.body ) {
+				return;
+			}
+			var body = document.body;
+			var y = window.pageYOffset || document.documentElement.scrollTop || 0;
+			saved = {
+				y: y,
+				position: body.style.position,
+				top: body.style.top,
+				left: body.style.left,
+				right: body.style.right,
+				width: body.style.width
+			};
+			body.style.position = 'fixed';
+			body.style.top = ( -y ) + 'px';
+			body.style.left = '0';
+			body.style.right = '0';
+			body.style.width = '100%';
+			document.documentElement.classList.add( 'sakura-scroll-locked' );
+		}
+
+		function unlock() {
+			if ( ! saved || ! document.body ) {
+				return;
+			}
+			var body = document.body;
+			var y = saved.y;
+			body.style.position = saved.position;
+			body.style.top = saved.top;
+			body.style.left = saved.left;
+			body.style.right = saved.right;
+			body.style.width = saved.width;
+			saved = null;
+			document.documentElement.classList.remove( 'sakura-scroll-locked' );
+			// Chrome clamps scroll on a fixed body; putting it back explicitly is
+			// the difference between "returned to the page" and "tossed to the top".
+			window.scrollTo( 0, y );
+		}
+
+		return { lock: lock, unlock: unlock };
+	}() );
 	/**
 	 * Prompt dialog controller (.sakura-modal).
 	 *
@@ -959,7 +1031,9 @@
 		modal.removeAttribute( 'hidden' );
 		modal.setAttribute( 'aria-hidden', 'false' );
 		modal.setAttribute( 'data-sakura-modal-open', '1' );
-		document.body.classList.add( 'sakura-modal-open' );
+		// Recorded before the lock so the restore target is the user's own position.
+		modal.setAttribute( 'data-sakura-modal-scroll', String( Math.round( window.pageYOffset || 0 ) ) );
+		scrollLock.lock();
 
 		if ( focusOn && typeof focusOn.focus === 'function' ) {
 			window.setTimeout( function () {
@@ -974,7 +1048,6 @@
 			modal.setAttribute( 'hidden', '' );
 			modal.setAttribute( 'aria-hidden', 'true' );
 			modal.removeAttribute( 'data-sakura-modal-open' );
-			document.body.classList.remove( 'sakura-modal-open' );
 			document.removeEventListener( 'keydown', onKeydown );
 
 			// Only pull focus back when it is still inside the dialog; the operator
@@ -996,9 +1069,28 @@
 			// reports, so treat it as absent and let the selector win.
 			var useful = opener && opener !== document.body && document.contains( opener ) ? opener : null;
 			var target = useful || ( fallback ? admin.qs( fallback ) : null );
+			var restoreY = Number( modal.getAttribute( 'data-sakura-modal-scroll' ) );
 
+			// Unlock first: the body is pinned while a dialog is open, so restoring
+			// focus before this point would measure against the pinned layout.
+			scrollLock.unlock();
+			modal.removeAttribute( 'data-sakura-modal-scroll' );
+
+			/*
+			 * Focus, then put the scroll position back exactly.
+			 *
+			 * preventScroll keeps the focus call itself from jumping, but browsers
+			 * still scroll when the focused element is off-screen in some paths, and
+			 * the fixed-body unlock can shift things by a frame. Re-asserting the
+			 * recorded offset after focusing is what makes "close the dialog" a
+			 * no-op for the viewport: the user stays where they were reading.
+			 */
 			if ( target && typeof target.focus === 'function' ) {
 				target.focus( { preventScroll: true } );
+			}
+
+			if ( isFinite( restoreY ) && Math.round( window.pageYOffset || 0 ) !== restoreY ) {
+				window.scrollTo( 0, restoreY );
 			}
 		}
 
@@ -1048,6 +1140,7 @@
 		copy: copy,
 		labelTables: labelTables,
 		mediaPreview: mediaPreview,
-		openModal: openModal
+		openModal: openModal,
+		scrollLock: scrollLock
 	};
 }( window, document ) );

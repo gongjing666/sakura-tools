@@ -310,8 +310,11 @@
 - 需要卡片拖拽布局的页面，在 `Page_Assets::LAYOUT_PAGES` 登记 `页面 id => 布局 id`；布局根节点输出 `data-sakura-ready`、`data-sakura-layout`，每张卡同时带 `data-sakura-card`。系统设置页也走同一套，5 张卡（runtime / engine / checks / extensions / layout）默认为 6/6/12/6/6 跨列。
 - 映射右侧的布局 id 必须是生产已存的布局组名。改页面 id 或文件名时不要顺手改布局 id：文件空间-子比专属的页面 id 是 `files-zibll`，布局 id 必须保持 `files-space`，否则旧布局丢失，右侧「布局修改」工具栏也不会出现。
 - 布局页的 46px 右侧留白由 `Page_Assets::has_layout()` 在服务端输出 `sakura-layout-enabled`，首屏就预留，不能等 `layout.js` 到页尾再补类，否则内容区会在加载后突然变窄。`freeLayout()` 第一次把卡片改成绝对定位时加 `is-initializing` 关闭 0.18s 过渡，否则卡片会从左上角散开。
-- **加载一律走文档流，自由画布只在编辑时启用。** `setupGroup()` 每次加载都只写 `grid-column`（span 与顺序），并显式移除 `is-free` / 内联 `height`；`freeLayout()` 只在 `setEditing( true )` 里调用，退出编辑器无条件还原流式。理由：`freeLayout()` 会把每张卡改成绝对定位并改写文档高度，长页面会跳、卡片会晚一帧出现——脚本再快也压不过浏览器的首帧。
-- `reflow()`（`layout-refresh` / 断点切换）同样只在 `editing` 为真时重打包，否则一次 AJAX 重绘就会把普通页面悄悄切成画布。
+- **`arranged` 决定加载形态**：页面级存 `arranged`（`Layout::SCHEMA = 5`）。为 1 时加载即重建自由画布（还原用户排好的样子）；为 0 时走普通文档流（无 `is-free`、无内联 `height`、无绝对坐标），页面不闪、卡片不延迟。
+  - 只有**退出编辑器**才把 `arranged` 置 1 并 `persist()` —— 用户确认过的排布才值得在下次加载重建。
+  - 「恢复默认」把 `arranged` 清 0（用 `resetting` 标记避免紧接着的退出又把它写回 1），刷新后回到默认流式。
+  - **不要再靠推断**（顺序、`col`、单个 `h`）判断「有没有排过」：引擎每次加载都会把自己的顺序/列写回，旧数据里也残留过零散高度值，推断会把没排过的页面误判成排过，于是又闪。
+- `reflow()`（`layout-refresh` / 断点切换）只在 `editing` 为真时重打包，否则一次 AJAX 重绘会把普通页面悄悄切成画布。
 - 保存过的高度（`data-sakura-h`）在流式下退化为 `min-height`：保住用户设定的下限，又不会把卡片拔出文档流。
 - **首屏隐藏卡片的那条 CSS 只对 `.is-free` 生效**（`layout.css` 的 `@media (min-width: 1101px)`）。历史教训：它曾经命中 `.card-grid`，而默认看板只满足「隐藏」不满足「`.is-laid` 显示」，整页卡片空白两秒才被兜底动画放出来——就是「卡片被延迟加载」。改这条规则前先确认选择器里带 `.is-free`。
 - 页面脚本只用 `window.SakuraAdmin`：`ready`、`qs`、`qsa`、`on`、`delegate`、`closest`、`dataBlock`、`format`；请求用 `admin.api.ajax/post`；提示/确认/忙碌用 `admin.ui.toast/confirm/busy`。不要引入 jQuery。
@@ -402,7 +405,7 @@
 - [ ] 顶栏模块导航中心与页面内容中心偏差 ≤1px；≤1100px 已回到两行 flex 布局。
 - [ ] 刷新布局页时首屏不横向跳变，卡片没有从堆叠到散开的动画；首屏 HTML 的根节点已带 `sakura-layout-enabled`。
 - [ ] **布局页加载不闪、不延迟**：任意布局页 `document.querySelector('.sakura-layout-grid').className` 里没有 `is-free`、没有内联 `height`，卡片 `style` 里没有 `left/top`；所有卡片 `getComputedStyle(c).visibility === 'visible'`（不得出现空白卡片等 2s）；滚动位置加载全程不跳。已保存的高度以 `min-height` 体现，不是绝对定位。
-- [ ] 「布局修改」可进入自由画布、可拖动；退出后回到文档流，卡片不再绝对定位。
+- [ ] 「布局修改」可进入自由画布、可拖动；**退出后布局保持排好的样子，刷新后仍然保持**（`arranged=1` 会重建画布）；点「恢复默认」后刷新回到文档流。
 - [ ] AJAX 表格/列表加载完成后画布重新排版，WordPress 页脚不覆盖最后一行内容。
 - [ ] 提示弹窗（`.sakura-modal`）居中、可 Esc / 点遮罩 / 关闭按钮关闭、关后焦点回到触发元素（页面重载的场景靠 `return_to` 指回触发按钮，不能落到 `<body>`）；「不再提醒」持久化；同一问题没有重复的顶部提示。
 - [ ] **弹窗不改变位置**：在 `scrollY=1500` 这类深位置打开弹窗，再用 X / 按钮 / Esc / 遮罩四种方式关闭，`scrollY` 必须回到原值（误差 0）；页面内容 `getBoundingClientRect().left/width` 前后一致；焦点回到触发元素但**不得把页面滚进视野**。三类弹窗（`.sakura-modal` / `.sakura-dialog` / `.sakura-media-dialog`）逐类验。

@@ -25,6 +25,9 @@
 	var state = cfg.pages && typeof cfg.pages === 'object' ? cfg.pages : {};
 	var editing = false;
 	var lineTimers = new WeakMap();
+	// Set while a reset is in flight so releasing the editor does not re-flag the
+	// page as arranged right after the reset cleared it.
+	var resetting = false;
 	var toolbar = null;
 	var panel = null;
 	var DEFAULT_SPANS = {
@@ -98,6 +101,11 @@
 		}
 		if ( 'undefined' === typeof state[ page ].grid ) {
 			state[ page ].grid = 1;
+		}
+		// Whether this page was ever released from the editor. Absent means "never
+		// arranged", which is what keeps untouched pages in normal flow.
+		if ( 'undefined' === typeof state[ page ].arranged ) {
+			state[ page ].arranged = 0;
 		}
 		return state[ page ];
 	}
@@ -239,23 +247,27 @@
 		} );
 
 		/*
-		 * Load always paints the plain document flow.
+		 * Pages the operator has never arranged stay in the plain document flow.
 		 *
-		 * Free canvas rewrites every card into absolute placement and changes the
-		 * document height, which makes a long page jump and makes cards appear a
-		 * beat late. A board is only packed while its editor is open — where the
-		 * operator is looking at it on purpose and a re-layout is expected.
+		 * Packing rewrites every card into absolute placement and changes the
+		 * document height, which makes long pages jump and cards appear a beat
+		 * late. Only a page that was actually released from the editor gets the
+		 * canvas back, so what the operator arranged is what they return to.
 		 */
-		var customised = isCustomised( group, data );
-		group.classList.remove( 'is-free', 'is-initializing', 'is-laid' );
-		group.style.removeProperty( 'height' );
+		var arranged = ! ! pageState( page ).arranged;
 
-		/*
-		 * A user-chosen height is a floor, not a packed box: keep it as a min-height
-		 * so the board still reads the way it was arranged, without taking the
-		 * cards out of the document flow.
-		 */
-		if ( customised ) {
+		if ( arranged ) {
+			freeLayout( group );
+		} else {
+			group.classList.remove( 'is-free', 'is-initializing', 'is-laid' );
+			group.style.removeProperty( 'height' );
+
+			/*
+			 * A saved height is still honoured as a floor. A page can carry one
+			 * without being arranged (an old layout, a height dragged in a session
+			 * that was never saved), and losing it would resize the card back to
+			 * its content on every load.
+			 */
 			cardsOf( group ).forEach( function ( card ) {
 				var savedH = parseInt( card.getAttribute( 'data-sakura-h' ), 10 ) || 0;
 				if ( savedH > 0 ) {
@@ -1196,30 +1208,26 @@
 			document.querySelectorAll( '[data-sakura-card]' ).forEach( function ( card ) {
 				card.classList.remove( 'is-resizing', 'is-dragging' );
 			} );
-			persist( firstPage() );
 
 			/*
-			 * Leaving the editor always returns the board to plain flow.
+			 * Releasing the editor commits the board as arranged.
 			 *
-			 * Not conditional on isCustomised(): persist() runs just above and
-			 * rewrites the stored rows from the live canvas, so the check would
-			 * read the data the editor itself just wrote and keep the page packed.
-			 * Flow is what every load paints, so this keeps the look consistent.
+			 * The flag is what makes the next load paint the packed canvas again:
+			 * whatever the operator arranged here is what they come back to. It is
+			 * set before persist() so the saved payload carries it.
 			 */
-			document.querySelectorAll( '[data-sakura-layout]' ).forEach( function ( group ) {
-				var cards = cardsOf( group );
-				group.classList.remove( 'is-free', 'is-initializing', 'is-laid' );
-				group.style.removeProperty( 'height' );
-				cards.forEach( function ( card ) {
-					// Drop the absolute coordinates; the span stays.
-					[ 'left', 'top', 'width', 'min-height', 'height' ].forEach( function ( prop ) {
-						card.style.removeProperty( prop );
-					} );
-					var savedH = parseInt( card.getAttribute( 'data-sakura-h' ), 10 ) || 0;
-					if ( savedH > 0 ) {
-						card.style.minHeight = savedH + 'px';
-					}
+			if ( ! resetting ) {
+				document.querySelectorAll( '[data-sakura-layout]' ).forEach( function ( group ) {
+					pageState( pageOf( group ) ).arranged = 1;
 				} );
+			}
+			resetting = false;
+			persist( firstPage() );
+
+			// Keep the packed canvas: the operator just confirmed this arrangement.
+			document.querySelectorAll( '[data-sakura-layout]' ).forEach( function ( group ) {
+				group.classList.remove( 'is-initializing' );
+				freeLayout( group );
 			} );
 		}
 	}
@@ -1262,7 +1270,10 @@
 
 		toolbar.querySelector( '.sakura-layout-reset' ).addEventListener( 'click', function () {
 			var page = firstPage();
-			state[ page ] = { grid: 1, groups: {} };
+			resetting = true;
+			// Reset also forgets that the page was ever arranged, so the default
+			// look is the plain document flow again — not an empty canvas.
+			state[ page ] = { grid: 1, groups: {}, arranged: 0 };
 			gridToggle.checked = true;
 			document.querySelectorAll( '[data-sakura-layout="' + page + '"]' ).forEach( function ( group ) {
 				group.classList.remove( 'sakura-layout-no-lines' );
@@ -1317,9 +1328,17 @@
 	}
 
 	function savePage( page ) {
-		var payload = { grid: 0, groups: {} };
+		/*
+		 * arranged marks a page the operator actually opened the canvas on.
+		 *
+		 * It is the only durable signal: the engine writes order/col on every
+		 * visit, so the stored values cannot distinguish "arranged" from "merely
+		 * loaded". Load-time painting keys off this flag.
+		 */
+		var payload = { grid: 0, groups: {}, arranged: 1 };
 		var data = pageState( page );
 		payload.grid = data.grid ? 1 : 0;
+		payload.arranged = pageState( page ).arranged ? 1 : 0;
 
 		document.querySelectorAll( '[data-sakura-layout="' + page + '"]' ).forEach( function ( group ) {
 			var name = group.getAttribute( 'data-sakura-group' ) || 'main';

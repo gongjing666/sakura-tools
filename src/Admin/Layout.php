@@ -38,7 +38,7 @@ final class Layout implements Module {
 	 * the board packs every card from the top, so a saved `top` can only leave
 	 * a hole behind when a neighbour changes height.
 	 */
-	public const SCHEMA = 4;
+	public const SCHEMA = 5;
 
 	/**
 	 * Nonce action used by the save request.
@@ -478,6 +478,15 @@ final class Layout implements Module {
 				'gapX'   => min( 48, max( 0, (int) ( $layout['gapX'] ?? 20 ) ) ),
 				'gapY'   => min( 48, max( 0, (int) ( $layout['gapY'] ?? 20 ) ) ),
 				'grid'   => empty( $layout['grid'] ) ? 0 : 1,
+				/*
+				 * Whether the operator ever opened the canvas and released it.
+				 *
+				 * This is the only reliable signal that the page should be drawn as a
+				 * packed canvas: order and col are written by the engine itself on first
+				 * load, so they cannot tell "arranged" from "merely visited". Pages that
+				 * were never arranged stay in normal document flow and never flicker.
+				 */
+				'arranged' => empty( $layout['arranged'] ) ? 0 : 1,
 			);
 		}
 

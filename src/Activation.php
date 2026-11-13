@@ -107,6 +107,9 @@ final class Activation {
 		// 索引维护（事件保留、kind 回填续跑）。
 		\Sakura\ImageOptimizer\Sync\Scan_Worker::schedule_maintenance();
 
+		// 每月自动校准：云端清单超过 30 天没有刷新时补一次增量核对。
+		\Sakura\ImageOptimizer\Sync\Sync_Calibrator::schedule();
+
 		// 远端删除补偿队列：每分钟处理到期的删除任务。
 		\Sakura\ImageOptimizer\S3\Delete_Worker::schedule();
 		\Sakura\ImageOptimizer\Sync\Verify_Worker::schedule();

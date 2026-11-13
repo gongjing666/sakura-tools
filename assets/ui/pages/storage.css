@@ -988,10 +988,12 @@
 /* -------------------------------------------------- shared config notice modal
  * Config_Notice still renders the legacy markup (it lives in a shared file);
  * these scoped rules keep it usable on the connection screen without loading
- * the legacy admin stylesheet.
+ * the legacy admin stylesheet. The sync center mounts the same component for
+ * its setup and first-reconciliation prompts, so every rule below is scoped to
+ * both pages through :is().
  */
 
-.sakura-admin[data-sakura-page="storage-connection"] .sakura-modal {
+.sakura-admin:is([data-sakura-page="storage-connection"], [data-sakura-page="storage-sync"]) .sakura-modal {
 	position: fixed;
 	inset: 0;
 	z-index: 100000;
@@ -1000,17 +1002,17 @@
 	padding: var(--g-space-4);
 }
 
-.sakura-admin[data-sakura-page="storage-connection"] .sakura-modal[hidden] {
+.sakura-admin:is([data-sakura-page="storage-connection"], [data-sakura-page="storage-sync"]) .sakura-modal[hidden] {
 	display: none;
 }
 
-.sakura-admin[data-sakura-page="storage-connection"] .sakura-modal__backdrop {
+.sakura-admin:is([data-sakura-page="storage-connection"], [data-sakura-page="storage-sync"]) .sakura-modal__backdrop {
 	position: absolute;
 	inset: 0;
 	background: var(--g-overlay);
 }
 
-.sakura-admin[data-sakura-page="storage-connection"] .sakura-modal__card {
+.sakura-admin:is([data-sakura-page="storage-connection"], [data-sakura-page="storage-sync"]) .sakura-modal__card {
 	position: relative;
 	width: min(560px, 100%);
 	max-height: calc(100vh - 2 * var(--g-space-4));
@@ -1021,7 +1023,7 @@
 	box-shadow: var(--g-shadow-pop);
 }
 
-.sakura-admin[data-sakura-page="storage-connection"] .sakura-modal__close {
+.sakura-admin:is([data-sakura-page="storage-connection"], [data-sakura-page="storage-sync"]) .sakura-modal__close {
 	position: absolute;
 	top: var(--g-space-2);
 	right: var(--g-space-2);
@@ -1034,12 +1036,12 @@
 	cursor: pointer;
 }
 
-.sakura-admin[data-sakura-page="storage-connection"] .sakura-modal__card h2 {
+.sakura-admin:is([data-sakura-page="storage-connection"], [data-sakura-page="storage-sync"]) .sakura-modal__card h2 {
 	margin: var(--g-space-1) 0 var(--g-space-2);
 	font-size: var(--g-fs-h2);
 }
 
-.sakura-admin[data-sakura-page="storage-connection"] .sakura-config-missing {
+.sakura-admin:is([data-sakura-page="storage-connection"], [data-sakura-page="storage-sync"]) .sakura-config-missing {
 	display: flex;
 	flex-wrap: wrap;
 	align-items: center;
@@ -1047,7 +1049,7 @@
 	margin-top: var(--g-space-3);
 }
 
-.sakura-admin[data-sakura-page="storage-connection"] .sakura-config-missing span {
+.sakura-admin:is([data-sakura-page="storage-connection"], [data-sakura-page="storage-sync"]) .sakura-config-missing span {
 	padding: 2px 8px;
 	border-radius: var(--g-radius-pill);
 	background: var(--g-warn-bg);
@@ -1055,7 +1057,7 @@
 	font-size: var(--g-fs-meta);
 }
 
-.sakura-admin[data-sakura-page="storage-connection"] .sakura-modal__actions {
+.sakura-admin:is([data-sakura-page="storage-connection"], [data-sakura-page="storage-sync"]) .sakura-modal__actions {
 	display: flex;
 	flex-wrap: wrap;
 	align-items: center;
@@ -1064,7 +1066,7 @@
 	margin-top: var(--g-space-4);
 }
 
-.sakura-admin[data-sakura-page="storage-connection"] .sakura-config-remember {
+.sakura-admin:is([data-sakura-page="storage-connection"], [data-sakura-page="storage-sync"]) .sakura-config-remember {
 	display: inline-flex;
 	align-items: center;
 	gap: var(--g-space-1);
@@ -1072,18 +1074,90 @@
 	font-size: var(--g-fs-meta);
 }
 
-.sakura-admin[data-sakura-page="storage-connection"] .sakura-config-buttons {
+.sakura-admin:is([data-sakura-page="storage-connection"], [data-sakura-page="storage-sync"]) .sakura-config-buttons {
 	display: flex;
 	flex-wrap: wrap;
 	gap: var(--g-space-2);
 }
 
-.sakura-admin[data-sakura-page="storage-connection"] .sakura-modal__kicker {
+.sakura-admin:is([data-sakura-page="storage-connection"], [data-sakura-page="storage-sync"]) .sakura-modal__kicker {
 	margin: 0;
 	color: var(--g-muted);
 	font-size: var(--g-fs-eyebrow);
 	letter-spacing: 0.08em;
 	text-transform: uppercase;
+}
+
+.sakura-admin:is([data-sakura-page="storage-connection"], [data-sakura-page="storage-sync"]) .sakura-modal__kicker + h2 {
+	margin-top: var(--g-space-2);
+}
+
+.sakura-admin:is([data-sakura-page="storage-connection"], [data-sakura-page="storage-sync"]) .sakura-modal__icon {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 46px;
+	height: 46px;
+	margin-bottom: var(--g-space-3);
+	border-radius: var(--g-radius-md);
+	background: var(--g-accent-soft);
+	color: var(--g-ink-soft);
+}
+
+.sakura-admin:is([data-sakura-page="storage-connection"], [data-sakura-page="storage-sync"]) .sakura-modal__icon--neutral {
+	background: var(--g-wash);
+	color: var(--g-muted);
+}
+
+.sakura-admin:is([data-sakura-page="storage-connection"], [data-sakura-page="storage-sync"]) .sakura-modal__card > p:not(.sakura-modal__kicker) {
+	margin: 0;
+	color: var(--g-muted);
+	font-size: var(--g-fs-body);
+	line-height: 1.65;
+	max-width: 46ch;
+}
+
+.sakura-admin:is([data-sakura-page="storage-connection"], [data-sakura-page="storage-sync"]) .sakura-modal__close {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	border-radius: var(--g-radius-xs);
+}
+
+.sakura-admin:is([data-sakura-page="storage-connection"], [data-sakura-page="storage-sync"]) .sakura-modal__close:hover,
+.sakura-admin:is([data-sakura-page="storage-connection"], [data-sakura-page="storage-sync"]) .sakura-modal__close:focus-visible {
+	background: var(--g-accent-soft);
+	color: var(--g-ink);
+}
+
+/* The heading takes focus when the dialog opens so screen readers announce
+ * the prompt; the browser ring on a non-interactive heading reads as a bug. */
+.sakura-admin:is([data-sakura-page="storage-connection"], [data-sakura-page="storage-sync"]) .sakura-modal__card:focus,
+.sakura-admin:is([data-sakura-page="storage-connection"], [data-sakura-page="storage-sync"]) .sakura-modal__card h2:focus {
+	outline: none;
+}
+
+/* The dialogs lock the page behind them, like the media preview does. */
+body.sakura-modal-open {
+	overflow: hidden;
+}
+
+@media (max-width: 520px) {
+	/* Stacked, the mute checkbox belongs above the buttons: the primary action
+	 * has to stay the last thing under the reading order, not the first. */
+	.sakura-admin:is([data-sakura-page="storage-connection"], [data-sakura-page="storage-sync"]) .sakura-modal__actions {
+		flex-direction: column;
+		align-items: stretch;
+	}
+
+	.sakura-admin:is([data-sakura-page="storage-connection"], [data-sakura-page="storage-sync"]) .sakura-config-buttons {
+		flex-direction: column;
+		align-items: stretch;
+	}
+
+	.sakura-admin:is([data-sakura-page="storage-connection"], [data-sakura-page="storage-sync"]) .sakura-config-buttons .btn {
+		width: 100%;
+	}
 }
 
 
@@ -1190,7 +1264,7 @@
 		font-size: 11px;
 	}
 
-	.sakura-admin[data-sakura-page="storage-connection"] .sakura-modal__card {
+	.sakura-admin:is([data-sakura-page="storage-connection"], [data-sakura-page="storage-sync"]) .sakura-modal__card {
 		padding: var(--g-space-4);
 	}
 }

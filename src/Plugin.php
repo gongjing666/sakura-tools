@@ -28,6 +28,7 @@ use Sakura\ImageOptimizer\Sync\Verify_Worker;
 use Sakura\ImageOptimizer\Sync\Index_Repository;
 use Sakura\ImageOptimizer\Sync\Scan_Service;
 use Sakura\ImageOptimizer\Sync\Scan_Worker;
+use Sakura\ImageOptimizer\Sync\Sync_Calibrator;
 use Sakura\ImageOptimizer\Support\Hook_Loader;
 
 defined( 'ABSPATH' ) || exit;
@@ -167,6 +168,7 @@ final class Plugin {
 		$sync_scanner = new Scan_Service( $s3_options, $s3_adapter, $sync_index );
 		$sync_worker  = new Scan_Worker( $sync_scanner, $sync_index );
 		$modules[]    = $sync_worker;
+		$modules[]    = new Sync_Calibrator( $s3_options, $sync_index, $sync_scanner, $sync_worker );
 		$modules[]    = new Action_Worker( $s3_options, $s3_adapter, $sync_index );
 		$modules[]    = new Alerting();
 		$modules[]    = new Prometheus();

@@ -26,6 +26,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 /** @var string $export_url */
 /** @var array<string,mixed> $uploads */
 /** @var bool $is_configured */
+/** @var bool $scan_busy */
+/** @var bool $index_enabled */
 
 use Sakura\ImageOptimizer\S3\Inventory;
 use Sakura\ImageOptimizer\S3\Providers;
@@ -52,6 +54,13 @@ $scan_phase     = isset( $scan_phase ) ? (string) $scan_phase : ( $scan_obj ? (s
 $scan_running   = in_array( $scan_state, array( 'queued', 'running' ), true );
 $scan_resumable = ! empty( $scan_resumable ) || in_array( $scan_state, array( 'failed', 'cancelled' ), true );
 $scan_processed = $scan_obj ? (int) $scan_obj->processed : 0;
+
+// Cloud numbers only change when a scan writes them, so an old scan means the
+// dashboard describes a bucket that no longer exists. 30 days is the window the
+// monthly calibrator uses; the two must agree or the notice and the cron fight.
+$calibrate_age   = $scan_time > 0 ? max( 0, time() - $scan_time ) : 0;
+$calibrate_stale = $scan_obj && ! $scan_running && $calibrate_age >= \Sakura\ImageOptimizer\Sync\Sync_Calibrator::STALE_SECONDS;
+
 $scan_state_labels = array(
 	'queued'    => __( '排队中', 'sakura-imgopt' ),
 	'running'   => __( '进行中', 'sakura-imgopt' ),
@@ -262,6 +271,18 @@ ob_start();
 		: __( '上一次核对中断，同步记录仍可用；点击“继续核对”会从断点续跑，不会产生重复行。', 'sakura-imgopt' );
 	\Sakura\ImageOptimizer\Admin\UI::notice( $scan_notice, 'info' );
 	?>
+<?php endif; ?>
+
+<?php if ( $calibrate_stale ) : ?>
+	<?php
+	// Copy about a date is copied once and read for years; a relative phrase
+	// ("1 月") reads as a calendar month and needs plural handling that
+	// human_time_diff() does not do for Chinese. State the rule instead.
+	\Sakura\ImageOptimizer\Admin\UI::notice( __( '云端数据已超过 30 天未校准，期间的对象增删不会体现在下方统计里。校准会自动排队，也可以用下面的按钮现在开始。', 'sakura-imgopt' ), 'warn' );
+	?>
+	<div class="button-row">
+		<button type="button" class="btn btn--small" data-sakura-action="scan" data-sakura-nonce="<?php echo esc_attr( $scan_nonce ); ?>"><?php esc_html_e( '立即校准', 'sakura-imgopt' ); ?></button>
+	</div>
 <?php endif; ?>
 
 <?php if ( $difference > 0 || $failed_total > 0 ) : ?>
@@ -879,6 +900,12 @@ $sakura_sync_cards = static function () use (
 	<?php
 };
 $sakura_sync_cards();
+
+// The dialogs must live inside the page root: the sync script binds its action
+// delegate to that subtree, and the modal rules are scoped to
+// .sakura-admin[data-sakura-page="storage-sync"].
+echo \Sakura\ImageOptimizer\S3\Config_Notice::modal_html( $options, 'sync' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- generated with escaped values.
+echo \Sakura\ImageOptimizer\S3\Config_Notice::reconcile_html( $options, $is_configured && $index_enabled, null !== $scan_obj, isset( $scan_busy ) ? (bool) $scan_busy : $scan_running ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- generated with escaped values.
 
 $sync_body = ob_get_clean();
 

@@ -133,6 +133,198 @@
 		initTools();
 		initTable();
 		initLogs();
+		initDialogs();
+
+		/* -----------------------------------------------------------------
+		 * Setup and first-reconciliation dialogs.
+		 *
+		 * Config_Notice renders both modals into the page body. They share the
+		 * dismiss endpoint with the connection screen, so a "not now" here also
+		 * quiets the setup prompt; the choice is stored per user by the server.
+		 * The markup contract is #sakura-s3-*-modal + [data-config-close] and
+		 * optional [data-config-dont-remind]; everything else is behaviour.
+		 * ----------------------------------------------------------------- */
+
+		function initDialogs() {
+			var modals = admin.qsa( '#sakura-s3-config-modal, #sakura-s3-reconcile-modal', document );
+			if ( ! modals.length ) {
+				return;
+			}
+
+			var skipKey   = 'sakuraS3ConfigSkipOnce';
+			var maybeSkip = false;
+			var active    = 0;
+
+			try {
+				maybeSkip = '1' === window.sessionStorage.getItem( skipKey );
+				if ( maybeSkip ) {
+					window.sessionStorage.removeItem( skipKey );
+				}
+			} catch ( error ) {
+				maybeSkip = false;
+			}
+
+			function lockScroll( on ) {
+				if ( ! document.body ) {
+					return;
+				}
+				if ( on ) {
+					document.body.classList.add( 'sakura-modal-open' );
+				} else {
+					document.body.classList.remove( 'sakura-modal-open' );
+				}
+			}
+
+			function focusables( card ) {
+				return admin.qsa(
+					'a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+					card
+				).filter( function ( node ) {
+					return ! node.hasAttribute( 'hidden' ) && ( node.offsetWidth > 0 || node.offsetHeight > 0 );
+				} );
+			}
+
+			function build( modal ) {
+				var card       = admin.qs( '.sakura-modal__card', modal );
+				var focusFirst = admin.qs( '[data-config-focus]', modal );
+				var dontRemind = admin.qs( '[data-config-dont-remind]', modal );
+				var lastFocus  = null;
+				var sent       = false;
+				var open       = false;
+
+				function persist() {
+					if ( sent ) {
+						return;
+					}
+					sent = true;
+					var keep = ! ! ( dontRemind && dontRemind.checked );
+					admin.api.ajax(
+						'sakura_s3_config_notice',
+						{
+							nonce: modal.getAttribute( 'data-nonce' ) || '',
+							dismiss: keep ? '1' : '0',
+							snooze: keep ? '0' : '1'
+						}
+					).catch( function () {} );
+				}
+
+				function close() {
+					if ( ! open ) {
+						return;
+					}
+					open = false;
+					active = Math.max( 0, active - 1 );
+					if ( ! active ) {
+						lockScroll( false );
+					}
+					persist();
+					modal.hidden = true;
+					modal.setAttribute( 'aria-hidden', 'true' );
+					if ( lastFocus && lastFocus.focus ) {
+						lastFocus.focus( { preventScroll: true } );
+					}
+				}
+
+				function show() {
+					if ( open ) {
+						return;
+					}
+					lastFocus = document.activeElement;
+					open = true;
+					active += 1;
+					lockScroll( true );
+					modal.hidden = false;
+					modal.setAttribute( 'aria-hidden', 'false' );
+					window.setTimeout( function () {
+						if ( focusFirst ) {
+							focusFirst.focus( { preventScroll: true } );
+						}
+					}, 40 );
+				}
+
+				admin.qsa( '[data-config-close]', modal ).forEach( function ( node ) {
+					admin.on( node, 'click', function ( event ) {
+						event.preventDefault();
+						close();
+					} );
+				} );
+
+				/* The scan button is handled by the page-level delegate, so this
+				 * handler only closes the dialog; the request itself must go
+				 * through the same scan flow that shows progress in the header. */
+				var primary = admin.qs( 'a[data-config-primary]', modal );
+				if ( primary ) {
+					admin.on( primary, 'click', function () {
+						var href = primary.getAttribute( 'href' ) || '';
+						close();
+						if ( 0 !== href.indexOf( '#' ) ) {
+							/* The connection page would otherwise show its own setup
+							 * dialog on top of the form the operator just asked for. */
+							try {
+								window.sessionStorage.setItem( skipKey, '1' );
+							} catch ( error ) {}
+						}
+					} );
+				}
+
+				document.addEventListener( 'keydown', function ( event ) {
+					if ( ! open ) {
+						return;
+					}
+					if ( 'Escape' === event.key ) {
+						event.preventDefault();
+						close();
+						return;
+					}
+					if ( 'Tab' !== event.key || ! card ) {
+						return;
+					}
+					var list = focusables( card );
+					if ( ! list.length ) {
+						return;
+					}
+					var first = list[ 0 ];
+					var last  = list[ list.length - 1 ];
+					if ( event.shiftKey && document.activeElement === first ) {
+						event.preventDefault();
+						last.focus();
+					} else if ( ! event.shiftKey && document.activeElement === last ) {
+						event.preventDefault();
+						first.focus();
+					}
+				} );
+
+				return {
+					show: show,
+					close: close,
+					isOpen: function () {
+						return open;
+					}
+				};
+			}
+
+			var controllers = modals.map( build );
+
+			/* A scan from the leftmost dialog should also hide a second dialog that
+			 * describes the same missing work. */
+			admin.qsa( '[data-config-primary][data-sakura-action="scan"]', document ).forEach( function ( button ) {
+				admin.on( button, 'click', function () {
+					controllers.forEach( function ( controller ) {
+						controller.close();
+					} );
+				} );
+			} );
+
+			if ( maybeSkip ) {
+				return;
+			}
+
+			/* Stagger two dialogs if both somehow render, so the operator never
+			 * sees one card stack on top of another. */
+			controllers.forEach( function ( controller, index ) {
+				window.setTimeout( controller.show, 220 + index * 120 );
+			} );
+		}
 
 		/* -----------------------------------------------------------------
 		 * Scan, refresh, cancel, resume, retry, index toggle and connection test.

@@ -152,6 +152,7 @@
   "Sakura\\ImageOptimizer\\Sync\\Scan_Worker": "经 WP-Cron 分片推进扫描进度",
   "Sakura\\ImageOptimizer\\Sync\\Schema": "创建并升级同步索引数据表",
   "Sakura\\ImageOptimizer\\Sync\\Search_Token": "签发并校验搜索用签名令牌",
+  "Sakura\\ImageOptimizer\\Sync\\Sync_Calibrator": "按每月周期在后台排一次增量核对，页面过期时补排",
   "Sakura\\ImageOptimizer\\Sync\\Verify_Service": "逐行比对尚未校验的索引内容",
   "Sakura\\ImageOptimizer\\Sync\\Verify_Worker": "分批比对本地 MD5 与远端 ETag",
   "Sakura\\ImageOptimizer\\Thumbnail_Manager": "按尺寸控制裁剪并移除被禁子尺寸",

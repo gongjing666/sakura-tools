@@ -1,21 +1,21 @@
 {
  "meta": {
   "plugin": "sakura-tools",
-  "version": "1.25.4",
-  "generatedAt": "2026-11-13T01:09:00.632Z",
+  "version": "1.25.5",
+  "generatedAt": "2026-11-13T03:03:29.024Z",
   "source": "dsh-codegraph lib/scanner.php（token_get_all 三趟静态扫描）",
-  "doc": "sakura-tools-代码结构-1.25.4.md"
+  "doc": "sakura-tools-代码结构-1.25.5.md"
  },
  "stats": {
-  "files": 189,
+  "files": 190,
   "modules": 17,
-  "classes": 174,
-  "nodes": 191,
-  "links": 861,
-  "refLinks": 637,
+  "classes": 175,
+  "nodes": 192,
+  "links": 873,
+  "refLinks": 648,
   "modrefLinks": 50,
-  "containsLinks": 174,
-  "hooks": 204
+  "containsLinks": 175,
+  "hooks": 209
  },
  "layout": {
   "radius": 1710,
@@ -54,9 +54,9 @@
    "label": "src/Sync",
    "type": "module",
    "module": "src/Sync",
-   "val": 13.600000000000001,
-   "files": 17,
-   "classes": 17,
+   "val": 14.4,
+   "files": 18,
+   "classes": 18,
    "color": "#f59e9e",
    "x": 83.8,
    "y": 1087.5,
@@ -979,8 +979,8 @@
    "module": "src/S3",
    "kind": "class",
    "file": "src/S3/Config_Notice.php",
-   "line": 25,
-   "val": 2.2627416997969525,
+   "line": 30,
+   "val": 3.2,
    "color": "#5aa9ff",
    "x": -508.6,
    "y": 1469.1,
@@ -1343,7 +1343,7 @@
    "module": "src/S3",
    "kind": "class",
    "file": "src/S3/Sync_Center_Module.php",
-   "line": 28,
+   "line": 29,
    "val": 6.788225099390856,
    "color": "#5aa9ff",
    "x": -581,
@@ -1529,7 +1529,7 @@
    "val": 3.577708763999664,
    "color": "#f59e9e",
    "x": 83.8,
-   "y": 1228.9,
+   "y": 1233.1,
    "z": -955.4
   },
   {
@@ -1542,9 +1542,9 @@
    "line": 26,
    "val": 4.525483399593905,
    "color": "#f59e9e",
-   "x": 33.4,
-   "y": 1211.2,
-   "z": -909.2
+   "x": 33.3,
+   "y": 1216,
+   "z": -909.1
   },
   {
    "id": "cls:Sakura\\ImageOptimizer\\Sync\\Attachment_Indexer",
@@ -1556,9 +1556,9 @@
    "line": 28,
    "val": 3.577708763999664,
    "color": "#f59e9e",
-   "x": 92,
-   "y": 1193.5,
-   "z": -1048.6
+   "x": 92.1,
+   "y": 1198.8,
+   "z": -1048.9
   },
   {
    "id": "cls:Sakura\\ImageOptimizer\\Sync\\Checksums",
@@ -1570,9 +1570,9 @@
    "line": 17,
    "val": 2.7712812921102037,
    "color": "#f59e9e",
-   "x": 151,
-   "y": 1175.9,
-   "z": -867.8
+   "x": 151.4,
+   "y": 1181.7,
+   "z": -867.3
   },
   {
    "id": "cls:Sakura\\ImageOptimizer\\Sync\\CLI",
@@ -1584,9 +1584,9 @@
    "line": 25,
    "val": 4.525483399593905,
    "color": "#f59e9e",
-   "x": -36.7,
-   "y": 1158.2,
-   "z": -976.7
+   "x": -37.8,
+   "y": 1164.6,
+   "z": -976.9
   },
   {
    "id": "cls:Sakura\\ImageOptimizer\\Sync\\Fast_Search_Query",
@@ -1598,9 +1598,9 @@
    "line": 24,
    "val": 2.2627416997969525,
    "color": "#f59e9e",
-   "x": 194.4,
-   "y": 1140.5,
-   "z": -1025.8
+   "x": 195.8,
+   "y": 1147.5,
+   "z": -1026.6
   },
   {
    "id": "cls:Sakura\\ImageOptimizer\\Sync\\Feature",
@@ -1612,9 +1612,9 @@
    "line": 20,
    "val": 2.2627416997969525,
    "color": "#f59e9e",
-   "x": 48.3,
-   "y": 1122.8,
-   "z": -823.2
+   "x": 47.7,
+   "y": 1130.3,
+   "z": -821
   },
   {
    "id": "cls:Sakura\\ImageOptimizer\\Sync\\Index_Repository",
@@ -1626,9 +1626,9 @@
    "line": 24,
    "val": 12.496399481450647,
    "color": "#f59e9e",
-   "x": 19.2,
-   "y": 1105.2,
-   "z": -1079.9
+   "x": 17.8,
+   "y": 1113.2,
+   "z": -1082.6
   },
   {
    "id": "cls:Sakura\\ImageOptimizer\\Sync\\Keyset_Cursor",
@@ -1640,9 +1640,9 @@
    "line": 21,
    "val": 3.919183588453085,
    "color": "#f59e9e",
-   "x": 216.7,
-   "y": 1087.5,
-   "z": -906.9
+   "x": 220.4,
+   "y": 1096.1,
+   "z": -905.6
   },
   {
    "id": "cls:Sakura\\ImageOptimizer\\Sync\\Kind",
@@ -1654,9 +1654,9 @@
    "line": 20,
    "val": 2.2627416997969525,
    "color": "#f59e9e",
-   "x": -45.8,
-   "y": 1069.8,
-   "z": -901.9
+   "x": -50.5,
+   "y": 1078.9,
+   "z": -900
   },
   {
    "id": "cls:Sakura\\ImageOptimizer\\Sync\\Metrics",
@@ -1668,9 +1668,9 @@
    "line": 20,
    "val": 2.7712812921102037,
    "color": "#f59e9e",
-   "x": 141.9,
-   "y": 1052.2,
-   "z": -1079.4
+   "x": 144.6,
+   "y": 1061.8,
+   "z": -1085.2
   },
   {
    "id": "cls:Sakura\\ImageOptimizer\\Sync\\Scan_Service",
@@ -1682,9 +1682,9 @@
    "line": 30,
    "val": 4.525483399593905,
    "color": "#f59e9e",
-   "x": 123.1,
-   "y": 1034.5,
-   "z": -830.3
+   "x": 125.5,
+   "y": 1044.7,
+   "z": -822.6
   },
   {
    "id": "cls:Sakura\\ImageOptimizer\\Sync\\Scan_Worker",
@@ -1696,9 +1696,9 @@
    "line": 27,
    "val": 4.800000000000001,
    "color": "#f59e9e",
-   "x": -22.1,
-   "y": 1016.8,
-   "z": -1016.8
+   "x": -31,
+   "y": 1027.5,
+   "z": -1021.9
   },
   {
    "id": "cls:Sakura\\ImageOptimizer\\Sync\\Schema",
@@ -1710,9 +1710,9 @@
    "line": 21,
    "val": 2.7712812921102037,
    "color": "#f59e9e",
-   "x": 191.7,
-   "y": 999.1,
-   "z": -979.1
+   "x": 204.5,
+   "y": 1010.4,
+   "z": -981.9
   },
   {
    "id": "cls:Sakura\\ImageOptimizer\\Sync\\Search_Token",
@@ -1724,9 +1724,23 @@
    "line": 22,
    "val": 3.2,
    "color": "#f59e9e",
-   "x": 30.1,
-   "y": 981.5,
-   "z": -878.9
+   "x": 20,
+   "y": 993.3,
+   "z": -864.6
+  },
+  {
+   "id": "cls:Sakura\\ImageOptimizer\\Sync\\Sync_Calibrator",
+   "label": "Sync_Calibrator",
+   "type": "class",
+   "module": "src/Sync",
+   "kind": "class",
+   "file": "src/Sync/Sync_Calibrator.php",
+   "line": 32,
+   "val": 4.800000000000001,
+   "color": "#f59e9e",
+   "x": 71.8,
+   "y": 976.2,
+   "z": -1048.5
   },
   {
    "id": "cls:Sakura\\ImageOptimizer\\Sync\\Verify_Service",
@@ -1738,9 +1752,9 @@
    "line": 24,
    "val": 2.2627416997969525,
    "color": "#f59e9e",
-   "x": 75.1,
-   "y": 963.8,
-   "z": -1023.3
+   "x": 136.2,
+   "y": 959,
+   "z": -911.3
   },
   {
    "id": "cls:Sakura\\ImageOptimizer\\Sync\\Verify_Worker",
@@ -1753,7 +1767,7 @@
    "val": 3.919183588453085,
    "color": "#f59e9e",
    "x": 83.8,
-   "y": 946.1,
+   "y": 941.9,
    "z": -955.4
   },
   {
@@ -2645,7 +2659,7 @@
    "module": "src",
    "kind": "class",
    "file": "src/Plugin.php",
-   "line": 42,
+   "line": 43,
    "val": 2.2627416997969525,
    "color": "#9ad1ff",
    "x": 1370,
@@ -2873,6 +2887,15 @@
   },
   {
    "source": "cls:Sakura\\ImageOptimizer\\Sync\\Scan_Worker",
+   "target": "cls:Sakura\\ImageOptimizer\\Contracts\\Module",
+   "type": "ref",
+   "kinds": [
+    "implements"
+   ],
+   "w": 1
+  },
+  {
+   "source": "cls:Sakura\\ImageOptimizer\\Sync\\Sync_Calibrator",
    "target": "cls:Sakura\\ImageOptimizer\\Contracts\\Module",
    "type": "ref",
    "kinds": [
@@ -3817,6 +3840,16 @@
   {
    "source": "cls:Sakura\\ImageOptimizer\\Activation",
    "target": "cls:Sakura\\ImageOptimizer\\Sync\\Scan_Worker",
+   "type": "ref",
+   "kinds": [
+    "static",
+    "call"
+   ],
+   "w": 2
+  },
+  {
+   "source": "cls:Sakura\\ImageOptimizer\\Activation",
+   "target": "cls:Sakura\\ImageOptimizer\\Sync\\Sync_Calibrator",
    "type": "ref",
    "kinds": [
     "static",
@@ -4844,6 +4877,15 @@
   },
   {
    "source": "cls:Sakura\\ImageOptimizer\\Plugin",
+   "target": "cls:Sakura\\ImageOptimizer\\Sync\\Sync_Calibrator",
+   "type": "ref",
+   "kinds": [
+    "new"
+   ],
+   "w": 1
+  },
+  {
+   "source": "cls:Sakura\\ImageOptimizer\\Plugin",
    "target": "cls:Sakura\\ImageOptimizer\\S3\\Alerting",
    "type": "ref",
    "kinds": [
@@ -5007,7 +5049,7 @@
    "kinds": [
     "type"
    ],
-   "w": 2
+   "w": 4
   },
   {
    "source": "cls:Sakura\\ImageOptimizer\\S3\\Config_Notice",
@@ -5976,6 +6018,16 @@
   },
   {
    "source": "cls:Sakura\\ImageOptimizer\\S3\\Sync_Center_Module",
+   "target": "cls:Sakura\\ImageOptimizer\\Sync\\Sync_Calibrator",
+   "type": "ref",
+   "kinds": [
+    "static",
+    "call"
+   ],
+   "w": 3
+  },
+  {
+   "source": "cls:Sakura\\ImageOptimizer\\S3\\Sync_Center_Module",
    "target": "cls:Sakura\\ImageOptimizer\\S3\\Legacy_Snapshot",
    "type": "ref",
    "kinds": [
@@ -6643,6 +6695,78 @@
     "call"
    ],
    "w": 6
+  },
+  {
+   "source": "cls:Sakura\\ImageOptimizer\\Sync\\Sync_Calibrator",
+   "target": "cls:Sakura\\ImageOptimizer\\S3\\Options",
+   "type": "ref",
+   "kinds": [
+    "type",
+    "new",
+    "call"
+   ],
+   "w": 8
+  },
+  {
+   "source": "cls:Sakura\\ImageOptimizer\\Sync\\Sync_Calibrator",
+   "target": "cls:Sakura\\ImageOptimizer\\Sync\\Index_Repository",
+   "type": "ref",
+   "kinds": [
+    "type",
+    "new",
+    "call"
+   ],
+   "w": 6
+  },
+  {
+   "source": "cls:Sakura\\ImageOptimizer\\Sync\\Sync_Calibrator",
+   "target": "cls:Sakura\\ImageOptimizer\\Sync\\Scan_Service",
+   "type": "ref",
+   "kinds": [
+    "type",
+    "new",
+    "call"
+   ],
+   "w": 4
+  },
+  {
+   "source": "cls:Sakura\\ImageOptimizer\\Sync\\Sync_Calibrator",
+   "target": "cls:Sakura\\ImageOptimizer\\Sync\\Scan_Worker",
+   "type": "ref",
+   "kinds": [
+    "type",
+    "new",
+    "call"
+   ],
+   "w": 4
+  },
+  {
+   "source": "cls:Sakura\\ImageOptimizer\\Sync\\Sync_Calibrator",
+   "target": "cls:Sakura\\ImageOptimizer\\S3\\Storage_Adapter",
+   "type": "ref",
+   "kinds": [
+    "new"
+   ],
+   "w": 1
+  },
+  {
+   "source": "cls:Sakura\\ImageOptimizer\\Sync\\Sync_Calibrator",
+   "target": "cls:Sakura\\ImageOptimizer\\Support\\Hook_Loader",
+   "type": "ref",
+   "kinds": [
+    "type"
+   ],
+   "w": 1
+  },
+  {
+   "source": "cls:Sakura\\ImageOptimizer\\Sync\\Sync_Calibrator",
+   "target": "cls:Sakura\\ImageOptimizer\\Sync\\Feature",
+   "type": "ref",
+   "kinds": [
+    "static",
+    "call"
+   ],
+   "w": 2
   },
   {
    "source": "cls:Sakura\\ImageOptimizer\\Sync\\Verify_Service",
@@ -9591,6 +9715,12 @@
   },
   {
    "source": "mod:src/Sync",
+   "target": "cls:Sakura\\ImageOptimizer\\Sync\\Sync_Calibrator",
+   "type": "contains",
+   "w": 1
+  },
+  {
+   "source": "mod:src/Sync",
    "target": "cls:Sakura\\ImageOptimizer\\Sync\\Verify_Service",
    "type": "contains",
    "w": 1
@@ -10043,7 +10173,7 @@
    "source": "mod:src/Sync",
    "target": "mod:src/Contracts",
    "type": "modref",
-   "w": 4
+   "w": 5
   },
   {
    "source": "mod:includes",
@@ -10121,7 +10251,7 @@
    "source": "mod:src",
    "target": "mod:src/Sync",
    "type": "modref",
-   "w": 20
+   "w": 23
   },
   {
    "source": "mod:src",
@@ -10253,7 +10383,7 @@
    "source": "mod:src/S3",
    "target": "mod:src/Sync",
    "type": "modref",
-   "w": 37
+   "w": 39
   },
   {
    "source": "mod:src/S3",
@@ -10265,13 +10395,13 @@
    "source": "mod:src/Sync",
    "target": "mod:src/S3",
    "type": "modref",
-   "w": 34
+   "w": 38
   },
   {
    "source": "mod:src/Sync",
    "target": "mod:src/Support",
    "type": "modref",
-   "w": 4
+   "w": 5
   },
   {
    "source": "mod:src/Thumbnail",

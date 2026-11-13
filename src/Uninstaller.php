@@ -66,6 +66,8 @@ final class Uninstaller {
 		wp_unschedule_hook( 'sakura_imgopt_sync_daily_reconcile' );
 		wp_unschedule_hook( 'sakura_imgopt_sync_job_tick' );
 		wp_unschedule_hook( 'sakura_imgopt_sync_verify_tick' );
+		wp_unschedule_hook( 'sakura_imgopt_sync_calibrate' );
+		wp_unschedule_hook( 'sakura_imgopt_sync_calibrate_now' );
 		wp_unschedule_hook( 'sakura_imgopt_s3_delete_tick' );
 		wp_unschedule_hook( 'sakura_imgopt_s3_upload_tick' );
 		wp_unschedule_hook( 'sakura_imgopt_s3_upload_watchdog' );

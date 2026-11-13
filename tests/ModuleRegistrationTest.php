@@ -21,12 +21,27 @@ use Sakura\ImageOptimizer\Thumbnail_Manager;
 
 final class ModuleRegistrationTest extends TestCase {
 
+	/** @var object|null Previous $wpdb, restored after each test. */
+	private ?object $previous_wpdb = null;
+
 	protected function setUp(): void {
 		$GLOBALS['sakura_test_hooks']   = array(
 			'actions' => array(),
 			'filters' => array(),
 		);
 		$GLOBALS['sakura_test_options'] = array();
+
+		// Modules that touch the index resolve their table names in the
+		// constructor, so $wpdb->prefix has to exist even here.
+		$this->previous_wpdb = $GLOBALS['wpdb'] ?? null;
+		$GLOBALS['wpdb']     = new class() {
+			/** @var string */
+			public $prefix = 't_';
+		};
+	}
+
+	protected function tearDown(): void {
+		$GLOBALS['wpdb'] = $this->previous_wpdb;
 	}
 
 	/**
@@ -42,6 +57,9 @@ final class ModuleRegistrationTest extends TestCase {
 			'thumbnail'       => array( Thumbnail_Manager::class, 'init' ),
 			'image_processor' => array( Image_Processor::class, 'wp_handle_upload_prefilter' ),
 			's3_settings'     => array( S3_Storage_Module::class, 'admin_post_sakura_s3_save' ),
+			// The monthly calibration owns the cron schedule filter; a missing
+			// registration would silently stop the dashboard from refreshing.
+			'sync_calibrator' => array( \Sakura\ImageOptimizer\Sync\Sync_Calibrator::class, 'cron_schedules' ),
 		);
 	}
 

@@ -18,6 +18,7 @@ use Sakura\ImageOptimizer\Sync\Metrics;
 use Sakura\ImageOptimizer\Sync\Scan_Service;
 use Sakura\ImageOptimizer\Sync\Scan_Worker;
 use Sakura\ImageOptimizer\Sync\Search_Token;
+use Sakura\ImageOptimizer\Sync\Sync_Calibrator;
 use Sakura\ImageOptimizer\Support\Hook_Loader;
 
 defined( 'ABSPATH' ) || exit;
@@ -349,7 +350,39 @@ final class Sync_Center_Module implements Module {
 		$toggle_nonce = $data['toggle_nonce'];
 		$refresh_nonce = $data['refresh_nonce'];
 
+		// WP-Cron only advances on traffic, so a site that sat idle for a month
+		// can land here before the monthly event ever ran. Queueing the same
+		// calibration on page view closes that gap; the single event carries
+		// WordPress' own ten-minute duplicate guard.
+		if ( $this->is_calibration_stale( $data ) ) {
+			Sync_Calibrator::schedule_soon();
+		}
+
 		require __DIR__ . '/../../includes/views/s3-sync-center.php';
+	}
+
+	/**
+	 * Whether the stored cloud numbers are older than the calibration window.
+	 *
+	 * @param array<string,mixed> $data View data.
+	 * @return bool
+	 */
+	private function is_calibration_stale( array $data ): bool {
+		if ( empty( $data['index_enabled'] ) ) {
+			return false;
+		}
+
+		$scan = is_object( $data['scan'] ) ? $data['scan'] : null;
+		if ( ! $scan || in_array( (string) $scan->state, array( 'queued', 'running' ), true ) ) {
+			return false;
+		}
+
+		$scanned = (int) ( $data['snapshot']['scanned_at'] ?? 0 );
+		if ( $scanned <= 0 ) {
+			return false;
+		}
+
+		return ( time() - $scanned ) >= Sync_Calibrator::STALE_SECONDS;
 	}
 
 	/**

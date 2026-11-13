@@ -90,7 +90,7 @@ final class Layout implements Module {
 						'thumbs'   => array( 'span' => 12, 'minH' => 0, 'h' => 0, 'col' => 1, 'top' => 0 ),
 						'rename'   => array( 'span' => 6, 'minH' => 0, 'h' => 0, 'col' => 1, 'top' => 0 ),
 						'compress' => array( 'span' => 6, 'minH' => 0, 'h' => 0, 'col' => 7, 'top' => 0 ),
-						'bulk'     => array( 'span' => 6, 'minH' => 0, 'h' => 0, 'col' => 1, 'top' => 0 ),
+						'bulk'     => array( 'span' => 6, 'minH' => 0, 'h' => 568, 'col' => 1, 'top' => 0 ),
 					),
 				),
 			),
@@ -99,17 +99,19 @@ final class Layout implements Module {
 		'thumb' => array(
 			'groups' => array(
 				'main' => array(
-					'order' => array( 'switches', 'advanced', 'probe', 'scenes', 'stats', 'sizes', 'scopes', 'rollback', 'cache' ),
+					// Tuned default (2026-11): the engine/pair reads first, probe under it,
+					// then the scene + scope switches, with the tall tables last.
+					'order' => array( 'switches', 'advanced', 'probe', 'scenes', 'scopes', 'sizes', 'cache', 'stats', 'rollback' ),
 					'cards' => array(
-						'switches' => array( 'span' => 6, 'minH' => 0, 'h' => 0, 'col' => 1, 'top' => 0 ),
-						'advanced' => array( 'span' => 6, 'minH' => 0, 'h' => 0, 'col' => 7, 'top' => 0 ),
+						'switches' => array( 'span' => 6, 'minH' => 0, 'h' => 390, 'col' => 1, 'top' => 0 ),
+						'advanced' => array( 'span' => 6, 'minH' => 0, 'h' => 570, 'col' => 7, 'top' => 0 ),
 						'probe'    => array( 'span' => 6, 'minH' => 0, 'h' => 0, 'col' => 1, 'top' => 0 ),
-						'scenes'   => array( 'span' => 6, 'minH' => 0, 'h' => 0, 'col' => 1, 'top' => 0 ),
-						'stats'    => array( 'span' => 12, 'minH' => 0, 'h' => 0, 'col' => 1, 'top' => 0 ),
+						'scenes'   => array( 'span' => 6, 'minH' => 0, 'h' => 539, 'col' => 7, 'top' => 0 ),
+						'scopes'   => array( 'span' => 6, 'minH' => 0, 'h' => 0, 'col' => 1, 'top' => 0 ),
 						'sizes'    => array( 'span' => 12, 'minH' => 0, 'h' => 0, 'col' => 1, 'top' => 0 ),
-						'scopes'   => array( 'span' => 6, 'minH' => 0, 'h' => 0, 'col' => 7, 'top' => 0 ),
-						'rollback' => array( 'span' => 6, 'minH' => 0, 'h' => 0, 'col' => 7, 'top' => 0 ),
-						'cache'    => array( 'span' => 6, 'minH' => 0, 'h' => 0, 'col' => 7, 'top' => 0 ),
+						'cache'    => array( 'span' => 6, 'minH' => 0, 'h' => 429, 'col' => 7, 'top' => 0 ),
+						'stats'    => array( 'span' => 6, 'minH' => 0, 'h' => 0, 'col' => 1, 'top' => 0 ),
+						'rollback' => array( 'span' => 6, 'minH' => 0, 'h' => 120, 'col' => 1, 'top' => 0 ),
 					),
 				),
 			),
@@ -120,13 +122,13 @@ final class Layout implements Module {
 				'main' => array(
 					// Mirrors the markup order in S3_Storage_Page so "restore
 					// defaults" and a first visit land on the same arrangement.
-					'order' => array( 'profiles', 'behaviour', 'connection', 'test', 'upload-metrics', 'monitoring' ),
+					'order' => array( 'profiles', 'behaviour', 'connection', 'upload-metrics', 'test', 'monitoring' ),
 					'cards' => array(
 						'profiles'       => array( 'span' => 12, 'minH' => 0, 'h' => 0, 'col' => 1, 'top' => 0 ),
 						'behaviour'      => array( 'span' => 6, 'minH' => 0, 'h' => 0, 'col' => 1, 'top' => 0 ),
 						'connection'     => array( 'span' => 6, 'minH' => 0, 'h' => 0, 'col' => 7, 'top' => 0 ),
-						'test'           => array( 'span' => 6, 'minH' => 0, 'h' => 0, 'col' => 7, 'top' => 0 ),
-						'upload-metrics' => array( 'span' => 12, 'minH' => 0, 'h' => 0, 'col' => 1, 'top' => 0 ),
+						'upload-metrics' => array( 'span' => 6, 'minH' => 0, 'h' => 0, 'col' => 1, 'top' => 0 ),
+						'test'           => array( 'span' => 6, 'minH' => 0, 'h' => 481, 'col' => 1, 'top' => 0 ),
 						'monitoring'     => array( 'span' => 12, 'minH' => 0, 'h' => 0, 'col' => 1, 'top' => 0 ),
 					),
 				),
@@ -140,11 +142,11 @@ final class Layout implements Module {
 					'cards' => array(
 						'ignored'   => array( 'span' => 12, 'minH' => 0, 'h' => 0, 'col' => 1, 'top' => 0 ),
 						'tasks'     => array( 'span' => 12, 'minH' => 0, 'h' => 0, 'col' => 1, 'top' => 0 ),
-						'health'    => array( 'span' => 6, 'minH' => 0, 'h' => 0, 'col' => 1, 'top' => 0 ),
+						'health'    => array( 'span' => 6, 'minH' => 0, 'h' => 689, 'col' => 1, 'top' => 0 ),
 						'storage'   => array( 'span' => 6, 'minH' => 0, 'h' => 0, 'col' => 7, 'top' => 0 ),
 						'notes'     => array( 'span' => 6, 'minH' => 0, 'h' => 0, 'col' => 7, 'top' => 0 ),
 						'reconcile' => array( 'span' => 12, 'minH' => 0, 'h' => 0, 'col' => 1, 'top' => 0 ),
-						'logs'      => array( 'span' => 5, 'minH' => 0, 'h' => 0, 'col' => 1, 'top' => 0 ),
+						'logs'      => array( 'span' => 12, 'minH' => 0, 'h' => 0, 'col' => 1, 'top' => 0 ),
 					),
 				),
 			),
@@ -214,16 +216,20 @@ final class Layout implements Module {
 		'files-space' => array(
 			'groups' => array(
 				'main' => array(
-					'order' => array( 'space_diag', 'space_gate', 'space_level', 'space_vip', 'space_packages', 'space_points', 'space_grants', 'space_reconcile' ),
+					// Tuned default: payment and entry sit together, then the capacity
+					// gate/level pair, the VIP gate/editor pair, and the two tables last.
+					'order' => array( 'space_diag', 'space_payment', 'space_entry', 'space_gate', 'space_editor', 'space_level', 'space_vip', 'space_reconcile', 'space_plans', 'space_grants' ),
 					'cards' => array(
-						'space_diag'     => array( 'span' => 12, 'minH' => 0, 'h' => 0, 'col' => 1, 'top' => 0 ),
-						'space_gate'     => array( 'span' => 5, 'minH' => 0, 'h' => 0, 'col' => 1, 'top' => 0 ),
-						'space_level'    => array( 'span' => 7, 'minH' => 0, 'h' => 0, 'col' => 6, 'top' => 0 ),
-						'space_vip'      => array( 'span' => 5, 'minH' => 0, 'h' => 0, 'col' => 1, 'top' => 0 ),
-						'space_packages' => array( 'span' => 7, 'minH' => 0, 'h' => 0, 'col' => 6, 'top' => 0 ),
-						'space_points'   => array( 'span' => 5, 'minH' => 0, 'h' => 0, 'col' => 1, 'top' => 0 ),
-						'space_grants'   => array( 'span' => 7, 'minH' => 0, 'h' => 0, 'col' => 6, 'top' => 0 ),
-						'space_reconcile' => array( 'span' => 7, 'minH' => 0, 'h' => 0, 'col' => 6, 'top' => 0 ),
+						'space_diag'      => array( 'span' => 12, 'minH' => 0, 'h' => 0, 'col' => 1, 'top' => 0 ),
+						'space_payment'   => array( 'span' => 12, 'minH' => 0, 'h' => 0, 'col' => 1, 'top' => 0 ),
+						'space_entry'     => array( 'span' => 6, 'minH' => 0, 'h' => 383, 'col' => 1, 'top' => 0 ),
+						'space_gate'      => array( 'span' => 5, 'minH' => 0, 'h' => 0, 'col' => 1, 'top' => 0 ),
+						'space_editor'    => array( 'span' => 6, 'minH' => 0, 'h' => 0, 'col' => 7, 'top' => 0 ),
+						'space_level'     => array( 'span' => 7, 'minH' => 0, 'h' => 1064, 'col' => 6, 'top' => 0 ),
+						'space_vip'       => array( 'span' => 5, 'minH' => 0, 'h' => 322, 'col' => 1, 'top' => 0 ),
+						'space_reconcile' => array( 'span' => 5, 'minH' => 0, 'h' => 0, 'col' => 1, 'top' => 0 ),
+						'space_plans'     => array( 'span' => 12, 'minH' => 0, 'h' => 0, 'col' => 1, 'top' => 0 ),
+						'space_grants'    => array( 'span' => 12, 'minH' => 0, 'h' => 235, 'col' => 1, 'top' => 0 ),
 					),
 				),
 			),
@@ -238,7 +244,7 @@ final class Layout implements Module {
 						'engine'     => array( 'span' => 6, 'minH' => 0, 'h' => 0, 'col' => 7, 'top' => 0 ),
 						'checks'     => array( 'span' => 12, 'minH' => 0, 'h' => 0, 'col' => 1, 'top' => 0 ),
 						'extensions' => array( 'span' => 6, 'minH' => 0, 'h' => 0, 'col' => 1, 'top' => 0 ),
-						'layout'     => array( 'span' => 6, 'minH' => 0, 'h' => 0, 'col' => 7, 'top' => 0 ),
+						'layout'     => array( 'span' => 6, 'minH' => 0, 'h' => 902, 'col' => 7, 'top' => 0 ),
 					),
 				),
 			),
@@ -250,7 +256,7 @@ final class Layout implements Module {
 					'order' => array( 'usage', 'policy', 'access' ),
 					'cards' => array(
 						'usage'  => array( 'span' => 8, 'minH' => 0, 'h' => 0, 'col' => 1, 'top' => 0 ),
-						'policy' => array( 'span' => 4, 'minH' => 0, 'h' => 0, 'col' => 9, 'top' => 0 ),
+						'policy' => array( 'span' => 4, 'minH' => 0, 'h' => 664, 'col' => 9, 'top' => 0 ),
 						'access' => array( 'span' => 8, 'minH' => 0, 'h' => 0, 'col' => 1, 'top' => 0 ),
 					),
 				),
@@ -388,6 +394,26 @@ final class Layout implements Module {
 
 			$layout['groups'] = $groups;
 			$raw[ $page ]     = $layout;
+		}
+
+		/*
+		 * Version 5 turns the tuned board into the shipped default.
+		 *
+		 * A site that saved a layout before 1.26 stored whatever the engine had
+		 * written on its first visit — the old shipped arrangement. Adopting the new
+		 * default would otherwise only help fresh installs, so a pre-5 layout is
+		 * replaced by the shipped one. Anything the operator arranged themselves
+		 * after 1.26 carries arranged=1 and keeps its own values.
+		 */
+		if ( $from < 5 ) {
+			foreach ( self::DEFAULT_LAYOUT as $page => $definition ) {
+				$current  = $raw[ $page ] ?? null;
+				$arranged = is_array( $current ) && ! empty( $current['arranged'] );
+
+				if ( ! $arranged ) {
+					$raw[ $page ] = $definition;
+				}
+			}
 		}
 
 		$raw['_v'] = self::SCHEMA;

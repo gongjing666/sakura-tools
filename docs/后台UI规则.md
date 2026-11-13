@@ -440,3 +440,51 @@
 - [ ] 没有 `.sakura-sync-app`、`.sky-layer`、`.sakura-layer`、`.app`、`.hero`、`.card-savebar`、`.page-savebar` 等旧标记。
 - [ ] 浏览器验证按第 11 节执行：一次加载、批量取指标、至少一次真实点击；滚动/焦点问题在非零位置验证；验收宽度按改动范围选择，没有机械跑七宽度/全路由。
 - [ ] `php -l`、`node --check`、CSS 花括号计数、`git diff --check` 通过。
+
+## 13. 新功能页面开发清单
+
+这一节把 2026-11 那轮改版踩过的坑收成可执行步骤。**按顺序做，每步都有可验收的判据**；跳过其中任何一条，都会以「加载时闪一下」「保存后跳顶部」「弹窗关不掉」的形式回来。
+
+### 13.1 接入前：先把数据契约定下来
+
+1. **页面 id 决定一切**：`Registry` 里的 tab id 同时是 `assets/ui/pages/{page}.js` 的文件名、`data-sakura-page` 的值、以及 `LAYOUT_PAGES` 的键。定错之后 CSS 作用域、资源和布局全部对不上。
+2. **要拖拽布局的页面**：在 `Page_Assets::LAYOUT_PAGES` 登记 `页面 id => 布局 id`；布局 id 必须是**生产已存**的组名（如 `files-zibll` → `files-space`），改名等于清空用户布局。
+3. **新增一张卡**：在 `Layout::DEFAULT_LAYOUT` 对应页面补 `order` 与 `cards` 条目。漏了不会报错，卡片会被追加到画布末尾。
+
+### 13.2 写视图：用组件，不要手写骨架
+
+- 页面 `UI::page()`、卡片 `UI::card()`、字段 `UI::field()`。**不要手写 `section.card > .card__head > .card__body`**，也不要在视图里重复 nonce、卡片标记和保存按钮。
+- 卡片是**一个独立表单**：`UI::card( array( 'form' => array( ... ), 'save' => '保存设置' ), $body )`。不要多卡共享一个表单，也不要整页保存条。
+- 需要反馈时按 5.1 的表选通道：**动作结果用 `UI::modal()`**、持续状态用 `UI::alert()` / `UI::notice()`、AJAX 小动作用 `admin.ui.toast()`。
+- 新文案一律 `__()` 后塞进 `Page_Assets::set_data()`；JS 不内嵌未翻译中文。
+
+### 13.3 加样式：只写令牌，不写新色
+
+- 颜色只用 `tokens.css` 的 `--g-*` / `--sakura-*`。**不要新增第二种粉或第二种红**；需要多档色块就用 `--g-sakura-1..4`。
+- 进度条用 `.progress` + `.progress__bar`（已带 `display:block`）。**自写进度条若换成行内元素，`width` 会被忽略、条完全不可见**——统计页曾经整条空白。
+- 卡片底色与角落泛光分开写：`background-color` 放令牌、`background-image` 放 `--g-card-bloom`，否则系统设置里的自定义卡片色会被盖掉。
+
+### 13.4 布局与滚动：这几条不满足就等于没做完
+
+这是本轮回归最集中的地方，逐条都是实测出来的：
+
+| 判据 | 怎么验 |
+| --- | --- |
+| 加载不闪、卡片不延迟 | 卡片 `visibility` 全为 `visible`；`.sakura-layout-grid` 无 `is-free`、无内联 `height`；卡片 `style` 无 `left/top` |
+| 保存不跳顶部 | 滚到卡片保存条附近点保存，弹窗出现那一帧 `body.style.top` 已等于原 `scrollY`，关闭后位置误差 0 |
+| 弹窗不改位置 | 深位置（如 `scrollY=1500`）用 X / 按钮 / Esc / 遮罩四种方式关闭，`scrollY` 均回到原值；焦点回触发元素但**不把页面滚进视野** |
+| 页面不横溢 | `document.documentElement.scrollWidth === clientWidth`（1440 / 390 / 320 各测） |
+| console 干净 | 无 error；特别注意 SVG 的 `width` / `height` 必须是单个数字，写成 `"16 16"` 会报 `Expected length` |
+
+**机制备忘**（改之前先读，别重新发明）：
+
+- 锁滚动用 `admin.ui.scrollLock`，**不要用 `body { overflow: hidden }`**：它会让视口变宽、整页横向抖动，Chrome 还会把页面拉回顶部。
+- 保存往返（POST → 302 → 新文档）要把 `路径|page + scrollY` 存进 `sessionStorage.sakuraAdminSaveScroll`，**在自动弹窗打开之前恢复**；screen key 不含 `t`（部分 saver 重定向回来不带 tab）。
+- 布局加载失败的两个历史原因：`isCustomised()` 靠推断（顺序/`col`/零散 `h`）判断「排过布局」——引擎自己会写回这些值，推断必然误判；以及首屏隐藏规则命中 `.card-grid` 却要求 `.is-laid` 才显示，导致整页空白两秒。现在由 `arranged` 显式标记决定，隐藏规则只对 `.is-free` 生效。
+
+### 13.5 交付前
+
+- 静态先行：`php -l` 改过的 PHP、`node --check` 改过的 JS、CSS 花括号配平、`git diff --check`。
+- 浏览器实测：至少 1440 一次完整路径（保存一次、开一次弹窗、关一次），390 抽查不横溢。
+- 改到共享层（`tokens` / `base` / `components` / `layout.js` / `ui.js`）时，1440 覆盖全部后台路由，390 抽查至少 3 页代表页。
+- 本文件同步更新：新增规则、或推翻旧规则时**删掉旧的**，不要两份并存。

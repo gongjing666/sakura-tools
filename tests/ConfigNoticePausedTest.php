@@ -111,21 +111,24 @@ final class ConfigNoticePausedTest extends TestCase {
 	}
 
 	/**
-	 * A plain close snoozes for twelve hours; while the snooze is live the
-	 * dialog stays away.
+	 * A plain close no longer parks the dialog. An operator who dismissed it by
+	 * reflex still has an unfinished problem, and this dialog is the only thing
+	 * on the screen that says so.
 	 */
-	public function test_a_live_snooze_keeps_the_dialog_quiet(): void {
-		$GLOBALS['sakura_test_user_meta'][1][ Config_Notice::SNOOZE_META_KEY ] = time() + Config_Notice::SNOOZE_SECONDS;
+	public function test_a_plain_close_does_not_quiet_the_dialog(): void {
+		$options = $this->options( 'false' );
 
-		$this->assertFalse( Config_Notice::should_prompt_paused( $this->options( 'false' ) ) );
+		$this->assertTrue( Config_Notice::should_prompt_paused( $options ) );
+		// The X, the backdrop and the ghost button all close without writing.
+		$this->assertSame( 3, substr_count( Config_Notice::paused_html( $options ), 'data-config-close' ) );
 	}
 
 	/**
-	 * An expired snooze is cleared on the next visit rather than lingering in
-	 * user meta, and the dialog comes back.
+	 * The twelve-hour window is gone. A timestamp left behind by 1.25.6 or
+	 * earlier must neither suppress the prompt nor survive the visit.
 	 */
-	public function test_an_expired_snooze_is_cleared_and_the_dialog_returns(): void {
-		$GLOBALS['sakura_test_user_meta'][1][ Config_Notice::SNOOZE_META_KEY ] = time() - 60;
+	public function test_a_leftover_snooze_from_an_older_version_is_ignored_and_removed(): void {
+		$GLOBALS['sakura_test_user_meta'][1][ Config_Notice::SNOOZE_META_KEY ] = (string) ( time() + 3600 );
 
 		$this->assertTrue( Config_Notice::should_prompt_paused( $this->options( 'false' ) ) );
 		$this->assertArrayNotHasKey( Config_Notice::SNOOZE_META_KEY, $GLOBALS['sakura_test_user_meta'][1] );

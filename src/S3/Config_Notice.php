@@ -17,15 +17,20 @@ defined( 'ABSPATH' ) || exit;
  * Renders a per-user setup dialog instead of a red admin notice.
  *
  * The prompt is intentionally separate from the destructive delete modal: it
- * is informational, has no danger styling, and stays dismissed for the current
- * user until they clear the saved preference. A plain "later" close snoozes it
- * for twelve hours instead of hiding it forever; the choice is stored per user
- * so it survives a browser restart and does not leak across operators.
+ * is informational and has no danger styling.
+ *
+ * Only "do not remind me again" is remembered, and only per user. Every other
+ * way of closing the dialog (the X, Escape, the backdrop, the close button)
+ * persists nothing, so the dialog comes back on the next page load while the
+ * condition it describes is still true. Version 1.25.6 and earlier parked a
+ * plain close for twelve hours; that made "later" indistinguishable from
+ * "handled" — an operator who closed the dialog by reflex saw a dashboard that
+ * silently kept lying, and nothing on screen asked again.
  *
  * A second variant shares the markup: the sync center needs one full scan
  * before its numbers describe anything, and a silent empty dashboard is a
- * worse first visit than a dialog that says so. Both variants use the same
- * dismiss/snooze user meta because a site cannot be in both states at once.
+ * worse first visit than a dialog that says so. All variants read the same
+ * mute flag because a site cannot be in two states at once.
  */
 final class Config_Notice {
 
@@ -35,15 +40,11 @@ final class Config_Notice {
 	public const META_KEY = 'sakura_imgopt_s3_config_notice_dismissed';
 
 	/**
-	 * User meta key holding the Unix timestamp until which a plain dismissal
-	 * keeps the dialog quiet.
+	 * User meta key that older versions wrote to park a plain close for twelve
+	 * hours. Nothing writes it any more; it is read once so an upgraded site can
+	 * drop a timestamp that no code acts on.
 	 */
 	public const SNOOZE_META_KEY = 'sakura_imgopt_s3_config_notice_snoozed_until';
-
-	/**
-	 * How long "later" keeps the dialog quiet, in seconds (12 hours).
-	 */
-	public const SNOOZE_SECONDS = 43200;
 
 	/**
 	 * Whether the configuration dialog should be rendered for this request.
@@ -60,7 +61,7 @@ final class Config_Notice {
 			return false;
 		}
 
-		return self::is_quiet_window_over();
+		return self::is_prompt_allowed();
 	}
 
 	/**
@@ -85,7 +86,7 @@ final class Config_Notice {
 			return false;
 		}
 
-		return self::is_quiet_window_over();
+		return self::is_prompt_allowed();
 	}
 
 	/**
@@ -114,26 +115,24 @@ final class Config_Notice {
 			return false;
 		}
 
-		return self::is_quiet_window_over();
+		return self::is_prompt_allowed();
 	}
 
 	/**
-	 * Shared "did the operator already mute or postpone this?" check.
+	 * Whether the operator may still be prompted: everything except an explicit
+	 * "do not remind me again" keeps asking.
 	 *
 	 * @return bool
 	 */
-	private static function is_quiet_window_over(): bool {
+	private static function is_prompt_allowed(): bool {
 		$user_id = get_current_user_id();
 		if ( '1' === (string) get_user_meta( $user_id, self::META_KEY, true ) ) {
 			return false;
 		}
 
-		$snoozed_until = (int) get_user_meta( $user_id, self::SNOOZE_META_KEY, true );
-		if ( $snoozed_until > time() ) {
-			return false;
-		}
-
-		if ( $snoozed_until > 0 ) {
+		// Older versions parked a plain close for twelve hours. The dialog now
+		// returns immediately, so that leftover timestamp is dead weight.
+		if ( '' !== (string) get_user_meta( $user_id, self::SNOOZE_META_KEY, true ) ) {
 			delete_user_meta( $user_id, self::SNOOZE_META_KEY );
 		}
 
@@ -203,7 +202,11 @@ final class Config_Notice {
 	}
 
 	/**
-	 * "Later" checkbox plus the ghost/primary button pair.
+	 * Mute checkbox plus the ghost/primary button pair.
+	 *
+	 * The right-hand control is a link or a button that acts. The ghost button
+	 * is the plain close: it writes nothing, so the dialog returns on the next
+	 * load until the operator either fixes the condition or ticks the mute box.
 	 *
 	 * @param string $ghost_label   Secondary button label.
 	 * @param string $primary       Primary control markup.
@@ -262,7 +265,7 @@ final class Config_Notice {
 			__( '还差几步就能启用对象存储', 'sakura-imgopt' ),
 			__( '连接信息还不完整。补全后，插件会恢复图片同步、媒体地址接管与云端清理；在补全之前，这些动作会保持暂停。', 'sakura-imgopt' ),
 			$body,
-			self::actions_markup( __( '稍后处理', 'sakura-imgopt' ), $primary ),
+			self::actions_markup( __( '暂不处理', 'sakura-imgopt' ), $primary ),
 			wp_create_nonce( 'sakura_s3_config_notice' )
 		);
 		return (string) ob_get_clean();
@@ -293,7 +296,7 @@ final class Config_Notice {
 			__( '还需要一次完整核对', 'sakura-imgopt' ),
 			__( '同步中心的数字来自最近一次核对写入的索引。首次核对会验证连接并读取云端清单；之后的页面直接读取本地记录，不再实时访问对象存储。', 'sakura-imgopt' ),
 			'',
-			self::actions_markup( __( '稍后处理', 'sakura-imgopt' ), $primary, false ),
+			self::actions_markup( __( '暂不处理', 'sakura-imgopt' ), $primary ),
 			wp_create_nonce( 'sakura_s3_config_notice' ),
 			'neutral'
 		);
@@ -325,7 +328,7 @@ final class Config_Notice {
 			__( '对象存储已停用', 'sakura-imgopt' ),
 			__( '连接信息是完整的，但 S3 存储开关处于关闭状态：新上传的图片不会同步到云端，媒体地址也不会被接管。下面的数字停留在停用之前，重新启用后可以再核对一次。', 'sakura-imgopt' ),
 			'',
-			self::actions_markup( __( '稍后处理', 'sakura-imgopt' ), $primary ),
+			self::actions_markup( __( '暂不处理', 'sakura-imgopt' ), $primary ),
 			wp_create_nonce( 'sakura_s3_config_notice' ),
 			'neutral'
 		);

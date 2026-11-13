@@ -1,9 +1,9 @@
 # 樱花工具箱（sakura-tools）代码结构分析报告
 
-> **版本** 1.25.6 ｜ **代码基线** commit `1bde178`（1.25.5 发布）＋ 随本版发布的 1.25.6 提交（修「已配置但未启用」被误判成配置不完整，并补第三类引导弹窗：改 `includes/views/s3-sync-center.php` / `src/S3/Config_Notice.php` / `src/S3/Sync_Center_Module.php` / `assets/ui/js/pages/storage-sync.js`，新增 `tests/ConfigNoticePausedTest.php`）｜ **分析日期** 2026-11-13
-> **分析对象** `/www/wwwroot/www.nboke.com/wp-content/plugins/sakura-tools`（生产副本；1.25.0 的后台 UI 重构、1.25.1 的命令面板卸载、1.25.2 的卡片重排修复、1.25.3 的对象存储布局画布合并、1.25.4 的「云端体积分布」空态提示、1.25.5 的同步中心自动校准与 1.25.6 的停用态提示都在发布前用工作树和测试站核对，其余阅读与运行期验证均为只读）
+> **版本** 1.25.7 ｜ **代码基线** commit `4bb9581`（1.25.6 发布）＋ 随本版发布的 1.25.7 提交（提示弹窗不再「关掉即静默」：改 `src/S3/Config_Notice.php` / `src/S3/Sync_Center_Module.php` / `assets/ui/js/pages/storage-sync.js` / `assets/ui/js/pages/storage-connection.js` 与 `tests/ConfigNoticePausedTest.php`）｜ **分析日期** 2026-11-13
+> **分析对象** `/www/wwwroot/www.nboke.com/wp-content/plugins/sakura-tools`（生产副本；1.25.0 的后台 UI 重构、1.25.1 的命令面板卸载、1.25.2 的卡片重排修复、1.25.3 的对象存储布局画布合并、1.25.4 的「云端体积分布」空态提示、1.25.5 的同步中心自动校准、1.25.6 的停用态提示与 1.25.7 的弹窗关闭规则都在发布前用工作树和测试站核对，其余阅读与运行期验证均为只读）
 > **测试环境** `/root/sio-e2e`（独立 WordPress + MariaDB 127.0.0.1:13316 + MinIO 127.0.0.1:19010），插件以软链方式挂载，行为与生产一致
-> **配套产物** 3D 图谱 `docs/graph-preview/index.html`（同源数据 `graph.json`）、生成器 `docs/tools/build-code-structure.mjs`、图谱说明 `docs/sakura-tools-图谱同步-1.25.6.md`
+> **配套产物** 3D 图谱 `docs/graph-preview/index.html`（同源数据 `graph.json`）、生成器 `docs/tools/build-code-structure.mjs`、图谱说明 `docs/sakura-tools-图谱同步-1.25.7.md`
 
 ---
 
@@ -41,10 +41,10 @@
 | 指标 | 数值 | 口径 |
 |---|---:|---|
 | 生产 PHP 文件 | **190** | 不含 `tests/`(78 文件) `stubs/`(2) `vendor/` `assets/`(JS/CSS) |
-| 生产 PHP 行数 | **65,789** | 同上，含空行与注释 |
+| 生产 PHP 行数 | **65,792** | 同上，含空行与注释 |
 | 类 / 接口 | **175** | 含 7 个接口；另有 1 个生产全局函数（`fast-search.php:27`）未计入图谱节点。扫描器统计的 function 节点含 tests/stubs，不是生产全局函数数 |
 | 钩子注册 | **209** | 仅生产代码中的具名 `add_action`/`add_filter`（152 + 57），不含 `do_action` 触发点、`add_submenu_page` 与 `Hook_Loader` 的内部转发 |
-| 后台资源 | **41 文件 / 34,750 行** | `assets/` 下的 CSS/JS（40 个）+ 1 个 SVG，其中 `assets/ui/` 29 文件 / 15,260 行 |
+| 后台资源 | **41 文件 / 34,759 行** | `assets/` 下的 CSS/JS（40 个）+ 1 个 SVG，其中 `assets/ui/` 29 文件 / 15,269 行 |
 | 自定义数据表 | **23** | 15 张 `{prefix}sufm_*` + 6 张 `{prefix}sio_sync_*` + 2 张 `{prefix}sio_s3_*`（`sio_s3_deletes`、`sio_s3_upload_events`） |
 | 后台页面 | **11** | 4 个顶级模块 + 13 个 tab 中实际可访问的 11 个（zibll 依赖主题，log 归入 files） |
 
@@ -114,12 +114,17 @@
 **前端**：`assets/ui/js/pages/storage-sync.js` 新增 `initDialogs()`（约 190 行），逐个接管 `#sakura-s3-config-modal` 与 `#sakura-s3-reconcile-modal`：打开时给 `body` 加 `sakura-modal-open` 锁滚动、40ms 后把焦点送进标题、Tab 在可聚焦元素间首尾回绕、`Escape` / 点背景 / 关闭按钮都能关、关闭后把焦点还给原处；没有 checkbox 的核对弹窗点任意关闭方式都按 12 小时 snooze 发一次 `sakura_s3_config_notice`。样式侧把 `assets/ui/pages/storage.css` 的 13 条 modal 规则前缀从 `[data-sakura-page="storage-connection"]` 扩成 `:is([data-sakura-page="storage-connection"], [data-sakura-page="storage-sync"])`，另补 icon 两种色调（琥珀 / 暖灰，配置缺失不是错误，不用红）、说明行 `max-width: 46ch`、`h2:focus` 的 `outline: none`（标题自动聚焦会画出黑框），以及 `@media (max-width: 520px)` 下动作区 `flex-direction: column`——注意不能写 `column-reverse`，DOM 里 checkbox 在按钮组之前，反向会把它顶到最上面；改 `column` 后主按钮正好落在最后。
 实测（测试站真实浏览器）：未核对弹窗卡片 560×291、圆角 22px、`z-index: 100000`、`activeElement = sakura-s3-reconcile-title`；未配置弹窗 560×307、icon 底色 `rgb(239,238,233)`（暖灰）、chips「存储桶名称 / Access Key / Secret Key」；390px 卡片 354 宽、320px 284 宽、`document.scrollWidth === innerWidth` 无横向溢出、两个按钮各 248px 整宽；Tab 在 4 个元素内循环不逃出、Escape 关闭且滚动锁复原、点背景同样关闭。卡内「开始核对」端到端可用：点击 → `admin-ajax` 200 → 页面 reload → 新建扫描行、`.storage-mix` 变 `--ready`、弹窗消失。连接配置页无回归（六张卡仍在 `data-sakura-layout="s3"` 组内、锚点与文案不变）；控制台 0 error 0 warning。
 规模（生产代码，1.25.5）：**190 文件 / 65,667 行 / 175 类与接口 / 209 具名钩子 / 23 张自定义表**；`src/Sync` 18 文件 6,048 行，`src/S3` 37 文件 12,078 行，`includes/views` 12 文件 5,486 行，`src/Admin` 16 文件 3,292 行，后台资源 41 文件 / 34,750 行（其中 `assets/ui/` 29 文件 / 15,260 行）。tests 77 文件 / 10,320 行；全量验证 **445 tests / 1,344 assertions / 5 skipped**（新增 `tests/SyncCalibratorTest.php` 4 例，并在 `tests/ModuleRegistrationTest.php` 补 `sync_calibrator` 用例）、PHPStan level 5 无错误、PHPCS 0 error（36 条 warning 与 1.24.4 基线相同）。图谱 **192 节点 / 873 连线**（648 ref + 50 modref + 175 contains），模块仍 17 个、`modref` 仍 50 条。详见 §9.2、§10.23、§13。
-**本轮更新（2026-11-13，1.25.6 停用态提示与三值状态）**：修一个自相矛盾的状态——S3 连接信息填全但总开关关掉时，同步中心右上角显示「配置不完整」，副标题却照样报「缤纷云 · 覆盖率 1.5%」；同时这个状态下**两种引导弹窗都不出现**（未配置弹窗要求 `configuration_errors()` 非空，未核对弹窗要求 `is_configured` 为真，而 `is_configured` 当时被写成了 `is_enabled() && is_configured()`），页面只剩一行小字，用户分不清是漏了设计还是坏了。
+**上一轮更新（2026-11-13，1.25.6 停用态提示与三值状态）**：修一个自相矛盾的状态——S3 连接信息填全但总开关关掉时，同步中心右上角显示「配置不完整」，副标题却照样报「缤纷云 · 覆盖率 1.5%」；同时这个状态下**两种引导弹窗都不出现**（未配置弹窗要求 `configuration_errors()` 非空，未核对弹窗要求 `is_configured` 为真，而 `is_configured` 当时被写成了 `is_enabled() && is_configured()`），页面只剩一行小字，用户分不清是漏了设计还是坏了。
 修法分三层。**① 状态三值化**：`includes/views/s3-sync-center.php:243-258` 的 `$status_text` / `$status_tone` 与 `:259-269` 的 `$health_text` / `$health_warn` 都改为「配置不完整（bad）→ 已停用（warn）→ 连接正常 / 配置可用（ok）」，`:281-300` 的 `$page_status_sub` 同步三分支，停用态写作「%s · 连接信息完整，开关关闭」而不是重复一遍「已停用」。**② 新增第三种弹窗**：`src/S3/Config_Notice.php` 抽出 `should_prompt_paused( Options )`（:104）与 `paused_html( Options )`（:309），与既有的 `modal_html()` / `reconcile_html()` 共用 `is_quiet_window_over()`（:125）这一份「不再提醒 / 12 小时 snooze」偏好；kicker `OBJECT STORAGE / PAUSED`、标题「对象存储已停用」、说明新图不会同步到云端、媒体地址不会被接管、下面的数字停在停用之前，主按钮「去启用 S3」固定走 `Registry::url( 'storage', 'connection' )`。**③ 三者互斥**：`includes/views/s3-sync-center.php:957-964` 按「缺字段 > 停用 > 未核对」依次取值，第一个非空即输出；`src/S3/Sync_Center_Module.php:1914-1915` 的 `page_data` 同时暴露 `is_configured` 与 `is_enabled` 两个独立字段，`:344` 把它绑成 `$storage_enabled`，未核对弹窗的门控改为 `$is_configured && $storage_enabled && $index_enabled`。
 顺带修掉两个真实缺陷：**① 变量名不一致导致功能失效**——`includes/views/s3-sync-center.php:79` 的默认值守卫原先写的是 `isset( $is_enabled )`，而这个变量从未被赋值（`page_data` 的键叫 `is_enabled`，绑定的局部变量叫 `$storage_enabled`），`isset` 恒 `false`，于是**连 S3 正常启用时也被判成停用**；已改为 `isset( $storage_enabled )`，docblock 同步改 `@var bool $storage_enabled`。**② 连接页分支是死代码**——`paused_html()` 原先带 `$context` 形参并在 `connection` 上下文把主按钮指向 `#sakura-s3-connection`，但 `src/S3/S3_Storage_Page.php:509` 只挂 `modal_html( $this->options, 'connection' )`，从不挂 paused 变体，该分支永远走不到；已把签名简化为单参、删掉分支，理由写在注释里：连接页上开关本身就在视野内，再弹一个模态只会挡住用户正要点的控件。
 停用期间**仍然允许手动核对**：核对只读取云端清单，不上传、不改媒体地址（`src/S3/Storage.php:108-112` 才是停用后真正关闭的路径——不接管媒体 URL、不排上传队列），把它禁掉只会让人没法确认桶里还剩什么，所以本轮只补提示与文案，没有收窄权限。
 实测（测试站真实浏览器，1403px / 390px / 320px）：停用态弹窗卡片 560×291、圆角 22px、`z-index: 100000`、icon 46×46 底色 `rgb(251,250,247)`（暖灰，不是红）、`activeElement = sakura-s3-paused-title`、body 锁滚动、标题 `outline: none`；Tab 在「复选框 → 稍后处理 → 去启用 S3 → 关闭」4 个元素内循环不逃出，Escape / 点背景 / 关闭按钮都能关且关闭后滚动锁复原、焦点还给原处；关闭即写 12 小时 snooze、勾「不再提醒我」则写永久 `sakura_imgopt_s3_config_notice_dismissed`，刷新后都不再出现。点「去启用 S3」跳到 `admin.php?page=sakura-tools-storage`，该页**没有** paused 弹窗（开关就在眼前），也没有 setup 弹窗，`input[name="enabled"]` 存在且未勾选。窄屏 390px 卡片 354 宽、两个按钮各 318px 整宽，320px 卡片 284 宽、按钮各 248px，`document.scrollWidth === innerWidth` 无横向溢出。四种状态互斥验证：缺字段（bucket 置空）只出 setup 弹窗、停用只出 paused、启用三种都不出、删除队列页不出。控制台 0 error 0 warning。
 规模（生产代码，1.25.6）：**190 文件 / 65,789 行 / 175 类与接口 / 209 具名钩子 / 23 张自定义表**；`includes/views` 12 文件 5,542 行，`src/S3` 37 文件 12,144 行，`src/Sync` 18 文件 6,048 行，`src/Admin` 16 文件 3,292 行，后台资源 41 文件 / 34,750 行（其中 `assets/ui/` 29 文件 / 15,260 行）。tests 78 文件 / 10,636 行；全量验证 **455 tests / 1,369 assertions / 5 skipped**（新增 `tests/ConfigNoticePausedTest.php` 10 例），PHPStan level 5 无错误、PHPCS 0 error（36 条 warning 与 1.24.4 基线相同）。本轮只改视图、提示类与前端分派，**不新增类、方法、钩子、REST 路由与数据表**：图谱仍 **192 节点 / 873 连线**（648 ref + 50 modref + 175 contains），模块 17 个、`modref` 50 条。详见 §9.2、§10.24、§13。
+**本轮更新（2026-11-13，1.25.7 弹窗关闭规则）**：修「关掉提示弹窗后就再也不提醒」的问题。反馈的现象是：在同步中心点 X 或「稍后处理」关掉弹窗，刷新页面弹窗不再出现——而这两者当时**完全等价**，都写 `sakura_imgopt_s3_config_notice_snoozed_until = time() + 12 小时`（`src/S3/Config_Notice.php` 的 `SNOOZE_SECONDS = 43200`），于是「我知道但先不动」被当成「已处理」，页面继续显示已停用 / 配置不完整，却没有任何东西再打断操作者。这与 §5.1 里「配置缺失不是错误、忽略后会影响功能」的前提直接冲突：**弹窗是页面上唯一说明功能坏了的地方**。
+修法分四处。**① 关闭语义二分**：`src/S3/Config_Notice.php:121-140` 的 `is_quiet_window_over()` 改名为 `is_prompt_allowed()`，只读 `sakura_imgopt_s3_config_notice_dismissed` 一个开关；`SNOOZE_SECONDS` 常量删除，`SNOOZE_META_KEY` 保留但只用于清理旧版本写入的残留（读到非空即 `delete_user_meta()`，不再判断时间）。三个门控 `should_show()` / `should_prompt_reconcile()` / `should_prompt_paused()` 全部改调 `is_prompt_allowed()`。**② 前端不再无脑写库**：`assets/ui/js/pages/storage-sync.js:195-214` 的 `persist()` 与 `assets/ui/js/pages/storage-connection.js:198-215` 的 `persistChoice()` 都改为「没勾选 `[data-config-dont-remind]` 就直接 `return`」，只发一次 `dismiss=1`；X、Esc、点背景、次按钮、主按钮跳转都只关 DOM，不产生任何请求。**③ 文案与结构对齐**：次按钮由「稍后处理」改为「暂不处理」（`Config_Notice::actions_markup()` 的三处调用），因为它不再代表「12 小时后再问」；核对引导弹窗原先 `actions_markup( ..., $primary, false )` 不渲染复选框、只能靠关掉消失，现在补上「不再提醒我」。**④ 接口收窄**：`src/S3/Sync_Center_Module.php:581-611` 的 `ajax_dismiss_config_notice()` 只认 `dismiss=1`，`snooze=1` 仍然接受但只做清理与返回，不再写延期——避免旧缓存脚本把已废弃的窗口复活。
+配套同步：`docs/后台UI规则.md:163-166` 的「关闭分两档」重写为「只有一档写库」，并补一句「1.25.6 及更早版本的 12 小时 snooze 已废弃，升级后读到残留时间戳会直接删除」；同文件 :358 的验收项由「稍后处理写入 12 小时冷却」改为「X / Esc / 点背景 / 暂不处理关掉后刷新会重新弹出」。
+实测（测试站真实浏览器，1403px，`Playwright` + 临时管理员 cookie）：停用态首次进入 `#sakura-s3-paused-modal` 可见；点 X 后 reload **仍可见**（此前消失）；点「暂不处理」后 reload **仍可见**；按 Esc 后 reload **仍可见**；勾选「不再提醒我」再关，reload 后 `absent`，`wp user meta` 显示 `dismissed=1`、`snoozed_until` 为空。旧版本残留验证：手工写入 `snoozed_until=9999999999` 后调用 `should_prompt_paused()` 返回 `true`，且该 meta 在同一次请求里被删除（`after=[]`）。次按钮文案实测为 `['暂不处理', '去启用 S3']`、`hasCheckbox=true`、`[data-config-close]` 3 处（X / 遮罩 / 次按钮）；连接配置页无 paused 弹窗，未配置态仍只出 setup 弹窗。
+规模（生产代码，1.25.7）：**190 文件 / 65,792 行 / 175 类与接口 / 209 具名钩子 / 23 张自定义表**；`src/S3` 37 文件 12,147 行，`includes/views` 12 文件 5,542 行，`src/Sync` 18 文件 6,048 行，`src/Admin` 16 文件 3,292 行，后台资源 41 文件 / 34,759 行（其中 `assets/ui/` 29 文件 / 15,269 行）。tests 78 文件 / 10,639 行；全量验证 **455 tests / 1,370 assertions / 5 skipped**（`tests/ConfigNoticePausedTest.php` 的 snooze 两例改写为「关掉不静默」与「旧版残留被清理」），PHPStan level 5 无错误、PHPCS 0 error（36 条 warning 与 1.24.4 基线相同）。本轮只改提示类、AJAX 处理与前端关闭逻辑，**不新增类、方法、钩子、REST 路由与数据表**：图谱仍 **192 节点 / 873 连线**（648 ref + 50 modref + 175 contains），模块 17 个、`modref` 50 条。详见 §9.2、§10.25、§13。
 
 
 ---
@@ -159,16 +164,16 @@ sakura-tools/
 ├── src/Image/                  10 文件 / 3,177 行   上传链路、引擎回退、元数据、还原、尺寸目录
 ├── src/Oss/                    2 文件 / 505 行      HTML 过滤器与 URL 重写纯函数
 ├── src/Thumbnail/              15 文件 / 3,787 行   缩略图策略、供应商、探测、统计、主题桥
-├── src/S3/                     37 文件 / 12,144 行  凭据加密、上传、删除队列、同步中心、监控
+├── src/S3/                     37 文件 / 12,147 行  凭据加密、上传、删除队列、同步中心、监控
 ├── src/Sync/                   18 文件 / 6,048 行   索引表、扫描状态机、动作队列、校验、CLI、每月校准
 ├── src/UserFiles/              46 文件 / 22,305 行  上传/配额/审核/执行/REST/空间套餐/Zibll 桥
 ├── src/Backup/                 2 文件 / 459 行
 ├── src/Contracts/              5 文件 / 392 行      5 个接口
 ├── src/Filesystem/ src/Settings/ src/Stats/ src/Support/   5 文件 / 633 行
-├── assets/ui/                  29 文件 / 15,260 行  后台唯一样式栈：tokens/base/components/layout + 分页 CSS 与脚本
+├── assets/ui/                  29 文件 / 15,269 行  后台唯一样式栈：tokens/base/components/layout + 分页 CSS 与脚本
 ├── assets/                     11 文件 / 19,498 行  前台与媒体库资源（editor-picker、userfiles、media-folders）
 ├── languages/                  翻译文件
-├── tests/                      78 文件 / 10,636 行  PHPUnit（不计入生产规模）
+├── tests/                      78 文件 / 10,639 行  PHPUnit（不计入生产规模）
 ├── stubs/                      2 文件 / 136 行      PHPStan 引导
 ├── vendor/                     第三方依赖（AWS SDK 等，不计入）
 └── DEVELOPMENT.md / DECISIONS.md / readme.txt   历史文档与决策记录
@@ -181,7 +186,7 @@ sakura-tools/
 | 模块 | 文件数 | 代码行 | 类(含接口) | 说明 |
 |---|---:|---:|---:|---|
 | src/UserFiles | 46 | 22305 | 46 | 用户文件空间：上传、配额、审核执行、REST、Zibll 桥接 |
-| src/S3 | 37 | 12144 | 37 | 对象存储：配置/加密、上传同步、删除队列、同步中心、监控告警 |
+| src/S3 | 37 | 12147 | 37 | 对象存储：配置/加密、上传同步、删除队列、同步中心、监控告警 |
 | includes | 14 | 6192 | 14 | 1.3–1.9 时代的旧类，仍在承重（媒体库、优化器、缩略图、S3、处理器） |
 | src/Sync | 18 | 6048 | 18 | 持久化同步索引：扫描、任务、校验、CLI、快速检索查询 |
 | includes/views | 12 | 5542 | 0 | 旧式页面模板（由 includes 类 require 渲染） |
@@ -197,7 +202,7 @@ sakura-tools/
 | src/Support | 2 | 178 | 2 | Hook_Loader（延迟注册）与 UTF-8 截断工具 |
 | src/Filesystem | 1 | 97 | 1 | 文件系统仓储适配器 |
 | src/Stats | 1 | 73 | 1 | 统计仓储适配器 |
-| 合计 | 190 | 65789 | 175 | 生产代码；另有 tests 78 文件/10636 行、stubs 2 文件另计 |
+| 合计 | 190 | 65792 | 175 | 生产代码；另有 tests 78 文件/10639 行、stubs 2 文件另计 |
 
 **怎么读这张表**：行数不等于复杂度——`src/UserFiles` 20k 行里有 40% 是 REST 控制器与视图模板（重复度高、改动风险低）；`src/Sync` 只有 5.8k 行却包含状态机与 SQL 层，是改动风险最高的模块。
 
@@ -569,7 +574,7 @@ register() 之后调用     → 直接 add_action/add_filter 到 WP（不再入�
 |---|---|---|---:|---:|---:|---|
 | `Alerting` | src/S3/Alerting.php:24 | implements Module | 16 / 17 | 8 / 5 | 5 | 评估上传队列健康度并按需推送 JSON webhook |
 | `Client_Factory` | src/S3/Client_Factory.php:20 |  | 2 / 2 | 8 / 5 |  | 按选项构建并缓存 AWS SDK 客户端 |
-| `Config_Notice` | src/S3/Config_Notice.php:30 |  | 6 / 10 | 5 / 3 |  | 用居中弹窗提示 S3 配置未完成，可按用户稍后再看 |
+| `Config_Notice` | src/S3/Config_Notice.php:35 |  | 6 / 10 | 5 / 3 |  | 用居中弹窗提示 S3 配置未完成，可按用户稍后再看 |
 | `Connection_Tester` | src/S3/Connection_Tester.php:11 |  | 2 / 3 | 2 / 7 |  | 处理后台提交的 S3 连接测试 |
 | `Credential_Cipher` | src/S3/Credential_Cipher.php:21 |  | 5 / 7 | 12 / 1 |  | 加密写入 wp_options 的存储凭据 |
 | `Delete_Jobs` | src/S3/Delete_Jobs.php:22 |  | 22 / 22 | 23 / 0 |  | 为首次删除失败的对象保存持久删除任务 |
@@ -999,7 +1004,7 @@ d3AtY29udGVudC91cGxvYWRzL3Byb2JlLzA5OTkuYmluW21pbmlvX2NhY2hlOnYyLHJldHVybjpd
 
 这是全插件最大、也是唯一带**五层权限门**（`can_use_files` / `can_review` / `can_execute` / `can_manage_media` / `space_can_*`）的子系统。这里的 `space_can_*` 不是一个权限，而是 `space_can_use`、`space_can_review`、`space_can_manage` 三个不同门。改它之前必须先读 `src/UserFiles/Capabilities.php` 与 `src/UserFiles/Schema.php`。
 
-**权限与开关速查（当前 1.25.6）**：
+**权限与开关速查（当前 1.25.7）**：
 
 | 范围 | 当前判定 | `entry_enabled` 关闭时 |
 |---|---|---|
@@ -1152,7 +1157,7 @@ d3AtY29udGVudC91cGxvYWRzL3Byb2JlLzA5OTkuYmluW21pbmlvX2NhY2hlOnYyLHJldHVybjpd
 | 与 Admin IA | 向 Registry 的 `files` 模块注册 4 个 renderer（settings/users/queue/log） | `src/UserFiles/Admin/Page.php:71-78` |
 | 与 Zibll | 能力探测单例 `Zibll_Bridge`；tab、订单卡、空间面板都走它 | `src/UserFiles/Services/Zibll_Bridge.php:23` |
 
-### 8.9 空间扩容支付收口（历史变更记录；2026-11-08/09；当前代码以 1.25.6 为准）
+### 8.9 空间扩容支付收口（历史变更记录；2026-11-08/09；当前代码以 1.25.7 为准）
 
 **结论：空间扩容的现金入口由管理员在后台显式勾选，默认只开放余额；积分入口有独立开关；订单按实际支付渠道记账；退款按渠道补偿；每日对账用租约 + 指数退避；历史 order: 授权提供手动审计/回填命令。** 退款失败（refund_failed）仍坚持人工核对，不自动复活——这是有意保留的资金安全边界，不是遗漏。
 
@@ -1295,7 +1300,7 @@ Space_Panel::build_data()（src/UserFiles/Space_Panel.php:112）先取 $plans/$m
 - **历史授权回填**：合成 order: 空字段行 dry-run 为 pending，--apply --yes 后字段恢复为 purchase/balance/order_id=21/order_num=990.../price=30.00/points=0，bytes/state/label 不变；第二次运行 candidates=0。见 §10.14-B。
 - **单测（历史记录）**：当时的 `phpunit --filter 'SpaceStoreReconcileTest|SpaceStoreRefundTest|SpaceStorePaymentTest|SpaceSettingsTest'` 全绿；该记录中的 SpaceStoreReconcileTest 为 10 tests / 59 assertions。
 
-**1.25.6 当前基线（2026-11-13）**：当前同一过滤器在工作树运行结果为 **30 tests / 119 assertions，OK**；完整套件为 **455 tests / 1,369 assertions / 5 skipped**。测试站运行时注册 **45 条路径 / 51 个 HTTP 端点**；未认证 REST 返回 401，认证后 summary/capacity/items/picker 返回 200；用户 2/3 的文件、文件夹、picker 数据互不泄漏，交叉读取返回 404。以上是本次测试站和代码版本的证据，不是对所有站点配置的保证。
+**1.25.7 当前基线（2026-11-13）**：当前同一过滤器在工作树运行结果为 **30 tests / 119 assertions，OK**；完整套件为 **455 tests / 1,370 assertions / 5 skipped**。测试站运行时注册 **45 条路径 / 51 个 HTTP 端点**；未认证 REST 返回 401，认证后 summary/capacity/items/picker 返回 200；用户 2/3 的文件、文件夹、picker 数据互不泄漏，交叉读取返回 404。以上是本次测试站和代码版本的证据，不是对所有站点配置的保证。
 
 测试后清理：t_sufm_space_grants 恢复为 1 行（原 points: 授权），t_zibpay_order 恢复为 1 行，临时订单/grant/事件已删；sufm_space_reconcile_last 恢复为测试前的标量 1794152631，wp sufm status 读回 recon_next=1794239031；sufm_space_settings 未留下临时值。
 
@@ -1401,7 +1406,7 @@ Space_Panel::build_data()（src/UserFiles/Space_Panel.php:112）先取 $plans/$m
 
 #### 8.10.6 验证与边界
 
-运行记录见 §10.13（**历史 1.23.0 验证，不是当前 1.25.6 基线**）。摘要：
+运行记录见 §10.13（**历史 1.23.0 验证，不是当前 1.25.7 基线**）。摘要：
 
 | 检查 | 结果 |
 |---|---|
@@ -1518,7 +1523,7 @@ Space_Panel::build_data()（src/UserFiles/Space_Panel.php:112）先取 $plans/$m
 
 #### 8.11.6 验证与边界
 
-运行记录见 §10.15（**历史 1.24.1 验证，不是当前 1.25.6 基线**）。摘要：
+运行记录见 §10.15（**历史 1.24.1 验证，不是当前 1.25.7 基线**）。摘要：
 
 | 检查 | 结果 |
 |---|---|
@@ -2596,6 +2601,58 @@ PHPCS 的 36 条 warning 全部落在本轮未改动的既有文件，集中在�
 
 > 本轮不新增类、方法、钩子、REST 路由与数据表：图谱仍 **192 节点 / 873 连线**（648 `ref` + 50 `modref` + 175 `contains`），模块 17 个、`modref` 50 条、钩子 209 条全部不变。`tests/bootstrap.php` 新增的 `wp_schedule_single_event` / `wp_unschedule_hook` / `get_user_meta` / `update_user_meta` / `current_user_can` 等存根只服务测试，不进入生产图谱。
 
+### 10.25 弹窗关闭规则的运行期验证（1.25.7，2026-11-13）
+
+验证环境同 §10.19：测试站 `/root/sio-e2e`（`https://demo.77il.cn`，PHP 8.4.27，WordPress 7.1.4），插件目录软链到 1.25.7 工作树（改动文件用 `cp` 同步并核 md5：`Config_Notice.php` `9869781fd81bc2a12f0237e999b5dc0a`、`Sync_Center_Module.php` `34c0e45993cdc7c8c5994c2df67de3f5`、`storage-sync.js` `20320d2568e593140c4b94bda42e1201`、`storage-connection.js` `141843b4dd154239c42b2cb29706fe68`）。测量用真实浏览器 1403×900，每个用例前清空 `sakura_imgopt_s3_config_notice_dismissed` / `..._snoozed_until` 两个 user meta 与 `sessionStorage['sakuraS3ConfigSkipOnce']`（不清会被前一个用例的静默挡住）。
+
+**A. 五种关闭方式对「下次进页面」的影响**
+
+停用态（`enabled=false`、`is_configured=true`、`errors=[]`）下首次进入 `admin.php?page=sakura-tools-storage&t=sync`，弹窗可见，然后分别用五种方式关闭并 `reload`：
+
+| 关闭方式 | 修复前（1.25.6） | 修复后（1.25.7） | 写入的 user meta |
+|---|---|---|---|
+| 点 X（`.sakura-modal__close`） | 刷新后**不出现** | 刷新后**仍出现** | 无 |
+| 点次按钮「暂不处理」（1.25.6 叫「稍后处理」） | 刷新后不出现 | 刷新后**仍出现** | 无 |
+| 按 Esc | 刷新后不出现 | 刷新后**仍出现** | 无 |
+| 点遮罩 `.sakura-modal__backdrop` | 刷新后不出现 | 刷新后**仍出现** | 无 |
+| 勾「不再提醒我」再关（任意方式） | 刷新后不出现 | 刷新后不出现 | `dismissed=1` |
+
+实测结果（`hidden` 属性）：`fresh=VISIBLE` → X 后 `VISIBLE` → 次按钮后 `VISIBLE` → Esc 后 `VISIBLE` → 勾选后 `absent`。勾选用例结束后 `wp user meta` 为 `dismissed=[1]`、`snoozed_until=[]`，与预期一致。
+
+**B. 兼容旧版本残留**
+
+1.25.6 及更早版本会把普通关闭写成 `sakura_imgopt_s3_config_notice_snoozed_until = time() + 43200`。升级到 1.25.7 后这些残留既不能压制弹窗、也不能留在库里：
+
+| 步骤 | 结果 |
+|---|---|
+| 手工写入 `snoozed_until=9999999999`（远未来） | `seeded=[9999999999]` |
+| 调用 `Config_Notice::should_prompt_paused( $options )` | `yes`（不再被压制） |
+| 同一次请求后再次读取该 meta | `after=[]`（已被 `delete_user_meta()` 清掉） |
+
+接口侧同样收窄：`wp_ajax_sakura_s3_config_notice` 只认 `dismiss=1`；`snooze=1` 仍被接受（避免旧缓存脚本报 400），但只做 `delete_user_meta()` 清理并返回 `{dismissed:false}`，不再写延期。
+
+**C. 弹窗结构与文案**
+
+| 项目 | 1.25.7 实测值 |
+|---|---|
+| 停用态按钮 | `['暂不处理', '去启用 S3']`（次按钮文案由「稍后处理」改名） |
+| 复选框 | `hasCheckbox=true`（核对引导弹窗此前 `actions_markup( ..., false )` 不渲染，现已补上） |
+| 关闭锚点数量 | `[data-config-close]` 3 处：X、遮罩、次按钮 |
+| kicker | `OBJECT STORAGE / PAUSED` |
+| 连接配置页 | 无 paused 弹窗；未配置态只出 setup 弹窗，两处互斥不变 |
+
+**D. 静态检查（1.25.7）**
+
+| 检查 | 命令 | 结果 |
+|---|---|---|
+| PHPUnit | `vendor/bin/phpunit` | **455 tests / 1,370 assertions / 5 skipped**，OK（`ConfigNoticePausedTest` 的 snooze 两例改写为「关掉不静默」与「旧版残留被清理」，断言数 26） |
+| PHPStan | `vendor/bin/phpstan analyse --no-progress` | `[OK] No errors`（level 5） |
+| PHPCS | `vendor/bin/phpcs --runtime-set ignore_warnings_on_exit 1 --report=summary` | **0 errors / 36 warnings / 21 files**（与 1.24.4 基线相同） |
+| PHP 语法 | `php -l` 全部改动文件 | No syntax errors |
+| JS 语法 | `node --check`（`storage-sync.js`、`storage-connection.js`） | 通过 |
+
+> 本轮不新增类、方法、钩子、REST 路由与数据表：图谱仍 **192 节点 / 873 连线**（648 `ref` + 50 `modref` + 175 `contains`），模块 17 个、`modref` 50 条、钩子 209 条全部不变。生产 PHP 由 65,789 行增至 65,792 行（190 文件不变），`src/S3` 12,144 → 12,147；`assets/` 34,750 → 34,759（`assets/ui/` 15,260 → 15,269，两个 JS 各 +4/−2 与 +6/−2）；tests 仍 78 文件、10,636 → 10,639 行。
+
 ## 11. 依赖关系与图谱口径
 
 ### 11.1 模块依赖矩阵（类级引用边计数）
@@ -2756,10 +2813,11 @@ PHPCS 的 36 条 warning 全部落在本轮未改动的既有文件，集中在�
 | 上一轮变更（1.25.3） | 只改 5 个 PHP 文件（`Layout.php`、`Page_Assets.php`、`S3_Storage_Page.php`、`Delete_Queue_Panel.php`、`Config_Notice.php`）与 `assets/ui/js/layout.js`，**类、钩子、模块集合都不变**：节点 191、连线 861（637 `ref` + 50 `modref` + 174 `contains`）、钩子 204、模块 17 全部不变；生产 PHP 由 65,137 行增至 65,165 行，`assets/ui/` 由 14,958 行减至 14,957 行（`layout.js` 净减 1 行） |
 | 上一轮变更（1.25.4） | 只改 `includes/views/s3-sync-center.php` 与 `assets/ui/pages/storage.css`，外加 `src/S3/Sync_Center_Module.php` 的一条日志文案，**类、方法、钩子、模块集合都不变**：节点 191、连线 861（637 `ref` + 50 `modref` + 174 `contains`）、钩子 204、模块 17 全部不变；生产 PHP 由 65,165 行增至 65,233 行（`includes/views` 5,391 → 5,459、`src/S3` 11,934 行不变），`assets/ui/` 由 14,957 行增至 14,994 行 |
 | 上一轮变更（1.25.5） | 新增 1 个类 `Sync\Sync_Calibrator`（每月自动校准），重写 `S3\Config_Notice`（新增 `should_prompt_reconcile()` / `reconcile_html()` 与三点共用的 `render_modal()`），因此节点 191→192、连线 861→873（`ref` 637→648、`contains` 174→175）、**模块仍 17、`modref` 仍 50**。钩子 204→209（`cron_schedules` 与 `init`/`admin_init` 各 1 条 + `sakura_imgopt_sync_calibrate` + `sakura_imgopt_sync_calibrate_now`），`add_action` 148→152、`add_filter` 56→57。生产 PHP 由 65,233 行增至 65,667 行（190 文件），`src/Sync` 5,792 → 6,048、`src/S3` 11,934 → 12,078、`includes/views` 5,459 → 5,486；`assets/ui/` 由 14,994 行增至 15,260 行 |
-| 本轮变更（1.25.6） | 只改 `includes/views/s3-sync-center.php`、`src/S3/Config_Notice.php`（新增 `should_prompt_paused()` / `paused_html()`，两者是**方法**不是类，不产生节点）+ `src/S3/Sync_Center_Module.php` + 前端 `assets/ui/js/pages/storage-sync.js` + 测试，**类、方法节点、钩子、模块集合都不变**：节点 192、连线 873（648 `ref` + 50 `modref` + 175 `contains`）、钩子 209、模块 17 全部不变；生产 PHP 由 65,667 行增至 65,789 行（190 文件不变），`src/S3` 12,078 → 12,144、`includes/views` 5,486 → 5,542；`assets/` 与 `assets/ui/` 行数不变（storage-sync.js +2/−2）。tests 77 → 78 文件 / 10,320 → 10,636 行 |
-| 数据来源 | 2026-11-13 重新扫描的 1.25.6 工作树事实表（codegraph `scanner.php` 输出）——由 `docs/tools/collect-comments.php` 与 `docs/tools/collect-hooks.php` 生成，与本文所有表格同源 |
+| 上一轮变更（1.25.6） | 只改 `includes/views/s3-sync-center.php`、`src/S3/Config_Notice.php`（新增 `should_prompt_paused()` / `paused_html()`，两者是**方法**不是类，不产生节点）+ `src/S3/Sync_Center_Module.php` + 前端 `assets/ui/js/pages/storage-sync.js` + 测试，**类、方法节点、钩子、模块集合都不变**：节点 192、连线 873（648 `ref` + 50 `modref` + 175 `contains`）、钩子 209、模块 17 全部不变；生产 PHP 由 65,667 行增至 65,789 行（190 文件不变），`src/S3` 12,078 → 12,144、`includes/views` 5,486 → 5,542；`assets/` 与 `assets/ui/` 行数不变（storage-sync.js +2/−2）。tests 77 → 78 文件 / 10,320 → 10,636 行 |
+| 本轮变更（1.25.7） | 只改 `src/S3/Config_Notice.php`（`is_quiet_window_over()` → `is_prompt_allowed()`、删 `SNOOZE_SECONDS`）、`src/S3/Sync_Center_Module.php`（`ajax_dismiss_config_notice()` 收窄）、`assets/ui/js/pages/storage-sync.js` 与 `storage-connection.js`（未勾选就不发请求）与测试，**类、方法节点、钩子、模块集合仍全部不变**：节点 192、连线 873（648 `ref` + 50 `modref` + 175 `contains`）、钩子 209、模块 17 不变；生产 PHP 65,789 → 65,792 行（190 文件），`src/S3` 12,144 → 12,147；`assets/` 34,750 → 34,759 行、`assets/ui/` 15,260 → 15,269；tests 仍 78 文件、10,636 → 10,639 行 |
+| 数据来源 | 2026-11-13 重新扫描的 1.25.7 工作树事实表（codegraph `scanner.php` 输出）——由 `docs/tools/collect-comments.php` 与 `docs/tools/collect-hooks.php` 生成，与本文所有表格同源 |
 
-1.24.3 的卸载修复与 1.24.4 的覆盖升级自愈都没有改变模块划分；1.25.0 的后台 UI 重构在原有两个后台模块（`system`/`image`）之外**没有新增模块节点**——它把 13 个页签的呈现收敛到一套 UI 内核，因此模块仍 17 个、`modref` 仍 50 条，增量全在类级；1.25.5 新增的每月校准同样只是一个类，模块集合不变。节点 192（175 类 + 17 模块）、连线 873（648 `ref` + 50 `modref` + 175 `contains`）、钩子 209。生产 PHP 文件 190 个 / 65,789 行，其中 `src` 5 文件 / 896 行、`src/UserFiles` 22,305 行、`includes`（根）6,178 行、`src/S3` 12,144 行、`src/Sync` 18 文件 6,048 行、`src/Admin` 3,292 行、`includes/views` 5,542 行。编辑页 JS/CSS 不是图谱对象，`assets/ui/` 的 15,260 行不进入图谱。
+1.24.3 的卸载修复与 1.24.4 的覆盖升级自愈都没有改变模块划分；1.25.0 的后台 UI 重构在原有两个后台模块（`system`/`image`）之外**没有新增模块节点**——它把 13 个页签的呈现收敛到一套 UI 内核，因此模块仍 17 个、`modref` 仍 50 条，增量全在类级；1.25.5 新增的每月校准同样只是一个类，模块集合不变。节点 192（175 类 + 17 模块）、连线 873（648 `ref` + 50 `modref` + 175 `contains`）、钩子 209。生产 PHP 文件 190 个 / 65,792 行，其中 `src` 5 文件 / 896 行、`src/UserFiles` 22,305 行、`includes`（根）6,178 行、`src/S3` 12,147 行、`src/Sync` 18 文件 6,048 行、`src/Admin` 3,292 行、`includes/views` 5,542 行。编辑页 JS/CSS 不是图谱对象，`assets/ui/` 的 15,269 行不进入图谱。
 
 `fast-search.php` 是脚本型文件，本来就不进入图谱；`Space_Store` 的字段缺陷已在 §8.9 修复，不再是未修复缺陷。
 
@@ -2769,7 +2827,7 @@ PHPCS 的 36 条 warning 全部落在本轮未改动的既有文件，集中在�
 
 **与文档的对应关系**：每个类节点在正文里都有一条同名记录——附录 A 给 `文件:行`，所属章节的表给职责与方法数；模块节点对应 §2.2 的模块总览。**改代码后重跑一次生成器，表格与图谱同时更新**，这是两者不脱节的机制保证。
 
-详细的操作步骤、本次新增/修改的节点与连线清单、一致性核对项，见配套文档 **`docs/sakura-tools-图谱同步-1.25.6.md`**。
+详细的操作步骤、本次新增/修改的节点与连线清单、一致性核对项，见配套文档 **`docs/sakura-tools-图谱同步-1.25.7.md`**。
 
 ---
 
@@ -2829,7 +2887,7 @@ PHPCS 的 36 条 warning 全部落在本轮未改动的既有文件，集中在�
 | 50 | `Sakura\ImageOptimizer\Oss\Url_Rewriter` | src/Oss/Url_Rewriter.php:17 | 8 |
 | 51 | `Sakura\ImageOptimizer\S3\Alerting` | src/S3/Alerting.php:24 | 17 |
 | 52 | `Sakura\ImageOptimizer\S3\Client_Factory` | src/S3/Client_Factory.php:20 | 2 |
-| 53 | `Sakura\ImageOptimizer\S3\Config_Notice` | src/S3/Config_Notice.php:30 | 10 |
+| 53 | `Sakura\ImageOptimizer\S3\Config_Notice` | src/S3/Config_Notice.php:35 | 10 |
 | 54 | `Sakura\ImageOptimizer\S3\Connection_Tester` | src/S3/Connection_Tester.php:11 | 3 |
 | 55 | `Sakura\ImageOptimizer\S3\Credential_Cipher` | src/S3/Credential_Cipher.php:21 | 7 |
 | 56 | `Sakura\ImageOptimizer\S3\Delete_Jobs` | src/S3/Delete_Jobs.php:22 | 22 |
@@ -3301,7 +3359,7 @@ PHPCS 的 36 条 warning 全部落在本轮未改动的既有文件，集中在�
 | src/Plugin.php | src | 207 | `Plugin` |
 | src/S3/Alerting.php | src/S3 | 396 | `Alerting` |
 | src/S3/Client_Factory.php | src/S3 | 115 | `Client_Factory` |
-| src/S3/Config_Notice.php | src/S3 | 335 | `Config_Notice` |
+| src/S3/Config_Notice.php | src/S3 | 338 | `Config_Notice` |
 | src/S3/Connection_Tester.php | src/S3 | 53 | `Connection_Tester` |
 | src/S3/Credential_Cipher.php | src/S3 | 227 | `Credential_Cipher` |
 | src/S3/Delete_Jobs.php | src/S3 | 585 | `Delete_Jobs` |

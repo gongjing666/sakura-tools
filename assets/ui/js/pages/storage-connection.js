@@ -195,17 +195,21 @@
 		var sent       = false;
 		var open       = false;
 
+		/* Only "do not remind me again" is remembered; every other close is
+		 * throwaway, so an unhandled setup problem is asked about again. */
 		function persistChoice() {
 			if ( sent ) {
 				return;
 			}
 			sent = true;
+			if ( ! ( dontRemind && dontRemind.checked ) ) {
+				return;
+			}
 			admin.api.ajax(
 				'sakura_s3_config_notice',
 				{
 					nonce: modal.getAttribute( 'data-nonce' ) || '',
-					dismiss: dontRemind && dontRemind.checked ? '1' : '0',
-					snooze: dontRemind && dontRemind.checked ? '0' : '1'
+					dismiss: '1'
 				}
 			).catch( function () {} );
 		}

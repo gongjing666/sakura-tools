@@ -579,8 +579,15 @@ final class Sync_Center_Module implements Module {
 	}
 
 	/**
-	 * AJAX: record whether this operator muted the setup dialog for good or
-	 * only postponed it for the twelve-hour snooze window.
+	 * AJAX: remember that this operator never wants the dialog again.
+	 *
+	 * Closing the dialog any other way is deliberately not persisted: the
+	 * prompt is the only thing on the screen that says a configuration is
+	 * broken or a bucket stopped receiving files, so it has to keep asking
+	 * until the condition is actually gone or the operator mutes it.
+	 *
+	 * Older cached scripts still post snooze=1; accepting and ignoring it keeps
+	 * them from resurrecting the retired twelve-hour window.
 	 */
 	public function ajax_dismiss_config_notice(): void {
 		check_ajax_referer( 'sakura_s3_config_notice', 'nonce' );
@@ -590,24 +597,17 @@ final class Sync_Center_Module implements Module {
 		}
 
 		$dismiss = isset( $_POST['dismiss'] ) && is_string( $_POST['dismiss'] ) && '1' === sanitize_text_field( wp_unslash( $_POST['dismiss'] ) );
-		$snooze  = isset( $_POST['snooze'] ) && is_string( $_POST['snooze'] ) && '1' === sanitize_text_field( wp_unslash( $_POST['snooze'] ) );
-
-		if ( ! $dismiss && ! $snooze ) {
-			wp_send_json_error( array( 'message' => __( '未知的提醒操作。', 'sakura-imgopt' ) ), 400 );
-		}
 
 		$user_id = get_current_user_id();
 
-		if ( $dismiss ) {
-			update_user_meta( $user_id, Config_Notice::META_KEY, '1' );
+		if ( ! $dismiss ) {
 			delete_user_meta( $user_id, Config_Notice::SNOOZE_META_KEY );
-			wp_send_json_success( array( 'dismissed' => true ) );
+			wp_send_json_success( array( 'dismissed' => false ) );
 		}
 
-		$until = time() + Config_Notice::SNOOZE_SECONDS;
-		update_user_meta( $user_id, Config_Notice::SNOOZE_META_KEY, (string) $until );
-
-		wp_send_json_success( array( 'snoozed_until' => $until ) );
+		update_user_meta( $user_id, Config_Notice::META_KEY, '1' );
+		delete_user_meta( $user_id, Config_Notice::SNOOZE_META_KEY );
+		wp_send_json_success( array( 'dismissed' => true ) );
 	}
 
 	/**

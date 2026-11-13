@@ -192,18 +192,23 @@
 				var sent       = false;
 				var open       = false;
 
+				/* Only "do not remind me again" is worth a round trip. A plain
+				 * close (X, Escape, backdrop, the ghost button, or walking away
+				 * through the primary link) writes nothing, so the dialog comes
+				 * back on the next load while the problem is still there. */
 				function persist() {
 					if ( sent ) {
 						return;
 					}
 					sent = true;
-					var keep = ! ! ( dontRemind && dontRemind.checked );
+					if ( ! ( dontRemind && dontRemind.checked ) ) {
+						return;
+					}
 					admin.api.ajax(
 						'sakura_s3_config_notice',
 						{
 							nonce: modal.getAttribute( 'data-nonce' ) || '',
-							dismiss: keep ? '1' : '0',
-							snooze: keep ? '0' : '1'
+							dismiss: '1'
 						}
 					).catch( function () {} );
 				}

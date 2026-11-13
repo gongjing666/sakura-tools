@@ -310,7 +310,10 @@
 - 需要卡片拖拽布局的页面，在 `Page_Assets::LAYOUT_PAGES` 登记 `页面 id => 布局 id`；布局根节点输出 `data-sakura-ready`、`data-sakura-layout`，每张卡同时带 `data-sakura-card`。系统设置页也走同一套，5 张卡（runtime / engine / checks / extensions / layout）默认为 6/6/12/6/6 跨列。
 - 映射右侧的布局 id 必须是生产已存的布局组名。改页面 id 或文件名时不要顺手改布局 id：文件空间-子比专属的页面 id 是 `files-zibll`，布局 id 必须保持 `files-space`，否则旧布局丢失，右侧「布局修改」工具栏也不会出现。
 - 布局页的 46px 右侧留白由 `Page_Assets::has_layout()` 在服务端输出 `sakura-layout-enabled`，首屏就预留，不能等 `layout.js` 到页尾再补类，否则内容区会在加载后突然变窄。`freeLayout()` 第一次把卡片改成绝对定位时加 `is-initializing` 关闭 0.18s 过渡，否则卡片会从左上角散开。
-- 多卡组在首次落位前用 `visibility: hidden` 隐住（`is-laid` 落下后才显示），避免解析较慢时浏览器先把默认两列网格画出来；单卡组不隐藏，因为卡片本身已是 `wide`。隐藏只在桌面宽度生效，并带 2s 的 CSS 动画兜底，脚本失败或被禁用时不会永久空白。
+- **默认不进自由画布**：`layout.js` 只在 `isCustomised()` 为真时才调用 `freeLayout()` —— 判据是某张卡 `h > 0`（拖过高度）或保存的 span 与标记的 `data-sakura-span` 不同。**顺序和 `col` 不算凭据**：引擎首次加载就会把自己的流式顺序/列写回，从没拖过的看板也存着一份「和标记不一样」的顺序。
+  - 没自定义时卡片留在普通文档流（`is-free` / 内联 `height` 全部不写），页面首帧即最终形态，不会出现「先顶部再跳回」的闪跳。工具栏照常渲染，「布局修改」照常可点。
+  - 进入「布局修改」那一刻才切到自由画布（拖拽需要绝对定位）；退出时若仍无自定义，再切回流式。
+- 多卡组在首次落位前用 `visibility: hidden` 隐住（`is-laid` 落下后才显示）这条现在只对**已自定义**的看板生效，因为默认看板根本不会进入 `is-laid`。隐藏只在桌面宽度生效，并带 2s 的 CSS 动画兜底，脚本失败或被禁用时不会永久空白。
 - 页面脚本只用 `window.SakuraAdmin`：`ready`、`qs`、`qsa`、`on`、`delegate`、`closest`、`dataBlock`、`format`；请求用 `admin.api.ajax/post`；提示/确认/忙碌用 `admin.ui.toast/confirm/busy`。不要引入 jQuery。
 - 所有可见文案走 PHP 的 `__()` 后放进 `Page_Assets::set_data()`，JS 不内嵌未翻译中文。
 - 布局页里的表格/列表如果是 AJAX 渲染，渲染完成后必须 `admin.events.emit('layout-refresh')`；`layout.js` 会重新测量绝对定位画布。否则画布仍按加载行高度固定，异步内容会压到 WordPress 页脚。
@@ -397,7 +400,8 @@
 - [ ] 每张表只有一个 `<thead>`，没有重复表头。
 - [ ] 布局页的 `data-sakura-layout` 与 `Page_Assets::LAYOUT_PAGES` 一致，右侧「布局修改」存在且旧布局能恢复；竖排四字完整，编辑态恢复横排。
 - [ ] 顶栏模块导航中心与页面内容中心偏差 ≤1px；≤1100px 已回到两行 flex 布局。
-- [ ] 刷新布局页时首屏不横向跳变，卡片没有从堆叠到散开的动画；首屏 HTML 的根节点已带 `sakura-layout-enabled`。多卡组在慢速首次加载时也不会先露出默认两列（`is-laid` 前隐藏，禁用 JS 2s 后可见）。
+- [ ] 刷新布局页时首屏不横向跳变，卡片没有从堆叠到散开的动画；首屏 HTML 的根节点已带 `sakura-layout-enabled`。
+- [ ] **没拖过布局的页面加载时不闪**：`document.querySelector('.sakura-layout-grid').className` 里没有 `is-free`、没有内联 `height`，卡片 `style` 里没有 `left/top`；滚动位置在加载全程不跳动。已自定义的看板仍按原样打包显示。
 - [ ] AJAX 表格/列表加载完成后画布重新排版，WordPress 页脚不覆盖最后一行内容。
 - [ ] 提示弹窗（`.sakura-modal`）居中、可 Esc / 点遮罩 / 关闭按钮关闭、关后焦点回到触发元素（页面重载的场景靠 `return_to` 指回触发按钮，不能落到 `<body>`）；「不再提醒」持久化；同一问题没有重复的顶部提示。
 - [ ] **弹窗不改变位置**：在 `scrollY=1500` 这类深位置打开弹窗，再用 X / 按钮 / Esc / 遮罩四种方式关闭，`scrollY` 必须回到原值（误差 0）；页面内容 `getBoundingClientRect().left/width` 前后一致；焦点回到触发元素但**不得把页面滚进视野**。三类弹窗（`.sakura-modal` / `.sakura-dialog` / `.sakura-media-dialog`）逐类验。

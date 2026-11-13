@@ -225,6 +225,8 @@
 			order.splice( anchor, 0, id );
 		} );
 
+		var customised = isCustomised( group, data );
+
 		order.forEach( function ( id ) {
 			var card = byId[ id ];
 			if ( ! card ) {
@@ -236,7 +238,20 @@
 			enableDrag( card, group, page, groupName );
 		} );
 
-		freeLayout( group );
+		/*
+		 * Default board: keep the plain document flow.
+		 *
+		 * Only pack into the free canvas once the operator has actually arranged
+		 * something. Doing it on every load is what made pages flicker — the flow is
+		 * painted first, then replaced by a packed canvas of a different height.
+		 * The toolbar still renders, so the editor is reachable from here.
+		 */
+		if ( customised ) {
+			freeLayout( group );
+		} else {
+			group.classList.remove( 'is-free', 'is-initializing', 'is-laid' );
+			group.style.removeProperty( 'height' );
+		}
 
 		buildToolbar();
 	}
@@ -453,6 +468,49 @@
 
 		group.style.height = ( bottom + gapY ) + 'px';
 		group.classList.add( 'is-laid' );
+	}
+
+	/**
+	 * Whether the saved layout actually differs from the declared default.
+	 *
+	 * The engine writes a layout row on every page it visits, so "a saved layout
+	 * exists" says nothing about intent: after one page load the stored data is
+	 * just the defaults the engine itself chose (order matches data-sakura-default-
+	 * order, every span matches the markup, no card was ever resized).
+	 *
+	 * Free canvas exists so an operator can pack cards the way they want. When
+	 * nobody has, running it anyway makes the page flash: the browser paints the
+	 * grid flow, then the engine rewrites every card into absolute placement and
+	 * the document height changes under the reader. Normal flow is already the
+	 * default look, so leave the cards alone until someone actually moves one.
+	 */
+	function isCustomised( group, data ) {
+		var cards = data.cards || {};
+		var keys = Object.keys( cards );
+
+		for ( var k = 0; k < keys.length; k++ ) {
+			var entry = cards[ keys[ k ] ] || {};
+
+			// A height the operator dragged. The stored order and column are NOT
+			// evidence: the engine writes its own flow order back on the first load,
+			// so a never-touched board still has a stored order that differs from
+			// the markup order.
+			if ( parseInt( entry.h, 10 ) > 0 ) {
+				return true;
+			}
+
+			// A span that differs from the width the author declared.
+			var card = group.querySelector( '[data-sakura-card="' + keys[ k ] + '"]' );
+			if ( card ) {
+				var authored = parseInt( card.getAttribute( 'data-sakura-span' ), 10 );
+				var stored   = parseInt( entry.span, 10 );
+				if ( authored > 0 && stored > 0 && authored !== stored ) {
+					return true;
+				}
+			}
+		}
+
+		return false;
 	}
 
 	function bestColumn( heights, span ) {
@@ -1097,7 +1155,18 @@
 			resetButton.hidden = ! on;
 		}
 		toolbar.querySelector( '.sakura-layout-tools-toggle' ).setAttribute( 'aria-expanded', on ? 'true' : 'false' );
-		if ( ! on ) {
+		if ( on ) {
+			/*
+			 * Entering the editor is the one moment a default board legitimately
+			 * switches to the free canvas: dragging needs absolute placement, and the
+			 * operator is looking at the board on purpose here. Doing it on page load
+			 * instead is what caused the flicker.
+			 */
+			document.querySelectorAll( '[data-sakura-layout]' ).forEach( function ( group ) {
+				group.classList.add( 'is-editing' );
+				freeLayout( group );
+			} );
+		} else {
 			document.querySelectorAll( '[data-sakura-layout]' ).forEach( function ( group ) {
 				group.classList.remove( 'is-editing' );
 				group.classList.remove( 'is-dragging-card' );
@@ -1108,6 +1177,23 @@
 				card.classList.remove( 'is-resizing', 'is-dragging' );
 			} );
 			persist( firstPage() );
+
+			/*
+			 * Leaving the editor returns a board nobody rearranged to plain flow,
+			 * so the page stops being a packed canvas again — the same look it had
+			 * on load, without the flash that packing on every load caused.
+			 */
+			document.querySelectorAll( '[data-sakura-layout]' ).forEach( function ( group ) {
+				var page = pageOf( group );
+				var groupName = group.getAttribute( 'data-sakura-group' ) || 'main';
+				if ( ! page ) {
+					return;
+				}
+				if ( ! isCustomised( group, groupState( page, groupName ) ) ) {
+					group.classList.remove( 'is-free', 'is-initializing', 'is-laid' );
+					group.style.removeProperty( 'height' );
+				}
+			} );
 		}
 	}
 

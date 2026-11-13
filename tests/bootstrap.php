@@ -872,3 +872,137 @@ if ( ! function_exists( 'wp_get_attachment_metadata' ) ) {
 		return array( 'width' => 1200, 'height' => 800 );
 	}
 }
+
+if ( ! function_exists( 'current_user_can' ) ) {
+	/**
+	 * Capability shim; tests flip $GLOBALS['sakura_test_can'] to deny access.
+	 *
+	 * @param string $capability Capability name.
+	 * @return bool
+	 */
+	function current_user_can( $capability ) {
+		unset( $capability );
+		return (bool) ( $GLOBALS['sakura_test_can'] ?? true );
+	}
+}
+
+if ( ! function_exists( 'get_user_meta' ) ) {
+	/**
+	 * Minimal user meta shim backed by a test global.
+	 *
+	 * @param int    $user_id  User id.
+	 * @param string $key      Meta key.
+	 * @param bool   $single   Whether to return a single value.
+	 * @return mixed
+	 */
+	function get_user_meta( $user_id, $key, $single = false ) {
+		unset( $single );
+		return $GLOBALS['sakura_test_user_meta'][ $user_id ][ $key ] ?? '';
+	}
+}
+
+if ( ! function_exists( 'update_user_meta' ) ) {
+	/**
+	 * Minimal user meta writer.
+	 *
+	 * @param int    $user_id User id.
+	 * @param string $key     Meta key.
+	 * @param mixed  $value   Meta value.
+	 * @return bool
+	 */
+	function update_user_meta( $user_id, $key, $value ) {
+		$GLOBALS['sakura_test_user_meta'][ $user_id ][ $key ] = $value;
+		return true;
+	}
+}
+
+if ( ! function_exists( 'delete_user_meta' ) ) {
+	/**
+	 * Minimal user meta remover.
+	 *
+	 * @param int    $user_id User id.
+	 * @param string $key     Meta key.
+	 * @return bool
+	 */
+	function delete_user_meta( $user_id, $key ) {
+		$existed = isset( $GLOBALS['sakura_test_user_meta'][ $user_id ][ $key ] );
+		unset( $GLOBALS['sakura_test_user_meta'][ $user_id ][ $key ] );
+		return $existed;
+	}
+}
+
+if ( ! function_exists( 'wp_create_nonce' ) ) {
+	/**
+	 * Deterministic nonce shim.
+	 *
+	 * @param string $action Nonce action.
+	 * @return string
+	 */
+	function wp_create_nonce( $action ) {
+		return 'nonce-' . (string) $action;
+	}
+}
+
+if ( ! function_exists( 'esc_html' ) ) {
+	/**
+	 * Minimal escaping shim.
+	 *
+	 * @param string $text Text.
+	 * @return string
+	 */
+	function esc_html( $text ) {
+		return htmlspecialchars( (string) $text, ENT_QUOTES, 'UTF-8' );
+	}
+}
+
+if ( ! function_exists( 'esc_attr' ) ) {
+	/**
+	 * Minimal attribute escaping shim.
+	 *
+	 * @param string $text Text.
+	 * @return string
+	 */
+	function esc_attr( $text ) {
+		return htmlspecialchars( (string) $text, ENT_QUOTES, 'UTF-8' );
+	}
+}
+
+if ( ! function_exists( 'esc_url' ) ) {
+	/**
+	 * Minimal URL escaping shim.
+	 *
+	 * @param string $url URL.
+	 * @return string
+	 */
+	function esc_url( $url ) {
+		return htmlspecialchars( (string) $url, ENT_QUOTES, 'UTF-8' );
+	}
+}
+
+if ( ! function_exists( 'esc_html__' ) ) {
+	/**
+	 * Escaped translation shim.
+	 *
+	 * @param string $text   Text.
+	 * @param string $domain Text domain.
+	 * @return string
+	 */
+	function esc_html__( $text, $domain = '' ) {
+		unset( $domain );
+		return esc_html( (string) $text );
+	}
+}
+
+if ( ! function_exists( 'esc_attr_e' ) ) {
+	/**
+	 * Escaped translated-attribute shim.
+	 *
+	 * @param string $text   Text.
+	 * @param string $domain Text domain.
+	 * @return void
+	 */
+	function esc_attr_e( $text, $domain = '' ) {
+		unset( $domain );
+		echo esc_attr( (string) $text );
+	}
+}

@@ -89,6 +89,35 @@ final class Config_Notice {
 	}
 
 	/**
+	 * Whether the "object storage is paused" dialog should be rendered.
+	 *
+	 * A complete connection with the master switch off is neither a
+	 * configuration error nor a first-run state. Uploads keep working locally
+	 * and the dashboard keeps showing whatever the last scan wrote, so nothing
+	 * on screen would say the bucket stopped receiving files unless a dialog
+	 * said it. The check runs after the incomplete one so the two never both
+	 * fire: one needs missing fields, the other needs every field present.
+	 *
+	 * @param Options $options Storage options.
+	 * @return bool
+	 */
+	public static function should_prompt_paused( Options $options ): bool {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			return false;
+		}
+
+		if ( array() !== $options->configuration_errors() ) {
+			return false;
+		}
+
+		if ( $options->is_enabled() ) {
+			return false;
+		}
+
+		return self::is_quiet_window_over();
+	}
+
+	/**
 	 * Shared "did the operator already mute or postpone this?" check.
 	 *
 	 * @return bool
@@ -265,6 +294,38 @@ final class Config_Notice {
 			__( '同步中心的数字来自最近一次核对写入的索引。首次核对会验证连接并读取云端清单；之后的页面直接读取本地记录，不再实时访问对象存储。', 'sakura-imgopt' ),
 			'',
 			self::actions_markup( __( '稍后处理', 'sakura-imgopt' ), $primary, false ),
+			wp_create_nonce( 'sakura_s3_config_notice' ),
+			'neutral'
+		);
+		return (string) ob_get_clean();
+	}
+
+	/**
+	 * Dialog that explains a complete-but-disabled storage configuration.
+	 *
+	 * @param Options $options Storage options.
+	 * @return string
+	 */
+	public static function paused_html( Options $options ): string {
+		if ( ! self::should_prompt_paused( $options ) ) {
+			return '';
+		}
+
+		// Only the sync center mounts this dialog. The connection screen holds
+		// the switch itself, so a modal there would cover the control the
+		// operator was about to use.
+		$primary = '<a class="btn btn--primary" data-config-primary href="' . esc_url( Registry::url( 'storage', 'connection' ) ) . '">' . esc_html__( '去启用 S3', 'sakura-imgopt' ) . '</a>';
+
+		ob_start();
+		self::render_modal(
+			'sakura-s3-paused-modal',
+			'sakura-s3-paused-title',
+			'sakura-s3-paused-desc',
+			'OBJECT STORAGE / PAUSED',
+			__( '对象存储已停用', 'sakura-imgopt' ),
+			__( '连接信息是完整的，但 S3 存储开关处于关闭状态：新上传的图片不会同步到云端，媒体地址也不会被接管。下面的数字停留在停用之前，重新启用后可以再核对一次。', 'sakura-imgopt' ),
+			'',
+			self::actions_markup( __( '稍后处理', 'sakura-imgopt' ), $primary ),
 			wp_create_nonce( 'sakura_s3_config_notice' ),
 			'neutral'
 		);

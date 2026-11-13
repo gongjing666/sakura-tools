@@ -6,7 +6,7 @@
 
 图片压缩 · 缩略图治理 · S3 对象存储 · 同步索引 · 用户文件空间
 
-[![版本](https://img.shields.io/badge/version-1.25.5-e85d8b?style=flat-square)](https://github.com/gongjing666/sakura-tools/releases/latest)
+[![版本](https://img.shields.io/badge/version-1.25.6-e85d8b?style=flat-square)](https://github.com/gongjing666/sakura-tools/releases/latest)
 [![PHPUnit](https://img.shields.io/badge/PHPUnit-10.5-4c1?style=flat-square)](https://github.com/gongjing666/sakura-tools/actions/workflows/tests.yml)
 [![PHPStan](https://img.shields.io/badge/PHPStan-level%205-4c1?style=flat-square)](https://github.com/gongjing666/sakura-tools/actions/workflows/phpstan.yml)
 ![WordPress](https://img.shields.io/badge/WordPress-6.4%2B-21759b?style=flat-square&logo=wordpress&logoColor=white)
@@ -40,6 +40,7 @@
 
 ## 最近更新
 
+- **1.25.6** — S3 连接信息填全但总开关关掉时，同步中心此前把它当成「配置不完整」，右上角还照样报覆盖率，两句话自相矛盾；现在这种状态显示「已停用」，副标题是「缤纷云 · 连接信息完整，开关关闭」，健康卡的措辞同样改成三值。补上第三种引导弹窗「对象存储已停用」，说明新图不会同步到云端、媒体地址不会被接管、下面的数字停在停用之前，主按钮直接去连接页打开开关。三种提示互斥，优先级为缺字段 → 已停用 → 需要首次核对；此前「已配置」的判断把总开关也算在内，开关一关两种弹窗同时消失，页面只剩一行小字。停用期间仍可手动核对（只读云端清单）。
 - **1.25.5** — 同步中心不再「越放越旧」：此前那些数字只在手动点「核对」时更新，站点几个月不动，卡片就在描述一个早不存在的桶。新增每月定时核对（增量模式，到点自动发起并把结果写回同一张扫描表，页面照旧只读本地记录），页面加载时发现数据超过 30 天还会顺手补排一次，避免 WP-Cron 漂移漏跑。同时补齐两类引导：S3 未配置时同步中心也会弹配置提醒（与连接配置页共用同一份「不再提醒 / 12 小时后再说」偏好），已配置但没核对过时弹窗说明数据来源并就地发起核对；数据超过 30 天则在顶部给一条 inline 提示与「立即校准」。弹窗按后台 UI 规则重做，窄屏 390 / 320px 无横向溢出。
 - **1.25.4** — 「云端体积分布」不再在没核对过时静默显示全 0：这张卡的数字全部来自最近一次完整核对写入的扫描行，没有记录时只能显示 0，过去看起来像插件坏了。现在按实际状态给出提示——从未核对显示「还没有核对记录」并附「开始完整核对」按钮，核对中显示「正在核对」，上次中断显示「上次核对没有跑完」并附「继续核对」，核对过但桶里确实为空时保留 0% 并说明上传后需重新核对；核对完成时多一行「数据来自 11-13 00:27 的完整核对」的来源说明。仅改这一张卡片与一条日志文案。
 - **1.25.3** — 对象存储页的卡片统一成一套可自由拖动的画布：连接页此前只有配置 / 行为 / 测试三张卡在布局组里，凭据档案、上传统计与监控卡落在组外拖不动，删除队列页完全没有布局组；现在三屏的卡片都能在「布局修改」下拖动排序、换列、改宽度并记住位置。同时删掉默认布局里指向已不存在的 `migrate` 卡的历史残留，让「恢复默认」与首次访问得到同一排布。
@@ -100,11 +101,11 @@ flowchart LR
 | 兼容层 | `includes/`、`includes/views/` | 旧实现与后台模板，仍由启动流程加载，不能盲删 |
 
 <details>
-<summary><strong>代码规模与仓库结构（1.25.5）</strong></summary>
+<summary><strong>代码规模与仓库结构（1.25.6）</strong></summary>
 
 | 指标 | 数值 |
 | --- | --- |
-| 生产 PHP | 190 文件 / 65,667 行 |
+| 生产 PHP | 190 文件 / 65,789 行 |
 | 类与接口 | 175（含 7 个接口） |
 | 注册钩子 | 209 |
 | 自定义表 | 23 |
@@ -261,12 +262,12 @@ git clone https://github.com/gongjing666/sakura-tools.git
 
 ## 文档与代码结构
 
-当前版本 1.25.5 的分析产物：
+当前版本 1.25.6 的分析产物：
 
 | 文档 | 内容 |
 | --- | --- |
-| [代码结构文档](docs/sakura-tools-代码结构-1.25.5.md) | 文件树、类职责、调用关系、运行期验证与待确认项，按“结构 → 职责 → 关系 → 验证”组织 |
-| [图谱同步说明](docs/sakura-tools-图谱同步-1.25.5.md) | 3D 图谱的节点 / 连线口径、生成方式与每轮更新记录 |
+| [代码结构文档](docs/sakura-tools-代码结构-1.25.6.md) | 文件树、类职责、调用关系、运行期验证与待确认项，按“结构 → 职责 → 关系 → 验证”组织 |
+| [图谱同步说明](docs/sakura-tools-图谱同步-1.25.6.md) | 3D 图谱的节点 / 连线口径、生成方式与每轮更新记录 |
 | [3D 图谱静态页](docs/graph-preview/index.html) | 模块与类的关系图；GitHub 不执行页面脚本，克隆后用浏览器打开 |
 | [DECISIONS.md](DECISIONS.md) | 关键设计取舍与已知边界 |
 | [DEVELOPMENT.md](DEVELOPMENT.md) | 历史开发记录；文件结构章节停在 1.3.3，现状以代码结构文档为准 |
@@ -301,7 +302,7 @@ composer lint:strict
 本地构建（默认当前 HEAD）：
 
 ```bash
-bin/build-plugin-zip.sh --version 1.25.5 --out dist
+bin/build-plugin-zip.sh --version 1.25.6 --out dist
 ```
 
 补建历史版本包：

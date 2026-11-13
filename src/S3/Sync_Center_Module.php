@@ -341,6 +341,7 @@ final class Sync_Center_Module implements Module {
 		$export_url = $data['export_url'];
 		$uploads = $data['uploads'];
 		$is_configured = $data['is_configured'];
+		$storage_enabled = $data['is_enabled'];
 		$index_enabled = $data['index_enabled'];
 		$legacy_error = $data['legacy_error'];
 		$legacy_built = $data['legacy_built'];
@@ -1907,7 +1908,11 @@ final class Sync_Center_Module implements Module {
 				'sakura_s3_sync_export'
 			),
 			'uploads'      => $uploads,
-			'is_configured' => $this->options->is_enabled() && $this->options->is_configured(),
+			// Two separate facts: the fields can be complete while the master
+			// switch is off. Folding them together made "paused" look like a
+			// broken configuration on this screen.
+			'is_configured' => $this->options->is_configured(),
+			'is_enabled'    => $this->options->is_enabled(),
 			'index_enabled' => $index_enabled,
 			'legacy_error'  => $legacy_error,
 			'legacy_built'  => $legacy_built,

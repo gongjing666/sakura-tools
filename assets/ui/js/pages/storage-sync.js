@@ -138,7 +138,7 @@
 		/* -----------------------------------------------------------------
 		 * Setup and first-reconciliation dialogs.
 		 *
-		 * Config_Notice renders both modals into the page body. They share the
+		 * Config_Notice renders at most one modal into the page body. They share the
 		 * dismiss endpoint with the connection screen, so a "not now" here also
 		 * quiets the setup prompt; the choice is stored per user by the server.
 		 * The markup contract is #sakura-s3-*-modal + [data-config-close] and
@@ -146,7 +146,7 @@
 		 * ----------------------------------------------------------------- */
 
 		function initDialogs() {
-			var modals = admin.qsa( '#sakura-s3-config-modal, #sakura-s3-reconcile-modal', document );
+			var modals = admin.qsa( '#sakura-s3-config-modal, #sakura-s3-paused-modal, #sakura-s3-reconcile-modal', document );
 			if ( ! modals.length ) {
 				return;
 			}

@@ -26,6 +26,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 /** @var string $export_url */
 /** @var array<string,mixed> $uploads */
 /** @var bool $is_configured */
+/** @var bool $storage_enabled */
 /** @var bool $scan_busy */
 /** @var bool $index_enabled */
 
@@ -74,6 +75,8 @@ $scan_phase_labels = array(
 	'reconcile' => __( '核对汇总', 'sakura-imgopt' ),
 );
 $index_enabled    = isset( $index_enabled ) ? (bool) $index_enabled : true;
+$is_configured    = isset( $is_configured ) ? (bool) $is_configured : false;
+$storage_enabled  = isset( $storage_enabled ) ? (bool) $storage_enabled : false;
 $legacy_error     = isset( $legacy_error ) ? (string) $legacy_error : '';
 $legacy_built     = isset( $legacy_built ) ? (int) $legacy_built : 0;
 $metrics          = isset( $metrics ) && is_array( $metrics ) ? $metrics : array();
@@ -237,7 +240,33 @@ $type_labels = array(
 $cron_next    = wp_next_scheduled( \Sakura\ImageOptimizer\Sync\Action_Worker::HOOK );
 $scan_label   = $scan_time ? wp_date( 'm-d H:i', $scan_time ) : __( '尚未核对', 'sakura-imgopt' );
 $media_label  = $upload_url ? $upload_url : __( '未接管媒体 URL', 'sakura-imgopt' );
-$status_text  = $is_configured ? __( '连接正常', 'sakura-imgopt' ) : __( '配置不完整', 'sakura-imgopt' );
+// Three states, not two: "complete but switched off" is not a broken
+// configuration, and calling it one sends operators to look for a typo in
+// credentials that are perfectly valid.
+if ( ! $is_configured ) {
+	$status_text = __( '配置不完整', 'sakura-imgopt' );
+	$status_tone = 'bad';
+} elseif ( ! $storage_enabled ) {
+	$status_text = __( '已停用', 'sakura-imgopt' );
+	$status_tone = 'warn';
+} else {
+	$status_text = __( '连接正常', 'sakura-imgopt' );
+	$status_tone = 'ok';
+}
+if ( $failed_total > 0 || ! $index_enabled ) {
+	$status_tone = 'warn';
+}
+// The health card repeats the same three states, so derive the copy once.
+if ( ! $is_configured ) {
+	$health_text = __( '配置不完整', 'sakura-imgopt' );
+	$health_warn = true;
+} elseif ( ! $storage_enabled ) {
+	$health_text = __( '已停用', 'sakura-imgopt' );
+	$health_warn = true;
+} else {
+	$health_text = __( '配置可用', 'sakura-imgopt' );
+	$health_warn = false;
+}
 $page_cursor  = isset( $page_cursor ) ? (string) $page_cursor : '';
 $page_more    = ! empty( $page_more );
 $page_size    = 25;
@@ -246,12 +275,29 @@ $missing_media = ( new \Sakura\ImageOptimizer\Sync\Attachment_Adopter() )->count
 $ignored_rules = \Sakura\ImageOptimizer\S3\Ignored_Paths::all();
 $ignored_saved = isset( $_GET['ignored_saved'] ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Display-only flag set by our own redirect.
 
-$page_status_sub = sprintf(
-	/* translators: 1: provider, 2: coverage. */
-	__( '%1$s · 覆盖率 %2$s%%', 'sakura-imgopt' ),
-	$provider_label,
-	number_format_i18n( $coverage, 1 )
-);
+// The sub line restates the same three states as the value above it. Printing
+// a coverage number next to "配置不完整" read as if the connection were fine and
+// only the percentage was odd.
+if ( ! $is_configured ) {
+	$page_status_sub = sprintf(
+		/* translators: %s: storage provider. */
+		__( '%s · 待补全配置', 'sakura-imgopt' ),
+		$provider_label
+	);
+} elseif ( ! $storage_enabled ) {
+	$page_status_sub = sprintf(
+		/* translators: %s: storage provider. */
+		__( '%s · 连接信息完整，开关关闭', 'sakura-imgopt' ),
+		$provider_label
+	);
+} else {
+	$page_status_sub = sprintf(
+		/* translators: 1: provider, 2: coverage. */
+		__( '%1$s · 覆盖率 %2$s%%', 'sakura-imgopt' ),
+		$provider_label,
+		number_format_i18n( $coverage, 1 )
+	);
+}
 
 ob_start();
 ?>
@@ -360,7 +406,8 @@ $sakura_sync_cards = static function () use (
 	$failed_count,
 	$remote,
 	$mismatch,
-	$is_configured,
+	$health_text,
+	$health_warn,
 	$provider_label,
 	$bucket,
 	$endpoint,
@@ -542,12 +589,12 @@ $sakura_sync_cards = static function () use (
 				'kicker' => __( 'Connection', 'sakura-imgopt' ),
 				'title'  => __( '连接与队列健康', 'sakura-imgopt' ),
 			),
-			static function () use ( $is_configured, $provider_label, $bucket, $endpoint, $media_label, $scan_label, $local_files, $cloud_objects, $jobs, $queue_waiting, $queue_dead, $metric_pages, $metric_batches, $metric_batch_ms, $metric_429, $metric_5xx, $cron_next, $index_enabled, $toggle_nonce, $test_nonce, $settings_url ): void {
+			static function () use ( $health_text, $health_warn, $provider_label, $bucket, $endpoint, $media_label, $scan_label, $local_files, $cloud_objects, $jobs, $queue_waiting, $queue_dead, $metric_pages, $metric_batches, $metric_batch_ms, $metric_429, $metric_5xx, $cron_next, $index_enabled, $toggle_nonce, $test_nonce, $settings_url ): void {
 				?>
 				<div class="health">
-					<div class="health__status<?php echo $is_configured ? '' : ' is-warn'; ?>">
+					<div class="health__status<?php echo $health_warn ? ' is-warn' : ''; ?>">
 						<span class="health__dot" aria-hidden="true"></span>
-						<strong><?php echo esc_html( $is_configured ? __( '配置可用', 'sakura-imgopt' ) : __( '配置不完整', 'sakura-imgopt' ) ); ?></strong>
+						<strong><?php echo esc_html( $health_text ); ?></strong>
 						<small id="sakura-sync-latency"><?php esc_html_e( '凭据已加密', 'sakura-imgopt' ); ?></small>
 					</div>
 					<dl class="health__list">
@@ -904,8 +951,17 @@ $sakura_sync_cards();
 // The dialogs must live inside the page root: the sync script binds its action
 // delegate to that subtree, and the modal rules are scoped to
 // .sakura-admin[data-sakura-page="storage-sync"].
-echo \Sakura\ImageOptimizer\S3\Config_Notice::modal_html( $options, 'sync' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- generated with escaped values.
-echo \Sakura\ImageOptimizer\S3\Config_Notice::reconcile_html( $options, $is_configured && $index_enabled, null !== $scan_obj, isset( $scan_busy ) ? (bool) $scan_busy : $scan_running ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- generated with escaped values.
+// One dialog at a time, most blocking first: missing fields outrank a paused
+// bucket, and a paused bucket outranks the first-run scan request. Only the
+// first non-empty string renders.
+$sakura_modals = \Sakura\ImageOptimizer\S3\Config_Notice::modal_html( $options, 'sync' );
+if ( '' === $sakura_modals ) {
+	$sakura_modals = \Sakura\ImageOptimizer\S3\Config_Notice::paused_html( $options );
+}
+if ( '' === $sakura_modals ) {
+	$sakura_modals = \Sakura\ImageOptimizer\S3\Config_Notice::reconcile_html( $options, $is_configured && $storage_enabled && $index_enabled, null !== $scan_obj, isset( $scan_busy ) ? (bool) $scan_busy : $scan_running );
+}
+echo $sakura_modals; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- generated with escaped values.
 
 $sync_body = ob_get_clean();
 
@@ -921,7 +977,7 @@ $sync_body = ob_get_clean();
 			'label' => __( '连接状态', 'sakura-imgopt' ),
 			'value' => $status_text,
 			'sub'   => $page_status_sub,
-			'tone'  => $is_configured ? ( ( $failed_total > 0 || ! $index_enabled ) ? 'warn' : 'ok' ) : 'bad',
+			'tone'  => $status_tone,
 		),
 		'actions' => array(
 			array(

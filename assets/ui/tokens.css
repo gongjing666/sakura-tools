@@ -4,60 +4,106 @@
  * Values only. No selectors besides :root, no layout, no component shapes.
  * Every component reads from this file so a palette change stays one edit.
  *
+ * Palette: "Sakura no kaze" — a warm paper canvas dusted with a faint
+ * rose mist, white cards that bloom softly in one corner, and a single
+ * deep sakura accent. The accent is deep on purpose: a bright pink cannot
+ * hold white text at 4.5:1, and this screen is read for hours at a time.
+ *
  * @package Sakura_Image_Optimizer
  */
 
 :root {
-	/* Ink */
-	--g-ink: #1b1c1e;
-	--g-ink-soft: #34363a;
-	--g-muted: #5f6165;
-	--g-faint: #6b6c68;
-	--g-line: #e4e1d9;
-	--g-line-soft: #eeece5;
-	--g-line-strong: #d2cfc6;
+	/* Ink — warmed by a touch of the accent hue so text sits in the same
+	 * family as the canvas instead of reading as cold graphite on pink. */
+	--g-ink: #241a1e;
+	--g-ink-soft: #3d3035;
+	--g-muted: #6b5a60;
+	/* #776469, not a lighter rose: eyebrows sit on --g-paper-deep inside KPI
+	 * tiles, where anything paler drops under 4.5:1. */
+	--g-faint: #776469;
+	--g-line: #f0e3e6;
+	--g-line-soft: #f7eef0;
+	--g-line-strong: #dfc9ce;
 
 	/* Surfaces */
-	--g-paper: #f6f5f1;
-	--g-paper-deep: #efeee9;
+	--g-paper: #fdf7f8;
+	--g-paper-deep: #f8eef0;
 	--g-card: #ffffff;
-	--g-card-surface: #ffffff;
+	--g-card-surface: #fffdfd;
 	--g-card-border-width: 1px;
-	--g-wash: #fbfaf7;
-	--g-overlay: rgba(24, 25, 26, .38);
+	--g-wash: #fdf9fa;
+	--g-overlay: rgba(46, 22, 30, .40);
 
-	/* One accent: graphite. Status colours are separate and never decorative. */
-	--g-accent: #232528;
-	--g-accent-hover: #000000;
-	--g-accent-soft: #efeee9;
+	/* One accent: deep sakura. Status colours are separate and never decorative. */
+	--g-accent: #9d3452;
+	--g-accent-hover: #832a45;
+	--g-accent-soft: #fbe9ee;
 	--g-accent-ink: #ffffff;
+	/* Tinted edge for accent-filled controls; keeps a solid button from
+	 * looking like a flat sticker on a soft canvas. */
+	--g-accent-line: #8f2f4d;
+	--g-accent-glow: rgba(157, 52, 82, .30);
+
+	/* Sakura scale: four steps from deep to barely-there. Used by charts and
+	 * by any place that needs more than one accent tone. Only steps 1-2 carry
+	 * text; 3-4 are fill-only. */
+	--g-sakura-1: #8f2f4d;
+	--g-sakura-2: #c25e7d;
+	--g-sakura-3: #e79fb3;
+	--g-sakura-4: #f3d8dd;
+
+	/* Progress: the track is the accent at 8% so an empty bar still reads as
+	 * "this is a meter", and the fill starts deep rather than pale: at 1.5% only
+	 * the left cap of the gradient is ever painted, and a pale cap disappears
+	 * into a pale track. */
+	--g-track: #fbe9ee;
+	--g-track-line: rgba(157, 52, 82, .10);
+	--g-fill: linear-gradient(90deg, #b8496b 0%, #a83b5b 52%, var(--g-accent) 100%);
+
+	/* Canvas: the mist layers and the petal dust. Pure CSS, no image assets.
+	 * Tuned on the real sync page: below ~.40 the mist reads as "white with a
+	 * hint of pink" and the theme stops being visible at all; above ~.50 the
+	 * page turns into a beauty product. .44 is the widest wash that still lets
+	 * --g-muted body copy clear 4.5:1 (5.32:1 over the deepest patch). */
+	--sakura-mist-strong: rgba(238, 172, 192, .50);
+	--sakura-mist-soft: rgba(241, 188, 204, .38);
+	--sakura-mist-far: rgba(244, 198, 212, .28);
+	--sakura-canvas-top: #fffbfa;
+	--sakura-canvas-mid: #fbf5f6;
+	--sakura-canvas-bottom: #fdf9fa;
+	--sakura-dust: rgba(190, 74, 113, .22);
+	/* Card bloom: a corner of light so a white card reads as paper catching the
+	 * mist rather than a flat rectangle pasted on it. Fill only, never text. */
+	--g-card-bloom: radial-gradient(100% 78% at 100% 0%, rgba(233, 168, 190, .26) 0%, rgba(233, 168, 190, 0) 58%), radial-gradient(78% 68% at 0% 100%, rgba(240, 205, 214, .18) 0%, rgba(240, 205, 214, 0) 64%);
 
 	/* Selection controls */
-	--g-select: #2f3134;
-	--g-select-dot: #f6f4ed;
-	--g-select-surface: #fffdfa;
-	--g-select-border: #c3c0b7;
-	--g-select-border-hover: #9b978d;
-	--g-select-focus: rgba(47, 49, 52, .16);
+	--g-select: #9d3452;
+	--g-select-dot: #fff6f8;
+	--g-select-surface: #fffdfd;
+	--g-select-border: #dcc4c9;
+	--g-select-border-hover: #b99aa2;
+	--g-select-focus: rgba(157, 52, 82, .16);
 
 	/* Status */
-	--g-ok: #33704e;
+	--g-ok: #2f6b4a;
 	--g-ok-bg: #edf5f0;
 	--g-ok-line: #cfe3d7;
 	--g-warn: #8a651d;
 	--g-warn-bg: #faf3e4;
 	--g-warn-line: #ead9b5;
-	--g-bad: #a3463d;
+	--g-bad: #a63a2c;
+	--g-bad-hover: #8d2f24;
 	--g-bad-bg: #fbedeb;
 	--g-bad-line: #efd3ce;
-	--g-info: #4a4c50;
-	--g-info-bg: #f2f1ed;
-	--g-info-line: #e2e0d8;
+	--g-info: #6d5560;
+	--g-info-bg: #f7f0f2;
+	--g-info-line: #e8dade;
 
-	/* Depth. Two levels only: resting card, lifted surface. */
-	--g-shadow-card: 0 1px 2px rgba(24, 25, 26, .04), 0 14px 32px -24px rgba(24, 25, 26, .28), 0 40px 72px -64px rgba(24, 25, 26, .32);
-	--g-shadow-soft: 0 1px 2px rgba(24, 25, 26, .035), 0 8px 20px -16px rgba(24, 25, 26, .18);
-	--g-shadow-pop: 0 2px 4px rgba(24, 25, 26, .06), 0 24px 60px -28px rgba(24, 25, 26, .42);
+	/* Depth. Two levels only: resting card, lifted surface. Shadows are tinted
+	 * with the accent hue; a neutral grey shadow over a pink canvas reads as dirt. */
+	--g-shadow-card: 0 1px 2px rgba(93, 29, 45, .05), 0 14px 32px -24px rgba(93, 29, 45, .24), 0 40px 72px -64px rgba(93, 29, 45, .26);
+	--g-shadow-soft: 0 1px 2px rgba(93, 29, 45, .04), 0 8px 20px -16px rgba(93, 29, 45, .16);
+	--g-shadow-pop: 0 2px 4px rgba(93, 29, 45, .06), 0 24px 60px -28px rgba(93, 29, 45, .36);
 
 	/* Shape */
 	--g-radius-card: 18px;

@@ -279,6 +279,7 @@
 	border: 1px solid var(--g-line-soft);
 	border-radius: var(--g-radius-sm);
 	background: var(--g-paper-deep);
+	box-shadow: inset 0 1px 0 rgba(255, 255, 255, .7);
 }
 
 .sakura-admin[data-sakura-page="storage-sync"] .task-stat span {
@@ -367,7 +368,7 @@
 .sakura-admin[data-sakura-page="storage-sync"] .activity__bar {
 	width: 8px;
 	border-radius: var(--g-radius-xs) var(--g-radius-xs) 0 0;
-	background: var(--g-accent);
+	background: linear-gradient(180deg, var(--g-sakura-2) 0%, var(--g-accent) 100%);
 }
 
 .sakura-admin[data-sakura-page="storage-sync"] .activity__bar--bad {
@@ -468,6 +469,9 @@
 	width: clamp(140px, 40vw, 176px);
 	aspect-ratio: 1;
 	border-radius: 50%;
+	/* The lightest segment is nearly the colour of the card behind it, so the
+	 * ring needs its own hairline edge or the donut looks clipped at 100%. */
+	box-shadow: 0 0 0 1px rgba(157, 52, 82, .10), 0 12px 26px -20px rgba(93, 29, 45, .55);
 }
 
 .sakura-admin[data-sakura-page="storage-sync"] .storage-mix__center {
@@ -477,7 +481,8 @@
 	width: 68%;
 	aspect-ratio: 1;
 	border-radius: 50%;
-	background: var(--g-card);
+	background: var(--g-card-surface);
+	box-shadow: inset 0 0 0 1px rgba(157, 52, 82, .06);
 	text-align: center;
 	align-content: center;
 }
@@ -515,8 +520,9 @@
 .sakura-admin[data-sakura-page="storage-sync"] .storage-mix__swatch {
 	width: 10px;
 	height: 10px;
-	border-radius: var(--g-radius-xs);
+	border-radius: 4px;
 	background: var(--g-accent);
+	box-shadow: inset 0 0 0 1px rgba(93, 29, 45, .10);
 }
 
 .sakura-admin[data-sakura-page="storage-sync"] .storage-mix__hint {

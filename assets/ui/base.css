@@ -30,11 +30,17 @@
  * Canvas
  * ============================================================ */
 
+/* The canvas is warm paper with rose mist pooling at three corners. The
+ * gradient that defines it is the BACKGROUND; the petal dust rides on ::before
+ * so a user-supplied --g-page-bg can replace the wash without losing the
+ * texture, and so the dust never lands under text as a hard repeated shape.
+ *
+ * Anchor the two top pools by PIXEL, not percentage. Percentages in a radial
+ * gradient resolve against the element box, and this canvas is ~5500px tall on
+ * the sync page — "at 64% -16%" put the strongest pool 880px above the viewport,
+ * where nobody ever saw it, and the page read as plain white. The bottom pool
+ * stays in percent on purpose: it should follow the end of a long page. */
 .sakura-admin {
-	--sakura-cloud-a: rgba(255, 255, 255, .92);
-	--sakura-cloud-b: rgba(211, 217, 212, .30);
-	--sakura-cloud-c: rgba(218, 221, 216, .34);
-
 	position: relative;
 	isolation: isolate;
 	box-sizing: border-box;
@@ -49,11 +55,32 @@
 	-webkit-font-smoothing: antialiased;
 	text-rendering: optimizeLegibility;
 	background:
-		radial-gradient(1160px 660px at 80% -12%, var(--sakura-cloud-a) 0%, rgba(255, 255, 255, 0) 68%),
-		radial-gradient(900px 560px at 2% 4%, var(--sakura-cloud-b) 0%, rgba(211, 217, 212, 0) 72%),
-		radial-gradient(1040px 680px at 46% 112%, var(--sakura-cloud-c) 0%, rgba(218, 221, 216, 0) 70%),
-		radial-gradient(720px 440px at 96% 58%, rgba(255, 255, 255, .58) 0%, rgba(255, 255, 255, 0) 76%),
-		linear-gradient(180deg, #f8f7f3 0%, #f4f3ee 56%, #f7f6f2 100%);
+		radial-gradient(1500px 620px at 62% -120px, var(--sakura-mist-strong) 0%, rgba(238, 172, 192, 0) 68%),
+		radial-gradient(1000px 560px at -10% 40px, var(--sakura-mist-soft) 0%, rgba(241, 188, 204, 0) 70%),
+		radial-gradient(900px 600px at 104% 100%, var(--sakura-mist-far) 0%, rgba(244, 198, 212, 0) 76%),
+		linear-gradient(180deg, var(--sakura-canvas-top) 0%, var(--sakura-canvas-mid) 42%, var(--sakura-canvas-bottom) 100%);
+}
+
+/* Petal dust: seven soft elliptical specks tiled over the canvas. Every one of
+ * them sits off-centre by a different amount, so the repeat never resolves into
+ * a grid — the eye should read drifting motes, not wallpaper. Sizes alternate
+ * portrait/landscape for the same reason. */
+.sakura-admin::before {
+	content: "";
+	position: absolute;
+	inset: 0;
+	z-index: -1;
+	pointer-events: none;
+	background-image:
+		radial-gradient(3.4px 2.6px at 12% 18%, var(--sakura-dust), rgba(190, 74, 113, 0)),
+		radial-gradient(2.6px 3.2px at 38% 62%, var(--sakura-dust), rgba(190, 74, 113, 0)),
+		radial-gradient(4.2px 2.8px at 67% 24%, var(--sakura-dust), rgba(190, 74, 113, 0)),
+		radial-gradient(2.8px 3.6px at 86% 74%, var(--sakura-dust), rgba(190, 74, 113, 0)),
+		radial-gradient(3.2px 2.4px at 24% 88%, var(--sakura-dust), rgba(190, 74, 113, 0)),
+		radial-gradient(2.2px 2.6px at 54% 46%, var(--sakura-dust), rgba(190, 74, 113, 0)),
+		radial-gradient(2.6px 2.2px at 7% 54%, var(--sakura-dust), rgba(190, 74, 113, 0));
+	background-size: 330px 300px;
+	background-repeat: repeat;
 }
 
 .sakura-admin *,
@@ -63,8 +90,8 @@
 }
 
 .sakura-admin ::selection {
-	background: #dedcd5;
-	color: #111213;
+	background: #f6d5df;
+	color: #3d1420;
 }
 
 /* ============================================================
@@ -112,6 +139,8 @@
 	color: var(--g-ink);
 }
 
+/* The mark is the one place a gradient is earned: it is small, it is the
+ * brand, and it reads as a petal-lit tile rather than a flat swatch. */
 .sakura-admin .brand-mark {
 	display: grid;
 	place-items: center;
@@ -119,8 +148,8 @@
 	width: 30px;
 	height: 30px;
 	border-radius: 9px;
-	background: var(--g-accent);
-	box-shadow: 0 2px 8px rgba(18, 19, 21, .18);
+	background: linear-gradient(145deg, #b04263 0%, var(--g-accent) 52%, var(--g-accent-line) 100%);
+	box-shadow: 0 1px 2px rgba(93, 29, 45, .28), 0 8px 16px -10px var(--g-accent-glow), inset 0 1px 0 rgba(255, 255, 255, .22);
 	color: var(--g-accent-ink);
 	font-size: 13.5px;
 	font-weight: 650;
@@ -143,7 +172,7 @@
 
 .sakura-admin .brand .slash {
 	margin: 0 3px;
-	color: #c5c2ba;
+	color: #d9c2c8;
 }
 
 .sakura-admin .sakura-mods {
@@ -151,9 +180,9 @@
 	align-items: center;
 	gap: 2px;
 	padding: 4px;
-	border: 1px solid rgba(255, 255, 255, .8);
+	border: 1px solid rgba(255, 255, 255, .88);
 	border-radius: var(--g-radius-pill);
-	background: rgba(255, 255, 255, .52);
+	background: rgba(255, 255, 255, .58);
 	box-shadow: var(--g-shadow-soft);
 	backdrop-filter: blur(10px);
 }
@@ -179,7 +208,7 @@
 
 .sakura-admin .sakura-mod.is-active {
 	background: var(--g-accent);
-	box-shadow: 0 1px 2px rgba(18, 19, 21, .18), 0 6px 14px -8px rgba(18, 19, 21, .5);
+	box-shadow: 0 1px 2px rgba(93, 29, 45, .26), 0 6px 14px -8px var(--g-accent-glow);
 	color: var(--g-accent-ink);
 }
 
@@ -328,7 +357,7 @@
 
 .sakura-admin a {
 	color: var(--g-ink-soft);
-	text-decoration-color: #c8c5bd;
+	text-decoration-color: #d8bfc5;
 	text-underline-offset: 2px;
 }
 
@@ -351,8 +380,8 @@
 	padding: 2px 6px;
 	border: 1px solid var(--g-line-soft);
 	border-radius: 5px;
-	background: #f5f4ef;
-	color: #3a3c3f;
+	background: #fbf2f4;
+	color: var(--g-ink-soft);
 	font-size: 12.5px;
 	line-height: 1.55;
 }
@@ -505,7 +534,7 @@
 .sakura-admin .page-head__actions .btn--quiet {
 	border-color: var(--g-line-strong);
 	background: var(--g-card);
-	box-shadow: 0 1px 1px rgba(24, 25, 26, .035);
+	box-shadow: 0 1px 1px rgba(93, 29, 45, .05);
 	color: var(--g-ink-soft);
 }
 

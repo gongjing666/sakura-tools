@@ -35,7 +35,10 @@
 	padding: 0;
 	border: var(--g-card-border-width, 1px) solid var(--g-line);
 	border-radius: var(--g-radius-card);
-	background: var(--g-card-surface, var(--g-card));
+	/* Colour first, bloom second: a user who sets their own card colour keeps
+	 * it, and the bloom is faint enough to sit on top of any of them. */
+	background-color: var(--g-card-surface, var(--g-card));
+	background-image: var(--g-card-bloom);
 	box-shadow: var(--g-shadow-card);
 	overflow: clip;
 }
@@ -122,7 +125,7 @@
 .sakura-admin .card__note a {
 	color: var(--g-ink-soft);
 	text-decoration: underline;
-	text-decoration-color: #c8c5bd;
+	text-decoration-color: #d8bfc5;
 }
 
 .sakura-admin .card__note-alert {
@@ -131,7 +134,7 @@
 	border-left: 3px solid var(--g-warn);
 	border-radius: 0 var(--g-radius-sm) var(--g-radius-sm) 0;
 	background: var(--g-warn-bg);
-	color: #6f5419;
+	color: var(--g-warn);
 	font-size: 12.5px;
 	line-height: 1.7;
 }
@@ -266,7 +269,7 @@
 	border: 1px solid var(--g-line-strong);
 	border-radius: var(--g-radius-sm);
 	background: var(--g-card);
-	box-shadow: inset 0 1px 1px rgba(24, 25, 26, .035);
+	box-shadow: inset 0 1px 1px rgba(93, 29, 45, .04);
 	color: var(--g-ink);
 	font-family: var(--g-font);
 	font-size: 13.5px;
@@ -357,7 +360,7 @@
 	opacity: 1;
 }
 
-/* Selection: one 18px circle, graphite fill, warm-white dot. */
+/* Selection: one 18px circle, sakura fill, warm-white dot. */
 .sakura-admin input[type="checkbox"],
 .sakura-admin input[type="radio"] {
 	position: relative;
@@ -371,7 +374,7 @@
 	border: 1px solid var(--g-select-border);
 	border-radius: 50%;
 	background: var(--g-select-surface);
-	box-shadow: inset 0 1px 1px rgba(24, 25, 26, .05);
+	box-shadow: inset 0 1px 1px rgba(93, 29, 45, .06);
 	appearance: none;
 	cursor: pointer;
 	vertical-align: middle;
@@ -499,7 +502,7 @@
 	height: 14px;
 	border-radius: 50%;
 	background: var(--g-select-dot);
-	box-shadow: 0 1px 2px rgba(24, 25, 26, .2);
+	box-shadow: 0 1px 2px rgba(93, 29, 45, .24);
 	transition: transform var(--g-dur) var(--g-ease);
 }
 
@@ -527,7 +530,7 @@
 	border: 1px solid var(--g-line-strong);
 	border-radius: var(--g-radius-sm);
 	background: var(--g-card);
-	box-shadow: 0 1px 1px rgba(24, 25, 26, .035);
+	box-shadow: 0 1px 1px rgba(93, 29, 45, .05);
 	color: var(--g-ink);
 	font-family: var(--g-font);
 	font-size: 13px;
@@ -546,20 +549,31 @@
 	color: var(--g-ink);
 }
 
+/* Focus ring: the accent at low alpha. Graphite at 9% was invisible once the
+ * rest of the chrome picked up a hue. */
+.sakura-admin .btn:focus-visible {
+	outline: 2px solid var(--g-accent);
+	outline-offset: 2px;
+	box-shadow: 0 0 0 4px var(--g-select-focus);
+}
+
 .sakura-admin .btn:active {
 	transform: translateY(1px);
 }
 
+/* The one filled control per card earns a shallow vertical gradient and an
+ * inner highlight. A flat #9d3452 block on a misty canvas looks like a sticker;
+ * 4% of range is enough to make it read as a raised surface. */
 .sakura-admin .btn--primary {
-	border-color: var(--g-accent);
-	background: var(--g-accent);
-	box-shadow: 0 1px 2px rgba(18, 19, 21, .16), 0 8px 16px -12px rgba(18, 19, 21, .5);
+	border-color: var(--g-accent-line);
+	background: linear-gradient(180deg, #a83b5b 0%, var(--g-accent) 58%, #963149 100%);
+	box-shadow: 0 1px 2px rgba(93, 29, 45, .30), 0 10px 18px -14px var(--g-accent-glow), inset 0 1px 0 rgba(255, 255, 255, .16);
 	color: var(--g-accent-ink);
 }
 
 .sakura-admin .btn--primary:hover {
 	border-color: var(--g-accent-hover);
-	background: var(--g-accent-hover);
+	background: linear-gradient(180deg, #98314f 0%, var(--g-accent-hover) 58%, #7a2740 100%);
 	color: var(--g-accent-ink);
 }
 
@@ -576,8 +590,8 @@
 }
 
 .sakura-admin .btn--danger:hover {
-	border-color: #8d3a32;
-	background: #8d3a32;
+	border-color: var(--g-bad-hover);
+	background: var(--g-bad-hover);
 	color: var(--g-accent-ink);
 }
 
@@ -591,7 +605,7 @@
 .sakura-admin .btn--quiet:hover {
 	border-color: transparent;
 	background: var(--g-accent-soft);
-	color: var(--g-ink);
+	color: var(--g-accent);
 }
 
 .sakura-admin .btn--small {
@@ -922,6 +936,7 @@
 	border: 1px solid var(--g-line-soft);
 	border-radius: var(--g-radius-md);
 	background: var(--g-wash);
+	box-shadow: inset 0 1px 0 rgba(255, 255, 255, .8);
 }
 
 .sakura-admin .kpi__label {
@@ -969,13 +984,22 @@
 	height: 8px;
 	overflow: hidden;
 	border-radius: var(--g-radius-pill);
-	background: var(--g-accent-soft);
+	background: var(--g-track);
+	box-shadow: inset 0 1px 1.5px var(--g-track-line);
 }
 
 .sakura-admin .progress__bar {
+	/* The mark is a <span>; inline boxes ignore width, which silently zeroed
+	 * every percentage bar in the plugin. */
+	display: block;
 	height: 100%;
 	border-radius: inherit;
-	background: var(--g-accent);
+	background: var(--g-fill);
+	/* At 1.5% a rounded cap would collapse to a dot; the minimum width keeps a
+	 * sliver legible without lying about the value, because the number is
+	 * always printed next to the bar. */
+	min-width: 6px;
+	box-shadow: 0 0 0 .5px rgba(157, 52, 82, .10);
 	transition: width .24s var(--g-ease);
 }
 
@@ -1099,11 +1123,13 @@
 	align-items: flex-start;
 	gap: 9px;
 	padding: 10px 14px;
-	border: 1px solid rgba(255, 255, 255, .12);
+	border: 1px solid rgba(255, 255, 255, .14);
 	border-radius: var(--g-radius-sm);
-	background: #25272a;
+	/* Toasts are the only dark surface in the UI; keeping them ink-warm ties
+	 * them to the palette instead of looking like a foreign OS notification. */
+	background: #2c2026;
 	box-shadow: var(--g-shadow-pop);
-	color: #f7f6f2;
+	color: #fdf6f7;
 	font-size: 13px;
 	line-height: 1.55;
 	pointer-events: auto;
@@ -1117,12 +1143,12 @@
 	height: 7px;
 	margin-top: 6px;
 	border-radius: 50%;
-	background: #b8b9b6;
+	background: #b6a5ab;
 }
 
 .sakura-admin .toast--ok::before { background: #7fc39b; }
 .sakura-admin .toast--warn::before { background: #d9b968; }
-.sakura-admin .toast--bad::before { background: #de8a80; }
+.sakura-admin .toast--bad::before { background: #e58f92; }
 
 .sakura-admin .toast.is-leaving {
 	opacity: 0;
@@ -1141,7 +1167,7 @@
 	padding: 0;
 	border: 1px solid var(--g-line);
 	border-radius: var(--g-radius-card);
-	background: var(--g-card);
+	background: var(--g-card-surface);
 	box-shadow: var(--g-shadow-pop);
 	color: var(--g-ink);
 	font-family: var(--g-font);
@@ -1202,10 +1228,10 @@ html.sakura-media-open {
 	max-height: min(88vh, 920px);
 	margin: auto;
 	padding: 0;
-	border: 1px solid rgba(24, 25, 26, .12);
+	border: 1px solid rgba(93, 29, 45, .12);
 	border-radius: 24px;
 	background: var(--g-card-surface, #ffffff);
-	box-shadow: 0 50px 120px -42px rgba(12, 14, 16, .68), 0 8px 28px rgba(12, 14, 16, .16);
+	box-shadow: 0 50px 120px -42px rgba(46, 18, 28, .60), 0 8px 28px rgba(46, 18, 28, .14);
 	color: var(--g-ink);
 	overflow: hidden;
 }
@@ -1221,7 +1247,7 @@ html.sakura-media-open {
 }
 
 .sakura-admin .sakura-media-dialog::backdrop {
-	background: rgba(18, 19, 21, .62);
+	background: rgba(46, 22, 30, .58);
 	backdrop-filter: blur(8px) saturate(.9);
 	animation: sakura-media-backdrop-in .22s ease;
 }
@@ -1353,14 +1379,14 @@ html.sakura-media-open {
 	min-height: 280px;
 	max-height: min(62vh, 640px);
 	padding: 20px;
-	background: linear-gradient(145deg, #f8f7f3 0%, #f4f3ee 56%, #f7f6f2 100%);
+	background: linear-gradient(145deg, #fdfafb 0%, #fbf2f5 56%, #fdf9fa 100%);
 	overflow: auto;
 }
 
 .sakura-admin .sakura-media-dialog__stage.is-video {
 	min-height: 320px;
 	padding: 0;
-	background: #0b0c0d;
+	background: #14100f;
 	overflow: hidden;
 }
 
@@ -1399,10 +1425,10 @@ html.sakura-media-open {
 	width: 42px;
 	height: 42px;
 	padding: 0;
-	border: 1px solid rgba(24, 25, 26, .12);
+	border: 1px solid rgba(93, 29, 45, .12);
 	border-radius: 50%;
 	background: rgba(255, 255, 255, .9);
-	box-shadow: 0 6px 18px -10px rgba(24, 25, 26, .45);
+	box-shadow: 0 6px 18px -10px rgba(93, 29, 45, .45);
 	color: var(--g-ink-soft);
 	cursor: pointer;
 	transition: background .15s ease, color .15s ease, opacity .15s ease;
@@ -1433,10 +1459,10 @@ html.sakura-media-open {
 	top: 12px;
 	left: 50%;
 	padding: 4px 11px;
-	border: 1px solid rgba(24, 25, 26, .1);
+	border: 1px solid rgba(93, 29, 45, .1);
 	border-radius: var(--g-radius-pill);
 	background: rgba(255, 255, 255, .9);
-	box-shadow: 0 6px 18px -12px rgba(24, 25, 26, .4);
+	box-shadow: 0 6px 18px -12px rgba(93, 29, 45, .4);
 	color: var(--g-ink-soft);
 	font-size: 11px;
 	font-weight: 600;
@@ -1454,7 +1480,7 @@ html.sakura-media-open {
 	width: 34px;
 	height: 34px;
 	margin: -17px 0 0 -17px;
-	border: 2px solid rgba(24, 25, 26, .12);
+	border: 2px solid rgba(93, 29, 45, .12);
 	border-top-color: var(--g-ink-soft);
 	border-radius: 50%;
 	animation: sakura-media-spin .8s linear infinite;
@@ -1465,7 +1491,7 @@ html.sakura-media-open {
 	max-width: 100%;
 	max-height: min(calc(62vh - 40px), 610px);
 	border-radius: 8px;
-	box-shadow: 0 18px 44px -30px rgba(24, 25, 26, .5), 0 0 0 1px rgba(24, 25, 26, .06);
+	box-shadow: 0 18px 44px -30px rgba(93, 29, 45, .5), 0 0 0 1px rgba(93, 29, 45, .06);
 	object-fit: contain;
 	opacity: 1;
 	transition: opacity .2s ease;
@@ -1524,7 +1550,7 @@ html.sakura-media-open {
 	width: 100%;
 	height: 100%;
 	min-height: 320px;
-	background: #0b0c0d;
+	background: #14100f;
 }
 
 .sakura-admin .sakura-media-player__video {
@@ -1587,8 +1613,8 @@ html.sakura-media-open {
 	align-items: center;
 	gap: 10px;
 	padding: 26px 18px 13px;
-	background: linear-gradient(180deg, rgba(10, 11, 12, 0), rgba(10, 11, 12, .82));
-	color: #f6f5f1;
+	background: linear-gradient(180deg, rgba(20, 16, 15, 0), rgba(20, 16, 15, .84));
+	color: #fdf6f7;
 }
 
 .sakura-admin .sakura-media-player__control {
@@ -1602,7 +1628,7 @@ html.sakura-media-open {
 	border: 0;
 	border-radius: 8px;
 	background: transparent;
-	color: #f6f5f1;
+	color: #fdf6f7;
 	cursor: pointer;
 	transition: background .15s ease;
 }

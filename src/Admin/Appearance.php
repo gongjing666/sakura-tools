@@ -25,7 +25,7 @@ final class Appearance {
 	public const DEFAULTS = array(
 		'page_width'   => self::DEFAULT_WIDTH,
 		'page_bg'      => '',
-		'card_bg'      => '#ffffff',
+		'card_bg'      => '#fffdfd',
 		'border_width' => 1,
 		'radius'       => 18,
 		'shadow'       => 'default',

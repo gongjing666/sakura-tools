@@ -18,7 +18,9 @@
 规则：
 
 - 视觉修改只写 `assets/ui/`。页面专属样式优先复用 `components.css`；确属一次性的少量规则，先放模块 stylesheet，超过约 50 行再拆 `pages/{page}.css`。
-- 禁止新增粉色、天蓝色；禁止贴图、云朵 SVG、樱花 SVG。唯一强调色是石墨。
+- 配色是「樱雾」一套：暖樱白画布 + 白卡片 + 深樱强调色。允许粉色，但只允许 `tokens.css` 里这一组樱色（`--g-sakura-1..4` 与 `--sakura-*`）；不要在页面里另调一个粉或另调一个红，也不要用天蓝色。
+- 禁止引入位图/矢量贴图：不许放樱花 SVG、云朵插画、照片背景。画布的花瓣感只能由 `base.css` 的径向渐变 + 点阵 `.sakura-admin::before` 生成，那是图案不是插画。
+- 唯一强调色是 `--g-accent` 深樱 `#9d3452`；状态色只表达状态。
 - 不要用 `!important`。若确需覆盖 WordPress 管理页槽位（`#wpcontent` / `#wpbody-content`），先用 `:has(.sakura-admin)` 限定作用域，再在评审中说明原因。
 - 页面根节点由 `UI::page()` 输出 `.sakura-admin[data-sakura-page]`。不要再手写 `.sakura-sync-app`、`.sky-layer`、`.sakura-layer`、`.app` 这些旧根节点。
 - WordPress 媒体库的样式独立放在 `assets/ui/wp-media/`，由 `Media_Hooks` 按屏幕单独加载，不属于后台页面布局，不参与上表顺序：`media-library.css` 只加载于 `upload.php`；`media-modal-folders.css` 在除 `upload.php` / `media-new.php` 外的后台屏幕加载（媒体弹窗可从任意页面打开，因此后台页面上看到它是正常现象）；`media-new-folders.css` 只加载于 `media-new.php`。
@@ -29,26 +31,33 @@
 
 | 变量 | 值 | 用途 |
 | --- | --- | --- |
-| `--g-ink` | `#1b1c1e` | 主文字、主按钮 |
-| `--g-ink-soft` | `#34363a` | 正文、表格 |
-| `--g-muted` | `#5f6165` | 说明、次级信息 |
-| `--g-faint` | `#6b6c68` | 眉标、辅助信息下限 |
-| `--g-line` | `#e4e1d9` | 卡片边框 |
-| `--g-line-soft` | `#eeece5` | 卡片内分隔线 |
-| `--g-line-strong` | `#d2cfc6` | 输入框边框 |
-| `--g-paper` | `#f6f5f1` | 页面底色 |
+| `--g-ink` | `#241a1e` | 主文字、主按钮（带樱色的暖墨，不是纯黑） |
+| `--g-ink-soft` | `#3d3035` | 正文、表格 |
+| `--g-muted` | `#6b5a60` | 说明、次级信息 |
+| `--g-faint` | `#776469` | 眉标、辅助信息下限（再浅就过不了 KPI 底上的 4.5:1） |
+| `--g-line` | `#f0e3e6` | 卡片边框 |
+| `--g-line-soft` | `#f7eef0` | 卡片内分隔线 |
+| `--g-line-strong` | `#dfc9ce` | 输入框边框 |
+| `--g-paper` | `#fdf7f8` | 页面底色 |
+| `--g-paper-deep` | `#f8eef0` | KPI 块、嵌套底 |
 | `--g-card` | `#ffffff` | 卡片内控件（输入、按钮）白底 |
-| `--g-card-surface` | `#ffffff` | 卡片表面；系统设置可改，只作用于 `.card` |
-| `--g-wash` | `#fbfaf7` | 弱底、嵌套面板 |
-| `--g-accent` | `#232528` | 唯一强调色（石墨） |
-| `--g-accent-soft` | `#efeee9` | 强调色弱底 |
-| `--g-select` / `--g-select-dot` | `#2f3134` / `#f6f4ed` | 勾选/单选底与点 |
-| `--g-ok` / `--g-ok-bg` | `#33704e` / `#edf5f0` | 成功 |
+| `--g-card-surface` | `#fffdfd` | 卡片表面；系统设置可改，只作用于 `.card` |
+| `--g-card-bloom` | 两组径向渐变 | 卡片角落的樱粉泛光，只做底纹，永远不承载文字 |
+| `--g-wash` | `#fdf9fa` | 弱底、嵌套面板 |
+| `--g-accent` | `#9d3452` | 唯一强调色（深樱，白字 6.89:1） |
+| `--g-accent-hover` / `--g-accent-line` | `#832a45` / `#8f2f4d` | 主按钮 hover / 主按钮描边 |
+| `--g-accent-soft` | `#fbe9ee` | 强调色弱底 |
+| `--g-sakura-1..4` | `#8f2f4d` `#c25e7d` `#e79fb3` `#f3d8dd` | 四级樱色阶，只给图表与多档色块；3、4 只做填充，不承载文字 |
+| `--g-track` / `--g-fill` | `#fbe9ee` / 三段渐变 | 进度条轨道与条体 |
+| `--g-select` / `--g-select-dot` | `#9d3452` / `#fff6f8` | 勾选/单选底与点 |
+| `--g-ok` / `--g-ok-bg` | `#2f6b4a` / `#edf5f0` | 成功 |
 | `--g-warn` / `--g-warn-bg` | `#8a651d` / `#faf3e4` | 警告 |
-| `--g-bad` / `--g-bad-bg` | `#a3463d` / `#fbedeb` | 错误、破坏性操作 |
+| `--g-bad` / `--g-bad-bg` | `#a63a2c` / `#fbedeb` | 错误、破坏性操作 |
 
 - 页面只允许一个强调色。状态色只表达状态，不拿来当装饰；「等待配置」用中性或琥珀，不用绿色。
-- 图表、donut、进度条用中性阶：`#2b2d30`、`#5f6265`、`#9a9b96`、`#dcdad3`；空数据 `#e9e7e1`。
+- 图表、donut、进度条只用 `--g-sakura-1..4` 这四级樱色阶，按「同一色相由深到浅」排，读起来是一个体量被切开，而不是四个互不相关的类别。空数据用 `--g-track`。
+- 进度条轨道 `--g-track`、条体 `--g-fill`（左浅右深的渐变），两者已在 `components.css` 的 `.progress` / `.progress__bar` 定好，页面不要再写死颜色。百分比再小（如 1.5%）也必须看得见：条体有 `min-width:6px`，且数值始终印在条旁。
+- `.progress__bar` 是 `<span>`，`components.css` 里给了 `display:block`；自写进度条若换成行内元素，`width` 会被忽略、条彻底不可见。
 
 圆角与控件：
 
@@ -147,8 +156,9 @@
 
 ## 5. 页头、状态与弹窗
 
-- 页头由 `UI::page()` 输出：上方眉标（`.page-head__eyebrow`）、标题、1–2 行说明（`.page-head__lede`），说明下方是可选的页头操作（`.page-head__actions`，靠左，与说明间距 20px）；状态卡单独放右侧，不与操作按钮同排。页头底部一条 `--g-line` 分隔线。不要再使用粉蓝渐变、樱花插画或高对比大面积色块。
-- 背景默认是暖白底 + 柔和云雾径向渐变（`base.css` 的 `.sakura-admin` 画布）；系统设置可以换成单一纯色，但默认值必须保持这套暖白渐变，禁止贴图。
+- 页头由 `UI::page()` 输出：上方眉标（`.page-head__eyebrow`）、标题、1–2 行说明（`.page-head__lede`），说明下方是可选的页头操作（`.page-head__actions`，靠左，与说明间距 20px）；状态卡单独放右侧，不与操作按钮同排。页头底部一条 `--g-line` 分隔线。不要放樱花插画、照片或高对比大面积色块；樱色只出现在画布、卡片泛光、按钮和图表里。
+- 背景默认是暖樱白底 + 3 层樱雾径向渐变 + `.sakura-admin::before` 的点阵「樱尘」（`base.css:33-79`）；系统设置可以换成单一纯色，但默认值必须保持这套樱雾画布，禁止贴图。改画布只改 `tokens.css` 的 `--sakura-*` 与 `base.css` 的这几层渐变，不要往页面里塞背景图。
+- 卡片表面是 `--g-card-surface` 打底 + `--g-card-bloom` 叠一层角落泛光（`components.css` 的 `.card`）。改卡片颜色时颜色和泛光要分开写：`background-color` 放令牌，`background-image` 放泛光，否则系统设置里的自定义卡片色会被盖掉。
 - 顶栏状态胶囊支持 `ok / off / warn / error`：未传 tone 时是中性灰点；`ok` 绿点，`off` 灰字，`warn` 琥珀，`error` 淡红。不要所有状态都用绿点。
 - 页头状态卡与页头内的小状态标签同样遵循语义，不要用绿色表示「等待配置」。
 
@@ -208,16 +218,16 @@
 - 输入框、下拉、文本域：38px 高、10px 圆角、1px `--g-line-strong` 边框、白底、14px 字。文本域最小高度 88px，可纵向拉伸。
 - 输入框、下拉的 `width:100%` 只表示填满所在字段列，不是填满卡片；筛选行、工具行和短字段必须按 10.2 的上限表限宽。勾选/单选固定 18×18，不参与列宽拉伸。
 - 颜色字段用 `UI::field( 'type' => 'color' )`：与输入框同高、同边框，内层 swatch 留 1px 暖灰内描边并跟随 10px 圆角（纯白卡片底色也要能看出色块边界）；不要手写 `<input type="color">` 绕过组件。`::-webkit-color-swatch` 与 `::-moz-color-swatch` 必须拆成两条规则：合并后 Chrome 不认识 Mozilla 伪元素，会把整条规则丢弃（实测边框不生效）。
-- 勾选框/单选框统一 18px 圆形，不再区分方框与圆圈。基础态为暖白底 `#fffdfa` + 1.5px `#c3c0b7` 边框；hover 边框 `#9b978d`。
-- 勾选态必须改变填充，不能只换边框：统一为柔石墨底 `#2f3134` + 6px 暖白圆点 `#f6f4ed`。勾选/未勾选在 1:1 截图里必须一眼可分；禁止再出现黑色方框 + 白勾。
+- 勾选框/单选框统一 18px 圆形，不再区分方框与圆圈。基础态为 `--g-select-surface` `#fffdfd` + 1.5px `--g-select-border` `#dcc4c9` 边框；hover 边框 `--g-select-border-hover` `#b99aa2`。
+- 勾选态必须改变填充，不能只换边框：统一为 `--g-select` 深樱底 `#9d3452` + 6px `--g-select-dot` 暖白圆点 `#fff6f8`。勾选/未勾选在 1:1 截图里必须一眼可分；禁止再出现黑色方框 + 白勾。
 - 白点必须相对控件绝对居中：`::before` 用 `position:absolute; top:50%; left:50%; margin:0; transform: translate(-50%, -50%) scale(...)`。WordPress 后台 `forms.css` 的 `input[type=checkbox]:checked::before` 会残留 `margin:-3px 0 0 -4px`；若改用 grid/flex 居中而不清 margin，6px 白点会被推到左上角。`margin:0` 不是冗余声明。
-- 禁用态为暖灰底/边框；`checked:disabled` 用 `#b8b5ac` 底 + 暖白点。选择控件焦点环 3px `rgba(47,49,52,.16)`。
+- 禁用态为暖灰底/边框；`checked:disabled` 用 `#b8a5ab` 底 + 暖白点。选择控件焦点环 3px `--g-select-focus` `rgba(157,52,82,.16)`。
 - 选择控件放在 flex 行里时必须 `flex: none`（或 `0 0 18px`），否则在 320px 会被压成 16px 宽；宽度和高度都属于硬性 18px。
 - `appearance: none` 的基础态写了白底后，`:checked` 必须用同等或更高特异性重新声明背景和边框；否则基础态会把勾选态盖掉。
 - 卡片里的布尔项一律用勾选样式：`label.check` + `check__box` + `check__text`（`UI::field` 的 `type=checkbox`）。不要在卡片里使用滑动开关 `.switch` / `type=toggle`，也不要同一张卡片一半勾选框一半滑块。历史变量 `$sufm_space_switch` 只是兼容名，输出必须是 checkbox；交互确认仍通过 `data-zibll-switch` 绑定，不依赖控件外观。
 - 不在页面根节点内的原生控件（如布局工具条的「显示网格」）要单独给皮肤。
-- 焦点环统一为 3px `rgba(32,34,37,.09)`，边框变石墨；不要使用蓝色 outline。
-- 主按钮石墨实心白字；次按钮白底描边（页头操作即使传 `quiet` 变体也不能无边框）；危险按钮只在确认场景实心 `--g-bad`。
+- 焦点环统一为 3px `--g-select-focus` `rgba(157,52,82,.16)`，边框变 `--g-accent`；不要使用蓝色 outline。
+- 主按钮是深樱实心白字（`--g-accent`，上浅下深的三段渐变 + `--g-accent-line` 描边，见 `components.css` 的 `.btn--primary`）；次按钮白底描边（页头操作即使传 `quiet` 变体也不能无边框）；危险按钮只在确认场景实心 `--g-bad`。按钮不要再写死颜色，也不要给某一种变体单独换色相。
 - 表格表头 12.5px、正文 13.5px；数字列可等宽字体，但不要用蓝色。
 - 多列勾选/选项网格里的说明文字必须 `grid-column: 1 / -1` 单独成行，不能被误读成某个选项的标签。
 
@@ -239,7 +249,7 @@
 - 隐藏页面（如批量处理）不在 `Registry` 里，不要调用会反查路由的 `Assets::enqueue_page()`；直接 `Page_Assets::set_data()` + `Page_Assets::enqueue( 'media-progress' )`。
 - WP 媒体库样式已迁到 `assets/ui/wp-media/`；不要放回 `assets/` 根目录，也不要让它们参与后台页面布局。后台页面出现 `media-modal-folders.css` 是媒体弹窗的全局依赖，不是页面样式串场。
 - 窄屏重排用的 `data-label` 要加在真正承载列名的元素上，且只加一次；`::before { content: attr(data-label) }` 不会走翻译，当前后台仅中文，新增语言时需改为视图内可见标签。
-- 勾选框最容易出现「看着能点，但勾没勾一个样」：基础态选择器特异性高于 `:checked` 时，白底会把石墨勾选态盖掉；要在同一特异性补 `:checked`。
+- 勾选框最容易出现「看着能点，但勾没勾一个样」：基础态选择器特异性高于 `:checked` 时，白底会把深樱勾选态盖掉；要在同一特异性补 `:checked`。
 - 勾选框白点跑到左上角：先看 `::before` 的计算样式。根因通常是 WP 后台 `forms.css` 的 `checked::before` 负 margin 与 grid/flex 居中冲突；按第 6 节改成绝对定位 + `margin:0`，不要用 `!important` 硬盖。
 - 支付方式少了支付宝：页面只渲染主题实际启用的通道。测试站先查 `zibll_options['pay_alipay_sdk_options']` 是否为 `null`；生产为 `official_alipay` 且 `pay_sdk_order.alipay=1`。这是主题数据差异，不要把支付宝开关硬编码进视图。
 - 右侧「布局修改」消失：按顺序查 `data-sakura-layout` 属性、`Page_Assets::LAYOUT_PAGES` 登记、布局 id 是否等于生产已存组名；三者缺一都不会加载 `layout.css` 和工具栏。系统设置页的页面 id 与布局 id 都是 `system-settings`。
@@ -358,11 +368,12 @@
 
 ## 12. 自检清单
 
-- [ ] 没有新的粉/蓝硬编码色，也没有背景图案/SVG。
+- [ ] 没有新的硬编码色相：樱色一律取自 `--g-sakura-*` / `--sakura-*`，没有页面私调的粉、红、蓝；没有位图或 SVG 背景，画布图案只来自 `base.css` 的渐变与点阵。
+- [ ] 进度条（统计页平均压缩率、同步中心覆盖率与核对进度）在 1.5% 这种极小值下仍能看到一段条体，不是空白也不是一个点；条体颜色来自 `--g-fill`，轨道来自 `--g-track`。
 - [ ] 所有横向留白来自 `--g-*` 令牌。
 - [ ] 卡片只有一层边框，内部没有卡中卡。
 - [ ] 正文不小于 13.5px，辅助信息不小于 12.5px。
-- [ ] 所有勾选/单选控件都是 18px 圆点样式，勾选态为柔石墨底 + 暖白点，白点绝对居中，没有黑方框白勾或白点漂到左上角。
+- [ ] 所有勾选/单选控件都是 18px 圆点样式，勾选态为深樱底 `--g-select` + 暖白点，白点绝对居中，没有黑方框白勾或白点漂到左上角。
 - [ ] 同一张卡片里的布尔项全部是勾选框，没有 `.switch` 与 `.check` 混用，也没有 `type=toggle`。
 - [ ] `.page-body` 直接子块之间至少 16px（桌面 20px），KPI 网格 `gap` 使用同一令牌，没有 0 间距贴合。
 - [ ] 每张表只有一个 `<thead>`，没有重复表头。

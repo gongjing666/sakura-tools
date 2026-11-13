@@ -132,11 +132,17 @@ $upload_url     = '' !== $upload_url ? $upload_url : $upload_base;
 $upload_url     = (string) preg_replace( '#^https?://#', '', untrailingslashit( $upload_url ) );
 $cloud_types    = isset( $snapshot['cloud']['types'] ) && is_array( $snapshot['cloud']['types'] ) ? $snapshot['cloud']['types'] : array();
 $mix_total      = array_sum( array_map( 'intval', $cloud_types ) );
+/*
+ * One hue, four depths: the ring reads as a single volume split up rather than
+ * four unrelated categories, which is what the card is actually saying. Deep
+ * to pale, so the largest slice is always the darkest and the eye lands there
+ * first. Steps 3-4 are fill-only; legend labels stay on --g-muted.
+ */
 $mix_colors     = array(
-	'image'   => 'var(--g-accent)',
-	'video'   => 'var(--g-ink-soft)',
-	'archive' => 'var(--g-muted)',
-	'other'   => 'var(--g-line-strong)',
+	'image'   => 'var(--g-sakura-1)',
+	'video'   => 'var(--g-sakura-2)',
+	'archive' => 'var(--g-sakura-3)',
+	'other'   => 'var(--g-sakura-4)',
 );
 $mix            = array();
 $mix_stops      = array();
@@ -150,7 +156,7 @@ foreach ( $mix_colors as $mix_type => $mix_color ) {
 		$mix_cursor += $mix_pct;
 	}
 }
-$mix_gradient = $mix_stops ? 'conic-gradient(' . implode( ', ', $mix_stops ) . ')' : 'conic-gradient(var(--g-accent-soft) 0 100%)';
+$mix_gradient = $mix_stops ? 'conic-gradient(' . implode( ', ', $mix_stops ) . ')' : 'conic-gradient(var(--g-track) 0 100%)';
 $cloud_value  = $cloud_bytes >= 1073741824 ? $cloud_bytes / 1073741824 : $cloud_bytes / 1048576;
 $cloud_unit   = $cloud_bytes >= 1073741824 ? 'GB' : 'MB';
 

@@ -1049,6 +1049,9 @@
 .sakura-admin:is([data-sakura-page="storage-connection"], [data-sakura-page="storage-sync"]) .sakura-modal__card h2 {
 	margin: var(--g-space-1) 0 var(--g-space-2);
 	font-size: var(--g-fs-h2);
+	/* Centred heading, left-aligned copy: the prompt reads as a title card but
+	 * the paragraph keeps a straight left edge for scanning. */
+	text-align: center;
 }
 
 .sakura-admin:is([data-sakura-page="storage-connection"], [data-sakura-page="storage-sync"]) .sakura-config-missing {
@@ -1095,6 +1098,7 @@
 	color: var(--g-muted);
 	font-size: var(--g-fs-eyebrow);
 	letter-spacing: 0.08em;
+	text-align: center;
 	text-transform: uppercase;
 }
 
@@ -1103,12 +1107,15 @@
 }
 
 .sakura-admin:is([data-sakura-page="storage-connection"], [data-sakura-page="storage-sync"]) .sakura-modal__icon {
-	display: inline-flex;
+	/* The head block is centred over the card while the body copy stays left
+	 * aligned. An inline-level box ignores auto side margins, so this is a
+	 * block-level flex box; the fixed size keeps the square shape. */
+	display: flex;
 	align-items: center;
 	justify-content: center;
 	width: 46px;
 	height: 46px;
-	margin-bottom: var(--g-space-3);
+	margin: 0 auto var(--g-space-3);
 	border-radius: var(--g-radius-md);
 	background: var(--g-accent-soft);
 	color: var(--g-ink-soft);
@@ -1124,7 +1131,10 @@
 	color: var(--g-muted);
 	font-size: var(--g-fs-body);
 	line-height: 1.65;
-	max-width: 46ch;
+	/* No measure cap: with the head centred, a 46ch paragraph left an empty
+	 * gutter on the right that read as a layout mistake. The card is already
+	 * narrow enough that a full-width line stays comfortable. */
+	max-width: none;
 }
 
 .sakura-admin:is([data-sakura-page="storage-connection"], [data-sakura-page="storage-sync"]) .sakura-modal__close {

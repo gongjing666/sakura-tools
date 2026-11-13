@@ -202,10 +202,19 @@
 	margin: 0;
 }
 
+/* Three short numbers across the panel. It carries .field--full so it spans the
+ * field grid instead of being squeezed into one half-width column, which used to
+ * leave each input 72px wide at 1440. Display has to be re-asserted because the
+ * shared .field rule turns fields into a flex column. */
 .sakura-admin[data-sakura-page="storage-connection"] .monitor-fields {
 	display: grid;
 	grid-template-columns: repeat(3, minmax(0, 1fr));
 	gap: var(--g-space-3);
+	margin-bottom: 0;
+}
+
+.sakura-admin[data-sakura-page="storage-connection"] .monitor-fields > .field {
+	justify-content: flex-start;
 }
 
 .sakura-admin[data-sakura-page="storage-connection"] .monitor-savebar {

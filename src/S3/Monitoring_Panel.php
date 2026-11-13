@@ -118,7 +118,11 @@ final class Monitoring_Panel {
 									)
 								);
 								?>
-								<div class="monitor-fields">
+								<?php
+								// Three short numbers belong side by side across the whole panel,
+								// not stacked inside one half-width column of the field grid.
+								?>
+								<div class="monitor-fields field field--full">
 									<?php
 									\Sakura\ImageOptimizer\Admin\UI::field(
 										array(

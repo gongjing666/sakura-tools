@@ -176,7 +176,17 @@
 	margin-top: 16px;
 }
 
+/* A field in a multi-column row: the label may wrap to a second line while its
+ * neighbours stay on one, which used to start the inputs at different heights
+ * (a 19px step across three cards at 2200px).
+ *
+ * The grid already makes every field box the same height, so stretching the
+ * field itself and pinning the control to the bottom lines the inputs up
+ * without reserving blank space under single-line labels in narrow columns. */
 .sakura-admin .field {
+	display: flex;
+	flex-direction: column;
+	justify-content: flex-end;
 	min-width: 0;
 }
 

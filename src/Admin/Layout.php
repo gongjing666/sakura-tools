@@ -63,36 +63,36 @@ final class Layout {
 				'profiles' => array( 1, 1, 12 ),
 				'connection' => array( 2, 1, 6 ),
 				'behaviour' => array( 2, 7, 6 ),
-				'test' => array( 3, 7, 6 ),
-				'upload-metrics' => array( 4, 7, 6 ),
-				'monitoring' => array( 5, 1, 12 ),
+				'test' => array( 3, 1, 6 ),
+				'upload-metrics' => array( 3, 7, 6 ),
+				'monitoring' => array( 4, 1, 12 ),
 			),
 		),
 		// Single- and two-card screens. Written out so a card added to the view
 		// later lands predictably instead of inheriting a half-width default.
-		'deletes'         => array(
+		'deletes' => array(
 			'order' => array( 'queue' ),
 			'cards' => array(
 				'queue' => array( 1, 1, 12 ),
 			),
 		),
-		'files-users'     => array(
+		'files-users' => array(
 			'order' => array( 'users' ),
 			'cards' => array(
 				'users' => array( 1, 1, 12 ),
 			),
 		),
-		'files-log'       => array(
+		'files-log' => array(
 			'order' => array( 'log' ),
 			'cards' => array(
 				'log' => array( 1, 1, 12 ),
 			),
 		),
-		'files-settings'  => array(
+		'files-settings' => array(
 			'order' => array( 'appearance', 'settings' ),
 			'cards' => array(
 				'appearance' => array( 1, 1, 12 ),
-				'settings'   => array( 2, 1, 12 ),
+				'settings' => array( 2, 1, 12 ),
 			),
 		),
 		'system-settings' => array(
@@ -102,7 +102,7 @@ final class Layout {
 				'engine' => array( 1, 7, 6 ),
 				'checks' => array( 2, 1, 6 ),
 				'extensions' => array( 2, 7, 6 ),
-				'layout' => array( 3, 7, 6 ),
+				'layout' => array( 3, 1, 12 ),
 			),
 		),
 		'image' => array(
@@ -111,7 +111,7 @@ final class Layout {
 				'thumbs' => array( 1, 1, 12 ),
 				'rename' => array( 2, 1, 6 ),
 				'compress' => array( 2, 7, 6 ),
-				'bulk' => array( 3, 1, 6 ),
+				'bulk' => array( 3, 1, 12 ),
 			),
 		),
 		'thumb' => array(
@@ -119,13 +119,13 @@ final class Layout {
 			'cards' => array(
 				'switches' => array( 1, 1, 6 ),
 				'scopes' => array( 1, 7, 6 ),
-				'scenes' => array( 2, 7, 6 ),
-				'advanced' => array( 3, 7, 6 ),
-				'probe' => array( 4, 1, 6 ),
-				'sizes' => array( 5, 1, 12 ),
-				'stats' => array( 6, 1, 6 ),
-				'rollback' => array( 6, 7, 6 ),
-				'cache' => array( 7, 7, 6 ),
+				'scenes' => array( 2, 1, 6 ),
+				'advanced' => array( 2, 7, 6 ),
+				'probe' => array( 3, 1, 12 ),
+				'sizes' => array( 4, 1, 12 ),
+				'stats' => array( 5, 1, 6 ),
+				'rollback' => array( 5, 7, 6 ),
+				'cache' => array( 6, 1, 12 ),
 			),
 		),
 		'backup' => array(
@@ -143,7 +143,7 @@ final class Layout {
 				'tasks' => array( 2, 1, 12 ),
 				'health' => array( 3, 1, 6 ),
 				'storage' => array( 3, 7, 6 ),
-				'notes' => array( 4, 7, 6 ),
+				'notes' => array( 4, 1, 12 ),
 				'reconcile' => array( 5, 1, 12 ),
 				'logs' => array( 6, 1, 12 ),
 			),

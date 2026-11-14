@@ -64,12 +64,20 @@ final class Card {
 		$style = array();
 		$placement = self::placement( $args, $id, $wide );
 		if ( null !== $placement ) {
-			// Explicit row keeps the card where the table put it instead of letting
-			// CSS pack by DOM order; column + span give it its width.
+			/*
+			 * Placement goes through custom properties, not grid-row/grid-column.
+			 *
+			 * Inline declarations beat any stylesheet rule, so writing the grid
+			 * coordinates inline also beat the mobile media query: below 1100px the
+			 * single-column rule lost and cards were squeezed into 1/12 of the
+			 * screen. As variables, the stylesheet stays in charge and can drop the
+			 * placement when the grid collapses to one column.
+			 */
 			if ( $placement[0] > 0 ) {
-				$style[] = 'grid-row:' . $placement[0];
+				$style[] = '--g-card-row:' . $placement[0];
 			}
-			$style[] = 'grid-column:' . $placement[1] . ' / span ' . $placement[2];
+			$style[] = '--g-card-col:' . $placement[1];
+			$style[] = '--g-card-span:' . $placement[2];
 		}
 
 		if ( array() !== $style ) {

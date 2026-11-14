@@ -4,7 +4,7 @@ Tags: image optimization, webp, avif, imagick, media library
 Requires at least: 6.4
 Tested up to: 7.1.4
 Requires PHP: 8.2
-Stable tag: 1.27.0
+Stable tag: 1.27.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -79,6 +79,11 @@ Access Key 和 Secret 会加密后存进数据库，页面和源码都不会显�
 
 == Changelog ==
 
+= 1.27.1 =
+* 修复：移动端卡片被挤成一条竖条。1.27.0 把行号、起始列和跨列数写成**内联** `grid-row` / `grid-column`，内联声明优先级高于任何样式表，于是 ≤1100px 的单列规则失效，卡片仍按 12 栅格定位，在手机上一张 6 栏卡只剩半屏宽。现在改为内联 `--g-card-row` / `--g-card-col` / `--g-card-span` 三个自定义属性，由 `components.css` 读取；断点里把两个方向都置为 `auto`，卡片正常纵向堆叠。
+* 修复：桌面端同一行里较矮的卡片下方留出大片空白。行高由该行最高的卡决定，而此前用 `align-items: start` 让矮卡贴顶，于是旁边空出一块画布——系统设置、对象存储、同步中心都能看到。改为 `align-items: stretch`，同一行卡片等高，两栏一行读起来是一整块内容。
+* 优化：消除半满行。此前有 10 处「一行只放了一张 6 栏卡」，右侧整片空白（系统设置的布局卡、同步中心的核对口径卡、图片优化的批量卡等）。按阅读顺序重新打包，并把后面紧跟整宽卡、注定落单的卡片改为整宽，现在 13 个页面**每一行都恰好填满**。
+* 影响范围：`src/Admin/Layout.php` 的行列表、`src/Admin/UI/Card.php` 的输出方式、`components.css` 的 `.card-grid` 与响应式断点。不改 PHP 逻辑、数据、路由与钩子。
 = 1.27.0 =
 * **移除卡片拖拽布局引擎**：后台卡片改为服务端确定的静态排布。此前的位置来自一个 JS 引擎——它把每张卡改成绝对定位并重写文档高度，于是长页面会跳动、卡片会晚一帧出现、首屏还曾整页空白两秒。现在每张卡的行号、起始列和跨列数由 `Layout::PAGES` 声明，直接写成 `grid-row` / `grid-column`，浏览器首帧即最终形态。
 * 一并删掉：`layout.js`、`layout.css`（约 2600 行）、右侧「布局修改」工具栏、拖拽与缩放、`LAYOUT_PAGES` / `has_layout()` / `sakura-layout-enabled` 与 46px 预留留白、`Layout` 的保存端点与按用户存的 `_sakura_imgopt_layout` 元数据。卡片排布将成为出厂设置，不再随用户变化。

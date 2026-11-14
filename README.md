@@ -267,6 +267,7 @@ git clone https://github.com/gongjing666/sakura-tools.git
 | [开发规则索引](docs/开发规则/00-索引.md) | **改代码从这里开始**：五分钟上手路径、按任务找文档、十条铁律 |
 | [代码结构文档](docs/sakura-tools-代码结构-1.27.5.md) | 文件树、类职责、依赖矩阵、钩子分布，附类 / 钩子 / 文件三个索引；由 `docs/tools/` 生成 |
 | [DECISIONS.md](DECISIONS.md) | 关键设计取舍与已知边界，记录「为什么」而不是「现在有什么」 |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | 环境、提交前必跑的命令、提交信息与 PR 要求 |
 
 六篇开发规则各自覆盖一块，边界不重叠：
 
@@ -338,4 +339,4 @@ bin/build-plugin-zip.sh --ref c8e6b4a --version 1.22.9 --out dist
 
 ---
 
-<p align="center">问题、建议或使用反馈，欢迎提交 Issue 或 PR。</p>
+<p align="center">问题、建议或使用反馈，欢迎提交 Issue 或 PR。提 PR 前请先看 <a href="CONTRIBUTING.md">CONTRIBUTING.md</a>；安全漏洞请走 <a href="SECURITY.md">SECURITY.md</a> 的私有通道。</p>

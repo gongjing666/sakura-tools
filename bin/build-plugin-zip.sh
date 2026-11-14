@@ -127,7 +127,10 @@ rm -f \
 	"$PLUGIN/phpunit.xml.dist" \
 	"$PLUGIN/DEVELOPMENT.md" \
 	"$PLUGIN/DECISIONS.md" \
-	"$PLUGIN/AGENTS.md"
+	"$PLUGIN/AGENTS.md" \
+	"$PLUGIN/CONTRIBUTING.md" \
+	"$PLUGIN/SECURITY.md" \
+	"$PLUGIN/CODE_OF_CONDUCT.md"
 
 if [ -d "$PLUGIN/vendor" ]; then
 	find "$PLUGIN/vendor" -mindepth 1 -maxdepth 1 ! -name s3 -exec rm -rf {} +
@@ -159,7 +162,7 @@ for required in \
 	fi
 done
 
-BAD="$(printf '%s\n' "$LIST" | grep -E '^sakura-tools/(docs/|tests/|stubs/|bin/|\.github/|composer\.(json|lock)$|php(cs|stan|unit)\.|\.phpunit\.cache/|DEVELOPMENT\.md$|DECISIONS\.md$|AGENTS\.md$|\.gitignore$)' || true)"
+BAD="$(printf '%s\n' "$LIST" | grep -E '^sakura-tools/(docs/|tests/|stubs/|bin/|\.github/|composer\.(json|lock)$|php(cs|stan|unit)\.|\.phpunit\.cache/|DEVELOPMENT\.md$|DECISIONS\.md$|AGENTS\.md$|CONTRIBUTING\.md$|SECURITY\.md$|CODE_OF_CONDUCT\.md$|\.gitignore$)' || true)"
 if [ -n "$BAD" ]; then
 	echo "Package contains development files:" >&2
 	printf '%s\n' "$BAD" >&2

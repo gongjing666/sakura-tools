@@ -616,6 +616,88 @@
 	}
 }
 
+/* ============================================================
+ * Page change
+ *
+ * WordPress 7.0 turns on cross-document View Transitions for the whole
+ * admin, so every click cross-fades the ENTIRE old page into the entire
+ * new one. These screens are dense, and two of them stacked at 50% opacity
+ * read as mush: the old title ghosts through the new one for a quarter of
+ * a second while the sidebar keeps shifting tone under content that has
+ * already settled. Snapshotting every named group also costs real time
+ * before the first new frame is painted.
+ *
+ * So the plugin opts out and drives its own entrance instead: the new
+ * document cuts in, and only the main column fades up. The chrome (module
+ * switcher, tab strip, sidebar) never blinks, because it is not animated
+ * at all. Measured on the demo site this is ~30ms faster than the default
+ * cross-fade, and there is nothing left to ghost.
+ * ============================================================ */
+
+@view-transition {
+	navigation: none;
+}
+
+/* backwards, not both: a filled-forwards animation leaves a unit matrix on
+ * <main>, and any transformed ancestor becomes the containing block for
+ * position: fixed. Nothing is fixed inside main today, but the day something
+ * is, it would park itself 140px down the page instead of at the viewport. */
+.sakura-admin__main {
+	animation: sakura-main-in 180ms var(--g-ease) backwards;
+}
+
+@keyframes sakura-main-in {
+	from {
+		opacity: 0;
+		/* 6px, not 24: the content should arrive, not slide in from off-screen. */
+		transform: translateY(6px);
+	}
+	to {
+		opacity: 1;
+		transform: none;
+	}
+}
+
+/* Click feedback. WordPress needs ~300ms to boot, and the browser keeps
+ * showing the page the user just left for all of it. A thin bar crossing
+ * the top edge is enough to say "your click landed, wait here": it is
+ * painted inside the click handler, so it appears in the same frame, and
+ * the next document starts without it. */
+.sakura-nav-bar {
+	position: fixed;
+	top: 0;
+	left: 0;
+	right: 0;
+	height: 2px;
+	z-index: 100001;
+	overflow: hidden;
+	opacity: 0;
+	transition: opacity 100ms linear;
+	pointer-events: none;
+}
+
+.sakura-nav-bar.is-on {
+	opacity: 1;
+}
+
+.sakura-nav-bar i {
+	position: absolute;
+	top: 0;
+	bottom: 0;
+	width: 35%;
+	background: linear-gradient(90deg, rgba(157, 52, 82, 0), #b8496b 50%, rgba(157, 52, 82, 0));
+	animation: sakura-nav-slide 900ms linear infinite;
+}
+
+@keyframes sakura-nav-slide {
+	from {
+		left: -35%;
+	}
+	to {
+		left: 100%;
+	}
+}
+
 @media (prefers-reduced-motion: reduce) {
 	.sakura-admin *,
 	.sakura-admin *::before,
@@ -623,5 +705,16 @@
 		transition-duration: .01ms;
 		animation-duration: .01ms;
 		animation-iteration-count: 1;
+	}
+
+	/* Someone who asked for less motion still needs to know the click
+	 * registered. The bar keeps that job; it just stops sweeping, so the
+	 * whole edge lights up at once instead. The bar lives on <body>, not
+	 * inside .sakura-admin, so it needs its own animation: none. Without it
+	 * the sweeping keyframes keep running and just override left. */
+	.sakura-nav-bar i {
+		animation: none;
+		left: 0;
+		width: 100%;
 	}
 }

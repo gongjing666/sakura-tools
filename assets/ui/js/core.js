@@ -171,6 +171,63 @@
 		return qs( '.sakura-admin' );
 	}
 
+	/*
+	 * Page-change feedback.
+	 *
+	 * A module or tab click is a real navigation, so the browser keeps the
+	 * current page on screen until WordPress has booted the next one. That
+	 * dead air is the part of the wait the user notices, and nothing on the
+	 * new page can fix it: the feedback has to be painted before the
+	 * request goes out.
+	 *
+	 * base.css opts these screens out of WordPress' cross-document View
+	 * Transitions (full-page cross-fade reads as mush on dense screens) and
+	 * animates the new main column in instead. This is the other half: a 2px
+	 * bar across the top edge, shown in the same frame as the click.
+	 */
+	var navBar = null;
+
+	function navBarNode() {
+		if ( ! navBar ) {
+			navBar = document.createElement( 'div' );
+			navBar.className = 'sakura-nav-bar';
+			navBar.setAttribute( 'aria-hidden', 'true' );
+			navBar.appendChild( document.createElement( 'i' ) );
+		}
+		if ( document.body && ! navBar.parentNode ) {
+			document.body.appendChild( navBar );
+		}
+		return navBar;
+	}
+
+	/*
+	 * Capture phase, so the bar is up before the browser starts unloading.
+	 * Only plain left clicks on our own chrome count: a modified click opens
+	 * a new tab and leaves this page exactly where it is.
+	 */
+	document.addEventListener( 'click', function ( event ) {
+		if ( event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey ) {
+			return;
+		}
+		var link = closest( event.target, 'a.sakura-mod, a.sakura-tab' );
+		if ( ! link ) {
+			return;
+		}
+		var href = link.getAttribute( 'href' );
+		if ( ! href || href.charAt( 0 ) === '#' || link.classList.contains( 'is-disabled' ) ) {
+			return;
+		}
+		navBarNode().classList.add( 'is-on' );
+	}, true );
+
+	// Coming back through the bfcache leaves the bar up over a page that is
+	// already there; start those visits clean.
+	window.addEventListener( 'pageshow', function ( event ) {
+		if ( event.persisted && navBar ) {
+			navBar.classList.remove( 'is-on' );
+		}
+	} );
+
 	window.SakuraAdmin = {
 		page: page,
 		root: root,

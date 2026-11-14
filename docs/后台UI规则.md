@@ -276,6 +276,7 @@
 - 筛选框/输入框铺满整行：全局输入框的 `width:100%` 只填字段列，检查父级是否给了 `flex:1` 或没有 `max-width`；按 10.2 的上限表改父容器，不要在每个页面单独写 `!important`。
 - 多选组（源格式、尺寸等 chip）的说明段落不要放进 grid：`<p class="description">` 会成为网格项，把同一行最后一个 chip 拉到说明块的高度（实测 103px 的竖长框）。说明放在 grid 外的 notes 容器里，用分隔线与 chip 区分。
 - 全宽表格的滚动容器只包 `<table>`：说明段落放进容器会被负 margin 一起拖到卡片边框（≤782px 尤其明显）。说明放在滚动容器外，让它继承卡片内容区内边距。
+- 跨页切换动画只在 `base.css` 的「Page change」段定义，别在页面 CSS 里另写。WordPress 7.0 起后台全局启用 View Transitions，本插件用 `@view-transition { navigation: none }` 退出，改成「新文档硬切 + `.sakura-admin__main` 180ms 淡入上浮」；点击后那 ~300ms 是 WordPress 引导，靠 `core.js` 在点击的同一帧点亮 `.sakura-nav-bar` 补反馈。**不要给元素加 `view-transition-name`**：命名会让浏览器多拍一次快照并单独分组渲染（实测净增约 15ms），而且 root 组的整页交叉淡化照样在跑，两页文字仍会互相穿透。预取也不可行：登录态后台响应头是 `no-store`，Speculation Rules 不会发出请求。
 - 验收宽度跟着改动范围走，不机械跑固定清单：
   - 单页/单组件、未动响应式：1440 即可；
   - 单页/单组件、动了响应式：1440 + 390；

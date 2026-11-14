@@ -4,7 +4,7 @@ Tags: image optimization, webp, avif, imagick, media library
 Requires at least: 6.4
 Tested up to: 7.1.4
 Requires PHP: 8.2
-Stable tag: 1.27.4
+Stable tag: 1.27.5
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -78,6 +78,14 @@ Access Key 和 Secret 会加密后存进数据库，页面和源码都不会显�
 插件目前没有接管这个跳转。等出现「既要防直链、又要保留购买校验」的需求时再研发，方向是在主题之前拦截下载请求，由插件代理输出或签发短时有效的预签名地址；若暂时需要这层保护，请关闭「上传后删除本地文件」，让文件保留在本地。
 
 == Changelog ==
+
+= 1.27.5 =
+* **后台切页不再「糊一下」**：WordPress 7.0 起给整个后台启用了跨文档 View Transitions，每次点模块或页签都会把新旧两页**整页**交叉淡入淡出 250ms。本插件的后台是密集表格与卡片，两层半透明叠在一起就是文字互相穿透：慢放截图里旧页标题压在新页标题上，侧边栏在内容已经落定之后还在变色。
+* 插件页面现在退出这套过渡——核心没有 PHP 开关，只能用 CSS `@view-transition { navigation: none }`——改由自己控制切换：新文档硬切，只有主内容列 180ms 淡入并上浮 6px；模块切换条、页签条与侧边栏完全不参与动画，不会再闪。
+* 顺带更快：命名为 `view-transition-name` 的元素会让浏览器额外拍快照并单独分组渲染，实测**净增约 15ms**；完全不快照反而比默认过渡快约 30ms（点击到 load 完成：456ms → 422ms 均值，5 轮）。
+* **点击即时反馈**：WordPress 引导一次后台请求约需 300ms，这段时间浏览器一直停在旧页面，看起来像没点中。现在点击模块或页签的同一帧，页面顶部会亮起一条 2px 樱色扫光条，新文档加载出来时自然消失；`prefers-reduced-motion` 下改为整条常亮、不扫光，仍然给出「已收到」的信号。
+* 为什么不用预取：Speculation Rules 在登录态后台被响应头 `Cache-Control: no-store` 挡住，浏览器不会发出预取请求（实测悬停目标 3 秒，服务器日志零新增请求），这条路不可行，因此没有引入。
+* 影响范围：`assets/ui/base.css`（新增「Page change」段，`prefers-reduced-motion` 块追加一条规则）、`assets/ui/js/core.js`（新增点击反馈，懒建进度条节点）。不改 PHP、数据表、路由、option 键与钩子语义。
 
 = 1.27.4 =
 * 修复：卸载后仍残留四类数据，现在全部清干净。此前「删除数据」勾选后，外观设置 `sakura_imgopt_ui_style` 无人删除；两把锁（`sakura_imgopt_stats_lock`、`sakura_imgopt_upgrading`）与对象存储的 `sakura_imgopt_lock_sio_ul_*` 也留着；transient 前缀表只覆盖 `sakura_queue_` 与 `sakura_imgopt_doge_token_` 两项，于是升级错误提示、监控提示、缩略图探测复位、`sufm_embed_page` 这些一年后才自然过期的缓存条目一直留在 `wp_options` 里；`sakura_imgopt_s3_config_notice_dismissed` / `_snoozed_until` 两条 usermeta 同样没人删。

@@ -20,8 +20,9 @@ defined( 'ABSPATH' ) || exit;
  * S3\Config_Notice). Everything here can be dismissed three ways — the X, the
  * acknowledge button, or Escape — and none of them write to the database.
  *
- * The node must be echoed inside the page root so the fixed overlay covers the
- * viewport and the accent tokens reach it.
+ * The node must be echoed inside the page root so the accent tokens reach it.
+ * There is no scrim behind the card: it floats in the middle of the viewport
+ * while the page underneath stays scrollable and clickable.
  */
 final class Modal {
 
@@ -82,8 +83,7 @@ final class Modal {
 			echo ' data-sakura-modal-return="' . esc_attr( (string) $args['return_to'] ) . '"';
 		}
 		echo '>';
-		echo '<div class="sakura-modal__backdrop" data-sakura-modal-close></div>';
-		echo '<div class="sakura-modal__card" role="dialog" aria-modal="true" aria-labelledby="' . esc_attr( $title_id ) . '" aria-describedby="' . esc_attr( $desc_id ) . '"';
+		echo '<div class="sakura-modal__card" role="dialog" aria-labelledby="' . esc_attr( $title_id ) . '" aria-describedby="' . esc_attr( $desc_id ) . '"';
 		if ( '' !== $size ) {
 			echo ' data-modal-size="' . esc_attr( $size ) . '"';
 		}

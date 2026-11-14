@@ -192,7 +192,6 @@
 		var dontRemind = admin.qs( '[data-config-dont-remind]', modal );
 		var skipKey    = 'sakuraS3ConfigSkipOnce';
 		var lastFocus  = null;
-		var lastScroll = 0;
 		var sent       = false;
 		var open       = false;
 
@@ -221,15 +220,11 @@
 			}
 			open = false;
 			persistChoice();
-			modal.hidden = true;
-			modal.setAttribute( 'aria-hidden', 'true' );
-			var restoreY = lastScroll;
+			// Shared exit from ui.js, so both storage pages close the same way.
+			admin.ui.hideModal( modal );
+			// The page behind the card never moved, so focus is the only thing to restore.
 			if ( lastFocus && lastFocus.focus ) {
 				lastFocus.focus( { preventScroll: true } );
-			}
-			// Closing must not relocate the reader: if focus moved the page, undo it.
-			if ( isFinite( restoreY ) && Math.round( window.pageYOffset || 0 ) !== restoreY ) {
-				window.scrollTo( 0, restoreY );
 			}
 		}
 
@@ -238,10 +233,11 @@
 				return;
 			}
 			lastFocus = document.activeElement;
-			lastScroll = Math.round( window.pageYOffset || 0 );
 			open = true;
 			modal.hidden = false;
 			modal.setAttribute( 'aria-hidden', 'false' );
+			// Mounted and opened in the same frame, so there is no entrance animation.
+			modal.setAttribute( 'data-sakura-modal-instant', '1' );
 			window.setTimeout( function () {
 				if ( focusFirst ) {
 					focusFirst.focus( { preventScroll: true } );
@@ -336,8 +332,11 @@
 			skip = false;
 		}
 
+		/* Opened synchronously, before the first paint: waiting 220ms let the browser
+		 * paint the page without the card and then drop it on top, which reads as a
+		 * flash. */
 		if ( ! skip ) {
-			window.setTimeout( show, 220 );
+			show();
 		}
 	}
 

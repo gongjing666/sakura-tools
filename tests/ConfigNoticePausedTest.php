@@ -119,8 +119,9 @@ final class ConfigNoticePausedTest extends TestCase {
 		$options = $this->options( 'false' );
 
 		$this->assertTrue( Config_Notice::should_prompt_paused( $options ) );
-		// The X, the backdrop and the ghost button all close without writing.
-		$this->assertSame( 3, substr_count( Config_Notice::paused_html( $options ), 'data-config-close' ) );
+		// The X and the ghost button close without writing. There is no backdrop
+		// to click any more: the prompt renders as a bare card with no scrim.
+		$this->assertSame( 2, substr_count( Config_Notice::paused_html( $options ), 'data-config-close' ) );
 	}
 
 	/**

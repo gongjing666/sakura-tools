@@ -163,7 +163,8 @@ final class Config_Notice {
 	}
 
 	/**
-	 * Shared modal chrome: backdrop, card, close button and icon.
+	 * Shared modal chrome: card, close button and icon. No scrim — the card
+	 * floats over a page that stays interactive.
 	 *
 	 * @param string $id          Modal element id.
 	 * @param string $title_id    Title element id.
@@ -180,8 +181,7 @@ final class Config_Notice {
 	private static function render_modal( string $id, string $title_id, string $desc_id, string $kicker, string $title, string $description, string $body, string $actions, string $nonce, string $tone = 'info' ): void {
 		?>
 		<div class="sakura-modal sakura-modal--config" id="<?php echo esc_attr( $id ); ?>" hidden aria-hidden="true" data-ajax-url="<?php echo esc_url( admin_url( 'admin-ajax.php' ) ); ?>" data-nonce="<?php echo esc_attr( $nonce ); ?>">
-			<div class="sakura-modal__backdrop" data-config-close></div>
-			<div class="sakura-modal__card" role="dialog" aria-modal="true" aria-labelledby="<?php echo esc_attr( $title_id ); ?>" aria-describedby="<?php echo esc_attr( $desc_id ); ?>">
+			<div class="sakura-modal__card" role="dialog" aria-labelledby="<?php echo esc_attr( $title_id ); ?>" aria-describedby="<?php echo esc_attr( $desc_id ); ?>">
 				<button type="button" class="sakura-modal__close" data-config-close aria-label="<?php esc_attr_e( '关闭', 'sakura-imgopt' ); ?>">
 					<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" focusable="false"><path d="M6 6l12 12M18 6 6 18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
 				</button>

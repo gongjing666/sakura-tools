@@ -153,7 +153,6 @@
 
 			var skipKey   = 'sakuraS3ConfigSkipOnce';
 			var maybeSkip = false;
-			var active    = 0;
 
 			try {
 				maybeSkip = '1' === window.sessionStorage.getItem( skipKey );
@@ -164,18 +163,6 @@
 				maybeSkip = false;
 			}
 
-			/*
-			 * Delegates to the shared lock in ui.js: body { overflow: hidden } widened
-			 * the viewport by the scrollbar width and nudged the centred column
-			 * sideways the moment the setup prompt opened.
-			 */
-			function lockScroll( on ) {
-				if ( on ) {
-					admin.scrollLock.lock();
-				} else {
-					admin.scrollLock.unlock();
-				}
-			}
 
 			function focusables( card ) {
 				return admin.qsa(
@@ -191,14 +178,13 @@
 				var focusFirst = admin.qs( '[data-config-focus]', modal );
 				var dontRemind = admin.qs( '[data-config-dont-remind]', modal );
 				var lastFocus  = null;
-				var lastScroll = 0;
 				var sent       = false;
 				var open       = false;
 
 				/* Only "do not remind me again" is worth a round trip. A plain
-				 * close (X, Escape, backdrop, the ghost button, or walking away
-				 * through the primary link) writes nothing, so the dialog comes
-				 * back on the next load while the problem is still there. */
+				 * close (X, Escape, the ghost button, or walking away through the
+				 * primary link) writes nothing, so the dialog comes back on the next
+				 * load while the problem is still there. */
 				function persist() {
 					if ( sent ) {
 						return;
@@ -221,21 +207,14 @@
 						return;
 					}
 					open = false;
-					active = Math.max( 0, active - 1 );
-					if ( ! active ) {
-						lockScroll( false );
-					}
 					persist();
-					modal.hidden = true;
-					modal.setAttribute( 'aria-hidden', 'true' );
-					var restoreY = lastScroll;
-					// Focus first, then re-assert the offset: a focus call can still scroll
-					// even with preventScroll when the node sits outside the viewport.
+					// Same exit as every other prompt: ui.js owns the fade, so an autoshow
+					// prompt and a clicked one do not close in two different ways.
+					admin.ui.hideModal( modal );
+					// The page never moved while the card was up, so handing focus back is the
+					// whole restore; preventScroll keeps that focus call from dragging the page.
 					if ( lastFocus && lastFocus.focus ) {
 						lastFocus.focus( { preventScroll: true } );
-					}
-					if ( isFinite( restoreY ) && Math.round( window.pageYOffset || 0 ) !== restoreY ) {
-						window.scrollTo( 0, restoreY );
 					}
 				}
 
@@ -244,12 +223,12 @@
 						return;
 					}
 					lastFocus = document.activeElement;
-					lastScroll = Math.round( window.pageYOffset || 0 );
 					open = true;
-					active += 1;
-					lockScroll( true );
+					// No scroll lock and no scroll bookkeeping: the page behind the card never
+					// moves, so there is no offset to put back on close.
 					modal.hidden = false;
 					modal.setAttribute( 'aria-hidden', 'false' );
+					modal.setAttribute( 'data-sakura-modal-instant', '1' );
 					window.setTimeout( function () {
 						if ( focusFirst ) {
 							focusFirst.focus( { preventScroll: true } );
@@ -334,11 +313,11 @@
 				return;
 			}
 
-			/* Stagger two dialogs if both somehow render, so the operator never
-			 * sees one card stack on top of another. */
-			controllers.forEach( function ( controller, index ) {
-				window.setTimeout( controller.show, 220 + index * 120 );
-			} );
+			/* Opened synchronously, before the first paint, so the card is already there
+			 * when the page appears instead of fading in over a screen the operator has
+			 * been reading for a fifth of a second. Only the first prompt opens: they all
+			 * describe the same missing setup, and two stacked cards are worse than one. */
+			controllers[ 0 ].show();
 		}
 
 		/* -----------------------------------------------------------------

@@ -181,11 +181,11 @@
   - `src/S3/Config_Notice.php` —— 对象存储的三条**拦截式**提示（配置缺失 / 已停用 / 未核对），自带「不再提醒」与主按钮，用的是同一套类名。对象存储的缺失项胶囊样式仍在 `storage.css`（`.sakura-config-missing` 等），那是页面专属家具。
 - **图标五色**：`--ok` 绿、`--bad` 赤、`--warn` 琥珀、`--info` 灰紫、`--neutral` 暖灰。成功不要用主按钮的樱红，否则和「失败」分不开。
 - **弹窗不得改变用户的位置**（新窗口、关闭都一样）。这条是硬性的，验收时按下面三项量：
-  - **滚动位置**：打开前 `scrollY` 是多少，关闭后必须还是多少，误差 0；弹窗内部滚动不继承给页面。锁滚动不要用 `body { overflow: hidden }`（会让页面宽变窄、有滚动条的桌面出现横向跳动），改为 `position: fixed` + `top: -scrollY` 的经典锁法，关闭时恢复并 `scrollTo` 回原位。
+   - **滚动位置**：打开前 `scrollY` 是多少，关闭后必须还是多少，误差 0；弹窗内部滚动不继承给页面。**提示弹窗不加遮罩、不锁滚动**：卡片浮在页面上方，页面照常可滚、可点、可读，所以根本不需要记录和恢复偏移，也就没有「锁 → 跳 → 解锁 → 再跳」的机会。
   - **焦点位置**：打开时焦点落标题、关闭时回到触发元素，但**两次焦点都必须 `focus({ preventScroll: true })`**，且关闭时若目标已在视口外，不能把它滚进视野——用户停在哪就停在哪。目标控件已被移走（重定向后常见）时，焦点回到 `<body>` 或页面根，绝不用滚动去追。
   - **视口坐标**：打开前后 `getBoundingClientRect()` 的页面内容位置不得变化；用 `visualViewport` 或 `innerWidth - clientWidth` 复核滚动条补偿，禁止出现 1–20px 的横向抖动。
-  - **保存后的整页往返**：卡片表单提交到 `options.php` / `admin-post.php` 是 POST + 302 + 重新加载，浏览器必然从 `scrollY=0` 画新文档——这不是弹窗造成的，但用户会一起感知成「位置丢了」。`ui.js` 在 submit 时把 `路径|page + scrollY` 写进 `sessionStorage.sakuraAdminSaveScroll`，新文档加载后校验同一 screen key 再恢复，读完即删。**screen key 故意不含 `t`**：部分 saver 重定向回来时只带 `page=`、不带 `t=`（对象存储保存连接配置就是这样），带上 tab 会让 key 对不上、恢复静默失效；切页签是链接不是提交，本来就不会写入。**恢复必须发生在自动弹窗打开之前**（`admin.ready()` 的第一步），并且锁滚动时 `body.top` 要等于恢复值：否则会看到「先顶部 → 弹出来 → 再跳回去」的两段跳。图片/字体晚到可能把文档撑高导致过早的滚动被钳制，所以 `load` 后再幂等校正一次。新增「提交后跳转」的表单不用另写逻辑，但换页面 id 或改成 AJAX 时要确认这条路径仍然成立。
-- **尺寸**：`width: min(560px, 100%)`、`padding: var(--g-space-5)`（24px）、`border-radius: var(--g-radius-lg)`（22px）、白底 `--g-card`、`--g-shadow-pop` 阴影；**没有边框**，靠阴影与暖白画布分层。`max-height: calc(100vh - 2 * var(--g-space-4))`（视口高 −36px），内容超高时卡片内部滚动（`overflow-y: auto`）。外层 `.sakura-modal` 是 `position: fixed` + `inset: 0` + `z-index: 100000` 的自绘遮罩，`padding: var(--g-space-4)`（18px）保证窄屏不贴边。
+   - **保存后的整页往返**：卡片表单提交到 `options.php` / `admin-post.php` 是 POST + 302 + 重新加载，浏览器必然从 `scrollY=0` 画新文档——这不是弹窗造成的，但用户会一起感知成「位置丢了」。`ui.js` 在 submit 时把 `路径|page + scrollY` 写进 `sessionStorage.sakuraAdminSaveScroll`，新文档加载后校验同一 screen key 再恢复，读完即删。**screen key 故意不含 `t`**：部分 saver 重定向回来时只带 `page=`、不带 `t=`（对象存储保存连接配置就是这样），带上 tab 会让 key 对不上、恢复静默失效；切页签是链接不是提交，本来就不会写入。**恢复必须发生在自动弹窗打开之前**（`admin.ready()` 的第一步），而且自动弹窗必须同步打开、不排队等定时器：否则会看到「先顶部 → 弹出来 → 再跳回去」的两段跳。图片/字体晚到可能把文档撑高导致过早的滚动被钳制，所以 `load` 后再幂等校正一次。**恢复值只用一次**：`admin.ready()` 末尾把它清空，之后任何一次弹窗（保存结果、连接测试、首次提示）都不许再动滚动位置——否则保存过之后，用户滚到别处点开一个提示，页面会被拽回上次保存的位置。新增「提交后跳转」的表单不用另写逻辑，但换页面 id 或改成 AJAX 时要确认这条路径仍然成立。
+- **尺寸**：`width: min(560px, 100%)`、`padding: var(--g-space-5)`（24px）、`border-radius: var(--g-radius-lg)`（22px）、白底 `--g-card`、`--g-shadow-pop` 阴影；**没有边框**，靠阴影与暖白画布分层。`max-height: calc(100vh - 2 * var(--g-space-4))`（视口高 −36px），内容超高时卡片内部滚动（`overflow-y: auto`）。外层 `.sakura-modal` 是 `position: fixed` + `inset: 0` + `z-index: 100000` 的**无遮罩居中容器**：本身透明，`pointer-events: none` 让点击穿透到页面，只有卡片 `pointer-events: auto`；`padding: var(--g-space-4)`（18px）保证窄屏不贴边。
 - **`.sakura-modal--config` 只是语义标记**：仓库里它没有任何 CSS 规则，判断是否为提示弹窗看的是最外层 `.sakura-modal`，不是这个修饰类。
 - **结构固定**：图标（46×46、`--g-radius-md`）→ 大写眉标 → 标题 → 1–2 行说明 →（可选）缺失项面板 → 底部「不再提醒」+ 次按钮 + 主按钮。三个变体共用 `render_modal()`，差别只在中段：
   - `modal_html( $options, $context )`（`:233`）—— 配置缺失，有 `.sakura-config-missing` 胶囊面板（小标 + 缺哪几项），主按钮按上下文指向连接页或 `#sakura-s3-connection`。
@@ -195,22 +195,22 @@
 - **对齐**：图标、眉标、标题三行居中（图标用 `display: flex` + `margin: 0 auto`，inline 级盒子会被 auto margin 忽略）；说明段与底部操作区保持左对齐 / 两端对齐。说明段不要加 `max-width: 46ch` 之类的行宽上限——中文在这张卡里排到 23 字就折行，右侧空出一大块，看着像排版错误。
 - **配置缺失不是错误**：图标用暖灰 `--g-accent-soft` 或中性灰 `.sakura-modal__icon--neutral`，缺失胶囊用 `--g-warn-bg` / `--g-warn`；红色只留给破坏性操作。
 - **≤520px**：底部操作区纵向排列、「不再提醒」在上、按钮整宽；次按钮保留描边和暖白底，不能变成无边界的一行字。390 / 320 下弹窗不得横向溢出。
-- **打开与焦点**：延迟约 220ms 打开（同一页有多个候选时第 n 个再累加 `120ms × n`）；`role="dialog"` / `aria-modal` / `aria-hidden` 与 `hidden` 成对切换；打开后 40ms 焦点落标题，所以标题要 `outline: none`（浏览器在非交互元素上画焦点环看着像 bug）；Tab 焦点圈在弹窗内首尾回绕；Esc / 点遮罩 / 关闭按钮都能关；关闭后焦点回到触发前元素。
+- **打开与焦点**：**同步打开，不等定时器**。自动弹窗在首次绘制前就 `removeAttribute('hidden')`，卡片属于第一帧，所以不会「先画一遍没有弹窗的页面再补上」；手动打开的弹窗只有 140ms 的透明度淡入。`role="dialog"` / `aria-labelledby` / `aria-hidden` 与 `hidden` 成对切换；**不写 `aria-modal`**——没有遮罩就不再是模态，页面仍然可操作。打开后 40ms 焦点落标题，所以标题要 `outline: none`（浏览器在非交互元素上画焦点环看着像 bug）。没有焦点陷阱：Esc 与关闭按钮都能关，Tab 可以走出卡片；关闭后焦点回到触发前元素。
 - **关闭分两档，且只有一档会写库**：
   - 勾选「不再提醒」后，不论用哪种方式关闭都写 `sakura_imgopt_s3_config_notice_dismissed`，永久保存，直到手动清除该 user meta。
-  - 未勾选时**不写任何东西**：X、Esc、点背景、次按钮「暂不处理」都只关掉这一次，刷新后状态仍然成立就继续弹。理由是这个弹窗是页面上唯一说明「功能坏了 / 桶不再收文件」的地方，把「关掉」当成「处理过」会让问题静默存在。
+   - 未勾选时**不写任何东西**：X、Esc、次按钮「暂不处理」都只关掉这一次，刷新后状态仍然成立就继续弹。理由是这个弹窗是页面上唯一说明「功能坏了 / 桶不再收文件」的地方，把「关掉」当成「处理过」会让问题静默存在。
   - 1.25.6 及更早的 12 小时 snooze（`sakura_imgopt_s3_config_notice_snoozed_until`）已废弃：升级后读到残留时间戳直接删除，不再压制弹窗。
 - **主按钮跳转下一页时**保留 sessionStorage 一次性跳过（`sakuraS3ConfigSkipOnce`），只作为 AJAX 写入失败时的兜底，不能当长期静默用。
-- **锁滚动用共享实现 `admin.ui.scrollLock.lock()/unlock()`**（`ui.js`）：`position: fixed` + `top: -scrollY` 钉住 body，根节点加 `html.sakura-scroll-locked`；关闭时还原内联样式并 `window.scrollTo(0, 记录值)`。**不要用 `body { overflow: hidden }`**（滚动条消失会让视口变宽、整页横向抖动，且 Chrome 会把页面拉回顶部）。Prompt modal、对象存储配置弹窗、媒体预览三处都走这套；新增弹窗不要另写锁。
-- **节点必须由页面根节点输出**，遮罩才盖满整个视口；不要依赖旧 `.app` 的堆叠上下文（同步中心把弹窗 echo 在 `ob_get_clean()` 之前正是这个原因）。
-- 提示弹窗没有入场动画，`prefers-reduced-motion` 在这里是空条件，不要为它单写动画开关。
+- **不加遮罩、不锁滚动**：提示弹窗不是模态。遮罩（`--g-overlay` + `backdrop-filter: blur(3px)`）会在打开瞬间重合成整屏，锁滚动（`position: fixed` 钉 body，或 `html { overflow: hidden }`）会让文档塌陷、视口变宽、整页重排——这两件事合起来就是用户反复反馈的「页面闪一下」。现在的做法是容器透明且点击穿透、页面继续滚动，视口永远不动。确实需要模态语义时（二次确认、媒体预览）另用原生 `<dialog>` + `showModal()`，那两套有自己的 `::backdrop`。
+- **节点必须由页面根节点输出**：`.sakura-modal` 是 `position: fixed`，要落在没有 `transform` / `filter` / `will-change` 祖先的位置才能相对视口居中并盖住整块画布（同步中心把弹窗 echo 在 `ob_get_clean()` 之前正是这个原因）。需要它的是居中，不是遮罩。
+- **动效只有透明度**：手动打开的弹窗淡入 140ms、关闭淡出 110ms；自动弹窗由 `ui.js` 打上 `data-sakura-modal-instant` 后直接出现（关闭时仍淡出）。`prefers-reduced-motion: reduce` 下两者都关闭。卡片不做位移或缩放：居中的卡片本来就在正确位置，让它「飞进来」只是让用户等它。
 
 ### 5.2 二次确认弹窗（`.sakura-dialog`）
 
 破坏性操作与「需要一句确认才继续」的动作走 `SakuraAdmin.ui.confirm( message, options )`（`assets/ui/js/ui.js:75`），不要用 `window.confirm`。列表里的按钮只要写 `data-sakura-confirm="<说明>"`，`ui.js:907` 的 `initConfirmations()` 会自动接管，并默认按危险样式处理。
 
 - **结构**：原生 `<dialog class="sakura-dialog">` + `showModal()`；内部 `form.sakura-dialog__form`（`method="dialog"`）→ `.dialog__body`（`h2.dialog__title` + `p.dialog__message`）→ `.dialog__actions`。**没有图标、没有眉标、没有复选框**，就是标题 + 一句正文 + 两个按钮；不要为了「和提示弹窗一致」给它加图标或第三颗按钮。
-- **样式在 `components.css:1138-1184`**，不带页面前缀，任何后台页都能用：`width: min(440px, calc(100vw - 32px))`、`border: 1px solid var(--g-line)`、`border-radius: var(--g-radius-card)`（18px）、白底 `--g-card`、`--g-shadow-pop`；`::backdrop` 是 `--g-overlay` + `blur(2px)`。注意这三项与提示弹窗**是两套外观**：提示弹窗 560px / 22px 圆角 / 无边框，确认弹窗 440px / 18px 圆角 / 有 1px 描边，不要互相「对齐」。
+- **样式在 `components.css`「二次确认（Confirm）」段**，不带页面前缀，任何后台页都能用：`width: min(440px, calc(100vw - 32px))`、`border: 1px solid var(--g-line)`、`border-radius: var(--g-radius-card)`（18px）、白底 `--g-card`、`--g-shadow-pop`；`::backdrop` 只铺 `--g-overlay` 色调。注意这几项与提示弹窗**是两套外观**：提示弹窗 560px / 22px 圆角 / 无边框 / 无遮罩，确认弹窗 440px / 18px 圆角 / 有 1px 描边 / 有遮罩，不要互相「对齐」。
 - **底部动作区是 `.dialog__body` 的兄弟节点，不放在 body 里**：`.dialog__body` 内边距 `22px 22px 8px`，`.dialog__actions` 是 `16px 22px 20px` + `justify-content: flex-end` + `gap: 8px`。新增变体请保持这个层级；塞进 body 会让左右内边距变成 22/45px（`files-zibll.js` 的输入框变体就是这种写法，属现存的小不一致）。
 - **按钮语义**：取消是 `.btn--ghost`，确认在 `danger: true` 时是 `.btn--danger`、否则 `.btn--primary`。`confirm` 返回 Promise：点确认 resolve `true`，取消 / Esc resolve `false`。
 - **焦点**：`showModal()` 后主动 `focus()` 确认按钮（`ui.js:140`），所以打开后直接回车就是「确认」——破坏性操作请在文案里把这个后果写清楚，不要靠按钮位置防误触。
@@ -476,7 +476,7 @@
 
 **机制备忘**（改之前先读，别重新发明）：
 
-- 锁滚动用 `admin.ui.scrollLock`，**不要用 `body { overflow: hidden }`**：它会让视口变宽、整页横向抖动，Chrome 还会把页面拉回顶部。
+- 提示弹窗**不锁滚动、不加遮罩**，页面照常滚动和点击；确认弹窗与媒体预览用的是原生 `<dialog>`，`::backdrop` 只铺色调、不加模糊。不要为了「更专注」再给提示弹窗补遮罩或滚动锁——那正是闪屏的来源。
 - 保存往返（POST → 302 → 新文档）要把 `路径|page + scrollY` 存进 `sessionStorage.sakuraAdminSaveScroll`，**在自动弹窗打开之前恢复**；screen key 不含 `t`（部分 saver 重定向回来不带 tab）。
 - **不要再引入任何"加载后用 JS 改布局"的机制**。1.27 之前有过一版拖拽引擎：它把卡片改成绝对定位并重写文档高度，导致长页面跳动、卡片晚一帧出现、以及首屏隐藏规则误命中 `.card-grid` 而整页空白两秒。静态 `grid-row`/`grid-column` 从根上消除了这三类问题。
 

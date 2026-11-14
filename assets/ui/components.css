@@ -1225,7 +1225,6 @@
 
 .sakura-admin dialog::backdrop {
 	background: var(--g-overlay);
-	backdrop-filter: blur(2px);
 }
 
 .sakura-admin .sakura-dialog__form {
@@ -1269,10 +1268,15 @@
  * storage pages used to own it and the rules only matched two page ids.
  *
  * Structure (see UI::modal()):
- *   .sakura-modal > .sakura-modal__backdrop + .sakura-modal__card
+ *   .sakura-modal > .sakura-modal__card
  *     .sakura-modal__close (X)
  *     .sakura-modal__icon--{ok|bad|warn|info|neutral}
  *     .sakura-modal__kicker / h2 / p / body / .sakura-modal__actions
+ *
+ * There is no scrim. The container is a transparent, click-through layer whose
+ * only job is centring the card on the viewport; the page behind it stays
+ * readable, clickable and scrollable. A dimmed, blurred full-page overlay did
+ * no work a prompt needs and cost a full-viewport composite on every open.
  */
 .sakura-admin .sakura-modal {
 	position: fixed;
@@ -1281,6 +1285,7 @@
 	display: grid;
 	place-items: center;
 	padding: var(--g-space-4);
+	pointer-events: none;
 }
 
 .sakura-admin .sakura-modal[hidden] {
@@ -1288,25 +1293,15 @@
 }
 
 /*
- * Motion: a short rise + fade, never a scale pop.
+ * Motion: opacity only.
  *
- * The card travels 8px and the backdrop fades with the same curve, so the two
- * read as one gesture. Exit is faster than entry — a dialog the operator has
- * already dismissed should get out of the way — and both are disabled under
- * prefers-reduced-motion.
+ * A fixed, centred card is already where it belongs the instant it is shown, so
+ * there is nothing to move. A rise or a scale would make the operator watch the
+ * prompt arrive instead of reading it, and moving a 440px surface repaints
+ * everything behind it. The exit is faster than the entry; an autoshow prompt
+ * (marked by ui.js before it opens) has neither, because it is part of the first
+ * painted frame and any animation there would be the flash.
  */
-.sakura-admin .sakura-modal__backdrop {
-	position: absolute;
-	inset: 0;
-	background: var(--g-overlay);
-	backdrop-filter: blur(3px);
-	animation: sakura-modal-fade-in 180ms var(--g-ease) both;
-}
-
-.sakura-admin .sakura-modal.is-closing .sakura-modal__backdrop {
-	animation: sakura-modal-fade-out 150ms var(--g-ease) both;
-}
-
 @keyframes sakura-modal-fade-in {
 	from { opacity: 0; }
 	to   { opacity: 1; }
@@ -1317,65 +1312,9 @@
 	to   { opacity: 0; }
 }
 
-@keyframes sakura-modal-card-in {
-	from {
-		opacity: 0;
-		transform: translateY(10px) scale(.985);
-	}
-	to {
-		opacity: 1;
-		transform: translateY(0) scale(1);
-	}
-}
-
-@keyframes sakura-modal-card-out {
-	from {
-		opacity: 1;
-		transform: translateY(0) scale(1);
-	}
-	to {
-		opacity: 0;
-		transform: translateY(6px) scale(.99);
-	}
-}
-
-.sakura-admin .sakura-modal.is-closing .sakura-modal__card {
-	animation: sakura-modal-card-out 150ms var(--g-ease) both;
-}
-
-/* The icon lands a beat after the card so the eye is drawn to the result
- * (tick, cross, warning) rather than to the frame around it. */
-.sakura-admin .sakura-modal__icon {
-	animation: sakura-icon-in 320ms var(--g-ease) 60ms both;
-}
-
-@keyframes sakura-icon-in {
-	from {
-		opacity: 0;
-		transform: scale(.86);
-	}
-	60% {
-		transform: scale(1.04);
-	}
-	to {
-		opacity: 1;
-		transform: scale(1);
-	}
-}
-
-@media (prefers-reduced-motion: reduce) {
-	.sakura-admin .sakura-modal__backdrop,
-	.sakura-admin .sakura-modal__card,
-	.sakura-admin .sakura-modal__icon,
-	.sakura-admin .sakura-modal.is-closing .sakura-modal__backdrop,
-	.sakura-admin .sakura-modal.is-closing .sakura-modal__card {
-		animation: none;
-	}
-}
-
 .sakura-admin .sakura-modal__card {
-	animation: sakura-modal-card-in 220ms var(--g-ease) both;
 	position: relative;
+	pointer-events: auto;
 	width: min(560px, 100%);
 	max-height: calc(100vh - 2 * var(--g-space-4));
 	overflow-y: auto;
@@ -1383,6 +1322,25 @@
 	border-radius: var(--g-radius-lg);
 	background: var(--g-card-surface);
 	box-shadow: var(--g-shadow-pop);
+	animation: sakura-modal-fade-in 140ms var(--g-ease) both;
+}
+
+.sakura-admin .sakura-modal.is-closing .sakura-modal__card {
+	animation: sakura-modal-fade-out 110ms var(--g-ease) both;
+}
+
+/* An autoshow prompt is mounted by PHP and opened before the first paint: it
+ * did not follow a click, so it simply is there. */
+.sakura-admin .sakura-modal[data-sakura-modal-instant] .sakura-modal__card,
+.sakura-admin .sakura-modal[data-sakura-modal-instant].is-closing .sakura-modal__card {
+	animation: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.sakura-admin .sakura-modal__card,
+	.sakura-admin .sakura-modal.is-closing .sakura-modal__card {
+		animation: none;
+	}
 }
 
 /* A prompt that only reports ("saved", "connection ok") is narrower than the
@@ -1510,17 +1468,13 @@
 }
 
 /*
- * Scroll lock for the prompt dialogs.
+ * No scroll lock for the prompt dialogs.
  *
- * This deliberately does NOT use body { overflow: hidden }: removing the
- * scrollbar widens the viewport and every centred column shifts sideways the
- * instant a dialog opens. ui.js pins the body with position:fixed and a
- * negative offset instead, and this class only stops the root from scrolling
- * behind the pinned body. Closing restores the offset the user was on.
+ * Without a scrim the prompt does not own the screen, so the page behind it
+ * keeps scrolling on purpose. Locking it used to cost a full-page reflow (a
+ * pinned body collapses the document) plus a widened viewport (a hidden
+ * scrollbar re-centres every column) — the flicker the operator kept seeing.
  */
-html.sakura-scroll-locked {
-	overflow: hidden;
-}
 
 @media (max-width: 520px) {
 	/* Stacked, the mute checkbox belongs above the buttons: the primary action

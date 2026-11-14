@@ -1081,60 +1081,69 @@
 	}
 
 	/*
-	 * One scroll lock for every dialog in the plugin.
+	 * There is deliberately no scroll lock for these prompts.
 	 *
-	 * `body { overflow: hidden }` is the tempting one-liner and it is wrong here:
-	 * it removes the scrollbar, the viewport widens by that width, and every
-	 * centred column on the page jumps a few pixels sideways the moment a dialog
-	 * opens. Pinning the body with position:fixed and a negative offset keeps the
-	 * layout exactly as it was; closing restores the inline styles and scrolls
-	 * back to the pixel the user was on.
+	 * The old implementation pinned <body> with position:fixed and a negative
+	 * offset so the page could not scroll behind the dialog. It worked, and it
+	 * still cost a full-page reflow: body leaves the flow, the document collapses
+	 * to viewport height, the scrollbar vanishes and every centred column
+	 * re-measures — one frame of a visibly jumping page. Without a scrim there is
+	 * nothing to lock: the card floats over a page the operator can keep
+	 * reading, scrolling and clicking, and the viewport never has to move.
 	 */
-	var scrollLock = ( function () {
-		var saved = null;
 
-		function lock() {
-			if ( saved || ! document.body ) {
-				return;
-			}
-			var body = document.body;
-			var y = window.pageYOffset || document.documentElement.scrollTop || 0;
-			saved = {
-				y: y,
-				position: body.style.position,
-				top: body.style.top,
-				left: body.style.left,
-				right: body.style.right,
-				width: body.style.width
-			};
-			body.style.position = 'fixed';
-			body.style.top = ( -y ) + 'px';
-			body.style.left = '0';
-			body.style.right = '0';
-			body.style.width = '100%';
-			document.documentElement.classList.add( 'sakura-scroll-locked' );
+	/**
+	 * Play the exit and then hide a prompt.
+	 *
+	 * The exit is a short opacity fade, so "hidden" lands on animationend; a timer
+	 * covers the cases where no animation runs at all (reduced motion, a card that
+	 * was never painted). The page controllers that keep their own open state
+	 * (storage-sync.js, storage-connection.js) close through this as well.
+	 *
+	 * @param {Element} modal Root .sakura-modal node.
+	 * @return {void}
+	 */
+	function hideModal( modal ) {
+		if ( ! modal || modal.hasAttribute( 'hidden' ) ) {
+			return;
 		}
 
-		function unlock() {
-			if ( ! saved || ! document.body ) {
-				return;
-			}
-			var body = document.body;
-			var y = saved.y;
-			body.style.position = saved.position;
-			body.style.top = saved.top;
-			body.style.left = saved.left;
-			body.style.right = saved.right;
-			body.style.width = saved.width;
-			saved = null;
-			document.documentElement.classList.remove( 'sakura-scroll-locked' );
-			// Chrome clamps scroll on a fixed body; putting it back explicitly is
-			// the difference between "returned to the page" and "tossed to the top".
-			window.scrollTo( 0, y );
+		var hide = function () {
+			modal.setAttribute( 'hidden', '' );
+			modal.setAttribute( 'aria-hidden', 'true' );
+			modal.classList.remove( 'is-closing' );
+		};
+
+		modal.setAttribute( 'aria-hidden', 'true' );
+
+		/*
+		 * The instant flag only suppresses the entrance animation. Dropping it here
+		 * lets the exit fade play, so a prompt that arrived without motion still leaves
+		 * without popping out of existence.
+		 */
+		modal.removeAttribute( 'data-sakura-modal-instant' );
+
+		if ( reducedMotion() ) {
+			hide();
+			return;
 		}
 
-		return { lock: lock, unlock: unlock };
-	}() );
+		modal.classList.add( 'is-closing' );
+
+		// Guaranteed once-only: animationend fires per animated element.
+		var finished = false;
+		var finish = function () {
+			if ( finished ) {
+				return;
+			}
+			finished = true;
+			modal.removeEventListener( 'animationend', finish );
+			hide();
+		};
+		modal.addEventListener( 'animationend', finish );
+		window.setTimeout( finish, 200 );
+	}
+
 	/** Whether the operator asked for reduced motion. */
 	function reducedMotion() {
 		return !! ( window.matchMedia && window.matchMedia( '(prefers-reduced-motion: reduce)' ).matches );
@@ -1161,30 +1170,25 @@
 		modal.setAttribute( 'aria-hidden', 'false' );
 		modal.setAttribute( 'data-sakura-modal-open', '1' );
 		/*
-		 * Recorded before the lock so the restore target is the user's own position.
+		 * Nothing is locked and nothing is scrolled on open: without a scrim the page
+		 * stays exactly where the operator left it, and a prompt that follows a click
+		 * has no business moving the viewport at all.
 		 *
-		 * An autoshow prompt appears on a freshly loaded document, so the live offset
-		 * is 0 even when the operator had scrolled far down the previous screen (the
-		 * save round-trip). In that case the pending restore target is the honest
-		 * answer, and it is also what the dialog must hand back on close.
+		 * The one exception is a prompt that is part of a save round-trip, mounted by
+		 * PHP and opened here while the document is still parsing. That document
+		 * started at scroll 0, restoreScrollAfterSave() has already moved it back, but
+		 * a late layout pass can still clamp the offset — so the pending value is
+		 * re-applied here, before the card is painted, to keep the first frame honest.
+		 * restoredOffset is cleared once this load is past its first frame (see
+		 * admin.ready), so no later prompt inherits a stale position.
 		 */
-		var currentY = Math.round( window.pageYOffset || 0 );
-		/*
-		 * An autoshow prompt is mounted on a freshly loaded document. restoreScroll
-		 * has usually already moved the viewport, but if anything re-clamped it to 0
-		 * (late layout) locking here would bake in the wrong offset and the close
-		 * would land at the top. Prefer the pending value while it is still valid.
-		 */
-		var intended = readPendingScroll();
-		if ( intended === null && null !== restoredOffset ) {
-			intended = restoredOffset;
+		var pending = readPendingScroll();
+		if ( null === pending ) {
+			pending = restoredOffset;
 		}
-		var targetY  = intended !== null ? intended : currentY;
-		if ( targetY > 0 && currentY !== targetY ) {
-			window.scrollTo( 0, targetY );
+		if ( null !== pending && pending > 0 && Math.round( window.pageYOffset || 0 ) !== pending ) {
+			window.scrollTo( 0, pending );
 		}
-		modal.setAttribute( 'data-sakura-modal-scroll', String( targetY ) );
-		scrollLock.lock();
 
 		if ( focusOn && typeof focusOn.focus === 'function' ) {
 			window.setTimeout( function () {
@@ -1200,43 +1204,26 @@
 			document.removeEventListener( 'keydown', onKeydown );
 
 			/*
-			 * Play the exit before hiding. is-closing drives the reverse keyframes;
-			 * hidden lands on animationend so the dialog really is gone, and a timer
-			 * covers the reduced-motion case where no animation runs at all.
+			 * Play the exit before hiding, so the card does not blink out of existence.
 			 */
-			var hide = function () {
-				modal.setAttribute( 'hidden', '' );
-				modal.classList.remove( 'is-closing' );
-			};
-			modal.setAttribute( 'aria-hidden', 'true' );
-			modal.classList.add( 'is-closing' );
+			hideModal( modal );
 
-			if ( reducedMotion() ) {
-				hide();
-			} else {
-				var finished = false;
-				var finish = function () {
-					if ( finished ) { return; }
-					finished = true;
-					modal.removeEventListener( 'animationend', finish );
-					hide();
-				};
-				modal.addEventListener( 'animationend', finish );
-				window.setTimeout( finish, 260 );
-			}
-
-			// Only pull focus back when it is still inside the dialog; the operator
-			// may have tabbed to another control in the page behind it.
+			// Only pull focus back when it is still inside the dialog; the operator may
+			// have moved it to a control in the page behind it.
 			if ( modal.contains( document.activeElement ) && document.activeElement !== document.body ) {
 				document.activeElement.blur();
 			}
 
 			/*
 			 * Autoshow prompts survive a post-and-redirect: the node that was the
-			 * trigger belongs to the previous document, so focus would fall to
-			 * <body> and a keyboard operator would restart at the top of the page.
-			 * A data-sakura-modal-return selector names the control to come back to
+			 * trigger belongs to the previous document, so focus would fall to <body>
+			 * and a keyboard operator would restart at the top of the page. A
+			 * data-sakura-modal-return selector names the control to come back to
 			 * instead (the save button of the card that was submitted).
+			 *
+			 * The viewport never moved while the prompt was open, so handing focus back
+			 * is the whole restore: preventScroll keeps the focus call itself from
+			 * dragging the page to that control.
 			 */
 			var fallback = modal.getAttribute( 'data-sakura-modal-return' );
 			// <body> is the "nothing was focused" placeholder, not an opener: on a
@@ -1244,28 +1231,9 @@
 			// reports, so treat it as absent and let the selector win.
 			var useful = opener && opener !== document.body && document.contains( opener ) ? opener : null;
 			var target = useful || ( fallback ? admin.qs( fallback ) : null );
-			var restoreY = Number( modal.getAttribute( 'data-sakura-modal-scroll' ) );
 
-			// Unlock first: the body is pinned while a dialog is open, so restoring
-			// focus before this point would measure against the pinned layout.
-			scrollLock.unlock();
-			modal.removeAttribute( 'data-sakura-modal-scroll' );
-
-			/*
-			 * Focus, then put the scroll position back exactly.
-			 *
-			 * preventScroll keeps the focus call itself from jumping, but browsers
-			 * still scroll when the focused element is off-screen in some paths, and
-			 * the fixed-body unlock can shift things by a frame. Re-asserting the
-			 * recorded offset after focusing is what makes "close the dialog" a
-			 * no-op for the viewport: the user stays where they were reading.
-			 */
 			if ( target && typeof target.focus === 'function' ) {
 				target.focus( { preventScroll: true } );
-			}
-
-			if ( isFinite( restoreY ) && Math.round( window.pageYOffset || 0 ) !== restoreY ) {
-				window.scrollTo( 0, restoreY );
 			}
 		}
 
@@ -1291,24 +1259,29 @@
 	}
 
 	/**
-	 * Mount servers that opt in with data-sakura-modal-autoshow.
+	 * Mount prompts that opt in with data-sakura-modal-autoshow.
+	 *
+	 * Opened synchronously, while the document is still parsing, so the card is part
+	 * of the first painted frame. The old version waited 180ms + 120ms per extra
+	 * prompt: the browser had long since painted the page without it, and the card
+	 * then faded in over a screen that had already settled — which reads as a
+	 * flash. The instant flag also drops the entrance animation: an autoshow prompt
+	 * did not follow a click, it should simply be there.
 	 */
 	function initModals() {
-		admin.qsa( '.sakura-modal[data-sakura-modal-autoshow="1"]' ).forEach( function ( modal, index ) {
-			// Stagger, so two prompts never fight for focus in the same frame.
-			window.setTimeout( function () {
-				openModal( modal, null );
-			}, 180 + index * 120 );
+		admin.qsa( '.sakura-modal[data-sakura-modal-autoshow="1"]' ).forEach( function ( modal ) {
+			modal.setAttribute( 'data-sakura-modal-instant', '1' );
+			openModal( modal, null );
 		} );
 	}
 
 	admin.ready( function () {
 		/*
-		 * Restore the post-save offset FIRST, before anything else can paint or
-		 * move the viewport. initModals() only schedules timers, but the prompt it
-		 * schedules fires ~180ms later — and by then the browser has long since
-		 * shown the fresh document at scroll 0. Doing this first is what removes
-		 * the visible "top of page, then dialog, then jump back" sequence.
+		 * Restore the post-save offset FIRST, before anything else can paint or move
+		 * the viewport. A save is a POST plus redirect, so the browser starts the new
+		 * document at scroll 0; putting the offset back here, still before the first
+		 * paint, is what removes the visible "top of page, then prompt, then jump
+		 * back" sequence. initModals() runs last and opens synchronously.
 		 */
 		restoreScrollAfterSave();
 
@@ -1316,6 +1289,16 @@
 		initConfirmations();
 		rememberScrollOnSave();
 		initModals();
+
+		/*
+		 * The saved offset is spent: it was applied here and, if a prompt is part of
+		 * this load, re-applied by openModal() before that card was painted. Keeping
+		 * it any longer meant every later prompt — a save result, a connection test,
+		 * a setup nudge — re-scrolled the page to the offset the operator happened to
+		 * be at after their last save, yanking the content out from under the card.
+		 * A prompt after the first frame must leave the viewport alone.
+		 */
+		restoredOffset = null;
 	} );
 
 	admin.ui = {
@@ -1326,6 +1309,6 @@
 		labelTables: labelTables,
 		mediaPreview: mediaPreview,
 		openModal: openModal,
-		scrollLock: scrollLock
+		hideModal: hideModal
 	};
 }( window, document ) );

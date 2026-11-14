@@ -4,7 +4,7 @@ Tags: image optimization, webp, avif, imagick, media library
 Requires at least: 6.4
 Tested up to: 7.1.4
 Requires PHP: 8.2
-Stable tag: 1.27.1
+Stable tag: 1.27.2
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -78,6 +78,15 @@ Access Key 和 Secret 会加密后存进数据库，页面和源码都不会显�
 插件目前没有接管这个跳转。等出现「既要防直链、又要保留购买校验」的需求时再研发，方向是在主题之前拦截下载请求，由插件代理输出或签发短时有效的预签名地址；若暂时需要这层保护，请关闭「上传后删除本地文件」，让文件保留在本地。
 
 == Changelog ==
+
+= 1.27.2 =
+* **提示弹窗改成无遮罩卡片**：.sakura-modal 不再是「全屏遮罩 + 居中卡」，遮罩节点、`--g-overlay` 铺色和 `backdrop-filter: blur(3px)` 全部删除；外层只剩一个透明的 `position: fixed` 居中容器（`pointer-events: none`），卡片自己 `pointer-events: auto`，页面照常可滚、可点、可读。确实需要模态语义的地方（二次确认、媒体预览）仍用原生 `<dialog>` + `showModal()`，各自保留 `::backdrop`。
+* **修掉反复出现的「打开弹窗页面闪一下」**：此前弹窗一打开就调 `scrollLock.lock()`，把 body 改成 `position: fixed` + `top: -scrollY` 钉住，文档当帧塌成视口高、滚动条消失、整页重排；同时 `html.sakura-scroll-locked { overflow: hidden }` 又挤掉滚动条让视口变宽 15px，居中列横向抖一下。现在这套滚动锁整体删除——弹窗不覆盖页面，也就没有可锁的滚动；打开前后 `scrollY`、`getBoundingClientRect()` 与视口宽度都保持不变。
+* **自动弹窗不再排队等 180ms / 220ms**：延迟打开意味着浏览器先画完一整页没有弹窗的内容，再补一张卡上去。现在 `initModals()` 与对象存储两个页面控制器都在脚本执行时同步打开，并给根节点打上 `data-sakura-modal-instant`，卡片属于第一帧。
+* **动效只留透明度**：入场淡入 140ms、关闭淡出 110ms，去掉上浮 10px / 缩放 0.985 / 图标过冲弹跳；`data-sakura-modal-instant` 与 `prefers-reduced-motion` 下无入场动画。卡片本来就在正确位置，「飞进来」只是让用户等它。
+* 无障碍随之调整：提示弹窗不再写 `aria-modal="true"`（没有遮罩就不是模态），也不再做焦点陷阱；`role="dialog"`、`aria-labelledby`、`hidden` / `aria-hidden` 成对切换、Esc 与关闭按钮可关、关闭后焦点 `focus({ preventScroll: true })` 回到触发元素，这些保留。二次确认的 `::backdrop` 去掉了 `blur(2px)`，只留色调。
+* **保存过的页面再弹提示不会再跳位置**：`restoredOffset`（保存往返恢复的滚动值）此前从不清空，于是保存过一次之后，用户滚到别处再点开任何提示，页面都会被拽回上次保存时的位置——在无遮罩方案下，这就是最容易被当成「又闪了一下」的那种跳动。现在 `admin.ready()` 在首帧结束后立即清空它：恢复值只用一次，之后的弹窗一个像素都不动滚动位置。
+* 影响范围：`assets/ui/js/ui.js`（删 scrollLock，新增 hideModal，openModal/initModals 重写）、`assets/ui/components.css`（Prompt modal 段重写、删 `.sakura-modal__backdrop` 与 `html.sakura-scroll-locked`）、`assets/ui/js/pages/storage-sync.js` 与 `storage-connection.js`（不再锁滚动、同步打开）、`src/Admin/UI/Modal.php` 与 `src/S3/Config_Notice.php`（不再输出遮罩节点）、`tests/ConfigNoticePausedTest.php` 的关闭点计数、`docs/后台UI规则.md` 的弹窗条款。不改数据、路由、option 键与钩子语义。
 
 = 1.27.1 =
 * 修复：移动端卡片被挤成一条竖条。1.27.0 把行号、起始列和跨列数写成**内联** `grid-row` / `grid-column`，内联声明优先级高于任何样式表，于是 ≤1100px 的单列规则失效，卡片仍按 12 栅格定位，在手机上一张 6 栏卡只剩半屏宽。现在改为内联 `--g-card-row` / `--g-card-col` / `--g-card-span` 三个自定义属性，由 `components.css` 读取；断点里把两个方向都置为 `auto`，卡片正常纵向堆叠。

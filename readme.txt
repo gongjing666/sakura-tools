@@ -4,7 +4,7 @@ Tags: image optimization, webp, avif, imagick, media library
 Requires at least: 6.4
 Tested up to: 7.1.4
 Requires PHP: 8.2
-Stable tag: 1.27.3
+Stable tag: 1.27.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -78,6 +78,15 @@ Access Key 和 Secret 会加密后存进数据库，页面和源码都不会显�
 插件目前没有接管这个跳转。等出现「既要防直链、又要保留购买校验」的需求时再研发，方向是在主题之前拦截下载请求，由插件代理输出或签发短时有效的预签名地址；若暂时需要这层保护，请关闭「上传后删除本地文件」，让文件保留在本地。
 
 == Changelog ==
+
+= 1.27.4 =
+* 修复：卸载后仍残留四类数据，现在全部清干净。此前「删除数据」勾选后，外观设置 `sakura_imgopt_ui_style` 无人删除；两把锁（`sakura_imgopt_stats_lock`、`sakura_imgopt_upgrading`）与对象存储的 `sakura_imgopt_lock_sio_ul_*` 也留着；transient 前缀表只覆盖 `sakura_queue_` 与 `sakura_imgopt_doge_token_` 两项，于是升级错误提示、监控提示、缩略图探测复位、`sufm_embed_page` 这些一年后才自然过期的缓存条目一直留在 `wp_options` 里；`sakura_imgopt_s3_config_notice_dismissed` / `_snoozed_until` 两条 usermeta 同样没人删。
+* 现在卸载会删掉外观设置项；两把命名固定的锁与 `sakura_imgopt_lock_%` 前缀的锁一并删除（锁是 option，不是 transient）；transient 扫描扩到 `_transient_sakura_imgopt_` / `_transient_sufm_` 两个命名空间（含对应的 `_transient_timeout_`）；并补删上述两条 usermeta。
+* 顺带：`sufm_delete_tick` 是带批次 id 的单次事件，`wp_clear_scheduled_hook` 清不掉，卸载路径现在改用 `wp_unschedule_hook` 处理它，不再依赖「用户一定会先停用」这个前提。
+* 修复：停用后 `sakura_imgopt_sync_calibrate` 与 `sakura_imgopt_sync_calibrate_now` 仍留在定时任务里。这两个事件由校准器自己排期，不经过激活流程，停用清单漏了它们，于是插件已停用但每月仍有一次校准被触发。现已补入 `Deactivation`。
+* 测试：`tests/bootstrap.php` 补齐此前缺失的 cron、多站点与角色桩，以及一个伪 `$wpdb`；新增 7 个用例覆盖卸载清理（含多站点逐站遍历）、transient 前缀扫描、锁与配置提示残留、停用清空 17 个 hook。全部用例都验证过「换回旧代码即失败」。
+* 验证方式：在隔离克隆站（同一份数据库副本、独立表前缀）跑两个卸载轨道；「删除数据」轨用旧代码残留 13 行、新代码 0 行，「保留数据」轨设置项全部保留、临时数据与锁全部清空。
+* 影响范围：`src/Uninstaller.php`、`src/Deactivation.php`、`tests/bootstrap.php`、`tests/UninstallerTest.php`、`tests/DeactivationTest.php`。不改数据表结构、路由、option 键名与既有钩子语义。
 
 = 1.27.3 =
 * 修复：「空间套餐」的订单图标字段被撑成两行。此前选择器是一块 112×96 的虚线方块（96×96 缩略图 + 竖排「选择图标」），行高由缩略图决定，右侧 URL 输入框被顶到卡片上沿、下面留一大块空白，整行约 150px。现在改成与输入框同规格的 chip：高 `--g-ctl-h`（38px）、同边框 `--g-line-strong`、同圆角 `--g-radius-sm`、同 inset 高光，缩略图缩到 28×28（圆角 6px），「选择图标」文字保留，图标与输入框底边对齐，整行从约 150px 降到 38px（说明文字另起一行）。

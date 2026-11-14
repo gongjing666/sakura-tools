@@ -46,6 +46,8 @@ final class Deactivation {
 			\Sakura\ImageOptimizer\Sync\Scan_Worker::DAILY_HOOK,
 			\Sakura\ImageOptimizer\Sync\Schema::BACKFILL_HOOK,
 			\Sakura\ImageOptimizer\Sync\Schema::BACKFILL_RECENT_HOOK,
+			\Sakura\ImageOptimizer\Sync\Sync_Calibrator::CALIBRATE_HOOK,
+			\Sakura\ImageOptimizer\Sync\Sync_Calibrator::KICK_HOOK,
 			'sakura_imgopt_sync_scan_tick',
 		);
 

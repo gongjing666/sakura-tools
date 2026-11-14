@@ -551,6 +551,317 @@ if ( ! function_exists( 'wp_schedule_event' ) ) {
 	}
 }
 
+if ( ! function_exists( 'wp_schedule_single_event' ) ) {
+	function wp_schedule_single_event( $timestamp, $hook, $args = array() ) { // phpcs:ignore WordPress.NamingConventions.ValidFunctionName.FunctionNameInvalid
+		return true;
+	}
+}
+
+/*
+ * Every cron-removal shim appends the hook name to one global so a test can
+ * assert exactly which events an uninstall or deactivation asked to drop.
+ */
+if ( ! function_exists( 'sakura_test_record_unscheduled' ) ) {
+	/**
+	 * Record one hook removal for the current test.
+	 *
+	 * @param string $hook Hook name.
+	 * @return void
+	 */
+	function sakura_test_record_unscheduled( $hook ) {
+		$GLOBALS['sakura_test_unscheduled'][] = $hook;
+	}
+}
+
+if ( ! function_exists( 'wp_clear_scheduled_hook' ) ) {
+	function wp_clear_scheduled_hook( $hook, $args = array() ) { // phpcs:ignore WordPress.NamingConventions.ValidFunctionName.FunctionNameInvalid
+		sakura_test_record_unscheduled( $hook );
+		return 0;
+	}
+}
+
+if ( ! function_exists( 'wp_unschedule_hook' ) ) {
+	function wp_unschedule_hook( $hook ) { // phpcs:ignore WordPress.NamingConventions.ValidFunctionName.FunctionNameInvalid
+		sakura_test_record_unscheduled( $hook );
+		return 0;
+	}
+}
+
+if ( ! function_exists( 'wp_unschedule_event' ) ) {
+	function wp_unschedule_event( $timestamp, $hook, $args = array() ) { // phpcs:ignore WordPress.NamingConventions.ValidFunctionName.FunctionNameInvalid
+		sakura_test_record_unscheduled( $hook );
+		return true;
+	}
+}
+
+if ( ! function_exists( 'is_multisite' ) ) {
+	/**
+	 * Multisite switch for tests; off unless a test opts in.
+	 *
+	 * @return bool
+	 */
+	function is_multisite() {
+		return (bool) ( $GLOBALS['sakura_test_is_multisite'] ?? false );
+	}
+}
+
+if ( ! function_exists( 'get_sites' ) ) {
+	/**
+	 * Site-id list used by the multisite uninstall loop.
+	 *
+	 * @param array $args Query args; only 'fields' matters here.
+	 * @return array<int,int>
+	 */
+	function get_sites( $args = array() ) {
+		return $GLOBALS['sakura_test_site_ids'] ?? array( 1 );
+	}
+}
+
+if ( ! function_exists( 'switch_to_blog' ) ) {
+	/**
+	 * Record the blog switch and adopt its table prefix.
+	 *
+	 * @param int $site_id Blog id.
+	 * @return bool
+	 */
+	function switch_to_blog( $site_id ) {
+		$GLOBALS['sakura_test_switched_to'][] = (int) $site_id;
+		if ( isset( $GLOBALS['wpdb'] ) && isset( $GLOBALS['sakura_test_prefixes'][ $site_id ] ) ) {
+			$GLOBALS['wpdb']->prefix = $GLOBALS['sakura_test_prefixes'][ $site_id ];
+		}
+		return true;
+	}
+}
+
+if ( ! function_exists( 'restore_current_blog' ) ) {
+	function restore_current_blog() { // phpcs:ignore WordPress.NamingConventions.ValidFunctionName.FunctionNameInvalid
+		return true;
+	}
+}
+
+if ( ! class_exists( 'Sakura_Test_Role' ) ) {
+	/**
+	 * Role double carrying the capability set a test seeds.
+	 */
+	final class Sakura_Test_Role {
+
+		/**
+		 * Capability map, cap => bool.
+		 *
+		 * @var array<string,bool>
+		 */
+		private array $caps;
+
+		/**
+		 * Duplicate the roles so the WordPress storage can be inspected.
+		 *
+		 * @param mixed $role_name Role slug.
+		 * @return static|null
+		 */
+		public static function for_name( $role_name ) {
+			$roles = $GLOBALS['sakura_test_role_caps'] ?? array();
+			if ( ! isset( $roles[ $role_name ] ) ) {
+				return null;
+			}
+			return new self( (array) $roles[ $role_name ] );
+		}
+
+		/**
+		 * @param array<string,bool> $caps Capability map.
+		 */
+		public function __construct( array $caps ) {
+			$this->caps = $caps;
+		}
+
+		/**
+		 * @param string $cap Capability name.
+		 * @return bool
+		 */
+		public function has_cap( $cap ) {
+			return ! empty( $this->caps[ $cap ] );
+		}
+
+		/**
+		 * @param string $cap Capability name.
+		 * @return void
+		 */
+		public function remove_cap( $cap ) {
+			unset( $this->caps[ $cap ] );
+			foreach ( (array) ( $GLOBALS['sakura_test_role_caps'] ?? array() ) as $role_name => $role_caps ) {
+				if ( isset( $role_caps[ $cap ] ) ) {
+					unset( $GLOBALS['sakura_test_role_caps'][ $role_name ][ $cap ] );
+				}
+			}
+		}
+	}
+}
+
+if ( ! function_exists( 'wp_roles' ) ) {
+	/**
+	 * Minimal wp_roles() double exposing the seeded role list.
+	 *
+	 * @return object
+	 */
+	function wp_roles() {
+		$roles = $GLOBALS['sakura_test_role_caps'] ?? array();
+		return (object) array( 'roles' => $roles );
+	}
+}
+
+if ( ! function_exists( 'get_role' ) ) {
+	/**
+	 * @param string $role_name Role slug.
+	 * @return Sakura_Test_Role|null
+	 */
+	function get_role( $role_name ) {
+		return Sakura_Test_Role::for_name( $role_name );
+	}
+}
+
+if ( ! class_exists( 'Sakura_Test_Wpdb', false ) ) {
+	/**
+	 * Recording $wpdb double for uninstall assertions.
+	 *
+	 * Rows are not stored: the point is to see which statements a cleanup
+	 * routine issues, and which like patterns it feeds the transient sweep.
+	 */
+	final class Sakura_Test_Wpdb {
+
+		/** @var string */
+		public $prefix = 't_';
+
+		/** @var string */
+		public $options = 't_options';
+
+		/** @var string */
+		public $postmeta = 't_postmeta';
+
+		/** @var string */
+		public $usermeta = 't_usermeta';
+
+		/** @var array<int,string> */
+		public $queries = array();
+
+		/** @var array<int,array{0:string,1:array<string,mixed>}> */
+		public $deletes = array();
+
+		/** @var array<int,mixed> */
+		public $prepared = array();
+
+		/** @var mixed */
+		private $previous = null;
+
+		/** @var bool */
+		private $had_previous = false;
+
+		/**
+		 * Put this double in place of the real connection.
+		 *
+		 * @return void
+		 */
+		public function install(): void {
+			$this->had_previous = array_key_exists( 'wpdb', $GLOBALS );
+			$this->previous     = $GLOBALS['wpdb'] ?? null;
+			$GLOBALS['wpdb']    = $this;
+		}
+
+		/**
+		 * Restore whatever was there before.
+		 *
+		 * @return void
+		 */
+		public function restore(): void {
+			if ( $this->had_previous ) {
+				$GLOBALS['wpdb'] = $this->previous;
+				return;
+			}
+			unset( $GLOBALS['wpdb'] );
+		}
+
+		/**
+		 * @param string $text Raw pattern.
+		 * @return string
+		 */
+		public function esc_like( $text ) {
+			return addcslashes( (string) $text, '_%\\' );
+		}
+
+		/**
+		 * @param string $query Query with placeholders.
+		 * @param mixed  ...$args Values.
+		 * @return string
+		 */
+		public function prepare( $query, ...$args ) {
+			$this->prepared[] = $args[0] ?? null;
+			return (string) $query;
+		}
+
+		/**
+		 * @param string $sql Statement.
+		 * @return bool
+		 */
+		public function query( $sql ) {
+			$this->queries[] = (string) $sql;
+			return true;
+		}
+
+		/**
+		 * @param string               $table Table name.
+		 * @param array<string,mixed>  $where Column => value.
+		 * @return int
+		 */
+		public function delete( $table, $where ) {
+			$this->deletes[] = array( (string) $table, (array) $where );
+			return 1;
+		}
+
+		/**
+		 * LIKE operands handed to prepare(), unescaped so the assertion can be
+		 * written with the real transient names.
+		 *
+		 * @return array<int,string>
+		 */
+		public function likes(): array {
+			$patterns = array();
+			foreach ( $this->prepared as $value ) {
+				if ( ! is_string( $value ) ) {
+					continue;
+				}
+				$patterns[] = str_replace( array( '\\_', '\\%' ), array( '_', '%' ), $value );
+			}
+			return $patterns;
+		}
+
+		/**
+		 * Meta keys deleted from the usermeta table.
+		 *
+		 * @return array<int,string>
+		 */
+		public function usermeta_keys(): array {
+			$keys = array();
+			foreach ( $this->deletes as $delete ) {
+				if ( $delete[0] !== $this->usermeta || ! isset( $delete[1]['meta_key'] ) ) {
+					continue;
+				}
+				$keys[] = (string) $delete[1]['meta_key'];
+			}
+			return $keys;
+		}
+
+		/**
+		 * Invoke a private Uninstaller method.
+		 *
+		 * @param string $method Method name.
+		 * @return void
+		 */
+		public function invoke( $method ): void {
+			$reflection = new ReflectionMethod( \Sakura\ImageOptimizer\Uninstaller::class, $method );
+			$reflection->setAccessible( true );
+			$reflection->invoke( null );
+		}
+	}
+}
+
 if ( ! function_exists( 'add_option' ) ) {
 	/**
 	 * Minimal add_option shim backed by a test global.

@@ -10,6 +10,8 @@ declare( strict_types=1 );
 namespace Sakura\ImageOptimizer;
 
 use Nboke\UserFiles\Schema;
+use Sakura\ImageOptimizer\Admin\Appearance;
+use Sakura\ImageOptimizer\S3\Config_Notice;
 use Sakura\ImageOptimizer\S3\Upload_URL;
 
 defined( 'ABSPATH' ) || exit;
@@ -73,6 +75,8 @@ final class Uninstaller {
 		wp_unschedule_hook( 'sakura_imgopt_s3_upload_watchdog' );
 		wp_unschedule_hook( 'sakura_imgopt_s3_alert_check' );
 		wp_unschedule_hook( 'sufm_tick' );
+		// The delete tick carries a batch id, so a plain clear is not enough.
+		wp_unschedule_hook( 'sufm_delete_tick' );
 		// Capabilities are not user data: they are removed even when the owner
 		// asked to keep files and ledger rows.
 		\Nboke\UserFiles\Capabilities::revoke();
@@ -262,6 +266,7 @@ final class Uninstaller {
 			'sakura_imgopt_layout_gaps',
 			'sakura_imgopt_sync_ignored',
 			'sakura_imgopt_disable_all_thumbs',
+			Appearance::OPTION,
 		);
 
 		foreach ( $options as $option ) {
@@ -283,6 +288,9 @@ final class Uninstaller {
 		$wpdb->delete( $wpdb->postmeta, array( 'meta_key' => '_sakura_imgopt_backup' ) );
 		// The per-user card layout is presentation data owned by this plugin.
 		$wpdb->delete( $wpdb->usermeta, array( 'meta_key' => '_sakura_imgopt_layout' ) );
+		// Dismissal state of the S3 setup notice, stored per administrator.
+		$wpdb->delete( $wpdb->usermeta, array( 'meta_key' => Config_Notice::META_KEY ) );
+		$wpdb->delete( $wpdb->usermeta, array( 'meta_key' => Config_Notice::SNOOZE_META_KEY ) );
 		foreach ( array( '_sakura_imgopt_s3_status', '_sakura_imgopt_s3_error', '_sakura_imgopt_s3_objects', '_sakura_imgopt_s3_object_versions', '_sakura_imgopt_s3_failures', '_sakura_imgopt_s3_synced_at', '_sakura_imgopt_s3_jobs', '_sakura_imgopt_s3_target' ) as $meta_key ) {
 			$wpdb->delete( $wpdb->postmeta, array( 'meta_key' => $meta_key ) );
 		}
@@ -302,7 +310,31 @@ final class Uninstaller {
 	private static function delete_ephemeral_data(): void {
 		global $wpdb;
 
-		delete_transient( 'sakura_imgopt_backup_usage' );
+		/*
+		 * Fixed-name transients are removed through the API: an external object
+		 * cache keeps them out of the options table, so the prefix sweep below
+		 * would not see them.
+		 */
+		foreach (
+			array(
+				'sakura_imgopt_backup_usage',
+				Upgrade_Guard::ERROR_TRANSIENT,
+				'sakura_imgopt_thumb_probe_reset',
+				'sufm_embed_page',
+			)
+			as $transient
+		) {
+			delete_transient( $transient );
+		}
+
+		/*
+		 * Locks are options, not transients. A request that dies between taking a
+		 * lock and releasing it leaves the row behind, and until now nothing ever
+		 * removed it. The stats lock and the upgrade lock have fixed names; the
+		 * delete worker keeps one lock per job key, so it needs a prefix sweep.
+		 */
+		delete_option( 'sakura_imgopt_stats_lock' );
+		delete_option( Upgrade_Guard::LOCK_OPTION );
 
 		$upload_dir = wp_upload_dir();
 		if ( ! empty( $upload_dir['basedir'] ) ) {
@@ -313,8 +345,12 @@ final class Uninstaller {
 		$prefixes = array(
 			'_transient_sakura_queue_',
 			'_transient_timeout_sakura_queue_',
-			'_transient_sakura_imgopt_doge_token_',
-			'_transient_timeout_sakura_imgopt_doge_token_',
+			'_transient_sakura_imgopt_',
+			'_transient_timeout_sakura_imgopt_',
+			'_transient_sufm_',
+			'_transient_timeout_sufm_',
+			// Per-job delete locks, e.g. sakura_imgopt_lock_sio_ul_4f2a....
+			'sakura_imgopt_lock_',
 		);
 
 		foreach ( $prefixes as $prefix ) {

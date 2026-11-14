@@ -15,7 +15,19 @@ import argparse, os, re
 ap = argparse.ArgumentParser()
 ap.add_argument('--parts', default='/tmp/docparts')
 ap.add_argument('--chapters', default=os.path.join(os.path.dirname(os.path.abspath(__file__)), 'chapters'))
-ap.add_argument('--out', default=os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'sakura-tools-代码结构-1.25.9.md'))
+# 默认输出文件名跟随主文件里的 Version，避免版本升级后仍写到旧文件名上。
+def _plugin_version():
+    main = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), 'sakura-tools.php')
+    try:
+        m = re.search(r'^[ \t/*#@]*Version:\s*([\w.\-]+)', open(main, encoding='utf-8').read(), re.M)
+        if m:
+            return m.group(1)
+    except OSError:
+        pass
+    return '0.0.0'
+
+ap.add_argument('--out', default=os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                                             'sakura-tools-代码结构-%s.md' % _plugin_version()))
 a = ap.parse_args()
 
 def body(name, demote=False):

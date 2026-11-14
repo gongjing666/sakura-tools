@@ -1,21 +1,21 @@
 {
  "meta": {
   "plugin": "sakura-tools",
-  "version": "1.25.9",
-  "generatedAt": "2026-11-13T07:48:25.770Z",
+  "version": "1.27.5",
+  "generatedAt": "2026-11-14T06:13:25.618Z",
   "source": "dsh-codegraph lib/scanner.php（token_get_all 三趟静态扫描）",
-  "doc": "sakura-tools-代码结构-1.25.9.md"
+  "doc": "sakura-tools-代码结构-1.27.5.md"
  },
  "stats": {
-  "files": 190,
+  "files": 191,
   "modules": 17,
-  "classes": 175,
-  "nodes": 192,
-  "links": 873,
-  "refLinks": 648,
+  "classes": 176,
+  "nodes": 193,
+  "links": 881,
+  "refLinks": 655,
   "modrefLinks": 50,
-  "containsLinks": 175,
-  "hooks": 209
+  "containsLinks": 176,
+  "hooks": 207
  },
  "layout": {
   "radius": 1710,
@@ -67,9 +67,9 @@
    "label": "src/Admin",
    "type": "module",
    "module": "src/Admin",
-   "val": 12.8,
-   "files": 16,
-   "classes": 16,
+   "val": 13.600000000000001,
+   "files": 17,
+   "classes": 17,
    "color": "#7fd3ff",
    "x": 688.7,
    "y": 906.3,
@@ -451,7 +451,7 @@
    "val": 2.7712812921102037,
    "color": "#7fd3ff",
    "x": 688.7,
-   "y": 1043.5,
+   "y": 1047.7,
    "z": 898.3
   },
   {
@@ -465,7 +465,7 @@
    "val": 1.6,
    "color": "#7fd3ff",
    "x": 638.2,
-   "y": 1025.2,
+   "y": 1030,
    "z": 944.5
   },
   {
@@ -475,12 +475,12 @@
    "module": "src/Admin",
    "kind": "class",
    "file": "src/Admin/UI/Card.php",
-   "line": 22,
+   "line": 23,
    "val": 1.6,
    "color": "#7fd3ff",
    "x": 696.9,
-   "y": 1006.9,
-   "z": 805.4
+   "y": 1012.3,
+   "z": 805.1
   },
   {
    "id": "cls:Sakura\\ImageOptimizer\\Admin\\Card_Form",
@@ -492,9 +492,9 @@
    "line": 23,
    "val": 3.577708763999664,
    "color": "#7fd3ff",
-   "x": 755.5,
-   "y": 988.6,
-   "z": 985.4
+   "x": 755.9,
+   "y": 994.6,
+   "z": 985.9
   },
   {
    "id": "cls:Sakura\\ImageOptimizer\\Admin\\Environment_Report",
@@ -506,9 +506,9 @@
    "line": 21,
    "val": 2.2627416997969525,
    "color": "#7fd3ff",
-   "x": 569.2,
-   "y": 970.3,
-   "z": 877.1
+   "x": 568.1,
+   "y": 977,
+   "z": 877
   },
   {
    "id": "cls:Sakura\\ImageOptimizer\\Admin\\UI\\Feedback",
@@ -518,11 +518,11 @@
    "kind": "class",
    "file": "src/Admin/UI/Feedback.php",
    "line": 17,
-   "val": 3.2,
+   "val": 3.577708763999664,
    "color": "#7fd3ff",
-   "x": 797.8,
-   "y": 952,
-   "z": 828.9
+   "x": 799.3,
+   "y": 959.3,
+   "z": 827.9
   },
   {
    "id": "cls:Sakura\\ImageOptimizer\\Admin\\UI\\Field",
@@ -534,9 +534,9 @@
    "line": 21,
    "val": 1.6,
    "color": "#7fd3ff",
-   "x": 653.8,
-   "y": 933.7,
-   "z": 1028.1
+   "x": 653.2,
+   "y": 941.6,
+   "z": 1030.5
   },
   {
    "id": "cls:Sakura\\ImageOptimizer\\Admin\\Layout",
@@ -545,12 +545,12 @@
    "module": "src/Admin",
    "kind": "class",
    "file": "src/Admin/Layout.php",
-   "line": 25,
-   "val": 3.919183588453085,
+   "line": 30,
+   "val": 3.577708763999664,
    "color": "#7fd3ff",
-   "x": 625.6,
-   "y": 915.4,
-   "z": 776.8
+   "x": 624,
+   "y": 923.9,
+   "z": 773.8
   },
   {
    "id": "cls:Sakura\\ImageOptimizer\\Admin\\Menu",
@@ -562,9 +562,23 @@
    "line": 23,
    "val": 3.2,
    "color": "#7fd3ff",
-   "x": 817.3,
-   "y": 897.1,
-   "z": 945.2
+   "x": 821.5,
+   "y": 906.3,
+   "z": 946.8
+  },
+  {
+   "id": "cls:Sakura\\ImageOptimizer\\Admin\\UI\\Modal",
+   "label": "Modal",
+   "type": "class",
+   "module": "src/Admin",
+   "kind": "class",
+   "file": "src/Admin/UI/Modal.php",
+   "line": 27,
+   "val": 1.6,
+   "color": "#7fd3ff",
+   "x": 559,
+   "y": 888.6,
+   "z": 951.8
   },
   {
    "id": "cls:Sakura\\ImageOptimizer\\Admin\\UI\\Page",
@@ -573,12 +587,12 @@
    "module": "src/Admin",
    "kind": "class",
    "file": "src/Admin/UI/Page.php",
-   "line": 21,
+   "line": 20,
    "val": 1.6,
    "color": "#7fd3ff",
-   "x": 564.4,
-   "y": 878.8,
-   "z": 949.6
+   "x": 746.7,
+   "y": 870.9,
+   "z": 774.3
   },
   {
    "id": "cls:Sakura\\ImageOptimizer\\Admin\\Page_Assets",
@@ -588,11 +602,11 @@
    "kind": "class",
    "file": "src/Admin/Page_Assets.php",
    "line": 17,
-   "val": 3.577708763999664,
+   "val": 2.7712812921102037,
    "color": "#7fd3ff",
-   "x": 743.5,
-   "y": 860.5,
-   "z": 781.1
+   "x": 727.9,
+   "y": 853.2,
+   "z": 1023.4
   },
   {
    "id": "cls:Sakura\\ImageOptimizer\\Admin\\Registry",
@@ -604,9 +618,9 @@
    "line": 21,
    "val": 5.768882040742383,
    "color": "#7fd3ff",
-   "x": 725,
-   "y": 842.2,
-   "z": 1014.1
+   "x": 582.7,
+   "y": 835.5,
+   "z": 836.9
   },
   {
    "id": "cls:Sakura\\ImageOptimizer\\Admin\\Route",
@@ -618,9 +632,9 @@
    "line": 21,
    "val": 2.7712812921102037,
    "color": "#7fd3ff",
-   "x": 593.7,
-   "y": 823.9,
-   "z": 843.2
+   "x": 796.5,
+   "y": 817.9,
+   "z": 874.6
   },
   {
    "id": "cls:Sakura\\ImageOptimizer\\Admin\\Shell",
@@ -632,9 +646,9 @@
    "line": 19,
    "val": 2.2627416997969525,
    "color": "#7fd3ff",
-   "x": 779.8,
-   "y": 805.6,
-   "z": 878.3
+   "x": 634.9,
+   "y": 800.2,
+   "z": 974.8
   },
   {
    "id": "cls:Sakura\\ImageOptimizer\\Admin\\System_Settings_Module",
@@ -646,9 +660,9 @@
    "line": 24,
    "val": 3.2,
    "color": "#7fd3ff",
-   "x": 649.3,
-   "y": 787.3,
-   "z": 954.3
+   "x": 679.9,
+   "y": 782.5,
+   "z": 830.4
   },
   {
    "id": "cls:Sakura\\ImageOptimizer\\Admin\\UI",
@@ -657,11 +671,11 @@
    "module": "src/Admin",
    "kind": "class",
    "file": "src/Admin/UI.php",
-   "line": 26,
-   "val": 4.233202097703345,
+   "line": 27,
+   "val": 4.800000000000001,
    "color": "#7fd3ff",
    "x": 688.7,
-   "y": 769,
+   "y": 764.9,
    "z": 898.3
   },
   {
@@ -2673,7 +2687,7 @@
    "module": "src",
    "kind": "class",
    "file": "src/Uninstaller.php",
-   "line": 24,
+   "line": 26,
    "val": 2.7712812921102037,
    "color": "#9ad1ff",
    "x": 1410,
@@ -2743,15 +2757,6 @@
   },
   {
    "source": "cls:Sakura\\ImageOptimizer\\Thumbnail_Optimizer_Module",
-   "target": "cls:Sakura\\ImageOptimizer\\Contracts\\Module",
-   "type": "ref",
-   "kinds": [
-    "implements"
-   ],
-   "w": 1
-  },
-  {
-   "source": "cls:Sakura\\ImageOptimizer\\Admin\\Layout",
    "target": "cls:Sakura\\ImageOptimizer\\Contracts\\Module",
    "type": "ref",
    "kinds": [
@@ -3379,6 +3384,16 @@
   },
   {
    "source": "cls:Sakura\\ImageOptimizer\\Media_Library_Module",
+   "target": "cls:Sakura\\ImageOptimizer\\Admin\\UI\\Feedback",
+   "type": "ref",
+   "kinds": [
+    "static",
+    "call"
+   ],
+   "w": 4
+  },
+  {
+   "source": "cls:Sakura\\ImageOptimizer\\Media_Library_Module",
    "target": "cls:Sakura\\ImageOptimizer\\Admin\\Page_Assets",
    "type": "ref",
    "kinds": [
@@ -3781,6 +3796,16 @@
   },
   {
    "source": "cls:Sakura\\ImageOptimizer\\Thumbnail_Optimizer_Module",
+   "target": "cls:Sakura\\ImageOptimizer\\Admin\\UI\\Feedback",
+   "type": "ref",
+   "kinds": [
+    "static",
+    "call"
+   ],
+   "w": 4
+  },
+  {
+   "source": "cls:Sakura\\ImageOptimizer\\Thumbnail_Optimizer_Module",
    "target": "cls:Sakura\\ImageOptimizer\\Thumbnail\\Stats",
    "type": "ref",
    "kinds": [
@@ -3919,12 +3944,13 @@
   },
   {
    "source": "cls:Sakura\\ImageOptimizer\\Admin\\Layout",
-   "target": "cls:Sakura\\ImageOptimizer\\Support\\Hook_Loader",
+   "target": "cls:Sakura\\ImageOptimizer\\Admin\\Route",
    "type": "ref",
    "kinds": [
-    "type"
+    "static",
+    "call"
    ],
-   "w": 1
+   "w": 2
   },
   {
    "source": "cls:Sakura\\ImageOptimizer\\Admin\\Menu",
@@ -3999,16 +4025,6 @@
   {
    "source": "cls:Sakura\\ImageOptimizer\\Admin\\Page_Assets",
    "target": "cls:Sakura\\ImageOptimizer\\Admin\\Layout",
-   "type": "ref",
-   "kinds": [
-    "static",
-    "call"
-   ],
-   "w": 5
-  },
-  {
-   "source": "cls:Sakura\\ImageOptimizer\\Admin\\Page_Assets",
-   "target": "cls:Sakura\\ImageOptimizer\\Admin\\Route",
    "type": "ref",
    "kinds": [
     "static",
@@ -4159,7 +4175,7 @@
   },
   {
    "source": "cls:Sakura\\ImageOptimizer\\Admin\\UI\\Card",
-   "target": "cls:Sakura\\ImageOptimizer\\Admin\\Card_Form",
+   "target": "cls:Sakura\\ImageOptimizer\\Admin\\Layout",
    "type": "ref",
    "kinds": [
     "static",
@@ -4168,14 +4184,14 @@
    "w": 4
   },
   {
-   "source": "cls:Sakura\\ImageOptimizer\\Admin\\UI\\Page",
-   "target": "cls:Sakura\\ImageOptimizer\\Admin\\Page_Assets",
+   "source": "cls:Sakura\\ImageOptimizer\\Admin\\UI\\Card",
+   "target": "cls:Sakura\\ImageOptimizer\\Admin\\Card_Form",
    "type": "ref",
    "kinds": [
     "static",
     "call"
    ],
-   "w": 2
+   "w": 4
   },
   {
    "source": "cls:Sakura\\ImageOptimizer\\Admin\\UI\\Page",
@@ -4190,6 +4206,16 @@
   {
    "source": "cls:Sakura\\ImageOptimizer\\Admin\\UI\\Page",
    "target": "cls:Sakura\\ImageOptimizer\\Admin\\Shell",
+   "type": "ref",
+   "kinds": [
+    "static",
+    "call"
+   ],
+   "w": 2
+  },
+  {
+   "source": "cls:Sakura\\ImageOptimizer\\Admin\\UI\\Page",
+   "target": "cls:Sakura\\ImageOptimizer\\Admin\\UI",
    "type": "ref",
    "kinds": [
     "static",
@@ -4247,6 +4273,15 @@
   {
    "source": "cls:Sakura\\ImageOptimizer\\Deactivation",
    "target": "cls:Sakura\\ImageOptimizer\\Sync\\Schema",
+   "type": "ref",
+   "kinds": [
+    "static"
+   ],
+   "w": 2
+  },
+  {
+   "source": "cls:Sakura\\ImageOptimizer\\Deactivation",
+   "target": "cls:Sakura\\ImageOptimizer\\Sync\\Sync_Calibrator",
    "type": "ref",
    "kinds": [
     "static"
@@ -4823,15 +4858,6 @@
   {
    "source": "cls:Sakura\\ImageOptimizer\\Plugin",
    "target": "cls:Sakura\\ImageOptimizer\\Media_Library_Module",
-   "type": "ref",
-   "kinds": [
-    "new"
-   ],
-   "w": 1
-  },
-  {
-   "source": "cls:Sakura\\ImageOptimizer\\Plugin",
-   "target": "cls:Sakura\\ImageOptimizer\\Admin\\Layout",
    "type": "ref",
    "kinds": [
     "new"
@@ -5789,6 +5815,16 @@
   },
   {
    "source": "cls:Sakura\\ImageOptimizer\\S3\\Storage",
+   "target": "cls:Sakura\\ImageOptimizer\\Admin\\UI\\Feedback",
+   "type": "ref",
+   "kinds": [
+    "static",
+    "call"
+   ],
+   "w": 4
+  },
+  {
+   "source": "cls:Sakura\\ImageOptimizer\\S3\\Storage",
    "target": "cls:Sakura\\ImageOptimizer\\Admin\\Registry",
    "type": "ref",
    "kinds": [
@@ -6055,6 +6091,16 @@
     "static"
    ],
    "w": 3
+  },
+  {
+   "source": "cls:Sakura\\ImageOptimizer\\S3\\Sync_Center_Module",
+   "target": "cls:Sakura\\ImageOptimizer\\Admin\\UI\\Feedback",
+   "type": "ref",
+   "kinds": [
+    "static",
+    "call"
+   ],
+   "w": 2
   },
   {
    "source": "cls:Sakura\\ImageOptimizer\\S3\\Sync_Center_Module",
@@ -7185,6 +7231,33 @@
    "w": 4
   },
   {
+   "source": "cls:Sakura\\ImageOptimizer\\Uninstaller",
+   "target": "cls:Sakura\\ImageOptimizer\\Admin\\Appearance",
+   "type": "ref",
+   "kinds": [
+    "static"
+   ],
+   "w": 1
+  },
+  {
+   "source": "cls:Sakura\\ImageOptimizer\\Uninstaller",
+   "target": "cls:Sakura\\ImageOptimizer\\S3\\Config_Notice",
+   "type": "ref",
+   "kinds": [
+    "static"
+   ],
+   "w": 2
+  },
+  {
+   "source": "cls:Sakura\\ImageOptimizer\\Uninstaller",
+   "target": "cls:Sakura\\ImageOptimizer\\Upgrade_Guard",
+   "type": "ref",
+   "kinds": [
+    "static"
+   ],
+   "w": 2
+  },
+  {
    "source": "cls:Nboke\\UserFiles\\Admin\\Page",
    "target": "cls:Sakura\\ImageOptimizer\\Support\\Hook_Loader",
    "type": "ref",
@@ -7840,6 +7913,16 @@
   {
    "source": "cls:Nboke\\UserFiles\\Media\\Media_Hooks",
    "target": "cls:Nboke\\UserFiles\\Services\\Uploader",
+   "type": "ref",
+   "kinds": [
+    "static",
+    "call"
+   ],
+   "w": 4
+  },
+  {
+   "source": "cls:Nboke\\UserFiles\\Media\\Media_Hooks",
+   "target": "cls:Sakura\\ImageOptimizer\\Admin\\UI\\Feedback",
    "type": "ref",
    "kinds": [
     "static",
@@ -9217,6 +9300,12 @@
   },
   {
    "source": "mod:src/Admin",
+   "target": "cls:Sakura\\ImageOptimizer\\Admin\\UI\\Modal",
+   "type": "contains",
+   "w": 1
+  },
+  {
+   "source": "mod:src/Admin",
    "target": "cls:Sakura\\ImageOptimizer\\Admin\\UI\\Page",
    "type": "contains",
    "w": 1
@@ -10137,7 +10226,7 @@
    "source": "mod:src/Admin",
    "target": "mod:src/Contracts",
    "type": "modref",
-   "w": 3
+   "w": 2
   },
   {
    "source": "mod:src/Backup",
@@ -10209,7 +10298,7 @@
    "source": "mod:includes",
    "target": "mod:src/Admin",
    "type": "modref",
-   "w": 18
+   "w": 22
   },
   {
    "source": "mod:includes",
@@ -10251,13 +10340,13 @@
    "source": "mod:src",
    "target": "mod:src/Sync",
    "type": "modref",
-   "w": 23
+   "w": 24
   },
   {
    "source": "mod:src",
    "target": "mod:src/S3",
    "type": "modref",
-   "w": 24
+   "w": 25
   },
   {
    "source": "mod:src",
@@ -10269,7 +10358,7 @@
    "source": "mod:src/Admin",
    "target": "mod:src/Support",
    "type": "modref",
-   "w": 3
+   "w": 2
   },
   {
    "source": "mod:src/Admin",
@@ -10377,7 +10466,7 @@
    "source": "mod:src/S3",
    "target": "mod:src/Admin",
    "type": "modref",
-   "w": 30
+   "w": 34
   },
   {
    "source": "mod:src/S3",
@@ -10425,7 +10514,7 @@
    "source": "mod:src/UserFiles",
    "target": "mod:src/Admin",
    "type": "modref",
-   "w": 16
+   "w": 18
   }
  ]
 }

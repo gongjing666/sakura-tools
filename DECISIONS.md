@@ -51,6 +51,8 @@
 
 - 默认保留：`sufm_*` 表、`sufm_settings`、用户额度 usermeta、映射与未完成申请都不删，便于原样重装。
 - 只有站点管理员显式勾选"卸载时删除数据"（`sakura_imgopt_delete_data_on_uninstall=1`）才删设置、额度与 `sufm_*` 表；实体文件仍只会由审批后的执行器删除。
+- 两条轨道都清的是**运行期残留**，不是用户数据：定时任务、能力、`sio_*` 表、锁（`sakura_imgopt_stats_lock` / `sakura_imgopt_upgrading` / `sakura_imgopt_lock_%`）、`sakura_imgopt_` 与 `sufm_` 命名空间下的 transient（含 `_transient_timeout_`）。保留它们只会让重装后的旧锁与过期缓存继续生效。
+- 外观设置 `sakura_imgopt_ui_style` 与按管理员存的提示状态 usermeta 属于设置，只随"删除数据"一起删。
 
 ## 9. 通知（决策 10）
 

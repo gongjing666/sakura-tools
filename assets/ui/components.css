@@ -572,6 +572,12 @@
 	transition: background var(--g-dur) var(--g-ease), border-color var(--g-dur) var(--g-ease), color var(--g-dur) var(--g-ease), box-shadow var(--g-dur) var(--g-ease), transform var(--g-dur) var(--g-ease);
 }
 
+/* The base rule above sets display, which beats the UA's [hidden] rule and
+ * would leave a JS-toggled-off button on screen taking up height. */
+.sakura-admin .btn[hidden] {
+	display: none;
+}
+
 .sakura-admin .btn:hover {
 	border-color: var(--g-select-border-hover);
 	background: var(--g-wash);

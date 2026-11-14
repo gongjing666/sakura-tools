@@ -4,7 +4,7 @@ Tags: image optimization, webp, avif, imagick, media library
 Requires at least: 6.4
 Tested up to: 7.1.4
 Requires PHP: 8.2
-Stable tag: 1.27.2
+Stable tag: 1.27.3
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -78,6 +78,12 @@ Access Key 和 Secret 会加密后存进数据库，页面和源码都不会显�
 插件目前没有接管这个跳转。等出现「既要防直链、又要保留购买校验」的需求时再研发，方向是在主题之前拦截下载请求，由插件代理输出或签发短时有效的预签名地址；若暂时需要这层保护，请关闭「上传后删除本地文件」，让文件保留在本地。
 
 == Changelog ==
+
+= 1.27.3 =
+* 修复：「空间套餐」的订单图标字段被撑成两行。此前选择器是一块 112×96 的虚线方块（96×96 缩略图 + 竖排「选择图标」），行高由缩略图决定，右侧 URL 输入框被顶到卡片上沿、下面留一大块空白，整行约 150px。现在改成与输入框同规格的 chip：高 `--g-ctl-h`（38px）、同边框 `--g-line-strong`、同圆角 `--g-radius-sm`、同 inset 高光，缩略图缩到 28×28（圆角 6px），「选择图标」文字保留，图标与输入框底边对齐，整行从约 150px 降到 38px（说明文字另起一行）。
+* 图标字段的 URL 输入框加上 `max-width: 560px`，符合「路径/长文本 ≤560px」的规则，不再随卡片一路拉宽；≤782px 单列时 chip 用 `justify-self: start` 保持内容宽，不做整条横条。
+* 顺带修一个通用 bug：`.btn` 的 `display` 覆盖了浏览器默认的 `[hidden]` 规则，于是「移除」按钮被 JS 置为 hidden 后仍在页面上占 30px 高、把输入框撑开。新增 `.sakura-admin .btn[hidden] { display: none; }`。
+* 影响范围：`assets/ui/pages/files-zibll.css`（`.zibll-icon-field` 段重写）、`assets/ui/components.css`（`.btn[hidden]`）、`includes/views/userfiles-space-admin.php`（预览缩略图 `width`/`height` 96→28）、`docs/后台UI规则.md`（10.2 补 chip 规则）。不改 JS 钩子、数据、option 键、路由与钩子语义。
 
 = 1.27.2 =
 * **提示弹窗改成无遮罩卡片**：.sakura-modal 不再是「全屏遮罩 + 居中卡」，遮罩节点、`--g-overlay` 铺色和 `backdrop-filter: blur(3px)` 全部删除；外层只剩一个透明的 `position: fixed` 居中容器（`pointer-events: none`），卡片自己 `pointer-events: auto`，页面照常可滚、可点、可读。确实需要模态语义的地方（二次确认、媒体预览）仍用原生 `<dialog>` + `showModal()`，各自保留 `::backdrop`。

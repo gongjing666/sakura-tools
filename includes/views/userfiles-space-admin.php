@@ -810,7 +810,7 @@ UI::page(
 					<div class="zibll-plans" data-zibll-plans>
 						<div class="zibll-icon-field">
 							<button type="button" class="zibll-icon-pick" data-zibll-icon-pick>
-								<img src="<?php echo esc_url( '' !== $sufm_space_icon ? $sufm_space_icon : $sufm_space_default_icon ); ?>" alt="" width="96" height="96" data-zibll-icon-preview data-default="<?php echo esc_url( $sufm_space_default_icon ); ?>" />
+								<img src="<?php echo esc_url( '' !== $sufm_space_icon ? $sufm_space_icon : $sufm_space_default_icon ); ?>" alt="" width="28" height="28" data-zibll-icon-preview data-default="<?php echo esc_url( $sufm_space_default_icon ); ?>" />
 								<span><?php esc_html_e( '选择图标', 'sakura-imgopt' ); ?></span>
 							</button>
 							<div class="zibll-icon-field__input">

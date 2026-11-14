@@ -499,11 +499,10 @@ body.upload-php.sufm-tree-active.folded { --sufm-tree-left: 56px; }
 
 | 项 | 实测 |
 | --- | --- |
-| 版本 | meilisearch 1.55.0，`/www/wwwroot/MeiliSearch/meilisearch`（357MB），`data.ms` 31MB |
-| 进程 | `www` 用户常驻，RSS ≈736MB；仅监听 `127.0.0.1:7700` 与 `[::1]:7700` |
-| 对外 | nginx `other_meilisearch.conf` 以 `ms.77il.cn` 反代到 7700（带 SSL），公网可达、靠 master key 鉴权 |
-| 索引 | `www_nboke_com_posts` 41 文档（站内文章搜索在用）；`demo_77il_cn_posts`、`www_77il_cn_posts` 均 0 文档 |
-| 启动 | `/etc/systemd/system` 无对应 unit、root crontab 无条目 —— 重启后不会自动拉起 |
+| 版本 | meilisearch 1.55.0，单二进制约 357MB，数据目录 31MB |
+| 进程 | 以 Web 用户常驻，RSS ≈736MB；仅监听 `127.0.0.1:7700` 与 `[::1]:7700` |
+| 索引 | 一个站点的文章索引 41 文档（该站文章搜索在用），其余索引为空 |
+| 启动 | 无 systemd unit、无 crontab 条目 —— 重启后不会自动拉起 |
 
 **语义实测（关键）**：Meili 对中文做分词，只在「整词 + 前缀」层匹配，**不支持任意子串**。
 
@@ -531,7 +530,7 @@ body.upload-php.sufm-tree-active.folded { --sufm-tree-left: 56px; }
 
 接入时的正确姿势：DB 仍是唯一真相，Meili 只是派生缓存；`wp sufm reindex` 全量重建且可重复执行；同步水位可观测；服务不可用时自动回退 SQL；owner 过滤在服务端强制。
 
-**顺带记一条运维待办（未执行）**：master key 目前写在进程命令行里（`ps` 本机可见），叠加 `ms.77il.cn` 公网反代，建议后续改为 0600 配置文件或环境变量注入，并给该 vhost 加 IP 白名单 / 仅内网；同时补一个 systemd unit 或宝塔守护，避免重启后搜索服务静默消失。
+**自托管 Meili 的部署要点**（通用，接入前先满足）：master key 不要写在进程命令行里——本机任何用户 `ps` 都能看到，应改为权限 0600 的配置文件或环境变量注入；实例若要跨机访问，前面加反向代理并配 IP 白名单，默认只监听 loopback；补一个 systemd unit 或等效守护，否则重启后搜索服务会静默消失，而依赖它的前台查询只会表现为「搜不到东西」。
 
 ## 空间扩容支付收口与对账（2026-11-08，2026-11-09 补齐）
 

@@ -11,7 +11,6 @@ namespace Sakura\ImageOptimizer\Thumbnail;
 
 use Sakura\ImageOptimizer\Oss\Url_Rewriter;
 use Sakura\ImageOptimizer\S3\Options as S3_Options;
-use Sakura\ImageOptimizer\Thumbnail\Providers\Bitiful;
 use Sakura\ImageOptimizer\Thumbnail\Providers\Generic;
 
 defined( 'ABSPATH' ) || exit;
@@ -892,18 +891,23 @@ final class Settings {
 		$styles   = isset( $opt['style_map'] ) && is_array( $opt['style_map'] ) ? array_filter( $opt['style_map'] ) : array();
 		$template = isset( $opt['advanced']['custom_provider_template'] ) ? (string) $opt['advanced']['custom_provider_template'] : '';
 		$generic  = '' !== $template;
-		$bitiful  = 'bitiful' === $provider;
+		// Both carriers understand a named style and a processing parameter —
+		// they just spell them differently (Bitiful: !style=x and ?w=; DogeCloud:
+		// /x and ?imageView2/...). Provider_Registry keeps that knowledge in one
+		// place so this decision stays a set membership test.
+		$native_style  = Provider_Registry::supports( $provider, 'style' );
+		$native_params = Provider_Registry::supports( $provider, 'params' );
 
 		if ( 'none' === $config || '' === $host ) {
 			return 'none';
 		}
 
 		if ( 'style' === $config ) {
-			return ( $bitiful && array() !== $styles ) ? 'style' : 'none';
+			return ( $native_style && array() !== $styles ) ? 'style' : 'none';
 		}
 
 		if ( 'params' === $config ) {
-			return ( $bitiful || $generic ) ? 'params' : 'none';
+			return ( $native_params || $generic ) ? 'params' : 'none';
 		}
 
 		if ( 'native' === $config ) {
@@ -911,10 +915,10 @@ final class Settings {
 		}
 
 		if ( $probe_ok ) {
-			if ( 'style' === $probe_mode && $bitiful && array() !== $styles ) {
+			if ( 'style' === $probe_mode && $native_style && array() !== $styles ) {
 				return 'style';
 			}
-			if ( 'params' === $probe_mode && ( $bitiful || $generic ) ) {
+			if ( 'params' === $probe_mode && ( $native_params || $generic ) ) {
 				return 'params';
 			}
 			if ( 'native' === $probe_mode ) {
@@ -982,6 +986,17 @@ final class Settings {
 			);
 		}
 
+		// DogeCloud only honours `imageView2/...` when the CDN cache rule keeps the
+		// query string; with `ignore parameters` on, the same URL returns the
+		// original file and the page silently ships full-size images.
+		if ( $rewrite && 'dogecloud' === $provider && 'params' === $mode ) {
+			$out[] = array(
+				'code'     => 'dogecloud_cache_params',
+				'severity' => 'warning',
+				'message'  => __( '多吉云的宽高参数走 imageView2，需要 CDN 加速域名的缓存规则关闭「忽略参数」，否则参数被丢弃、访客拿到的是原图。也可以用命名样式避开这个设置。', 'sakura-imgopt' ),
+			);
+		}
+
 		return $out;
 	}
 
@@ -992,8 +1007,9 @@ final class Settings {
 		$opt  = self::get();
 		$mode = self::effective_mode();
 
-		if ( 'bitiful' === self::provider_id() ) {
-			return new Bitiful( $mode );
+		$native = Provider_Registry::make( self::provider_id(), $mode );
+		if ( null !== $native ) {
+			return $native;
 		}
 
 		$template = isset( $opt['advanced']['custom_provider_template'] ) ? (string) $opt['advanced']['custom_provider_template'] : '';

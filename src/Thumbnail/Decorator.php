@@ -431,8 +431,12 @@ final class Decorator {
 			$url = (string) preg_replace( '#^https?://' . preg_quote( $parts['host'], '#' ) . '#i', 'https://' . $this->host, $url );
 		}
 
+		// Both style spellings have to go before the provider decorates again:
+		// Bitiful appends `!style=x`, DogeCloud appends `/x` as a path segment.
 		$url = (string) preg_replace( '/!style=[^?]*/', '', $url );
+		$url = Style_Suffix::strip( $url );
 		$url = (string) preg_replace( '/[?&](?:w|h|q|mode|pos|format)=[^&]*/', '', $url );
+		$url = (string) preg_replace( '/[?&]imageView2(?:\/[^&]*)?/', '', $url );
 		$url = rtrim( str_replace( array( '?&', '&&' ), '&', $url ), '?&' );
 
 		return $this->is_eligible_url( $url ) ? $url : '';
@@ -455,10 +459,7 @@ final class Decorator {
 		}
 
 		$path = (string) wp_parse_url( $url, PHP_URL_PATH );
-		if ( preg_match( '/\.svg$/i', $path ) ) {
-			return false;
-		}
-		if ( preg_match( '/\.gif$/i', $path ) && empty( $this->options['advanced']['animated'] ) ) {
+		if ( ! Format_Rule::allows( $path, $this->options ) ) {
 			return false;
 		}
 		if ( preg_match( '/\.(jpe?g|png|webp|avif|bmp)$/i', $path ) === 0 && ! $this->looks_like_image_path( $path ) ) {
@@ -484,8 +485,13 @@ final class Decorator {
 		if ( preg_match( '/[?&](?:w|h|q|mode|pos|format)=/', $url ) ) {
 			return true;
 		}
+		if ( preg_match( '/[?&]imageView2(?:=|\/)/', $url ) ) {
+			return true;
+		}
 
-		return false;
+		// `/720wm` is a path segment, so it also makes the URL stop looking like
+		// an image — without this check the decorator would stack a second one.
+		return Style_Suffix::has( $url );
 	}
 
 	/**

@@ -106,18 +106,34 @@ final class Rendition {
 	}
 
 	/**
-	 * Validate a named style (Bitiful allows 1-36 alphanumeric characters).
+	 * Validate a named style.
+	 *
+	 * Bitiful styles are 1-36 alphanumerics (`siomedium`). DogeCloud rule
+	 * names carry the `/` separator as their first character (`/720wm`), so
+	 * one optional leading slash and `-`/`_` are allowed as well. A slash
+	 * anywhere else is refused: it would let a style escape into another path
+	 * segment.
 	 *
 	 * @param string $style Candidate.
 	 * @return string Empty when invalid.
 	 */
 	public static function sanitize_style( string $style ): string {
 		$style = trim( $style );
-		if ( '' === $style || strlen( $style ) > 36 ) {
+		if ( '' === $style ) {
 			return '';
 		}
 
-		return 1 === preg_match( '/^[A-Za-z0-9]+$/', $style ) ? $style : '';
+		$slashed = str_starts_with( $style, '/' );
+		$core    = $slashed ? substr( $style, 1 ) : $style;
+		if ( '' === $core || strlen( $core ) > 36 ) {
+			return '';
+		}
+
+		if ( 1 !== preg_match( '/^[A-Za-z0-9][A-Za-z0-9_-]*$/', $core ) ) {
+			return '';
+		}
+
+		return $slashed ? '/' . $core : $core;
 	}
 
 	/**

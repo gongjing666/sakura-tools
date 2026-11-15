@@ -25,7 +25,7 @@ $probe_flag  = isset( $_GET['sakura_probe'] ) ? sanitize_key( wp_unslash( $_GET[
 
 $mode_labels = array(
 	'auto'   => __( '自动（按测试结果切换）', 'sakura-imgopt' ),
-	'style'  => __( '命名样式（仅缤纷云）', 'sakura-imgopt' ),
+	'style'  => __( '命名样式（缤纷云 / 多吉云）', 'sakura-imgopt' ),
 	'params' => __( '宽高参数（?w=&h=）', 'sakura-imgopt' ),
 	'native' => __( 'WordPress 自带尺寸', 'sakura-imgopt' ),
 	'none'   => __( '不处理', 'sakura-imgopt' ),
@@ -112,7 +112,7 @@ UI::page(
 			array( 'label' => __( '连接测试', 'sakura-imgopt' ), 'url' => '#sakura-thumb-probe', 'variant' => 'ghost' ),
 		),
 	),
-	static function () use ( $options, $is_zibll, $status, $mode, $stats, $host, $probe_flag, $probe_tone, $probe_label, $mode_labels, $engine_labels, $checked_text, $cache_time, $opcache_label, $cache_backend, $cache_state_label, $cache_groups_text, $cache_note, $size_labels, $styles, $checkbox_control, $form ) {
+	static function () use ( $options, $is_zibll, $status, $mode, $mode_short, $stats, $host, $probe_flag, $probe_tone, $probe_label, $mode_labels, $engine_labels, $checked_text, $cache_time, $opcache_label, $cache_backend, $cache_state_label, $cache_groups_text, $cache_note, $size_labels, $styles, $checkbox_control, $form ) {
 
 		/*
 		 * A probe is an action result, so it opens the shared prompt. The two
@@ -196,7 +196,7 @@ UI::page(
 								'label'   => __( '地址改写方式', 'sakura-imgopt' ),
 								'value'   => $options['provider_mode'],
 								'options' => $mode_labels,
-								'hint'    => __( '自动模式只会使用测试通过的方式，不会假装成功。', 'sakura-imgopt' ),
+								'hint'    => __( '自动模式只会使用测试通过的方式，不会假装成功。多吉云用宽高参数时，CDN 加速域名的缓存规则里必须关掉「忽略参数」，否则参数会被丢掉、返回原图。', 'sakura-imgopt' ),
 							)
 						);
 						UI::field(
@@ -344,13 +344,13 @@ UI::page(
 											</select>
 										</td>
 										<td data-label="<?php echo esc_attr__( '质量', 'sakura-imgopt' ); ?>"><input type="number" min="0" max="100" name="sakura_imgopt_oss_thumb[sizes][<?php echo esc_attr( $name ); ?>][quality]" value="<?php echo esc_attr( (string) $row['quality'] ); ?>" class="small-text" /></td>
-										<td data-label="<?php echo esc_attr__( '命名样式', 'sakura-imgopt' ); ?>"><input type="text" name="sakura_imgopt_oss_thumb[sizes][<?php echo esc_attr( $name ); ?>][style]" value="<?php echo esc_attr( (string) ( $styles[ $name ] ?? '' ) ); ?>" class="regular-text" pattern="[A-Za-z0-9]{1,36}" placeholder="siomedium" /></td>
+										<td data-label="<?php echo esc_attr__( '命名样式', 'sakura-imgopt' ); ?>"><input type="text" name="sakura_imgopt_oss_thumb[sizes][<?php echo esc_attr( $name ); ?>][style]" value="<?php echo esc_attr( (string) ( $styles[ $name ] ?? '' ) ); ?>" class="regular-text" pattern="/?[A-Za-z0-9][A-Za-z0-9_\-]{0,35}" placeholder="siomedium" /></td>
 									</tr>
 								<?php endforeach; ?>
 							</tbody>
 						</table>
 					</div>
-					<p class="field__hint"><?php echo esc_html__( '只能填 1 到 36 个字母或数字；留空表示这个尺寸不使用命名样式，命名样式模式下会被跳过。填写的名称要和缤纷云后台的尺寸名称一致。', 'sakura-imgopt' ); ?></p>
+					<p class="field__hint"><?php echo esc_html__( '填控制台里那条图片处理规则的名称，留空表示这个尺寸不使用命名样式，命名样式模式下会被跳过。缤纷云填规则名本身（如 siomedium，地址里会变成 !style=siomedium）；多吉云的规则名带一个前导斜杠（如 /720wm，地址里会变成 a.jpg/720wm）。', 'sakura-imgopt' ); ?></p>
 					<?php
 				}
 			);
@@ -417,7 +417,7 @@ UI::page(
 					),
 					'save'        => __( '立即测试', 'sakura-imgopt' ),
 				),
-				static function () use ( $host, $mode, $status, $checked_text, $probe_tone, $probe_label ) {
+				static function () use ( $host, $mode, $mode_short, $status, $checked_text, $probe_tone, $probe_label ) {
 					?>
 					<div class="kpis">
 						<div class="kpi">
@@ -426,7 +426,7 @@ UI::page(
 						</div>
 						<div class="kpi">
 							<span class="kpi__label"><?php echo esc_html__( '当前生效', 'sakura-imgopt' ); ?></span>
-							<strong class="kpi__value"><?php echo esc_html( $mode ); ?> <span class="badge badge--<?php echo esc_attr( $probe_tone ); ?>"><?php echo esc_html( $probe_label ); ?></span></strong>
+							<strong class="kpi__value"><?php echo esc_html( $mode_short[ $mode ] ?? $mode ); ?> <span class="badge badge--<?php echo esc_attr( $probe_tone ); ?>"><?php echo esc_html( $probe_label ); ?></span></strong>
 						</div>
 					</div>
 					<p class="sakura-thumb-evidence"><?php echo esc_html( '' !== $status->evidence ? $status->evidence : __( '尚未测试。点击下面的按钮，用真实图片检查能否访问、文件大小和宽度是否符合预期。', 'sakura-imgopt' ) ); ?></p>

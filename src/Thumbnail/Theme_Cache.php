@@ -142,7 +142,11 @@ final class Theme_Cache {
 			if ( '' === $rendition->style ) {
 				return true; // No style for this size: leave the theme's URL alone.
 			}
-			if ( false === strpos( $url, '!style=' . rawurlencode( $rendition->style ) ) ) {
+			// Two syntaxes: Bitiful appends '!style=name', DogeCloud appends the
+			// style as a path segment ('a.jpg/720wm').
+			$styled = false !== strpos( $url, '!style=' . rawurlencode( $rendition->style ) )
+				|| Style_Suffix::matches( $url, $rendition->style );
+			if ( ! $styled ) {
 				return false;
 			}
 			// A leftover width/quality query from a previous params run would be
@@ -153,13 +157,16 @@ final class Theme_Cache {
 		if ( 'pad' === $rendition->mode ) {
 			return true; // The provider leaves padded URLs untouched.
 		}
-		if ( false !== strpos( $url, '!style=' ) ) {
+		if ( false !== strpos( $url, '!style=' ) || Style_Suffix::has( $url ) ) {
 			return false; // A leftover style would be applied on top of the params.
 		}
 
 		$query = wp_parse_url( $url, PHP_URL_QUERY );
 		if ( ! is_string( $query ) || '' === $query ) {
 			return false;
+		}
+		if ( 0 === strpos( $query, 'imageView2/' ) ) {
+			return self::image_view2_is_current( $query, $rendition );
 		}
 		parse_str( $query, $args );
 
@@ -180,6 +187,43 @@ final class Theme_Cache {
 	}
 
 	/**
+	 * Whether a DogeCloud imageView2 query still matches the rendition.
+	 *
+	 * The query is `imageView2/<mode>/w/<w>/h/<h>[/q/<q>][/format/<f>]`, which
+	 * parse_str() cannot read — every segment would collapse into one key.
+	 *
+	 * @param string    $query     Query string.
+	 * @param Rendition $rendition Expected rendition.
+	 */
+	private static function image_view2_is_current( string $query, Rendition $rendition ): bool {
+		$parts = explode( '/', $query );
+		$mode  = (string) ( $parts[1] ?? '' );
+		$pairs = array();
+		$count = count( $parts );
+		// parts[0] is 'imageView2', parts[1] the resize mode; key/value pairs follow.
+		for ( $i = 2; $i + 1 < $count; $i += 2 ) {
+			$pairs[ $parts[ $i ] ] = $parts[ $i + 1 ];
+		}
+		if ( $rendition->width > 0 && (int) ( $pairs['w'] ?? 0 ) !== $rendition->width ) {
+			return false;
+		}
+		if ( $rendition->height > 0 && (int) ( $pairs['h'] ?? 0 ) !== $rendition->height ) {
+			return false;
+		}
+		if ( '' !== $mode ) {
+			$expected = Rendition::MODE_CROP === $rendition->mode ? '1' : '2';
+			if ( $mode !== $expected ) {
+				return false;
+			}
+		}
+		if ( $rendition->quality > 0 && (int) ( $pairs['q'] ?? 0 ) !== $rendition->quality ) {
+			return false;
+		}
+
+		return true;
+	}
+
+	/**
 	 * Whether a URL carries size parameters left over from the params mode.
 	 *
 	 * @param string $url Cached URL.
@@ -188,6 +232,9 @@ final class Theme_Cache {
 		$query = wp_parse_url( $url, PHP_URL_QUERY );
 		if ( ! is_string( $query ) || '' === $query ) {
 			return false;
+		}
+		if ( 0 === strpos( $query, 'imageView2/' ) ) {
+			return true; // DogeCloud syntax: any imageView2 query is a leftover.
 		}
 		parse_str( $query, $args );
 		foreach ( array( 'w', 'h', 'mode', 'pos', 'q', 'format' ) as $key ) {
@@ -210,6 +257,14 @@ final class Theme_Cache {
 	 */
 	private static function strip_optimizer( string $url ): string {
 		$url = (string) preg_replace( '/!style=[A-Za-z0-9%._~-]*/', '', $url );
+		// DogeCloud keeps its style as a trailing path segment, so the extension
+		// check inside Style_Suffix::strip() is what recognises it.
+		$url = Style_Suffix::strip( $url );
+
+		// DogeCloud's imageView2 payload is slash-separated and has no `=`, so
+		// parse_str() would turn it into one giant key (`imageView2%2F1%2Fw...`)
+		// instead of dropping it. Strip it before touching the query.
+		$url = (string) preg_replace( '/[?&]imageView2\/[^&]*/', '', $url );
 
 		$mark = strpos( $url, '?' );
 		if ( false === $mark ) {

@@ -11,6 +11,7 @@ use PHPUnit\Framework\TestCase;
 use Sakura\ImageOptimizer\Thumbnail\Context;
 use Sakura\ImageOptimizer\Thumbnail\Decorator;
 use Sakura\ImageOptimizer\Thumbnail\Providers\Bitiful;
+use Sakura\ImageOptimizer\Thumbnail\Providers\Doge;
 use Sakura\ImageOptimizer\Thumbnail\Settings;
 
 /**
@@ -110,6 +111,53 @@ final class DecoratorTest extends TestCase {
 		$out   = $this->decorator()->apply( $image, 12, 'medium' );
 
 		$this->assertSame( $image, $out );
+	}
+
+	/**
+	 * The DogeCloud carrier keeps the style as a path segment, so a URL that
+	 * already ends in `a.webp/1280wm` is optimised even though its last
+	 * extension-looking segment is gone.
+	 */
+	public function test_dogecloud_style_url_is_not_decorated_twice(): void {
+		$options = $this->options( 'style' );
+		$options['style_map'] = array( 'medium' => '720wm', 'large' => '1280wm' );
+		$decorator = new Decorator( $options, new Doge( Doge::MODE_STYLE ), null, null, 'doge.example.com' );
+		Context::push( Context::ARCHIVE );
+
+		$image = $this->image( 'https://doge.example.com/wp-content/uploads/a.webp/1280wm' );
+
+		$this->assertSame( $image, $decorator->apply( $image, 12, 'medium' ) );
+	}
+
+	public function test_dogecloud_decorates_a_raw_url_with_the_path_style(): void {
+		$options = $this->options( 'style' );
+		$options['style_map'] = array( 'medium' => '720wm', 'large' => '1280wm' );
+		$decorator = new Decorator( $options, new Doge( Doge::MODE_STYLE ), null, null, 'doge.example.com' );
+		Context::push( Context::ARCHIVE );
+
+		$out = $decorator->apply( $this->image( 'https://doge.example.com/wp-content/uploads/a.webp' ), 12, 'medium' );
+
+		$this->assertSame( 'https://doge.example.com/wp-content/uploads/a.webp/720wm', $out[0] );
+	}
+
+	public function test_dogecloud_params_url_is_not_decorated_twice(): void {
+		$options = $this->options( 'params' );
+		$decorator = new Decorator( $options, new Doge( Doge::MODE_PARAMS ), null, null, 'doge.example.com' );
+		Context::push( Context::ARCHIVE );
+
+		$image = $this->image( 'https://doge.example.com/wp-content/uploads/a.webp?imageView2/1/w/500/h/500' );
+
+		$this->assertSame( $image, $decorator->apply( $image, 12, 'medium' ) );
+	}
+
+	public function test_dogecloud_params_mode_builds_image_view2(): void {
+		$options = $this->options( 'params' );
+		$decorator = new Decorator( $options, new Doge( Doge::MODE_PARAMS ), null, null, 'doge.example.com' );
+		Context::push( Context::ARCHIVE );
+
+		$out = $decorator->apply( $this->image( 'https://doge.example.com/wp-content/uploads/a.webp' ), 12, 'medium' );
+
+		$this->assertStringContainsString( '?imageView2/1/w/500/h/500', $out[0] );
 	}
 
 	public function test_spare_thumb_bridge_rewrites_only_when_enabled(): void {

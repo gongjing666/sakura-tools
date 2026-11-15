@@ -9,7 +9,6 @@ declare( strict_types=1 );
 
 namespace Sakura\ImageOptimizer\Thumbnail;
 
-use Sakura\ImageOptimizer\Thumbnail\Providers\Bitiful;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -53,36 +52,17 @@ final class Probe {
 		}
 
 		$provider = Settings::provider_id();
-		if ( 'bitiful' !== $provider ) {
+		$carrier  = Provider_Registry::supports( $provider, 'style' ) || Provider_Registry::supports( $provider, 'params' );
+		if ( ! $carrier ) {
 			$status = new Provider_Status(
 				Provider_Status::MODE_NONE,
 				Provider_Status::STATE_UNSUPPORTED,
-				__( '当前对象存储不是缤纷云（', 'sakura-imgopt' ) . ( '' === $provider ? __( '未配置', 'sakura-imgopt' ) : $provider ) . __( '），命名样式不可用。', 'sakura-imgopt' ),
+				__( '当前对象存储不支持内置的图片处理语法（', 'sakura-imgopt' ) . ( '' === $provider ? __( '未配置', 'sakura-imgopt' ) : $provider ) . __( '）。请在下面填写自定义地址模板，或改用缤纷云、多吉云。', 'sakura-imgopt' ),
 				time()
 			);
 			Settings::store_probe( $status );
 
 			return $status;
-		}
-
-		$sample = $this->sample();
-		if ( null === $sample ) {
-			$status = new Provider_Status(
-				Provider_Status::MODE_STYLE,
-				Provider_Status::STATE_UNKNOWN,
-				__( '没有可用于测试的图片，请先上传一张图片。', 'sakura-imgopt' ),
-				time()
-			);
-			Settings::store_probe( $status );
-
-			return $status;
-		}
-
-		[ $url, $width, $height ] = $sample;
-		$origin = $this->head( $url );
-		$origin_bytes = (int) ( $origin['headers']['x-btf-origin-size'] ?? 0 );
-		if ( $origin_bytes <= 0 ) {
-			$origin_bytes = (int) $origin['bytes'];
 		}
 
 		$options    = Settings::get();
@@ -102,21 +82,51 @@ final class Probe {
 			$expected = max( 1, (int) $options['sizes'][ $style_size ]['width'] );
 		}
 
+		// The sample has to be wider than the box we ask for, otherwise the
+		// provider has nothing to shrink: imageView2 never upscales, so it answers
+		// 200 with the original and the byte comparison proves nothing.
+		$sample = $this->sample( $expected );
+		if ( null === $sample ) {
+			$status = new Provider_Status(
+				Provider_Status::MODE_STYLE,
+				Provider_Status::STATE_UNKNOWN,
+				__( '没有可用于测试的图片，请先上传一张图片。', 'sakura-imgopt' ),
+				time()
+			);
+			Settings::store_probe( $status );
+
+			return $status;
+		}
+
+		[ $url, $width, $height ] = $sample;
+		$origin = $this->head( $url );
+		$origin_bytes = (int) ( $origin['headers']['x-btf-origin-size'] ?? 0 );
+		if ( $origin_bytes <= 0 ) {
+			$origin_bytes = (int) $origin['bytes'];
+		}
+
 		$style_result  = null;
 		$params_result = null;
 
-		if ( '' !== $style_name ) {
+		// Each carrier spells the same two modes differently, so the probe asks
+		// the registry for its own implementation instead of assuming Bitiful.
+		$style_provider  = Provider_Registry::make( $provider, 'style' );
+		$params_provider = Provider_Registry::make( $provider, 'params' );
+
+		if ( '' !== $style_name && null !== $style_provider ) {
 			$style_rendition = new Rendition( $expected, $expected, Rendition::MODE_CROP, 'auto', 0, 'auto', $style_name );
-			$style_url       = ( new Bitiful( Bitiful::MODE_STYLE ) )->decorate( $url, $style_rendition );
+			$style_url       = $style_provider->decorate( $url, $style_rendition );
 			if ( $style_url !== $url ) {
-				$style_result = $this->evaluate( 'style', $style_url, $expected, $origin_bytes, $style_name );
+				$style_result = $this->evaluate( 'style', $style_url, $expected, $origin_bytes, $style_name, $provider );
 			}
 		}
 
-		$params_rendition = new Rendition( $expected, $expected, Rendition::MODE_CROP, 'auto', 0, 'auto' );
-		$params_url       = ( new Bitiful( Bitiful::MODE_PARAMS ) )->decorate( $url, $params_rendition );
-		if ( $params_url !== $url ) {
-			$params_result = $this->evaluate( 'params', $params_url, $expected, $origin_bytes, '' );
+		if ( null !== $params_provider ) {
+			$params_rendition = new Rendition( $expected, $expected, Rendition::MODE_CROP, 'auto', 0, 'auto' );
+			$params_url       = $params_provider->decorate( $url, $params_rendition );
+			if ( $params_url !== $url ) {
+				$params_result = $this->evaluate( 'params', $params_url, $expected, $origin_bytes, '', $provider );
+			}
 		}
 
 		$native = $this->native_available();
@@ -186,13 +196,17 @@ final class Probe {
 	 * @param string $style        Style name for evidence.
 	 * @return array<string,mixed>
 	 */
-	private function evaluate( string $mode, string $url, int $expect_width, int $origin, string $style ): array {
+	private function evaluate( string $mode, string $url, int $expect_width, int $origin, string $style, string $provider = '' ): array {
 		$response = $this->head( $url );
 		$code     = (int) $response['code'];
 		$headers  = $response['headers'];
 		$bytes    = (int) $response['bytes'];
 		$target   = (int) ( $headers['x-coreix-target-width'] ?? 0 );
 		$default  = (string) ( $headers['x-bitiful-defaultstyle'] ?? '' );
+		// DogeCloud reports nothing about the produced rendition: no width header,
+		// no default-style marker. Its only observable proof is the byte count,
+		// which is why the shrink test below is the sole pass criterion there.
+		$measured = $target > 0;
 
 		if ( 403 === $code || 404 === $code ) {
 			/* translators: %d: HTTP status code. */
@@ -222,7 +236,7 @@ final class Probe {
 			);
 		}
 
-		$expected_hint = $this->expected_hint( $mode, $expect_width, '' !== $style ? $style : '' );
+		$expected_hint = $this->expected_hint( $mode, $expect_width, '' !== $style ? $style : '', $provider );
 		if ( $target > 0 && abs( $target - $expect_width ) > max( 20, (int) round( $expect_width * 0.2 ) ) ) {
 			return array(
 				'mode'     => $mode,
@@ -253,10 +267,19 @@ final class Probe {
 			);
 		}
 
+		if ( ! $measured && $origin > 0 && $bytes > 0 ) {
+			// Provider without a width header (DogeCloud): the shrunken file is the
+			// only proof, so say so instead of reporting a missing header as if the
+			// check had been skipped.
+			$evidence = sprintf( /* translators: 1: returned file size, 2: original file size. */ __( '访问正常（200）：文件从 %2$s 缩到 %1$s，服务端未报告宽度。', 'sakura-imgopt' ), self::format_bytes( $bytes ), self::format_bytes( $origin ) );
+		} else {
+			$evidence = sprintf( /* translators: 1: returned width, 2: returned file size, 3: original file size. */ __( '访问正常（200）：宽度 %1$s，文件 %2$s，原图 %3$s。', 'sakura-imgopt' ), $target > 0 ? $target . 'px' : __( '目标宽度头缺失', 'sakura-imgopt' ), self::format_bytes( $bytes ), self::format_bytes( $origin ) );
+		}
+
 		return array(
 			'mode'     => $mode,
 			'state'    => Provider_Status::STATE_OK,
-			'evidence' => sprintf( /* translators: 1: returned width, 2: returned file size, 3: original file size. */ __( '访问正常（200）：宽度 %1$s，文件 %2$s，原图 %3$s。', 'sakura-imgopt' ), $target > 0 ? $target . 'px' : __( '目标宽度头缺失', 'sakura-imgopt' ), self::format_bytes( $bytes ), self::format_bytes( $origin ) ),
+			'evidence' => $evidence,
 			'target'   => $target,
 			'bytes'    => $bytes,
 		);
@@ -269,20 +292,29 @@ final class Probe {
 	 * @param int    $width  Width.
 	 * @param string $style  Style.
 	 */
-	private function expected_hint( string $mode, int $width, string $style ): string {
+	private function expected_hint( string $mode, int $width, string $style, string $provider = '' ): string {
 		if ( 'style' === $mode && '' !== $style ) {
 			return __( '命名样式 ', 'sakura-imgopt' ) . $style;
+		}
+
+		if ( 'dogecloud' === $provider ) {
+			return '?imageView2/1/w/' . $width . '/h/' . $width;
 		}
 
 		return '?w=' . $width . '&h=' . $width . '&mode=crop';
 	}
 
 	/**
-	 * Find a real image attachment.
+	 * Find a real image attachment wider than the box the probe will request.
 	 *
+	 * A sample smaller than the requested width cannot demonstrate anything:
+	 * imageView2 never upscales, so it answers with the original file and the
+	 * byte comparison passes for the wrong reason.
+	 *
+	 * @param int $min_width Minimum width in pixels, 0 accepts anything.
 	 * @return array{0:string,1:int,2:int}|null
 	 */
-	private function sample(): ?array {
+	private function sample( int $min_width = 0 ): ?array {
 		if ( ! function_exists( 'get_posts' ) || ! function_exists( 'wp_get_attachment_url' ) ) {
 			return null;
 		}
@@ -292,12 +324,16 @@ final class Probe {
 				'post_type'      => 'attachment',
 				'post_mime_type' => 'image',
 				'post_status'    => 'inherit',
-				'numberposts'    => 5,
+				// A handful of recent uploads may all be smaller than the requested
+				// box, so look further back before giving up.
+				'numberposts'    => 20,
 				'fields'         => 'ids',
 				'orderby'        => 'date',
 				'order'          => 'DESC',
 			)
 		);
+
+		$fallback = null;
 
 		foreach ( (array) $ids as $id ) {
 			$url = wp_get_attachment_url( (int) $id );
@@ -318,10 +354,18 @@ final class Probe {
 				}
 			}
 
-			return array( $url, $width, $height );
+			if ( $min_width <= 0 || $width > $min_width ) {
+				return array( $url, $width, $height );
+			}
+
+			if ( null === $fallback ) {
+				$fallback = array( $url, $width, $height );
+			}
 		}
 
-		return null;
+		// Every candidate is smaller than the requested box: the probe will report
+			// that it could not observe a shrink, which is the honest answer.
+		return $fallback;
 	}
 
 	/**

@@ -6,7 +6,7 @@
 
 图片压缩 · 缩略图治理 · S3 对象存储 · 同步索引 · 用户文件空间
 
-[![版本](https://img.shields.io/badge/version-1.27.5-e85d8b?style=flat-square)](https://github.com/gongjing666/sakura-tools/releases/latest)
+[![版本](https://img.shields.io/badge/version-1.27.6-e85d8b?style=flat-square)](https://github.com/gongjing666/sakura-tools/releases/latest)
 [![PHPUnit](https://img.shields.io/badge/PHPUnit-10.5-4c1?style=flat-square)](https://github.com/gongjing666/sakura-tools/actions/workflows/tests.yml)
 [![PHPStan](https://img.shields.io/badge/PHPStan-level%205-4c1?style=flat-square)](https://github.com/gongjing666/sakura-tools/actions/workflows/phpstan.yml)
 ![WordPress](https://img.shields.io/badge/WordPress-6.4%2B-21759b?style=flat-square&logo=wordpress&logoColor=white)
@@ -40,6 +40,7 @@
 
 ## 最近更新
 
+- **1.27.6** — 连接失败终于说清原因。S3「测试连接」以前无论什么错都提示「请检查服务商、地域、Endpoint、存储桶和凭据」；现在先 `headBucket`、失败再 `listObjectsV2` 取回带 XML 的错误码，直接告诉你 `InvalidAccessKeyId（HTTP 403）` 还是端点填成了管理 API。多吉云这条线补齐：填存储空间名称即可反查 `s3Bucket` / `s3Endpoint`，缩略图走命名样式（`/720wm`）或 `imageView2`；保存配置改为原地更新，不再偷偷新建一份。同步中心的裸文件名搜索修好了，并新增按需预览。媒体库的卡片与列表缩略图改走云存储，SVG/GIF 不再被拼样式后缀与转成静态图。顺带修掉后台通知条冒充页面根导致整页按钮失效（688px 空白带）与存储页「最后错误」只占半行的问题。详见 [readme.txt](readme.txt) 的 changelog。
 - **1.27.5** — 后台切页不再「糊一下」。WordPress 7.0 起给整个后台启用了跨文档 View Transitions，每次点模块或页签都把新旧两页整页交叉淡化 250ms；本插件后台是密集表格与卡片，两层半透明叠在一起就是文字互相穿透。现在用 `@view-transition { navigation: none }` 退出这套过渡，改由自己控制：新文档硬切，只有主内容列 180ms 淡入并上浮 6px，模块切换条、页签条与侧边栏完全不参与动画。顺带更快——命名为 `view-transition-name` 的元素会让浏览器多拍快照并单独分组渲染，实测净增约 15ms；完全不快照反而比默认过渡快约 30ms（点击到 load 完成：456 → 422ms 均值）。另加点击即时反馈：WordPress 引导一次后台请求约 300ms，这段时间页面停在旧内容上像没点中，现在点击同一帧顶部亮起 2px 樱色扫光条，新文档出来自然消失，`prefers-reduced-motion` 下改为常亮不扫光。
 - **1.27.4** — 卸载残留清理：勾选「删除数据」后仍留下外观设置、两把命名固定的锁、`sakura_imgopt_lock_*` 前缀锁与两条 usermeta；transient 扫描扩到 `sakura_imgopt_` 与 `sufm_` 两个命名空间（含 timeout 条目）。顺带修掉停用后 `sakura_imgopt_sync_calibrate` / `_now` 仍留在定时任务里的问题（这两个由校准器自己排期，不走激活流程）。
 - **1.27.3** — 「空间套餐」图标字段从 150px 的虚线方块改成与输入框同规格的 chip（38px 高、同边框同圆角，缩略图 28×28），URL 输入框加 `max-width: 560px`。顺带修 `.btn` 的 `display` 覆盖浏览器默认 `[hidden]` 规则、导致被隐藏的「移除」按钮仍占 30px 高的问题。
@@ -97,17 +98,17 @@ flowchart LR
 | 兼容层 | `includes/`、`includes/views/` | 旧实现与后台模板，仍由启动流程加载，不能盲删 |
 
 <details>
-<summary><strong>代码规模与仓库结构（1.27.5）</strong></summary>
+<summary><strong>代码规模与仓库结构（1.27.6）</strong></summary>
 
 | 指标 | 数值 |
 | --- | --- |
-| 生产 PHP | 191 文件 / 65,780 行 |
-| 类与接口 | 176（含 7 个接口） |
-| 注册钩子 | 207 |
+| 生产 PHP | 200 文件 / 67,806 行 |
+| 类与接口 | 185（含 7 个接口） |
+| 注册钩子 | 211 |
 | 自定义表 | 23 |
 | 后台模块 | 4（13 个页签） |
-| 后台 CSS/JS | 38 文件 / 33,897 行（`assets/ui/` 27 文件 / 14,407 行） |
-| 测试 | 79 文件 / 11,205 行；470 tests / 2,411 assertions |
+| 后台 CSS/JS | 38 文件 / 34,677 行（`assets/ui/` 27 文件 / 15,187 行） |
+| 测试 | 90 文件 / 12,823 行；570 tests / 2,608 assertions |
 
 ```text
 sakura-tools/
@@ -265,7 +266,7 @@ git clone https://github.com/gongjing666/sakura-tools.git
 | 文档 | 内容 |
 | --- | --- |
 | [开发规则索引](docs/开发规则/00-索引.md) | **改代码从这里开始**：五分钟上手路径、按任务找文档、十条铁律 |
-| [代码结构文档](docs/sakura-tools-代码结构-1.27.5.md) | 文件树、类职责、依赖矩阵、钩子分布，附类 / 钩子 / 文件三个索引；由 `docs/tools/` 生成 |
+| [代码结构文档](docs/sakura-tools-代码结构-1.27.6.md) | 文件树、类职责、依赖矩阵、钩子分布，附类 / 钩子 / 文件三个索引；由 `docs/tools/` 生成 |
 | [DECISIONS.md](DECISIONS.md) | 关键设计取舍与已知边界，记录「为什么」而不是「现在有什么」 |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | 环境、提交前必跑的命令、提交信息与 PR 要求 |
 
@@ -320,7 +321,7 @@ composer lint:strict
 本地构建（默认当前 HEAD）：
 
 ```bash
-bin/build-plugin-zip.sh --version 1.27.5 --out dist
+bin/build-plugin-zip.sh --version 1.27.6 --out dist
 ```
 
 补建历史版本包：

@@ -2,8 +2,8 @@
 
 给在这个仓库里改代码的 AI 会话和开发者。**本文件只放「必须先知道」和「该去哪儿读」，规则正文一律在 `docs/开发规则/`，不要在这里复述。**
 
-- 版本基线 **1.27.5**，分支 `main`，要求 PHP 8.2+ / WordPress 6.4+
-- 类、方法、钩子、文件清单：`docs/sakura-tools-代码结构-1.27.5.md`（**生成物，不要手改**）
+- 版本基线 **1.27.6**，分支 `main`，要求 PHP 8.2+ / WordPress 6.4+
+- 类、方法、钩子、文件清单：`docs/sakura-tools-代码结构-1.27.6.md`（**生成物，不要手改**）
 - 设计动机（为什么这么做）：`DECISIONS.md`
 
 ## 1. 按任务选一篇文档
@@ -96,7 +96,7 @@ docs/                   文档（不进发布包）
 ## 4. 验证命令
 
 ```bash
-composer test          # PHPUnit，基线 470 tests / 2411 assertions / 6 skipped
+composer test          # PHPUnit，基线 570 tests / 2608 assertions / 6 skipped
 composer phpstan       # level 5，必须 [OK] No errors
 composer lint:strict   # PHPCS，必须 0 error（warning 基线 36 条，不得新增）
 php -l <file>          # 改动的每个 PHP 文件

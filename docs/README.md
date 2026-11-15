@@ -20,7 +20,7 @@
 
 | 文件 | 内容 | 怎么更新 |
 |---|---|---|
-| [代码结构文档](sakura-tools-代码结构-1.27.5.md) | 文件树、类职责、依赖矩阵、钩子分布、类/钩子/文件三个附录 | `docs/tools/` 五步管线 |
+| [代码结构文档](sakura-tools-代码结构-1.27.6.md) | 文件树、类职责、依赖矩阵、钩子分布、类/钩子/文件三个附录 | `docs/tools/` 五步管线 |
 | [3D 图谱](graph-preview/index.html) | 模块与类的交互式关系图，单文件、无外部依赖 | 同上（第 4 步写入图数据） |
 
 两者同源：都从一次代码扫描产出。GitHub 不执行页面脚本，图谱要克隆后用浏览器打开。
@@ -47,6 +47,7 @@ python3 docs/tools/assemble-doc.py --parts /tmp/docparts --out docs/sakura-tools
 | [DEVELOPMENT.md](history/DEVELOPMENT.md) | 早期开发流水；文件结构章节停在 1.3.3，写的是 `includes/class-*.php` 六个类 |
 | [后台UI重构方案.md](history/后台UI重构方案.md) | 2026 年那次后台改版的实施方案，已执行完毕 |
 | [sakura-tools-代码结构-1.25.9.md](history/sakura-tools-代码结构-1.25.9.md) | 1.25.9 时期的代码结构产物 |
+| [sakura-tools-代码结构-1.27.5.md](history/sakura-tools-代码结构-1.27.5.md) | 1.27.5 时期的代码结构产物（1.27.6 换版时归档） |
 | [sakura-tools-图谱同步-1.25.9.md](history/sakura-tools-图谱同步-1.25.9.md) | 图谱口径说明；生成方法仍适用，数字属 1.25.9 |
 
 **这些文件里的路径、行号、类名一律不可信。** 需要现状就看第 2 类，或直接读代码。

@@ -4,7 +4,7 @@ Tags: image optimization, webp, avif, imagick, media library
 Requires at least: 6.4
 Tested up to: 7.1.4
 Requires PHP: 8.2
-Stable tag: 1.27.5
+Stable tag: 1.27.6
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -78,6 +78,21 @@ Access Key 和 Secret 会加密后存进数据库，页面和源码都不会显�
 插件目前没有接管这个跳转。等出现「既要防直链、又要保留购买校验」的需求时再研发，方向是在主题之前拦截下载请求，由插件代理输出或签发短时有效的预签名地址；若暂时需要这层保护，请关闭「上传后删除本地文件」，让文件保留在本地。
 
 == Changelog ==
+
+= 1.27.6 =
+
+* 修复：**同步中心整页按钮失效、顶部多出一条 688px 空白带**。后台通知条的外层 `<div>` 带着 `sakura-admin` 这个页面根类名（`src/Admin/UI/Feedback.php:76`），而 `assets/ui/js/core.js` 的 `root()` 用 `document.querySelector('.sakura-admin')` 取第一个节点——`admin_notices` 在正文之前渲染，于是每个页面控制器拿到的「根节点」其实是通知条本身，`data-sakura-page` 对不上就整段 `return`，按钮、筛选、分页、轮询全都没绑上事件（同类判断 12 处：`ui.js:13`、`files-settings.js:16`、`image-backup.js:41`、`storage-deletes.js:114`、`files-zibll.js:102` 与 `:183`、`files-users.js:16`、`files-queue.js:18`、`files-log.js:16`、`storage-connection.js:344`）。`root()` 现在优先取带 `[data-sakura-page]` 的那个节点；`assets/ui/components.css` 给 `.sakura-admin-notice-root` 补一组重置（`min-height: 0`、`background: none`、`::before { content: none }`），抵掉 `base.css` 里本该只属于页面的 `min-height: calc(100vh - 32px)` 与四层径向渐变。通知条高度从 688px 回到 48px，同步中心「待上传」筛选、批量操作条与详情弹窗恢复。
+* 修复：**对象存储「测试连接」不再只说「请检查服务商、地域、Endpoint、存储桶和凭据」**。新增 `src/S3/Connection_Probe.php`：先 `HeadBucket`，失败再用 `ListObjectsV2`（`MaxKeys=1`）读回真实 XML 错误码，所以「桶存在但无权列举」也能判定为可达；返回的 160 字以内原因会原样带到页面上，凭据在离开方法前先做脱敏。同时 `src/S3/Error_Mapper.php` 补三类端点错配（`PathStyleDomainForbidden` / `PermanentRedirect` / `AuthorizationHeaderMalformed`），文案直指「把管理 API 地址换成 S3 Endpoint」和「存储桶实际所在地域不一致」。
+* 新增：**多吉云可以按存储空间名称反查 SDK 参数**。`src/S3/Doge_Cloud_Resolver.php` 读 `/auth/tmp_token.json` 响应里的 `data.Buckets[]`，用空间名匹配出 `s3Bucket` 与 `s3Endpoint`；`includes/class-s3-doge-cloud.php` 补 `last_error()` / `get_buckets()` 并把多吉云写在响应体里的错误（HTTP 仍是 200）连 `code` 一起判出来。连接配置页右侧的「获取 SDK 参数」按钮由此可用，失败时提示「多吉云接口返回错误（code N）：…」而不是静默。
+* 修复：**改配置时不再偷偷新建一份 profile**。`src/S3/Settings_Saver.php` 的 `profile_id_for_save()` 去掉了 `$provider` / `$bucket` / `$endpoint` 三个「判断是否换了目标」的参数，一律原地更新原 profile；真换了目标就把旧配置记进 `retired_targets` 并清掉该 profile 的索引行，跳转带 `moved=1`。凭据判定改为与正在编辑的那份比较（此前比的是活动 profile，改非活动配置时会把凭据清空）；密钥/Secret 留空时直接沿用已存密文，不再解密再加密，加密循环加 `is_encrypted()` 防止二次加密。
+* 修复：**同步中心搜索只认完整路径，输入裸文件名搜不到**。此前服务端把 `x8BnM.webp` 补成 `{upload_path}/x8BnM.webp` 再做前缀匹配。新增 `src/Sync/Search_Term.php` 让同步中心与 `fast-search.php` 共用同一条规范化规则；筛选时多返回 `filtered_total`，界面显示「筛选自 N 项」。顺带新增 `src/S3/Sync_Center_Module.php` 的 `ajax_preview()`（nonce `sakura_s3_sync_preview`），详情预览按需拉取而不是整页预载。
+* 新增：**多吉云缩略图**。命名样式走路径段（`a.jpg/720wm`），参数模式改用 `imageView2/1/w/{w}/h/{h}`（多吉云忽略裸 `?w=`）。新增 `src/Thumbnail/Provider_Registry.php` 把「谁能用哪种语法」集中到一处，`src/Thumbnail/Providers/Doge.php` 落地多吉云，`src/Thumbnail/Style_Suffix.php` 负责识别与剥离路径段样式。`Decorator` / `Theme_Cache` / `Probe` 的「已优化」「去重」「样图」判断同时认这两种写法。注意：多吉云的宽高参数走 query，CDN 加速域名的缓存规则要关掉「忽略参数」，否则同一张图会被缓存成同一份；设置页已加这条提示。
+* 新增：**媒体库的缩略图改为走云存储，没有就回落原图**，不再为后台预览单独生成本地小图。只挂 `image_downsize` 一个过滤器同时覆盖网格与列表两种视图；列表请求的是 `array( 60, 60 )` 这种无名像素框，按 `thumbnail → medium → medium_large → large` 取第一个已配置的尺寸名，报给浏览器的尺寸仍是 60×60，布局不变。生产实测网格 79 张里 73 张走云渲染、6 张回落、0 破图；列表 20 行 17 / 3 / 0。
+* 修复：**SVG 与 GIF 不该被套缩略图**。这两条格式规则此前只写在 `src/Thumbnail/Decorator.php` 的前台路径里，媒体库新路径没复制，于是 SVG 被拼成 `.svg/siothumb`（对象存储返回 400，页面上就是破图），GIF 被转成静态 WebP（动图冻在第一帧）。现在提取为共享的 `src/Thumbnail/Format_Rule.php`，前后台共用同一份判据：SVG 恒跳过，GIF 仅在「允许处理 GIF」开启时才处理。
+* 调整：**存储页版面**。删掉重复的「测试连接」卡片（按钮已并入服务商那一行，走表单里当前填写的参数、不保存也不上传）；「最后错误」块从跨 2 列改成 `grid-column: 1 / -1` 铺满整行，并补上此前缺失的 `.kpi__value--text`（长错误文本此前继承 21px 字号）；与输入框、下拉并排的按钮统一 `height: var(--g-ctl-h)`，边框高度一致（此前输入框 38px、`.btn` 36px、`.btn--small` 30px 三种混排）。存储空间名称过长时显示为「前缀…后缀」，完整值放进 `title`。
+* 修复：后台提示条的 `<div>` 不再承载页面级的 `min-height` 与背景层；`.sakura-admin` 的类名本身没有改动（`components.css` 里有 367 处选择器依赖它）。
+* 测试与文档：新增 `tests/ConnectionProbeTest.php`、`tests/DogeCloudResolverTest.php`、`tests/Thumbnail/AdminThumbnailsTest.php`、`tests/Thumbnail/DogeTest.php`、`tests/Thumbnail/ProviderRegistryTest.php`、`tests/Thumbnail/StyleSuffixTest.php`、`tests/SearchTermTest.php`、`tests/IndexRowPayloadTest.php`、`tests/BucketLabelTest.php`、`tests/S3ClientFactoryTest.php`、`tests/DogeCloudCredentialsTest.php`，全量 **570 tests / 2,608 assertions / 6 skipped**（1.27.5 是 470 / 2,411）；`tests/bootstrap.php` 补齐 `wp_safe_remote_post`、`wp_remote_retrieve_body`、`wp_json_encode`、`wp_attachment_is_image`、`wp_get_attachment_url`、`get_attached_file` 等桩。`docs/开发规则/03-后台UI.md` §6、§10.2、§12 补「并排控件的边框高度必须一致」的规则、CSS 片段与验收方法；代码结构文档重新生成为 1.27.6。
+* 影响范围：新增 `src/S3/{Bucket_Label,Connection_Probe,Doge_Cloud_Resolver}.php`、`src/Sync/Search_Term.php`、`src/Thumbnail/{Admin_Thumbnails,Format_Rule,Provider_Registry,Style_Suffix}.php` 与 `src/Thumbnail/Providers/Doge.php`；改动 `src/S3/`（Options、Profile_Manager、S3_Storage_Page、Settings_Saver、Sync_Center_Module、Connection_Tester、Error_Mapper、Client_Factory）、`src/Sync/`（Index_Repository、Scan_Service）、`src/Thumbnail/`（Decorator、Probe、Rendition、Settings、Theme_Cache）、`src/Admin/`（Layout、UI/Page）、`includes/`（class-s3-doge-cloud、class-s3-storage-module、class-thumbnail-optimizer-module、views/thumb-settings、views/s3-sync-center）、`fast-search.php` 与 `assets/ui/`。**不改数据表结构、不改路由、不改 option 键名与既有钩子语义**；`sakura_imgopt_s3_profiles` 里新增一个可为空的 `space` 字段（缺省为空，按存储空间名称回填），旧配置照常读取。
 
 = 1.27.5 =
 * **后台切页不再「糊一下」**：WordPress 7.0 起给整个后台启用了跨文档 View Transitions，每次点模块或页签都会把新旧两页**整页**交叉淡入淡出 250ms。本插件的后台是密集表格与卡片，两层半透明叠在一起就是文字互相穿透：慢放截图里旧页标题压在新页标题上，侧边栏在内容已经落定之后还在变色。

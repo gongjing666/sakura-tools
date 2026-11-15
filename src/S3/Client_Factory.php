@@ -20,6 +20,21 @@ defined( 'ABSPATH' ) || exit;
 final class Client_Factory {
 
 	/**
+	 * Providers that reject path-style addressing.
+	 *
+	 * Filling in an endpoint normally means "not AWS", so path style is the safe
+	 * default: MinIO, R2 and self-hosted gateways all answer
+	 * `<endpoint>/<bucket>/<key>`. These services instead put the bucket in the
+	 * host name (`<bucket>.<endpoint>/<key>`) and answer the other form with an
+	 * error — 多吉云 runs on a COS backend and returns
+	 * `403 PathStyleDomainForbidden`, so it must be listed here or a correct
+	 * bucket/endpoint pair still fails the connection test.
+	 *
+	 * @var array<int,string>
+	 */
+	private const VIRTUAL_HOST_PROVIDERS = array( 'aliyun', 'tencent', 'qiniu', 'upyun', 'baidu', 'backblaze', 'bitiful', 'dogecloud' );
+
+	/**
 	 * Client cache keyed by options hash.
 	 *
 	 * @var array<string, S3Client>
@@ -74,8 +89,14 @@ final class Client_Factory {
 			'secret' => (string) $options['secret'],
 		);
 		if ( 'dogecloud' === ( $options['provider'] ?? '' ) ) {
-			$temporary = ( new S3_Doge_Cloud( $credentials['key'], $credentials['secret'] ) )->get_credentials();
+			$bridge    = new S3_Doge_Cloud( $credentials['key'], $credentials['secret'] );
+			$temporary = $bridge->get_credentials();
 			if ( ! is_array( $temporary ) ) {
+				// The message travels to wp_send_json and lands in a modal via textContent.
+				$reason = $bridge->last_error();
+				if ( '' !== $reason ) {
+					throw new \RuntimeException( $reason ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- Shown as plain text, escaping would print entities.
+				}
 				throw new \RuntimeException( esc_html__( '无法获取多吉云临时凭据。', 'sakura-imgopt' ) );
 			}
 			$credentials = array(
@@ -85,10 +106,7 @@ final class Client_Factory {
 			);
 		}
 
-		$path_style = ! empty( $options['endpoint'] );
-		if ( in_array( (string) ( $options['provider'] ?? '' ), array( 'aliyun', 'tencent', 'qiniu', 'upyun', 'baidu', 'backblaze', 'bitiful' ), true ) ) {
-			$path_style = false;
-		}
+		$path_style = self::path_style_for( (string) ( $options['provider'] ?? '' ), (string) ( $options['endpoint'] ?? '' ) );
 
 		$config = array(
 			'version'                 => 'latest',
@@ -110,5 +128,23 @@ final class Client_Factory {
 
 		self::$clients[ $cache_key ] = new S3Client( $config );
 		return self::$clients[ $cache_key ];
+	}
+
+	/**
+	 * Whether requests must address the bucket as a path segment.
+	 *
+	 * Only a custom endpoint forces the decision at all: without one the SDK
+	 * talks to AWS and addresses the bucket in the host name itself.
+	 *
+	 * @param string $provider Provider key.
+	 * @param string $endpoint Endpoint URL, may be empty.
+	 * @return bool
+	 */
+	public static function path_style_for( string $provider, string $endpoint ): bool {
+		if ( '' === $endpoint ) {
+			return false;
+		}
+
+		return ! in_array( $provider, self::VIRTUAL_HOST_PROVIDERS, true );
 	}
 }

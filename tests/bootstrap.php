@@ -463,6 +463,7 @@ require_once dirname( __DIR__ ) . '/src/S3/Upload_URL.php';
 require_once dirname( __DIR__ ) . '/src/S3/Options.php';
 require_once dirname( __DIR__ ) . '/src/S3/Log.php';
 require_once dirname( __DIR__ ) . '/src/S3/Error_Mapper.php';
+require_once dirname( __DIR__ ) . '/src/S3/Connection_Probe.php';
 require_once dirname( __DIR__ ) . '/src/S3/Object_Store.php';
 require_once dirname( __DIR__ ) . '/src/S3/Client_Factory.php';
 require_once dirname( __DIR__ ) . '/src/S3/Storage_Adapter.php';
@@ -475,6 +476,7 @@ require_once dirname( __DIR__ ) . '/src/S3/Migration_Service.php';
 require_once dirname( __DIR__ ) . '/includes/class-animation-detector.php';
 require_once dirname( __DIR__ ) . '/includes/class-stats.php';
 require_once dirname( __DIR__ ) . '/includes/class-file-system.php';
+require_once dirname( __DIR__ ) . '/includes/class-s3-doge-cloud.php';
 require_once dirname( __DIR__ ) . '/src/Image/No_Gain_Guard.php';
 require_once dirname( __DIR__ ) . '/includes/class-gd-handler.php';
 require_once dirname( __DIR__ ) . '/includes/class-imagick-handler.php';
@@ -1026,6 +1028,45 @@ if ( ! function_exists( 'wp_remote_post' ) ) {
 	}
 }
 
+if ( ! function_exists( 'wp_safe_remote_post' ) ) {
+	/**
+	 * Same stub as wp_remote_post: production uses the safe variant.
+	 *
+	 * @param string              $url  URL.
+	 * @param array<string,mixed> $args Args.
+	 * @return array<string,mixed>
+	 */
+	function wp_safe_remote_post( $url, $args = array() ) {
+		return wp_remote_post( $url, $args );
+	}
+}
+
+if ( ! function_exists( 'wp_remote_retrieve_body' ) ) {
+	/**
+	 * Minimal body shim.
+	 *
+	 * @param array<string,mixed> $response Response.
+	 * @return string
+	 */
+	function wp_remote_retrieve_body( $response ) {
+		return (string) ( $response['body'] ?? '' );
+	}
+}
+
+if ( ! function_exists( 'wp_json_encode' ) ) {
+	/**
+	 * Minimal JSON shim.
+	 *
+	 * @param mixed $value   Value.
+	 * @param int   $options Flags.
+	 * @param int   $depth   Depth.
+	 * @return string|false
+	 */
+	function wp_json_encode( $value, $options = 0, $depth = 512 ) {
+		return json_encode( $value, $options, $depth ); // phpcs:ignore WordPress.WP.AlternativeFunctions.json_encode_json_encode -- Test shim.
+	}
+}
+
 if ( ! function_exists( 'wp_remote_retrieve_response_code' ) ) {
 	/**
 	 * Minimal response-code shim.
@@ -1181,6 +1222,73 @@ if ( ! function_exists( 'wp_get_attachment_metadata' ) ) {
 	 */
 	function wp_get_attachment_metadata( $attachment_id ) {
 		return array( 'width' => 1200, 'height' => 800 );
+	}
+}
+
+if ( ! function_exists( 'is_admin' ) ) {
+	/**
+	 * Admin-context shim; tests flip $GLOBALS['sakura_test_is_admin'].
+	 *
+	 * @return bool
+	 */
+	function is_admin() {
+		return (bool) ( $GLOBALS['sakura_test_is_admin'] ?? false );
+	}
+}
+
+if ( ! function_exists( 'wp_doing_ajax' ) ) {
+	/**
+	 * AJAX-context shim; tests flip $GLOBALS['sakura_test_doing_ajax'].
+	 *
+	 * @return bool
+	 */
+	function wp_doing_ajax() {
+		return (bool) ( $GLOBALS['sakura_test_doing_ajax'] ?? false );
+	}
+}
+
+if ( ! function_exists( 'wp_attachment_is_image' ) ) {
+	/**
+	 * Attachment-type shim; defaults to true, tests override per id.
+	 *
+	 * @param int $attachment_id Attachment ID.
+	 * @return bool
+	 */
+	function wp_attachment_is_image( $attachment_id ) {
+		$map = $GLOBALS['sakura_test_attachment_is_image'] ?? array();
+		if ( is_array( $map ) && array_key_exists( $attachment_id, $map ) ) {
+			return (bool) $map[ $attachment_id ];
+		}
+
+		return true;
+	}
+}
+
+if ( ! function_exists( 'wp_get_attachment_url' ) ) {
+	/**
+	 * Attachment URL shim backed by $GLOBALS['sakura_test_attachment_urls'].
+	 *
+	 * @param int $attachment_id Attachment ID.
+	 * @return string|false
+	 */
+	function wp_get_attachment_url( $attachment_id ) {
+		$urls = $GLOBALS['sakura_test_attachment_urls'] ?? array();
+		return $urls[ $attachment_id ] ?? false;
+	}
+}
+
+if ( ! function_exists( 'get_attached_file' ) ) {
+	/**
+	 * Attached-file shim backed by $GLOBALS['sakura_test_attached_files'].
+	 *
+	 * @param int  $attachment_id Attachment ID.
+	 * @param bool $unfiltered    Ignored.
+	 * @return string|false
+	 */
+	function get_attached_file( $attachment_id, $unfiltered = false ) {
+		unset( $unfiltered );
+		$files = $GLOBALS['sakura_test_attached_files'] ?? array();
+		return $files[ $attachment_id ] ?? '';
 	}
 }
 

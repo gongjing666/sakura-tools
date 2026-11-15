@@ -28,6 +28,23 @@ final class ErrorMapperTest extends TestCase {
 	}
 
 	/**
+	 * A path-style request against a virtual-host-only service, or a bucket in
+	 * another region, is an endpoint problem rather than a credential one: the
+	 * message has to say so, otherwise the operator edits the key again.
+	 */
+	public function test_endpoint_mismatch_codes(): void {
+		$this->assertSame( 'sakura_s3_endpoint_mismatch', Error_Mapper::code_for( 'PathStyleDomainForbidden' ) );
+		$this->assertSame( 'sakura_s3_endpoint_mismatch', Error_Mapper::code_for( 'PermanentRedirect' ) );
+		$this->assertSame( 'sakura_s3_endpoint_mismatch', Error_Mapper::code_for( 'AuthorizationHeaderMalformed' ) );
+
+		$message = Error_Mapper::message_for( 'PathStyleDomainForbidden', '连接测试' );
+		$this->assertStringContainsString( '连接测试', $message );
+		$this->assertStringContainsString( 'PathStyleDomainForbidden', $message );
+		$this->assertStringContainsString( '服务地址', $message );
+		$this->assertStringNotContainsString( 'Access Key', $message );
+	}
+
+	/**
 	 * Messages name the operation and AWS code, without secrets.
 	 */
 	public function test_message_and_wp_error(): void {

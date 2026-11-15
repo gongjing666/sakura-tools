@@ -43,6 +43,10 @@ final class Error_Mapper {
 			case 'EntityTooLarge':
 			case 'MethodNotAllowed':
 				return 'sakura_s3_rejected';
+			case 'PathStyleDomainForbidden':
+			case 'PermanentRedirect':
+			case 'AuthorizationHeaderMalformed':
+				return 'sakura_s3_endpoint_mismatch';
 			default:
 				return 'sakura_s3_error';
 		}
@@ -85,6 +89,13 @@ final class Error_Mapper {
 				break;
 			case 'EntityTooLarge':
 				$reason = __( '对象超过服务端大小限制', 'sakura-imgopt' );
+				break;
+			case 'PathStyleDomainForbidden':
+				$reason = __( '服务商要求用存储桶域名访问，请把服务地址换成控制台给出的 S3 Endpoint，不要填管理 API 地址', 'sakura-imgopt' );
+				break;
+			case 'PermanentRedirect':
+			case 'AuthorizationHeaderMalformed':
+				$reason = __( '存储桶实际所在地域与服务地址不一致，请按服务商给出的地域改写服务地址', 'sakura-imgopt' );
 				break;
 		}
 

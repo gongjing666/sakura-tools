@@ -29,23 +29,58 @@ final class Connection_Tester {
 				)
 			);
 		}
+		$options = $this->options->all();
+
 		try {
-			$options = $this->options->all();
-			Client_Factory::make( $options )->headBucket( array( 'Bucket' => (string) $options['bucket'] ) );
-			$this->redirect( array( 'tested' => '1' ) );
+			$client = Client_Factory::make( $options );
 		} catch ( \Throwable $e ) {
 			Log::write( __( '连接测试失败：', 'sakura-imgopt' ) . $e->getMessage() );
 			$this->redirect(
 				array(
 					'tested'  => '0',
-					'message' => __( '连接失败，请检查服务商、地域、Endpoint、存储桶和凭据。详细错误仅在 WP_DEBUG 日志中记录。', 'sakura-imgopt' ),
+					'message' => $e->getMessage(),
 				)
 			);
 		}
+
+		/*
+		 * The probe names the real cause (dead Access Key, missing bucket,
+		 * blocked endpoint) instead of the generic "check everything" line the
+		 * old test printed, which sent operators hunting through settings that
+		 * were fine. Report the message whatever the outcome: a bucket that
+		 * refuses HEAD but allows listing is still usable for uploads.
+		 */
+		$probe = Connection_Probe::diagnose(
+			$client,
+			(string) $options['bucket'],
+			array( (string) ( $options['key'] ?? '' ), (string) ( $options['secret'] ?? '' ) )
+		);
+
+		if ( ! $probe['ok'] ) {
+			Log::write( __( '连接测试失败：', 'sakura-imgopt' ) . $probe['message'] );
+			$this->redirect(
+				array(
+					'tested'  => '0',
+					'message' => $probe['message'],
+				)
+			);
+		}
+
+		if ( '' !== $probe['message'] ) {
+			Log::write( __( '连接测试提示：', 'sakura-imgopt' ) . $probe['message'] );
+			$this->redirect(
+				array(
+					'tested'  => '1',
+					'message' => $probe['message'],
+				)
+			);
+		}
+
+		$this->redirect( array( 'tested' => '1' ) );
 	}
 
 	/** Redirect to the S3 settings page; never returns. */
-	private function redirect( array $args = array() ): void {
+	private function redirect( array $args = array() ): never {
 		wp_safe_redirect( add_query_arg( array_merge( array( 'page' => S3_Storage_Module::MENU_SLUG ), $args ), admin_url( 'admin.php' ) ) );
 		exit;
 	}

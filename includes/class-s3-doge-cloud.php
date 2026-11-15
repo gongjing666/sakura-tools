@@ -17,9 +17,29 @@ class S3_Doge_Cloud {
 	private $access_key;
 	private $secret_key;
 
+	/**
+	 * 最近一次失败的原因，供上层原样展示给用户。
+	 *
+	 * 多吉云把错误写在响应体里（HTTP 仍是 200），此前只返回 false，
+	 * 上层只能显示一句「无法获取多吉云临时凭据」，用户看不出是
+	 * Access Key 格式错、签名错还是额度被停。
+	 *
+	 * @var string
+	 */
+	private $last_error = '';
+
 	public function __construct( $access_key, $secret_key ) {
 		$this->access_key = (string) $access_key;
 		$this->secret_key = (string) $secret_key;
+	}
+
+	/**
+	 * 最近一次失败原因；成功时为空串。
+	 *
+	 * @return string
+	 */
+	public function last_error() {
+		return $this->last_error;
 	}
 
 	/**
@@ -122,19 +142,82 @@ class S3_Doge_Cloud {
 	}
 
 	public function get_credentials() {
+		$response = $this->response();
+		if ( is_array( $response ) && ! empty( $response['data']['Credentials'] ) ) {
+			return $response['data']['Credentials'];
+		}
+		return false;
+	}
+
+	/**
+	 * 同一份响应里的存储空间列表。
+	 *
+	 * 凭据和 s3Bucket / s3Endpoint 出自同一个接口，此前只取 Credentials，
+	 * 把 Buckets 丢掉了，于是用户只能对着控制台里那个「空间名称」手抄两个
+	 * 长得完全不像它的值。这里把它读回来给表单做自动填充。
+	 *
+	 * @return array<int,array<string,mixed>>|false
+	 */
+	public function get_buckets() {
+		$response = $this->response();
+		if ( ! is_array( $response ) || ! isset( $response['data']['Buckets'] ) || ! is_array( $response['data']['Buckets'] ) ) {
+			return false;
+		}
+		return array_values( $response['data']['Buckets'] );
+	}
+
+	/**
+	 * 取一份成功响应：命中缓存就复用，否则重新请求并缓存。
+	 *
+	 * Access Key / Secret 错误时多吉云也返回 HTTP 200，错误体现在响应体的
+	 * code 字段上，所以这里必须连 code 一起判断，不能只看状态码。
+	 *
+	 * @return array|false
+	 */
+	private function response() {
 		$this->cleanup_legacy_cache();
+		$this->last_error = '';
 
 		$response = $this->get_cached_response();
 		if ( ! $response ) {
 			$response = $this->request_credentials();
-			if ( is_array( $response ) ) {
-				$this->cache_response( $response );
+			if ( ! is_array( $response ) ) {
+				$this->last_error = __( '多吉云接口没有返回可解析的响应，请稍后重试。', 'sakura-imgopt' );
+				return false;
 			}
+			if ( 200 !== (int) ( $response['code'] ?? 0 ) ) {
+				$this->last_error = $this->describe_failure( $response );
+				return false;
+			}
+			$this->cache_response( $response );
 		}
 
-		if ( is_array( $response ) && 200 === (int) ( $response['code'] ?? 0 ) && ! empty( $response['data']['Credentials'] ) ) {
-			return $response['data']['Credentials'];
+		return $response;
+	}
+
+	/**
+	 * 把多吉云的错误响应翻成一句可读的原因。
+	 *
+	 * @param array $response 已解码的响应体。
+	 * @return string
+	 */
+	private function describe_failure( array $response ) {
+		$message = trim( (string) ( $response['msg'] ?? '' ) );
+		$code    = (int) ( $response['code'] ?? 0 );
+
+		if ( '' === $message ) {
+			return (string) sprintf(
+				/* translators: %d: HTTP-like status code returned by 多吉云. */
+				__( '多吉云接口返回错误（code %d），请检查 Access Key 和 Secret Key。', 'sakura-imgopt' ),
+				$code
+			);
 		}
-		return false;
+
+		return (string) sprintf(
+			/* translators: 1: error message from 多吉云, 2: numeric code. */
+			__( '多吉云接口返回错误（code %2$d）：%1$s。请检查 Access Key 和 Secret Key。', 'sakura-imgopt' ),
+			$message,
+			$code
+		);
 	}
 }

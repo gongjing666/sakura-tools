@@ -104,6 +104,11 @@ namespace Sakura\Vendor\Aws\S3 {
 		public function headBucket( array $args ): array {
 			return $args;
 		}
+
+		/** @param array<string,mixed> $args @return array<string,mixed> */
+		public function listObjectsV2( array $args ): array {
+			return $args;
+		}
 	}
 }
 

@@ -10,6 +10,7 @@ namespace Sakura\ImageOptimizer;
 use Sakura\ImageOptimizer\Contracts\Module;
 use Sakura\ImageOptimizer\Oss\Html_Filter;
 use Sakura\ImageOptimizer\Support\Hook_Loader;
+use Sakura\ImageOptimizer\Thumbnail\Admin_Thumbnails;
 use Sakura\ImageOptimizer\Thumbnail\Context;
 use Sakura\ImageOptimizer\Thumbnail\Decorator;
 use Sakura\ImageOptimizer\Thumbnail\Probe;
@@ -67,6 +68,7 @@ class Thumbnail_Optimizer_Module implements Module {
 		$hooks->add_action( 'dynamic_sidebar_after', array( Context::class, 'pop' ), 1, 1 );
 
 		$hooks->add_filter( 'wp_get_attachment_image_src', array( Decorator::class, 'filter' ), 20, 4 );
+		$hooks->add_filter( 'image_downsize', array( Admin_Thumbnails::class, 'filter' ), 20, 3 );
 		$hooks->add_filter( 'wp_content_img_tag', array( Decorator::class, 'filter_content_image' ), 20, 3 );
 		$hooks->add_filter( 'sakura_imgopt_spare_thumb', array( Decorator::class, 'filter_spare_thumb' ), 20, 1 );
 		$hooks->add_filter( 'option_zibll_options', array( Theme_Bridge::class, 'filter_options' ), 20, 1 );

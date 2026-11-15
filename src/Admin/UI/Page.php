@@ -185,11 +185,16 @@ final class Page {
 		}
 		$value_id = isset( $status['id'] ) ? sanitize_key( (string) $status['id'] ) : '';
 		$sub_id   = isset( $status['sub_id'] ) ? sanitize_key( (string) $status['sub_id'] ) : '';
+		// 显示值可能被缩写（长存储桶 id），完整值留在 title 里，悬停即可核对。
+		$value_title = isset( $status['title'] ) ? (string) $status['title'] : '';
 
 		echo '<span class="status-card__line">';
 		echo '<strong class="status-card__value"';
 		if ( '' !== $value_id ) {
 			echo ' id="' . esc_attr( $value_id ) . '"';
+		}
+		if ( '' !== $value_title ) {
+			echo ' title="' . esc_attr( $value_title ) . '"';
 		}
 		echo '>' . esc_html( (string) ( $status['value'] ?? '' ) ) . '</strong>';
 		if ( ! empty( $status['unit'] ) ) {

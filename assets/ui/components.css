@@ -864,13 +864,30 @@
 
 /* Admin notices rendered outside a .sakura-admin page (media library, thumbnail
  * screens). The helper in Feedback::admin_notice_html() adds its own root so the
- * tokens apply; this only relaxes the page-root typography contract. */
+ * tokens apply; this only relaxes the page-root typography contract.
+ *
+ * It MUST also undo the page canvas from base.css: .sakura-admin carries
+ * min-height: calc(100vh - 32px), a negative top margin and four radial-gradient
+ * layers plus a ::before petal field. On a notice those rules are not styling,
+ * they are a box that pushes the real page 688px down the screen and swallows
+ * clicks on whatever sits under it. Everything below re-establishes "this is a
+ * one-line notice, laid out in normal flow" and nothing else. */
 .sakura-admin-notice-root {
+	position: static;
+	isolation: auto;
+	min-width: 0;
+	min-height: 0;
 	margin: 12px 20px 12px 2px;
+	padding: 0;
+	background: none;
 	color: var(--g-ink);
 	font-family: var(--g-font);
 	font-size: var(--g-fs-body);
 	line-height: var(--g-lh-body);
+}
+
+.sakura-admin-notice-root::before {
+	content: none;
 }
 
 .sakura-admin-notice-root .alert {

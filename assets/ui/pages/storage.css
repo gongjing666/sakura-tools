@@ -140,6 +140,158 @@
 	color: var(--g-bad);
 }
 
+/*
+ * Input + button on one line (the 多吉云 SDK resolver next to the bucket field).
+ * Inputs stretch to 100% by default, so the row has to give the button back
+ * its intrinsic width and let the input take whatever is left.
+ */
+.sakura-admin[data-sakura-page^="storage-"] .field__row {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--g-space-2);
+}
+
+.sakura-admin[data-sakura-page^="storage-"] .field__row .field__grow {
+	flex: 1 1 220px;
+	min-width: 0;
+	width: auto;
+}
+
+/*
+ * Every control sharing a line shares one border height. Inputs and selects are
+ * --g-ctl-h tall; the buttons beside them have to match that box instead of
+ * keeping their own height (--g-btn-h 36px, or the 30px of .btn--small), which
+ * left the 获取 SDK 参数 button 8px shorter than the bucket input it sits next to.
+ */
+.sakura-admin[data-sakura-page^="storage-"] .field__row .btn {
+	flex: 0 0 auto;
+	height: var(--g-ctl-h);
+	border-radius: var(--g-radius-sm);
+}
+
+/*
+ * The provider picker is a short control: cap it so the probe button sits right
+ * next to the select instead of being pushed to the far edge of a wide card.
+ */
+.sakura-admin[data-sakura-page^="storage-"] .field__row select.field__grow {
+	max-width: 360px;
+}
+
+/* Narrow screens: the row wraps, so let the button use the line it lands on. */
+@media (max-width: 600px) {
+	.sakura-admin[data-sakura-page^="storage-"] .field__row .btn {
+		flex: 1 1 100%;
+	}
+}
+
+/*
+ * Saved configs for the picked provider, directly under the 服务商 row.
+ * Clicking a chip only loads its values into the form; nothing is activated
+ * until 保存连接配置 is pressed, so the chips are deliberately quiet — they are
+ * a shortcut for retyping, not a second switcher.
+ */
+.sakura-admin[data-sakura-page^="storage-"] .profile-chips {
+	display: grid;
+	/* Sits inside .field-list, whose grid would otherwise clip it to half a row. */
+	grid-column: 1 / -1;
+	gap: var(--g-space-2);
+	margin-top: calc(-1 * var(--g-space-2));
+}
+
+.sakura-admin[data-sakura-page^="storage-"] .profile-chips__label {
+	color: var(--g-muted);
+	font-size: var(--g-fs-meta);
+}
+
+.sakura-admin[data-sakura-page^="storage-"] .profile-chips__list {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--g-space-2);
+}
+
+.sakura-admin[data-sakura-page^="storage-"] .profile-chip {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	gap: 1px;
+	max-width: 100%;
+	padding: 7px 12px;
+	border: 1px solid var(--g-line-strong);
+	border-radius: var(--g-radius-sm);
+	background: var(--g-card);
+	color: var(--g-ink);
+	font: inherit;
+	text-align: start;
+	cursor: pointer;
+}
+
+.sakura-admin[data-sakura-page^="storage-"] .profile-chip:hover {
+	border-color: var(--g-accent);
+}
+
+.sakura-admin[data-sakura-page^="storage-"] .profile-chip:focus-visible {
+	outline: 2px solid var(--g-accent);
+	outline-offset: 2px;
+}
+
+.sakura-admin[data-sakura-page^="storage-"] .profile-chip.is-loaded {
+	border-color: var(--g-accent);
+	background: var(--g-accent-soft);
+}
+
+.sakura-admin[data-sakura-page^="storage-"] .profile-chip__name {
+	font-size: 13px;
+	font-weight: 600;
+}
+
+.sakura-admin[data-sakura-page^="storage-"] .profile-chip__meta {
+	color: var(--g-muted);
+	font-size: var(--g-fs-meta);
+}
+
+/* Storage-space picker: one button per 多吉云 space, name over SDK bucket. */
+.sakura-admin[data-sakura-page^="storage-"] .doge-spaces {
+	display: grid;
+	gap: var(--g-space-2);
+	margin-top: var(--g-space-2);
+}
+
+.sakura-admin[data-sakura-page^="storage-"] .doge-space {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	gap: 2px;
+	width: 100%;
+	padding: var(--g-space-2) var(--g-space-3);
+	border: 1px solid var(--g-line-strong);
+	border-radius: var(--g-radius-sm);
+	background: var(--g-card);
+	color: var(--g-ink);
+	font: inherit;
+	text-align: start;
+	cursor: pointer;
+}
+
+.sakura-admin[data-sakura-page^="storage-"] .doge-space:hover {
+	background: var(--g-wash);
+}
+
+.sakura-admin[data-sakura-page^="storage-"] .doge-space:focus-visible {
+	outline: 2px solid var(--g-accent);
+	outline-offset: 2px;
+}
+
+.sakura-admin[data-sakura-page^="storage-"] .doge-space__name {
+	font-weight: 600;
+}
+
+.sakura-admin[data-sakura-page^="storage-"] .doge-space__hint {
+	color: var(--g-muted);
+	font-size: var(--g-fs-meta);
+	word-break: break-all;
+}
+
 /* Upload throughput + monitoring cards. */
 .sakura-admin[data-sakura-page="storage-connection"] .metrics-panel {
 	display: grid;
@@ -163,8 +315,21 @@
 	grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
 }
 
+/*
+ * The last-error block is a text panel, not a statistic: it has to fill the row
+ * no matter how many columns auto-fit produced (2 at 1440, 3 at 1920, 4 at
+ * 1100). "span 2" only lined up at the widths that happened to give 2 columns.
+ */
 .sakura-admin[data-sakura-page="storage-connection"] .kpi--wide {
-	grid-column: span 2;
+	grid-column: 1 / -1;
+}
+
+.sakura-admin[data-sakura-page="storage-connection"] .kpi__value--text {
+	font-size: 13.5px;
+	font-weight: 600;
+	line-height: 1.55;
+	word-break: break-word;
+	overflow-wrap: anywhere;
 }
 
 .sakura-admin[data-sakura-page="storage-connection"] .kpi--bad .kpi__value {
@@ -1057,16 +1222,46 @@
 	}
 }
 
+/* --------------------------------------------------- connection page grid */
+
+/*
+ * 连接设置 is by far the tallest card on this screen while 上传行为 and
+ * 上传吞吐 are short. Sharing one grid row stretches all three to the
+ * tallest card (the grid uses align-items: stretch), which is where the
+ * large empty band under the short cards came from. The two short cards
+ * therefore share a stack of their own: each keeps its content height, and
+ * 连接设置 spans both rows in the left column.
+ */
+.sakura-admin[data-sakura-page^="storage-"] .card-grid > .card-stack {
+	grid-row: 2;
+	grid-column: 7 / span 6;
+	display: flex;
+	flex-direction: column;
+	gap: var(--g-grid-gap-y);
+	align-self: start;
+	min-width: 0;
+}
+
+.sakura-admin[data-sakura-page^="storage-"] .card-grid > .card[data-sakura-card="connection"] {
+	grid-row: 2 / span 2;
+}
+
 /* --------------------------------------------------------------- responsive */
 
 @media (max-width: 1100px) {
+	.sakura-admin[data-sakura-page^="storage-"] .card-grid > .card-stack {
+		grid-row: auto;
+		grid-column: auto;
+		gap: 16px;
+	}
+
+	.sakura-admin[data-sakura-page^="storage-"] .card-grid > .card[data-sakura-card="connection"] {
+		grid-row: auto;
+	}
+
 	.sakura-admin[data-sakura-page="storage-connection"] .monitor-grid,
 	.sakura-admin[data-sakura-page="storage-connection"] .monitor-fields {
 		grid-template-columns: minmax(0, 1fr);
-	}
-
-	.sakura-admin[data-sakura-page="storage-connection"] .kpi--wide {
-		grid-column: auto;
 	}
 
 	.sakura-admin[data-sakura-page="storage-sync"] .task-stats {

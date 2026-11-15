@@ -58,12 +58,13 @@ final class Layout {
 	 */
 	public const PAGES = array(
 		's3' => array(
-			'order' => array( 'profiles', 'connection', 'behaviour', 'test', 'upload-metrics', 'monitoring' ),
+			'order' => array( 'profiles', 'connection', 'behaviour', 'upload-metrics', 'monitoring' ),
 			'cards' => array(
 				'profiles' => array( 1, 1, 12 ),
+				// Tallest card on the screen: it owns the left column for both rows.
+				// The row span itself lives in assets/ui/pages/storage.css.
 				'connection' => array( 2, 1, 6 ),
 				'behaviour' => array( 2, 7, 6 ),
-				'test' => array( 3, 1, 6 ),
 				'upload-metrics' => array( 3, 7, 6 ),
 				'monitoring' => array( 4, 1, 12 ),
 			),

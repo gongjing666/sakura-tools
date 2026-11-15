@@ -167,8 +167,21 @@
 		}
 	};
 
+	/*
+	 * The page root, not merely the first .sakura-admin on the screen.
+	 *
+	 * Admin notices render through admin_notices, i.e. BEFORE the page markup,
+	 * and their wrapper carries .sakura-admin so the media library and thumbnail
+	 * screens (which have no page root) still get the design tokens. A plain
+	 * qs( '.sakura-admin' ) therefore returned a one-line notice, and every page
+	 * controller that checks data-sakura-page on it bailed out before binding a
+	 * single handler — the sync center's buttons and chips went dead while the
+	 * notice's page-level canvas rules painted a 688px band of empty space.
+	 * Prefer a root that is actually a page root; fall back to any root so
+	 * token-only screens keep working.
+	 */
 	function root() {
-		return qs( '.sakura-admin' );
+		return qs( '.sakura-admin[data-sakura-page]' ) || qs( '.sakura-admin' );
 	}
 
 	/*

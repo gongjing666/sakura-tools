@@ -111,12 +111,14 @@ final class OptionsTest extends TestCase {
 				'active_profile_id' => 'prof_cloud',
 				'profiles'          => array(
 					'prof_cloud' => array(
-						'name'     => '主站图床',
-						'provider' => 'cloudflare',
-						'bucket'   => 'saved-bucket',
-						'endpoint' => 'https://saved.example.com',
-						'key'      => $key,
-						'secret'   => $secret,
+						'name'            => '主站图床',
+						'provider'        => 'cloudflare',
+						'bucket'          => 'saved-bucket',
+						'endpoint'        => 'https://saved.example.com',
+						'key'             => $key,
+						'secret'          => $secret,
+						'upload_path'     => 'media/uploads',
+						'upload_url_path' => 'https://cdn.example.com/media/uploads',
 					),
 					'prof_minio' => array(
 						'provider' => 'minio',
@@ -137,6 +139,10 @@ final class OptionsTest extends TestCase {
 		$this->assertSame( 'saved-bucket', $profiles['prof_cloud']['bucket'] );
 		$this->assertSame( '主站图床', $profiles['prof_cloud']['name'] );
 		$this->assertTrue( $profiles['prof_minio']['complete'] );
+		// The connection card loads a saved config back into its form, so the two
+		// path fields have to travel with the metadata — credentials must not.
+		$this->assertSame( 'media/uploads', $profiles['prof_cloud']['upload_path'] );
+		$this->assertSame( 'https://cdn.example.com/media/uploads', $profiles['prof_cloud']['upload_url_path'] );
 		$this->assertArrayNotHasKey( 'key', $profiles['prof_cloud'] );
 		$this->assertArrayNotHasKey( 'secret', $profiles['prof_cloud'] );
 	}
@@ -222,6 +228,53 @@ final class OptionsTest extends TestCase {
 		$this->assertTrue( $rebuilt->is_configured() );
 		$this->assertSame( 'old-bucket', $rebuilt->all()['bucket'] );
 		$this->assertSame( 'profile-key', $rebuilt->all()['key'], 'The rebuilt options decrypt the profile credentials.' );
+	}
+
+	/**
+	 * Profiles saved before the space key existed only carry it on their own
+	 * record. The active profile has to answer for them, otherwise every screen
+	 * keeps printing the 40-character s3Bucket.
+	 */
+	public function test_space_falls_back_to_the_active_profile(): void {
+		$options = new Options(
+			array(
+				'provider'          => 'dogecloud',
+				'bucket'            => 'doss-v2-328e5d1039000fe8-1258813047',
+				'active_profile_id' => 'prof_doge',
+				'profiles'          => array(
+					'prof_doge' => array(
+						'provider' => 'dogecloud',
+						'bucket'   => 'doss-v2-328e5d1039000fe8-1258813047',
+						'space'    => 'nboke',
+					),
+				),
+			)
+		);
+
+		$this->assertSame( 'nboke', $options->space() );
+	}
+
+	public function test_space_prefers_the_top_level_value(): void {
+		$options = new Options(
+			array(
+				'space'             => 'demo',
+				'active_profile_id' => 'prof_doge',
+				'profiles'          => array(
+					'prof_doge' => array(
+						'provider' => 'dogecloud',
+						'space'    => 'nboke',
+					),
+				),
+			)
+		);
+
+		$this->assertSame( 'demo', $options->space() );
+	}
+
+	public function test_space_is_empty_without_any_profile_value(): void {
+		$options = new Options( array( 'profiles' => array() ) );
+
+		$this->assertSame( '', $options->space() );
 	}
 
 	/**

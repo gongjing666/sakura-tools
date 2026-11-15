@@ -26,6 +26,19 @@
 		} );
 	}
 
+	/**
+	 * Shorten a long bucket id the way the PHP side does, so the chip, the card
+	 * and the status line all read the same. Full value stays in title.
+	 */
+	function shortBucket( bucket ) {
+		var value = String( bucket === undefined || bucket === null ? '' : bucket );
+		if ( value.length <= 22 ) {
+			return value;
+		}
+
+		return value.slice( 0, 8 ) + '\u2026' + value.slice( -4 );
+	}
+
 	function errorText( error, fallback ) {
 		var payload = error && error.payload ? error.payload : null;
 		if ( payload && payload.data && payload.data.message ) {
@@ -340,6 +353,483 @@
 		}
 	}
 
+	/**
+	 * Saved configs for the provider currently picked, as one-click chips.
+	 *
+	 * Loading a chip is deliberately inert: it only fills the fields already on
+	 * screen (and the hidden profile_id, so the save writes to that entry) and
+	 * never posts, never switches the active profile and never touches the
+	 * stored option. The operator still has to press 保存连接配置, which is what
+	 * keeps this from becoming a second, silent switcher next to the
+	 * 已保存的配置 card.
+	 */
+	function initProviderProfiles( root ) {
+		var select = admin.qs( '[data-sakura-provider-select]', root );
+		var wrap   = admin.qs( '[data-sakura-provider-profiles]', root );
+		var list   = admin.qs( '[data-sakura-provider-profile-list]', root );
+		var form   = admin.qs( '#sakura-s3-connection-form', root );
+		var profiles = config.profiles || [];
+		if ( ! select || ! wrap || ! list || ! form ) {
+			return;
+		}
+
+		var idField = admin.qs( 'input[name="profile_id"]', form );
+		var loaded  = '';
+
+		function field( id ) {
+			return document.getElementById( id );
+		}
+
+		function setValue( id, value ) {
+			var node = field( id );
+			if ( node ) {
+				node.value = value;
+			}
+		}
+
+		/*
+		 * Remember which bucket the space name belongs to, so that editing the
+		 * bucket by hand clears a name that no longer applies instead of
+		 * relabelling the new target with the old space.
+		 */
+		function setSpace( value, bucket ) {
+			var node = field( 'sakura-s3-space' );
+			if ( ! node ) {
+				return;
+			}
+			node.value = value || '';
+			if ( node.value && bucket ) {
+				node.dataset.bucket = String( bucket );
+			} else {
+				delete node.dataset.bucket;
+			}
+		}
+
+		/*
+		 * Credentials are never sent to the browser, so a loaded config keeps the
+		 * secret fields blank — save() reads that as "keep what this profile
+		 * already has" and leaves the stored ciphertext alone.
+		 */
+		function load( profile ) {
+			var provider = field( 'sakura-s3-provider' );
+			if ( provider && profile.provider && provider.value !== profile.provider ) {
+				provider.value = profile.provider;
+				// Re-run the per-provider hints through their own change handler.
+				provider.dispatchEvent( new window.Event( 'change', { bubbles: true } ) );
+			}
+			setValue( 'sakura-s3-bucket', profile.bucket || '' );
+			setSpace( profile.space || '', profile.bucket || '' );
+			setValue( 'sakura-s3-region', profile.region || '' );
+			setValue( 'sakura-s3-endpoint', profile.endpoint || '' );
+			setValue( 'sakura-s3-profile-name', profile.name || '' );
+			setValue( 'sakura-s3-path', profile.upload_path || '' );
+			setValue( 'sakura-s3-url', profile.upload_url_path || '' );
+
+			var key    = field( 'sakura-s3-key' );
+			var secret = field( 'sakura-s3-secret' );
+			if ( key ) {
+				key.value = '';
+			}
+			if ( secret ) {
+				secret.value = '';
+			}
+
+			if ( idField ) {
+				idField.value = profile.id || '';
+			}
+
+			var saveAsNew = admin.qs( 'input[name="save_as_new"]', form );
+			if ( saveAsNew ) {
+				saveAsNew.checked = false;
+			}
+
+			loaded = profile.id || '';
+			render();
+			admin.ui.toast( strings.profileLoadedKey || '', 'info' );
+		}
+
+		function render() {
+			var provider = select.value;
+			var matches  = profiles.filter( function ( profile ) {
+				return profile.saved && profile.provider === provider;
+			} );
+
+			list.textContent = '';
+			if ( ! matches.length ) {
+				wrap.hidden = true;
+				return;
+			}
+
+			matches.forEach( function ( profile ) {
+				var chip = document.createElement( 'button' );
+				chip.type = 'button';
+				chip.className = 'profile-chip' + ( profile.id === loaded ? ' is-loaded' : '' );
+				chip.setAttribute( 'role', 'listitem' );
+				chip.title = profile.bucket || '';
+
+				var name = document.createElement( 'span' );
+				name.className = 'profile-chip__name';
+				name.textContent = profile.name || profile.id;
+				chip.appendChild( name );
+
+				/*
+				 * Space name when the provider reports one (DogeCloud), otherwise the
+				 * shortened bucket: a 40-character id is unreadable at chip size.
+				 */
+				var meta = document.createElement( 'span' );
+				meta.className = 'profile-chip__meta';
+				meta.textContent = profile.space || shortBucket( profile.bucket ) || profile.endpoint || '';
+				chip.appendChild( meta );
+
+				chip.addEventListener( 'click', function () {
+					load( profile );
+				} );
+
+				list.appendChild( chip );
+			} );
+
+			wrap.hidden = false;
+		}
+
+		admin.on( select, 'change', render );
+		render();
+	}
+
+	/**
+	 * Drop the remembered space name as soon as the bucket stops being the one
+	 * it described.
+	 *
+	 * The name belongs to exactly one s3Bucket: keeping it while the operator
+	 * pastes a different bucket would label the new target with the old space,
+	 * and the status card would lie about where uploads go. Typing the bucket
+	 * by hand therefore clears it, while loading a saved config or pressing
+	 * 获取 SDK 参数 sets both together.
+	 */
+	function initSpaceTracking( root ) {
+		var bucket = admin.qs( '#sakura-s3-bucket', root );
+		var space  = admin.qs( '#sakura-s3-space', root );
+		if ( ! bucket || ! space ) {
+			return;
+		}
+
+		// The server renders the stored pair together; record it so the first
+		// keystroke in the bucket field can tell it apart from a fresh value.
+		if ( space.value && bucket.value ) {
+			space.dataset.bucket = bucket.value;
+		}
+
+		admin.on( bucket, 'input', function () {
+			// A chip load or a resolver fill records which bucket the name was
+			// captured for; once the field no longer holds that bucket the name
+			// describes nothing, so it goes away.
+			if ( space.value && space.dataset.bucket !== bucket.value ) {
+				space.value = '';
+				delete space.dataset.bucket;
+			}
+		} );
+	}
+
+	/**
+	 * Per-provider hints for bucket / region / endpoint.
+	 *
+	 * A provider's console names things differently from what the S3 endpoint
+	 * actually wants (多吉云 shows a storage-space name but the client needs
+	 * s3Bucket; its API host answers 404 because it is not an S3 endpoint), so
+	 * the copy follows the selection instead of only the saved value.
+	 */
+	function initProviderHints( root ) {
+		var select = admin.qs( '[data-sakura-provider-select]', root );
+		var hints  = config.hints || {};
+		if ( ! select ) {
+			return;
+		}
+
+		var fields = [
+			{ key: 'bucket', id: 'sakura-s3-bucket' },
+			{ key: 'region', id: 'sakura-s3-region' },
+			{ key: 'endpoint', id: 'sakura-s3-endpoint' }
+		];
+
+		function apply() {
+			var set = hints[ select.value ] || hints.default || {};
+			fields.forEach( function ( field ) {
+				var hint = document.getElementById( field.id + '-hint' );
+				if ( hint && set[ field.key ] ) {
+					hint.textContent = String( set[ field.key ] );
+				}
+			} );
+
+			/*
+			 * The bucket field is a custom control, so #id lands on the <input>
+			 * and the label is still emitted with for="#id" — relabel it here so
+			 * 多吉云 reads 存储空间名称 without a second hard-coded string.
+			 */
+			var label = admin.qs( 'label[for="sakura-s3-bucket"]', root );
+			if ( label && set.bucket_label ) {
+				label.textContent = String( set.bucket_label );
+			}
+
+			var endpoint = document.getElementById( 'sakura-s3-endpoint' );
+			if ( endpoint && set.placeholder ) {
+				endpoint.setAttribute( 'placeholder', String( set.placeholder ) );
+			}
+
+			/*
+			 * The resolver button only exists for 多吉云: everywhere else the row
+			 * stays a plain text field, and with no JavaScript driving it the
+			 * button stays hidden rather than appearing dead.
+			 */
+			var resolve = admin.qs( '[data-sakura-doge-resolve]', root );
+			if ( resolve ) {
+				resolve.hidden = 'dogecloud' !== select.value;
+			}
+		}
+
+		admin.on( select, 'change', apply );
+		apply();
+	}
+
+	/**
+	 * 多吉云 hands out an opaque s3Bucket and s3Endpoint that do not appear as
+	 * the storage-space name shown in its console, so copying them by hand is
+	 * both tedious and easy to get wrong. The resolver calls the account's
+	 * temporary-credential endpoint through admin-ajax and writes the pair back
+	 * into the form; the operator still has to press 保存连接配置, and nothing
+	 * here touches a stored profile.
+	 */
+	function initDogeResolve( root ) {
+		var button = admin.qs( '[data-sakura-doge-resolve]', root );
+		var modal  = admin.qs( '#sakura-s3-doge-modal', root );
+		if ( ! button || ! modal ) {
+			return;
+		}
+
+		var list = admin.qs( '[data-sakura-doge-spaces]', modal );
+		var dialog = null;
+		var pending = false;
+
+		function field( id ) {
+			return document.getElementById( id );
+		}
+
+		function fill( match ) {
+			if ( ! match ) {
+				return;
+			}
+			var bucket   = field( 'sakura-s3-bucket' );
+			var endpoint = field( 'sakura-s3-endpoint' );
+			var region   = field( 'sakura-s3-region' );
+			var space    = field( 'sakura-s3-space' );
+
+			if ( bucket && match.bucket ) {
+				bucket.value = String( match.bucket );
+			}
+			/*
+			 * The console name travels with the bucket: the 40-character s3Bucket is
+			 * what the SDK needs, but "nboke" is what the operator recognises, so it
+			 * is saved alongside and shown by the status and profile cards.
+			 */
+			if ( space ) {
+				space.value = match.space ? String( match.space ) : '';
+				if ( space.value && match.bucket ) {
+					space.dataset.bucket = String( match.bucket );
+				} else {
+					delete space.dataset.bucket;
+				}
+			}
+			if ( endpoint && match.endpoint ) {
+				endpoint.value = String( match.endpoint );
+			}
+			if ( region && match.region ) {
+				region.value = String( match.region );
+			}
+		}
+
+		function choice( entry ) {
+			var button = document.createElement( 'button' );
+			button.type = 'button';
+			button.className = 'doge-space';
+
+			var name = document.createElement( 'span' );
+			name.className = 'doge-space__name';
+			name.textContent = String( entry.space );
+
+			var hint = document.createElement( 'span' );
+			hint.className = 'doge-space__hint';
+			hint.textContent = String( entry.bucket );
+
+			button.appendChild( name );
+			button.appendChild( hint );
+			admin.on( button, 'click', function () {
+				fill( entry );
+				if ( dialog ) {
+					dialog.close();
+					dialog = null;
+				}
+				admin.ui.toast( strings.dogeFilled || '', 'ok' );
+			} );
+
+			return button;
+		}
+
+		/*
+		 * A space is identified by the name the operator types, so the picker
+		 * only exists for the awkward case: several spaces and no name to
+		 * disambiguate them. One match is written straight back.
+		 */
+		function show( result ) {
+			if ( 'choose' !== result.code || ! list ) {
+				if ( result.match ) {
+					fill( result.match );
+					admin.ui.toast( strings.dogeFilled || result.message || '', 'ok' );
+				} else if ( result.message ) {
+					admin.ui.toast( String( result.message ), 'warn', { duration: 0 } );
+				}
+				return;
+			}
+
+			while ( list.firstChild ) {
+				list.removeChild( list.firstChild );
+			}
+			( result.choices || [] ).forEach( function ( entry ) {
+				list.appendChild( choice( entry ) );
+			} );
+
+			dialog = admin.ui.openModal( modal, button );
+		}
+
+		function request() {
+			var key    = field( 'sakura-s3-key' );
+			var secret = field( 'sakura-s3-secret' );
+			var space  = field( 'sakura-s3-bucket' );
+
+			pending = true;
+			admin.ui.busy( button, true );
+
+			return admin.api.ajax(
+				'sakura_s3_doge_buckets',
+				{
+					_ajax_nonce: strings.dogeNonce || '',
+					space: space ? space.value : '',
+					key: key ? key.value : '',
+					secret: secret ? secret.value : ''
+				},
+				{ timeout: 20000 }
+			).then( show ).catch( function ( error ) {
+				admin.ui.toast( errorText( error, strings.dogeFailed || '' ), 'bad', { duration: 0 } );
+			} ).finally( function () {
+				pending = false;
+				admin.ui.busy( button, false );
+			} );
+		}
+
+		/*
+		 * The button stays usable: a 多吉云 account can add a space between two
+		 * attempts, and busy() already blocks a double click while the request
+		 * is in flight.
+		 */
+		admin.on( button, 'click', function () {
+			if ( pending ) {
+				return;
+			}
+			request();
+		} );
+	}
+
+	/*
+	 * Pre-save probe. The card can only report a verdict after a profile
+	 * exists, which costs a save, a failed upload and a cleanup when the
+	 * endpoint is mistyped, so this button tests the values currently in the
+	 * form: admin-ajax runs the same probe the save path uses and hands back
+	 * the provider's own error code. Blank credentials fall back to the saved
+	 * pair on the server, matching the "留空保持不变" placeholders.
+	 */
+	function initProbe( root ) {
+		var button = admin.qs( '#sakura-s3-test-connection', root );
+		var modal  = admin.qs( '#sakura-s3-probe-modal', root );
+		if ( ! button || ! modal ) {
+			return;
+		}
+
+		var icon      = admin.qs( '.sakura-modal__icon', modal );
+		var titleNode = admin.qs( '[data-sakura-modal-focus]', modal );
+		var descNode  = admin.qs( '.sakura-modal__desc, [id$="-desc"]', modal );
+		var pending   = false;
+
+		/* Same shapes Field_View::select() draws, so the chip keeps its tone. */
+		var ICONS = {
+			ok: '<path d="M5 12.5 9.5 17 19 7"/>',
+			bad: '<path d="M7 7l10 10M17 7 7 17"/>',
+			warn: '<path d="M12 4.5 21 19.5H3L12 4.5Z"/><path d="M12 10v4.2"/><path d="M12 17.1v.1"/>'
+		};
+
+		function field( id ) {
+			return document.getElementById( id );
+		}
+
+		function value( id ) {
+			var node = field( id );
+			return node ? node.value : '';
+		}
+
+		function paint( tone, heading, message ) {
+			if ( icon ) {
+				icon.className = 'sakura-modal__icon sakura-modal__icon--' + tone;
+				icon.innerHTML = '<svg viewBox="0 0 24 24" width="25" height="25" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">' + ( ICONS[ tone ] || ICONS.warn ) + '</svg>';
+			}
+			if ( titleNode ) {
+				titleNode.textContent = String( heading );
+			}
+			if ( descNode ) {
+				descNode.textContent = String( message );
+				descNode.hidden = '' === String( message );
+			}
+		}
+
+		function show( result ) {
+			var ok = result && result.ok;
+			paint(
+				ok ? 'ok' : 'bad',
+				ok ? ( strings.probeTitleOk || '' ) : ( strings.probeTitleBad || '' ),
+				( result && result.message ) || ( ok ? ( strings.probeOk || '' ) : ( strings.probeFailed || '' ) )
+			);
+			admin.ui.openModal( modal, button );
+		}
+
+		function request() {
+			var provider = admin.qs( '[data-sakura-provider-select]', root );
+
+			pending = true;
+			admin.ui.busy( button, true );
+
+			return admin.api.ajax(
+				'sakura_s3_probe_connection',
+				{
+					_ajax_nonce: strings.probeNonce || '',
+					provider: provider ? provider.value : '',
+					bucket: value( 'sakura-s3-bucket' ),
+					region: value( 'sakura-s3-region' ),
+					endpoint: value( 'sakura-s3-endpoint' ),
+					key: value( 'sakura-s3-key' ),
+					secret: value( 'sakura-s3-secret' )
+				},
+				{ timeout: 30000 }
+			).then( show ).catch( function ( error ) {
+				paint( 'bad', strings.probeTitleBad || '', errorText( error, strings.probeFailed || '' ) );
+				admin.ui.openModal( modal, button );
+			} ).finally( function () {
+				pending = false;
+				admin.ui.busy( button, false );
+			} );
+		}
+
+		admin.on( button, 'click', function () {
+			if ( pending ) {
+				return;
+			}
+			request();
+		} );
+	}
 	admin.ready( function () {
 		var root = admin.root();
 		if ( ! root ) {
@@ -348,5 +838,10 @@
 		initAddProfile( root );
 		initMetrics( root );
 		initConfigDialog( root );
+		initDogeResolve( root );
+		initProbe( root );
+		initProviderHints( root );
+		initProviderProfiles( root );
+		initSpaceTracking( root );
 	} );
 }( window, document ) );

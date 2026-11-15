@@ -64,7 +64,7 @@ final class Profile_Manager {
 			$upload_path = Options::DEFAULT_UPLOAD_PATH;
 		}
 
-		foreach ( array( 'bucket', 'region', 'endpoint', 'key', 'secret', 'object_acl', 'upload_url_path' ) as $field ) {
+		foreach ( array( 'bucket', 'space', 'region', 'endpoint', 'key', 'secret', 'object_acl', 'upload_url_path' ) as $field ) {
 			if ( array_key_exists( $field, $profile ) ) {
 				$raw[ $field ] = $profile[ $field ];
 			}

@@ -99,6 +99,7 @@ class Options {
 			'enabled'         => 'false',
 			'provider'        => 'cloudflare',
 			'bucket'          => '',
+			'space'           => '',
 			'region'          => 'us-east-1',
 			'endpoint'        => '',
 			'key'             => '',
@@ -255,9 +256,10 @@ class Options {
 			$id       = (string) $id;
 			$provider = (string) ( $profile['provider'] ?? '' );
 			$label    = $labels[ $provider ] ?? $provider;
+			$space    = (string) ( $profile['space'] ?? '' );
 			$name     = trim( (string) ( $profile['name'] ?? '' ) );
 			if ( '' === $name ) {
-				$name = self::default_profile_name( $provider, (string) ( $profile['bucket'] ?? '' ) );
+				$name = self::default_profile_name( $provider, (string) ( $profile['bucket'] ?? '' ), $space );
 			}
 
 			$key    = isset( $profile['key'] ) && is_string( $profile['key'] ) ? $profile['key'] : '';
@@ -284,12 +286,19 @@ class Options {
 				'provider' => $provider,
 				'label'    => $label,
 				'bucket'   => (string) ( $profile['bucket'] ?? '' ),
-				'endpoint' => (string) ( $profile['endpoint'] ?? '' ),
-				'region'   => (string) ( $profile['region'] ?? '' ),
-				'saved'    => $saved,
-				'complete' => $valid,
-				'active'   => $id === $active,
-				'saved_at' => (int) ( $profile['saved_at'] ?? 0 ),
+				// 控制台里的空间名（多吉云 nboke/demo）。展示层用它称呼这份配置，
+				// 而不是拿 40 位的 s3Bucket 当名字。
+				'space'           => $space,
+				'endpoint'        => (string) ( $profile['endpoint'] ?? '' ),
+				'region'          => (string) ( $profile['region'] ?? '' ),
+				'saved'           => $saved,
+				'complete'        => $valid,
+				'active'          => $id === $active,
+				'saved_at'        => (int) ( $profile['saved_at'] ?? 0 ),
+				// Paths are part of what the connection form shows, so the picker's
+				// "load this config into the form" needs them too. Still no credentials.
+				'upload_path'     => (string) ( $profile['upload_path'] ?? '' ),
+				'upload_url_path' => (string) ( $profile['upload_url_path'] ?? '' ),
 			);
 		}
 
@@ -336,10 +345,14 @@ class Options {
 	 *
 	 * @param string $provider Provider.
 	 * @param string $bucket   Bucket.
+	 * @param string $space    Storage space name reported by the provider, when it has one.
 	 */
-	public static function default_profile_name( string $provider, string $bucket ): string {
+	public static function default_profile_name( string $provider, string $bucket, string $space = '' ): string {
 		$label = Providers::all()[ $provider ] ?? $provider;
-		return trim( $label . ( '' !== $bucket ? ' · ' . $bucket : '' ) );
+		// 优先用控制台里那个名字：多吉云的 s3Bucket 是一串 40 位 id，看不出是哪个空间。
+		$shown = '' !== trim( $space ) ? trim( $space ) : $bucket;
+
+		return trim( $label . ( '' !== $shown ? ' · ' . $shown : '' ) );
 	}
 
 	/**
@@ -368,6 +381,7 @@ class Options {
 				'name'            => self::default_profile_name( $provider, $bucket ),
 				'provider'        => $provider,
 				'bucket'          => $bucket,
+				'space'           => (string) ( $saved['space'] ?? '' ),
 				'region'          => (string) ( $saved['region'] ?? 'us-east-1' ),
 				'endpoint'        => $endpoint,
 				'key'             => $key,
@@ -400,7 +414,7 @@ class Options {
 				$profile['id']       = $id;
 				$profile['provider'] = (string) ( $profile['provider'] ?? (string) $key_id );
 				if ( '' === trim( (string) ( $profile['name'] ?? '' ) ) ) {
-					$profile['name'] = self::default_profile_name( $profile['provider'], (string) ( $profile['bucket'] ?? '' ) );
+					$profile['name'] = self::default_profile_name( $profile['provider'], (string) ( $profile['bucket'] ?? '' ), (string) ( $profile['space'] ?? '' ) );
 				}
 				$migrated[ $id ] = $profile;
 			}
@@ -569,6 +583,29 @@ class Options {
 	 */
 	public function upload_path(): string {
 		return self::resolve_upload_path( $this->options );
+	}
+
+	/**
+	 * Console space name for the active profile (DogeCloud `nboke`/`demo`).
+	 *
+	 * The top-level key is only written by a save, so profiles that were stored
+	 * before the space existed fall back to their own record. Without the
+	 * fallback the settings screen keeps printing the 40-character s3Bucket
+	 * until the user saves the form again, which looks like the fix never
+	 * shipped.
+	 */
+	public function space(): string {
+		$space = trim( (string) ( $this->options['space'] ?? '' ) );
+		if ( '' !== $space ) {
+			return $space;
+		}
+
+		$active = $this->active_profile_id();
+		if ( '' === $active ) {
+			return '';
+		}
+
+		return trim( (string) ( $this->profiles()[ $active ]['space'] ?? '' ) );
 	}
 
 	/**

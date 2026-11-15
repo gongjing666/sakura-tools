@@ -42,6 +42,48 @@ final class SettingsSaverTest extends TestCase {
 	}
 
 	/**
+	 * A form rendered before the space field existed posts nothing; that must
+	 * not erase the name the profile already remembers.
+	 */
+	public function test_missing_space_keeps_the_stored_name_for_the_same_bucket(): void {
+		$editing = array(
+			'bucket' => 'doss-v2-328e5d1039000fe8-1258813047',
+			'space'  => 'nboke',
+		);
+
+		$this->assertSame(
+			'nboke',
+			Settings_Saver::space_for_save( '', 'doss-v2-328e5d1039000fe8-1258813047', $editing )
+		);
+	}
+
+	/**
+	 * A different bucket is a different target: inheriting the old space name
+	 * would label it with a name that describes nothing.
+	 */
+	public function test_missing_space_is_dropped_when_the_bucket_changed(): void {
+		$editing = array(
+			'bucket' => 'doss-v2-old',
+			'space'  => 'nboke',
+		);
+
+		$this->assertSame( '', Settings_Saver::space_for_save( '', 'doss-v2-new', $editing ) );
+	}
+
+	public function test_submitted_space_wins(): void {
+		$editing = array(
+			'bucket' => 'doss-v2-old',
+			'space'  => 'nboke',
+		);
+
+		$this->assertSame( 'demo', Settings_Saver::space_for_save( 'demo', 'doss-v2-new', $editing ) );
+	}
+
+	public function test_missing_space_without_a_matching_profile_stays_empty(): void {
+		$this->assertSame( '', Settings_Saver::space_for_save( '', 'doss-v2-new', array() ) );
+	}
+
+	/**
 	 * Editing a profile without moving its target keeps the same id, so the
 	 * bucket's reconciliation records stay attached to it.
 	 */
@@ -57,16 +99,15 @@ final class SettingsSaverTest extends TestCase {
 
 		$this->assertSame(
 			'prof_live',
-			Settings_Saver::profile_id_for_save( $profiles, 'prof_live', false, 'bitiful', 'text-demo', 'https://s3.bitiful.net' )
+			Settings_Saver::profile_id_for_save( $profiles, 'prof_live', false )
 		);
 	}
 
 	/**
-	 * Renaming the bucket is a different target: a new id keeps the old
-	 * bucket's counts from showing up under the new name, and lets the old
-	 * records be deleted along with the old config.
+	 * Changing the bucket keeps the id: the profile is edited in place, and
+	 * save() drops the previous target's reconciliation rows for it.
 	 */
-	public function test_changing_the_bucket_starts_a_new_profile(): void {
+	public function test_changing_the_bucket_updates_the_same_profile(): void {
 		$profiles = array(
 			'prof_live' => array(
 				'id'       => 'prof_live',
@@ -76,13 +117,15 @@ final class SettingsSaverTest extends TestCase {
 			),
 		);
 
-		$id = Settings_Saver::profile_id_for_save( $profiles, 'prof_live', false, 'bitiful', 'text-demo-2', 'https://s3.bitiful.net' );
-
-		$this->assertNotSame( 'prof_live', $id );
-		$this->assertStringStartsWith( 'prof_', $id );
+		$this->assertSame( 'prof_live', Settings_Saver::profile_id_for_save( $profiles, 'prof_live', false ) );
 	}
 
-	public function test_changing_the_provider_or_endpoint_starts_a_new_profile(): void {
+	/**
+	 * The provider and endpoint no longer take part in the decision: loading a
+	 * different saved config in the connection card, fixing its endpoint and
+	 * saving must not leave a third copy behind.
+	 */
+	public function test_changing_the_provider_or_endpoint_updates_the_same_profile(): void {
 		$profiles = array(
 			'prof_live' => array(
 				'id'       => 'prof_live',
@@ -92,14 +135,7 @@ final class SettingsSaverTest extends TestCase {
 			),
 		);
 
-		$this->assertNotSame(
-			'prof_live',
-			Settings_Saver::profile_id_for_save( $profiles, 'prof_live', false, 'cloudflare', 'text-demo', 'https://s3.bitiful.net' )
-		);
-		$this->assertNotSame(
-			'prof_live',
-			Settings_Saver::profile_id_for_save( $profiles, 'prof_live', false, 'bitiful', 'text-demo', 'https://example.com' )
-		);
+		$this->assertSame( 'prof_live', Settings_Saver::profile_id_for_save( $profiles, 'prof_live', false ) );
 	}
 
 	/**
@@ -117,7 +153,7 @@ final class SettingsSaverTest extends TestCase {
 
 		$this->assertNotSame(
 			'prof_live',
-			Settings_Saver::profile_id_for_save( $profiles, 'prof_live', true, 'bitiful', 'text-demo', 'https://s3.bitiful.net' )
+			Settings_Saver::profile_id_for_save( $profiles, 'prof_live', true )
 		);
 	}
 
@@ -128,7 +164,7 @@ final class SettingsSaverTest extends TestCase {
 	public function test_unknown_submitted_id_starts_a_new_profile(): void {
 		$this->assertNotSame(
 			'prof_gone',
-			Settings_Saver::profile_id_for_save( array(), 'prof_gone', false, 'bitiful', 'text-demo', '' )
+			Settings_Saver::profile_id_for_save( array(), 'prof_gone', false )
 		);
 	}
 }

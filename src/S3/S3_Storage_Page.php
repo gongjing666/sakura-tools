@@ -40,10 +40,14 @@ final class S3_Storage_Page {
 		$active_profile   = '' !== $active_id ? $this->options->profile( $active_id ) : array();
 		$active_name      = (string) ( $active_profile['name'] ?? '' );
 		$bucket           = (string) ( $options['bucket'] ?? '' );
+		// Reads the active profile too: profiles stored before the space existed
+		// only carry it on their own record, not on the top-level options.
+		$space            = $this->options->space();
 		$provider_label   = (string) ( Providers::all()[ $options['provider'] ] ?? 'S3' );
 		$enabled          = $this->options->is_enabled();
 		$configured       = $this->options->is_configured();
-		$status_value     = '' !== $bucket ? $bucket : __( '未配置', 'sakura-imgopt' );
+		// 状态卡显示空间名（多吉云 nboke），没有就用缩写；完整桶名进 title。
+		$status_value     = '' !== $bucket ? Bucket_Label::display( $bucket, $space ) : __( '未配置', 'sakura-imgopt' );
 		$status_sub       = $provider_label . ' · ' . ( $enabled ? __( '已启用', 'sakura-imgopt' ) : __( '已停用', 'sakura-imgopt' ) );
 		$status_tone      = $configured ? ( $enabled ? 'ok' : 'warn' ) : 'bad';
 
@@ -58,6 +62,7 @@ final class S3_Storage_Page {
 				'status'  => array(
 					'label' => __( '当前存储桶', 'sakura-imgopt' ),
 					'value' => $status_value,
+					'title' => $bucket,
 					'sub'   => $status_sub,
 					'tone'  => $status_tone,
 				),
@@ -74,7 +79,7 @@ final class S3_Storage_Page {
 					),
 				),
 			),
-			function () use ( $notice, $credentials_bad, $constants_locked, $saved_profiles, $options, $active_id, $active_name, $provider_counts, $upload_path, $upload_path_src, $concurrency, $parallel, $effective ) {
+			function () use ( $notice, $credentials_bad, $constants_locked, $saved_profiles, $options, $space, $bucket, $active_id, $active_name, $provider_counts, $upload_path, $upload_path_src, $concurrency, $parallel, $effective ) {
 				/*
 				 * A save or a connection test is an event, not a state: it gets the
 				 * shared prompt dialog so the operator cannot miss the result while
@@ -111,6 +116,38 @@ final class S3_Storage_Page {
 					); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Component escapes internally.
 				}
 
+				/*
+				 * 不同服务商对「存储桶」和「服务地址」的定义差别很大：多吉云在控制台里
+				 * 显示的是存储空间名称，真正要填的是 SDK 参数里的 s3Bucket / s3Endpoint，
+				 * 而 api.dogecloud.com 只是管理 API。把这类差异写进提示，比让人对着
+				 * 404 猜要省事。
+				 */
+				$default_hints = array(
+					'endpoint'     => __( '只支持 http:// 或 https://。使用 AWS 官方服务时可以留空。', 'sakura-imgopt' ),
+					'bucket'       => __( '填服务商控制台里的存储桶名称（Bucket）。', 'sakura-imgopt' ),
+					'bucket_label' => __( '存储桶名称', 'sakura-imgopt' ),
+					'region'       => __( 'AWS 兼容服务通常填 us-east-1；按服务商给出的地域填写即可。', 'sakura-imgopt' ),
+					'placeholder'  => 'https://example.r2.cloudflarestorage.com',
+				);
+
+				$provider_hints = array(
+					'dogecloud' => array(
+						'endpoint'     => __( '多吉云要填控制台「SDK 参数」里的 s3Endpoint（形如 https://cos.ap-chengdu.myqcloud.com）。api.dogecloud.com 是管理 API，不是 S3 端点，填它会返回 404。', 'sakura-imgopt' ),
+						'bucket'       => __( '填多吉云控制台的存储空间名称，再点右侧按钮自动换成 s3Bucket（形如 doss-v2-3081…-1258813047）和 s3Endpoint，不用手抄。', 'sakura-imgopt' ),
+						'bucket_label' => __( '存储空间名称', 'sakura-imgopt' ),
+						'region'       => __( '多吉云填 automatic 即可，地域由服务端按存储空间所在区域决定。', 'sakura-imgopt' ),
+						'placeholder'  => 'https://cos.ap-chengdu.myqcloud.com',
+					),
+				);
+
+				$provider_key = (string) $options['provider'];
+				$field_hints  = isset( $provider_hints[ $provider_key ] ) ? array_merge( $default_hints, $provider_hints[ $provider_key ] ) : $default_hints;
+				$live_hints   = array( 'default' => $default_hints );
+				foreach ( Providers::all() as $provider_id => $provider_name ) {
+					$live_hints[ (string) $provider_id ] = isset( $provider_hints[ $provider_id ] ) ? array_merge( $default_hints, $provider_hints[ $provider_id ] ) : $default_hints;
+				}
+				unset( $provider_id, $provider_name );
+
 				$page_strings = array(
 					'profileCreated' => __( '已勾选「另存为新配置」，填写新的 Access Key 和 Secret 后保存。', 'sakura-imgopt' ),
 					/* translators: %s: time of the last metrics refresh. */
@@ -125,9 +162,19 @@ final class S3_Storage_Page {
 					/* translators: %s: failure rate percentage over the last 14 days. */
 					'metricsWeek'    => __( '近 14 天失败率 %s', 'sakura-imgopt' ),
 					'metricsNoError' => __( '暂无错误记录', 'sakura-imgopt' ),
+					'dogeFilled'     => __( '已填入存储桶名称和服务地址，确认无误后记得保存。', 'sakura-imgopt' ),
+					'dogeFailed'     => __( '获取 SDK 参数失败，请检查 Access Key、Secret Key 和网络后重试。', 'sakura-imgopt' ),
+					'dogePick'       => __( '这个账号下有多个存储空间。选一个，插件会自动填入对应的存储桶名称和服务地址。', 'sakura-imgopt' ),
+					'dogeNonce'      => wp_create_nonce( 'sakura_s3_doge_buckets' ),
+					'probeOk'        => __( '连接成功，存储桶可以访问。', 'sakura-imgopt' ),
+					'probeFailed'    => __( '连接失败。', 'sakura-imgopt' ),
+					'probeTitleOk'   => __( '连接可用', 'sakura-imgopt' ),
+					'probeTitleBad'  => __( '连接不可用', 'sakura-imgopt' ),
+					'probeNonce'     => wp_create_nonce( 'sakura_s3_probe' ),
+					'profileLoadedKey' => __( '已载入这份配置。密钥留空表示沿用这份配置已保存的密钥；点「保存连接配置」才会生效。', 'sakura-imgopt' ),
 				);
 				?>
-				<div class="sakura-admin__data" data-sakura-connection-strings="<?php echo esc_attr( wp_json_encode( array( 'strings' => $page_strings ), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_UNESCAPED_UNICODE ) ); ?>" hidden></div>
+				<div class="sakura-admin__data" data-sakura-connection-strings="<?php echo esc_attr( wp_json_encode( array( 'strings' => $page_strings, 'hints' => $live_hints, 'profiles' => array_values( $saved_profiles ) ), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_UNESCAPED_UNICODE ) ); ?>" hidden></div>
 				<?php
 
 				echo '<div class="card-grid" id="sakura-s3-save-form" data-sakura-layout="s3" data-sakura-group="main">';
@@ -182,7 +229,10 @@ final class S3_Storage_Page {
 							UI::badge( $is_active ? __( '使用中', 'sakura-imgopt' ) : __( '已保存', 'sakura-imgopt' ), $is_active ? 'ok' : 'neutral' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Component escapes internally.
 							echo '</span>';
 							echo '<span class="profile-card__meta">' . esc_html( (string) ( $profile['label'] ?? '' ) ) . '</span>';
-							echo '<span class="profile-card__meta profile-card__meta--mono">' . esc_html( '' !== (string) ( $profile['bucket'] ?? '' ) ? (string) $profile['bucket'] : __( '未填写存储桶', 'sakura-imgopt' ) ) . '</span>';
+							// 配置卡上显示空间名或缩写桶名，完整 s3Bucket 放 title。
+							$card_bucket = (string) ( $profile['bucket'] ?? '' );
+							$card_space  = (string) ( $profile['space'] ?? '' );
+							echo '<span class="profile-card__meta profile-card__meta--mono"' . ( '' !== $card_bucket ? ' title="' . esc_attr( $card_bucket ) . '"' : '' ) . '>' . esc_html( '' !== $card_bucket ? Bucket_Label::display( $card_bucket, $card_space ) : __( '未填写存储桶', 'sakura-imgopt' ) ) . '</span>';
 							echo '<span class="profile-card__meta profile-card__meta--mono">' . esc_html( '' !== (string) ( $profile['endpoint'] ?? '' ) ? (string) $profile['endpoint'] : __( '默认服务地址', 'sakura-imgopt' ) ) . '</span>';
 							if ( ! $complete ) {
 								echo '<span class="profile-card__warning">' . esc_html__( '配置不完整，补全后可切换', 'sakura-imgopt' ) . '</span>';
@@ -201,83 +251,6 @@ final class S3_Storage_Page {
 							echo '</button>';
 							echo '</form>';
 							echo '</div>';
-						}
-						echo '</div>';
-					}
-				);
-
-				UI::card(
-					array(
-						'id'          => 'behaviour',
-						'kicker'      => 'BEHAVIOUR',
-						'title'       => __( '上传行为', 'sakura-imgopt' ),
-						'description' => __( '对所有存储配置生效。', 'sakura-imgopt' ),
-						'anchor'      => 'sakura-s3-behaviour',
-						'form'        => array(
-							'id'          => 'sakura-s3-behaviour-form',
-							'action'      => admin_url( 'admin-post.php' ),
-							'markers'     => 'fields',
-							'marker_card' => 'behaviour',
-							'hidden'      => array(
-								'action'     => 'sakura_s3_save',
-								'profile_id' => $active_id,
-							),
-						),
-						'save'        => __( '保存设置', 'sakura-imgopt' ),
-					),
-					function () use ( $options, $concurrency, $parallel, $effective ) {
-						UI::field(
-							array(
-								'type'  => 'hidden',
-								'name'  => '_wpnonce',
-								'value' => wp_create_nonce( 'sakura_s3_save' ),
-							)
-						); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Component escapes internally.
-
-						echo '<div class="field-list">';
-						$this->check_field(
-							'no_thumb',
-							__( '不上传 WordPress 生成的缩略图', 'sakura-imgopt' ),
-							__( '一般不建议开启，否则部分自适应图片可能无法从云端读取。', 'sakura-imgopt' ),
-							'true' === (string) $options['no_thumb'],
-							false,
-							true
-						);
-						$this->check_field(
-							'no_local_saving',
-							__( '上传成功后删除本地文件（高风险）', 'sakura-imgopt' ),
-							__( '勾选后，只有新上传的图片及其缩略图都成功传到云端，才会删除本地文件；不勾选就一直保留。手动同步历史附件时始终保留本地文件。', 'sakura-imgopt' ),
-							'true' === (string) $options['no_local_saving'],
-							true,
-							true
-						);
-
-						$options_map = array();
-						for ( $i = 1; $i <= \Sakura\ImageOptimizer\Settings\Settings_Repository::MAX_UPLOAD_CONCURRENCY; $i++ ) {
-							$options_map[ (string) $i ] = (string) $i;
-						}
-						UI::field(
-							array(
-								'type'        => 'select',
-								'id'          => 'sakura-s3-upload-concurrency',
-								'name'        => 'upload_concurrency',
-								'label'       => __( '云端传输并发数', 'sakura-imgopt' ),
-								'hint'        => __( '同一次上传里同时向云端传输的文件数，默认 1。调高会缩短多尺寸图片的等待时间，但更占 PHP 工作进程和带宽；服务器或 HTTP 传输环境不支持并行时会自动降级。', 'sakura-imgopt' ),
-								'value'       => (string) $concurrency,
-								'options'     => $options_map,
-								'full'        => true,
-							)
-						); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Component escapes internally.
-
-						if ( $concurrency > 1 && ! $parallel ) {
-							UI::notice(
-								sprintf(
-									/* translators: %d: effective concurrency. */
-									__( '当前 HTTP 传输环境不支持并行，实际使用 %d。', 'sakura-imgopt' ),
-									$effective
-								),
-								'warn'
-							); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Component escapes internally.
 						}
 						echo '</div>';
 					}
@@ -334,7 +307,7 @@ final class S3_Storage_Page {
 						),
 						'save'        => __( '保存连接配置', 'sakura-imgopt' ),
 					),
-					function () use ( $options, $active_name, $provider_options, $upload_path, $upload_path_src, $path_hint ) {
+					function () use ( $options, $space, $bucket, $active_name, $provider_options, $upload_path, $upload_path_src, $path_hint, $field_hints ) {
 						UI::field(
 							array(
 								'type'  => 'hidden',
@@ -355,16 +328,47 @@ final class S3_Storage_Page {
 							true
 						);
 
+						/*
+						 * The probe button rides next to the provider picker: it tests the
+						 * values currently typed in the form, before anything is saved, so a
+						 * typo in the endpoint shows up as a real error code instead of a
+						 * profile that has to be deleted again. Building the select by hand is
+						 * what buys the row; the markup mirrors Field_View::select().
+						 */
 						UI::field(
 							array(
-								'type'    => 'select',
+								'type'    => 'custom',
 								'id'      => 'sakura-s3-provider',
-								'name'    => 'provider',
 								'label'   => __( '服务商', 'sakura-imgopt' ),
-								'value'   => (string) $options['provider'],
-								'options' => $provider_options,
+								'full'    => true,
+								'control' => static function () use ( $options, $provider_options ) {
+									$select = '<select class="field__grow" id="sakura-s3-provider" name="provider" data-sakura-provider-select="1">';
+									foreach ( $provider_options as $provider_value => $provider_label ) {
+										$select .= '<option value="' . esc_attr( (string) $provider_value ) . '"' . selected( (string) $options['provider'], (string) $provider_value, false ) . '>' . esc_html( (string) $provider_label ) . '</option>';
+									}
+									$select .= '</select>';
+
+									return '<div class="field__row">'
+										. $select
+										. '<button type="button" class="btn btn--ghost" id="sakura-s3-test-connection" title="' . esc_attr__( '用下面表单里当前填写的参数测试一次，不会保存，也不会上传文件。', 'sakura-imgopt' ) . '">' . esc_html__( '测试连接', 'sakura-imgopt' ) . '</button>'
+										. '</div>';
+								},
 							)
 						); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Component escapes internally.
+
+						/*
+						 * Saved configs for the chosen provider, right under the picker.
+						 * Clicking one only loads its values into this form — it does not
+						 * activate it, does not send a request and does not touch the
+						 * stored option. Nothing changes on the site until the operator
+						 * presses 保存连接配置. The list is rendered empty and filled by
+						 * storage-connection.js from the data node below, so the chips
+						 * follow the provider picker without a page reload.
+						 */
+						echo '<div class="profile-chips" data-sakura-provider-profiles hidden>'
+							. '<span class="profile-chips__label">' . esc_html__( '这份服务商的已保存配置', 'sakura-imgopt' ) . '</span>'
+							. '<div class="profile-chips__list" data-sakura-provider-profile-list role="list"></div>'
+							. '</div>';
 
 						UI::field(
 							array(
@@ -388,14 +392,30 @@ final class S3_Storage_Page {
 							true
 						);
 
+						/*
+						 * The bucket row carries the DogeCloud resolver button. It ships
+						 * hidden and is revealed by storage-connection.js only for that
+						 * provider, so every other provider keeps the plain text field and
+						 * the button never appears without JavaScript to drive it.
+						 */
 						UI::field(
 							array(
-								'type'         => 'text',
-								'id'           => 'sakura-s3-bucket',
-								'name'         => 'bucket',
-								'label'        => __( '存储桶名称', 'sakura-imgopt' ),
-								'value'        => (string) $options['bucket'],
-								'autocomplete' => 'off',
+								'type'    => 'custom',
+								'id'      => 'sakura-s3-bucket',
+								'label'   => (string) $field_hints['bucket_label'],
+								'hint'    => (string) $field_hints['bucket'],
+								'full'    => true,
+								'control' => static function () use ( $space, $bucket ) {
+									return '<div class="field__row">'
+										// 「获取 SDK 参数」把空间名写进这个隐藏字段，保存时随配置一起存下来，
+										// 之后状态卡、配置卡和选择器就用它代替 40 位的 s3Bucket。
+										// 这里必须用解析后的 $space：老配置只在自己的记录里存了空间名，
+										// 留空会让用户下一次保存把它冲掉。
+										. '<input type="hidden" id="sakura-s3-space" name="space" value="' . esc_attr( $space ) . '" />'
+										. '<input type="text" class="field__grow" id="sakura-s3-bucket" name="bucket" value="' . esc_attr( $bucket ) . '" autocomplete="off" />'
+										. '<button type="button" class="btn btn--ghost btn--small" data-sakura-doge-resolve hidden>' . esc_html__( '获取 SDK 参数', 'sakura-imgopt' ) . '</button>'
+										. '</div>';
+								},
 							)
 						); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Component escapes internally.
 
@@ -407,6 +427,7 @@ final class S3_Storage_Page {
 								'label'       => __( '地域', 'sakura-imgopt' ),
 								'value'       => (string) $options['region'],
 								'placeholder' => 'us-east-1',
+								'hint'        => (string) $field_hints['region'],
 							)
 						); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Component escapes internally.
 
@@ -417,8 +438,8 @@ final class S3_Storage_Page {
 								'name'        => 'endpoint',
 								'label'       => __( '服务地址', 'sakura-imgopt' ),
 								'value'       => (string) $options['endpoint'],
-								'placeholder' => 'https://example.r2.cloudflarestorage.com',
-								'hint'        => __( '只支持 http:// 或 https://。使用 AWS 官方服务时可以留空。', 'sakura-imgopt' ),
+								'placeholder' => (string) $field_hints['placeholder'],
+								'hint'        => (string) $field_hints['endpoint'],
 								'full'        => true,
 							)
 						); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Component escapes internally.
@@ -501,28 +522,130 @@ final class S3_Storage_Page {
 					}
 				);
 
+				echo '<div class="card-stack">';
+
 				UI::card(
 					array(
-						'id'          => 'test',
-						'kicker'      => 'PROBE',
-						'title'       => __( '连接测试', 'sakura-imgopt' ),
-						'description' => __( '只检查能不能访问存储桶，不会上传测试文件。', 'sakura-imgopt' ),
-						'anchor'      => 'sakura-s3-test',
+						'id'          => 'behaviour',
+						'kicker'      => 'BEHAVIOUR',
+						'title'       => __( '上传行为', 'sakura-imgopt' ),
+						'description' => __( '对所有存储配置生效。', 'sakura-imgopt' ),
+						'anchor'      => 'sakura-s3-behaviour',
+						'form'        => array(
+							'id'          => 'sakura-s3-behaviour-form',
+							'action'      => admin_url( 'admin-post.php' ),
+							'markers'     => 'fields',
+							'marker_card' => 'behaviour',
+							'hidden'      => array(
+								'action'     => 'sakura_s3_save',
+								'profile_id' => $active_id,
+							),
+						),
+						'save'        => __( '保存设置', 'sakura-imgopt' ),
 					),
-					function () {
-						echo '<div class="card__savebar"><button type="submit" class="btn btn--primary" form="sakura-s3-test-form">' . esc_html__( '测试连接', 'sakura-imgopt' ) . '</button></div>';
+					function () use ( $options, $concurrency, $parallel, $effective ) {
+						UI::field(
+							array(
+								'type'  => 'hidden',
+								'name'  => '_wpnonce',
+								'value' => wp_create_nonce( 'sakura_s3_save' ),
+							)
+						); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Component escapes internally.
+
+						echo '<div class="field-list">';
+						$this->check_field(
+							'no_thumb',
+							__( '不上传 WordPress 生成的缩略图', 'sakura-imgopt' ),
+							__( '一般不建议开启，否则部分自适应图片可能无法从云端读取。', 'sakura-imgopt' ),
+							'true' === (string) $options['no_thumb'],
+							false,
+							true
+						);
+						$this->check_field(
+							'no_local_saving',
+							__( '上传成功后删除本地文件（高风险）', 'sakura-imgopt' ),
+							__( '勾选后，只有新上传的图片及其缩略图都成功传到云端，才会删除本地文件；不勾选就一直保留。手动同步历史附件时始终保留本地文件。', 'sakura-imgopt' ),
+							'true' === (string) $options['no_local_saving'],
+							true,
+							true
+						);
+
+						$options_map = array();
+						for ( $i = 1; $i <= \Sakura\ImageOptimizer\Settings\Settings_Repository::MAX_UPLOAD_CONCURRENCY; $i++ ) {
+							$options_map[ (string) $i ] = (string) $i;
+						}
+						UI::field(
+							array(
+								'type'        => 'select',
+								'id'          => 'sakura-s3-upload-concurrency',
+								'name'        => 'upload_concurrency',
+								'label'       => __( '云端传输并发数', 'sakura-imgopt' ),
+								'hint'        => __( '同一次上传里同时向云端传输的文件数，默认 1。调高会缩短多尺寸图片的等待时间，但更占 PHP 工作进程和带宽；服务器或 HTTP 传输环境不支持并行时会自动降级。', 'sakura-imgopt' ),
+								'value'       => (string) $concurrency,
+								'options'     => $options_map,
+								'full'        => true,
+							)
+						); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Component escapes internally.
+
+						if ( $concurrency > 1 && ! $parallel ) {
+							UI::notice(
+								sprintf(
+									/* translators: %d: effective concurrency. */
+									__( '当前 HTTP 传输环境不支持并行，实际使用 %d。', 'sakura-imgopt' ),
+									$effective
+								),
+								'warn'
+							); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Component escapes internally.
+						}
+						echo '</div>';
 					}
 				);
 
 				Sync_Center_Panel::render( $this->status ?? new Sync_Status() );
+
+				echo '</div>'; // .card-stack
+
 				Monitoring_Panel::render();
 
 				echo '</div>';
 
-				echo '<form id="sakura-s3-test-form" method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" hidden>';
-				echo '<input type="hidden" name="action" value="sakura_s3_test" />';
-				wp_nonce_field( 'sakura_s3_test' );
-				echo '</form>';
+				/*
+				 * Result shell for the dry-run connection probe. The tone, title and
+				 * message are rewritten by storage-connection.js for every attempt,
+				 * so the markup stays here while the verdict stays in JavaScript.
+				 */
+				$probe_modal = UI::modal_html(
+					array(
+						'id'       => 'sakura-s3-probe-modal',
+						'tone'     => 'info',
+						'kicker'   => 'PROBE',
+						'title'    => __( '连接测试', 'sakura-imgopt' ),
+						'message'  => '',
+						'size'     => 'compact',
+						'autoshow' => false,
+					)
+				);
+				echo $probe_modal; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- generated with escaped values.
+
+				/*
+				 * Shell for the storage-space picker. The list is filled by
+				 * storage-connection.js once the account reports more than one space;
+				 * rendering it empty here keeps the dialog markup in one place instead
+				 * of assembling modal chrome in JavaScript.
+				 */
+				$doge_modal = UI::modal_html(
+					array(
+						'id'       => 'sakura-s3-doge-modal',
+						'tone'     => 'info',
+						'kicker'   => 'DOGECLOUD',
+						'title'    => __( '选择存储空间', 'sakura-imgopt' ),
+						'message'  => (string) $page_strings['dogePick'],
+						'body'     => '<div class="doge-spaces" data-sakura-doge-spaces></div>',
+						'size'     => 'compact',
+						'autoshow' => false,
+					)
+				);
+				echo $doge_modal; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- generated with escaped values.
 
 				echo Config_Notice::modal_html( $this->options, 'connection' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- generated with escaped values.
 			}
@@ -567,11 +690,19 @@ final class S3_Storage_Page {
 		if ( isset( $_GET['saved'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only redirect notice; it does not change state.
 			// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only redirect notice; it does not change state.
 			if ( '1' === sanitize_key( wp_unslash( $_GET['saved'] ) ) ) {
-				// Changing the target of a saved profile starts a new one; the old
-				// config and its reconciliation records stay untouched, which is
-				// not what "已保存" alone would suggest.
-				$success['message'] = isset( $_GET['created'] ) // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only redirect notice; it does not change state.
-					? __( '已保存为新的存储配置：切换了服务商、存储桶或服务地址，原配置与它的核对记录保持不变。', 'sakura-imgopt' )
+				// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only redirect notice; it does not change state.
+				$moved   = isset( $_GET['moved'] );
+				$created = isset( $_GET['created'] ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only redirect notice; it does not change state.
+				if ( $moved ) {
+					// The profile kept its id but now points somewhere else, so the
+					// reconciliation rows for the previous target were dropped.
+					$success['message'] = $created
+						? __( '已保存为新的存储配置，并指向新的存储位置；请在同步中心重新核对一次。', 'sakura-imgopt' )
+						: __( '已更新这份配置，并指向新的存储位置；旧的核对记录已清空，请在同步中心重新核对一次。', 'sakura-imgopt' );
+					return $success;
+				}
+				$success['message'] = $created
+					? __( '已保存为新的存储配置。', 'sakura-imgopt' )
 					: __( '云存储设置已保存。', 'sakura-imgopt' );
 				return $success;
 			}
@@ -598,7 +729,14 @@ final class S3_Storage_Page {
 		if ( isset( $_GET['tested'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only redirect notice; it does not change state.
 			// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only redirect notice; it does not change state.
 			if ( '1' === sanitize_key( wp_unslash( $_GET['tested'] ) ) ) {
-				$success['message'] = __( '连接成功，存储桶可以访问。', 'sakura-imgopt' );
+				/*
+				 * A successful probe can still carry a note, for example when
+				 * the bucket allows listing but refuses HEAD. Show it instead of
+				 * the plain success line so a partial policy is not hidden.
+				 */
+				// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only redirect message; it does not change state.
+				$note                 = isset( $_GET['message'] ) ? sanitize_text_field( wp_unslash( $_GET['message'] ) ) : '';
+				$success['message']   = '' !== $note ? $note : __( '连接成功，存储桶可以访问。', 'sakura-imgopt' );
 				return $success;
 			}
 			// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only redirect message; it does not change state.

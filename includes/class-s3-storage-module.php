@@ -2,6 +2,8 @@
 namespace Sakura\ImageOptimizer;
 
 use Sakura\ImageOptimizer\Contracts\Module;
+use Sakura\ImageOptimizer\S3\Client_Factory;
+use Sakura\ImageOptimizer\S3\Connection_Probe;
 use Sakura\ImageOptimizer\S3\Connection_Tester;
 use Sakura\ImageOptimizer\S3\Options;
 use Sakura\ImageOptimizer\S3\Profile_Manager;
@@ -13,6 +15,7 @@ use Sakura\ImageOptimizer\S3\Synchronous_Uploader;
 use Sakura\ImageOptimizer\S3\Delete_Jobs;
 use Sakura\ImageOptimizer\S3\Upload_Metrics;
 use Sakura\ImageOptimizer\S3\Delete_Worker;
+use Sakura\ImageOptimizer\S3\Doge_Cloud_Resolver;
 use Sakura\ImageOptimizer\Sync\Action_Worker;
 use Sakura\ImageOptimizer\Sync\Index_Repository;
 use Sakura\ImageOptimizer\Support\Hook_Loader;
@@ -73,6 +76,8 @@ class S3_Storage_Module implements Module {
 		$hooks->add_action( 'admin_post_sakura_s3_prometheus_rotate', array( $this, 'rotate_prometheus' ) );
 		$hooks->add_action( 'wp_ajax_sakura_s3_retry', array( $this, 'retry_failed' ) );
 		$hooks->add_action( 'wp_ajax_sakura_s3_upload_metrics', array( $this, 'upload_metrics' ) );
+		$hooks->add_action( 'wp_ajax_sakura_s3_doge_buckets', array( $this, 'doge_buckets' ) );
+	$hooks->add_action( 'wp_ajax_sakura_s3_probe_connection', array( $this, 'probe_connection' ) );
 		$hooks->add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_assets' ) );
 	}
 
@@ -174,6 +179,152 @@ class S3_Storage_Module implements Module {
 		wp_send_json_success( ( new Upload_Metrics() )->snapshot() );
 	}
 
+	/**
+	 * Resolve 多吉云 SDK parameters for a storage-space name.
+	 *
+	 * 多吉云's console only exposes the space name; the S3 client needs the
+	 * appid-suffixed s3Bucket and the COS endpoint, and both live in the same
+	 * temporary-credential response the client already fetches. Asking the
+	 * operator to hand-copy them is how a working account ends up pointed at
+	 * `api.dogecloud.com` with a 404.
+	 *
+	 * Credentials come from the form when the operator typed a new pair (so a
+	 * first-time setup can resolve before anything is saved), otherwise from
+	 * the active profile.
+	 */
+	public function doge_buckets(): void {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_send_json_error( array( 'message' => __( '权限不足。', 'sakura-imgopt' ) ), 403 );
+		}
+
+		check_ajax_referer( 'sakura_s3_doge_buckets' );
+
+		$space  = isset( $_POST['space'] ) ? sanitize_text_field( wp_unslash( $_POST['space'] ) ) : '';
+		$key    = isset( $_POST['key'] ) ? Settings_Saver::clean_credential( (string) wp_unslash( $_POST['key'] ) ) : '';
+		$secret = isset( $_POST['secret'] ) ? Settings_Saver::clean_credential( (string) wp_unslash( $_POST['secret'] ) ) : '';
+
+		if ( '' === $key || '' === $secret ) {
+			$saved  = $this->options()->all();
+			$key    = (string) ( $saved['key'] ?? '' );
+			$secret = (string) ( $saved['secret'] ?? '' );
+		}
+
+		if ( '' === $key || '' === $secret ) {
+			wp_send_json_error(
+				array( 'message' => __( '请先填写多吉云的 Access Key 和 Secret Key，或保存一份可用的配置。', 'sakura-imgopt' ) ),
+				400
+			);
+		}
+
+		$buckets = ( new S3_Doge_Cloud( $key, $secret ) )->get_buckets();
+		if ( ! is_array( $buckets ) ) {
+			wp_send_json_error(
+				array( 'message' => __( '多吉云接口没有返回存储空间列表，请检查 Access Key 和 Secret Key 是否正确。', 'sakura-imgopt' ) ),
+				400
+			);
+		}
+
+		wp_send_json_success( Doge_Cloud_Resolver::resolve( $buckets, $space ) );
+	}
+
+	/**
+	 * Dry-run the connection settings that are currently typed in the form.
+	 *
+	 * The save path can only report a verdict after a profile exists, which
+	 * means a wrong endpoint costs a save, a failed upload and a cleanup. This
+	 * endpoint takes the same values straight off the form, including a brand
+	 * new key pair that was never stored, and returns the probe verdict so the
+	 * operator can fix a typo before anything is written.
+	 */
+	public function probe_connection(): void {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_send_json_error( array( 'message' => __( '权限不足。', 'sakura-imgopt' ) ), 403 );
+		}
+
+		check_ajax_referer( 'sakura_s3_probe' );
+
+		$saved = $this->options()->all();
+		$probe = $saved;
+
+		if ( isset( $_POST['provider'] ) ) {
+			$probe['provider'] = sanitize_key( wp_unslash( $_POST['provider'] ) );
+		}
+
+		foreach ( array( 'bucket', 'region' ) as $field ) {
+			if ( isset( $_POST[ $field ] ) ) {
+				$probe[ $field ] = sanitize_text_field( wp_unslash( $_POST[ $field ] ) );
+			}
+		}
+
+		if ( isset( $_POST['endpoint'] ) ) {
+			$probe['endpoint'] = esc_url_raw( trim( (string) wp_unslash( $_POST['endpoint'] ) ), array( 'http', 'https' ) );
+		}
+
+		// A blank credential means "keep the saved one": the form masks the
+		// stored key so it is never re-submitted unless it was replaced.
+		foreach ( array( 'key', 'secret' ) as $field ) {
+			$typed = isset( $_POST[ $field ] ) ? Settings_Saver::clean_credential( (string) wp_unslash( $_POST[ $field ] ) ) : '';
+			if ( '' !== $typed ) {
+				$probe[ $field ] = $typed;
+			}
+		}
+
+		$candidate = new Options( $probe );
+		$missing   = $candidate->configuration_errors();
+		if ( array() !== $missing ) {
+			wp_send_json_error( array( 'message' => $this->missing_fields_message( $missing ) ), 400 );
+		}
+
+		try {
+			$client = Client_Factory::make( $probe );
+		} catch ( \Throwable $error ) {
+			// The verdict still reaches the operator: a client that never got
+			// built is a failed test, not a broken request.
+			wp_send_json_success(
+				array(
+					'ok'      => false,
+					'message' => $error->getMessage(),
+					'code'    => '',
+					'status'  => 0,
+					'latency' => 0,
+				)
+			);
+		}
+
+		wp_send_json_success(
+			Connection_Probe::diagnose(
+				$client,
+				(string) $probe['bucket'],
+				array( (string) $probe['key'], (string) $probe['secret'] )
+			)
+		);
+	}
+
+	/**
+	 * Name the fields the probe cannot run without.
+	 *
+	 * @param string[] $fields Error keys from Options::configuration_errors().
+	 */
+	private function missing_fields_message( array $fields ): string {
+		$labels = array(
+			'provider' => __( '服务商', 'sakura-imgopt' ),
+			'bucket'   => __( '存储桶名称', 'sakura-imgopt' ),
+			'key'      => __( 'Access Key', 'sakura-imgopt' ),
+			'secret'   => __( 'Secret Key', 'sakura-imgopt' ),
+			'endpoint' => __( '服务地址', 'sakura-imgopt' ),
+		);
+
+		$names = array();
+		foreach ( $fields as $field ) {
+			$names[] = $labels[ $field ] ?? $field;
+		}
+
+		return sprintf(
+			/* translators: %s: comma-separated field names. */
+			__( '还差这些内容才能测试：%s。', 'sakura-imgopt' ),
+			implode( '、', $names )
+		);
+	}
 	public function render(): void {
 		$this->page()->render();
 	}

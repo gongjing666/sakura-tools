@@ -844,6 +844,9 @@ final class Scan_Service {
 		$summary = $this->index->summary( $profile );
 		$this->index->finish_scan( $scan_id, (int) $summary['total'] );
 		$summary = $this->index->summary( $profile );
+		// Differences are the index rows that are not synced; the row total also
+		// counts the pairs both sides agree on.
+		$differences = max( 0, (int) $summary['total'] - (int) ( $summary['counts']['synced'] ?? 0 ) );
 		$this->index->event(
 			$profile,
 			'info',
@@ -853,7 +856,7 @@ final class Scan_Service {
 				__( '全量对账完成：本地 %1$d 个、云端 %2$d 个、差异 %3$d 个。', 'sakura-imgopt' ),
 				(int) $summary['local_files'],
 				(int) $summary['cloud_objects'],
-				(int) $summary['total']
+				$differences
 			),
 			array( 'scan_id' => $scan_id )
 		);

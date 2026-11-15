@@ -113,6 +113,7 @@ final class Sync_Center_Module implements Module {
 		$hooks->add_action( 'wp_ajax_sakura_s3_sync_cancel', array( $this, 'ajax_cancel' ) );
 		$hooks->add_action( 'wp_ajax_sakura_s3_sync_resume', array( $this, 'ajax_resume' ) );
 		$hooks->add_action( 'wp_ajax_sakura_s3_sync_page', array( $this, 'ajax_page' ) );
+		$hooks->add_action( 'wp_ajax_sakura_s3_sync_preview', array( $this, 'ajax_preview' ) );
 		$hooks->add_action( 'wp_ajax_sakura_s3_sync_test', array( $this, 'ajax_test' ) );
 		$hooks->add_action( 'wp_ajax_sakura_s3_sync_action', array( $this, 'ajax_action' ) );
 		$hooks->add_action( 'wp_ajax_sakura_s3_sync_refresh', array( $this, 'ajax_refresh' ) );
@@ -221,6 +222,7 @@ final class Sync_Center_Module implements Module {
 			'testNonce'    => wp_create_nonce( 'sakura_s3_sync_test' ),
 			'actionNonce'  => wp_create_nonce( 'sakura_s3_sync_action' ),
 			'pageNonce'    => wp_create_nonce( 'sakura_s3_sync_page' ),
+			'previewNonce' => wp_create_nonce( 'sakura_s3_sync_preview' ),
 			'cancelNonce'  => wp_create_nonce( 'sakura_s3_sync_cancel' ),
 			'resumeNonce'  => wp_create_nonce( 'sakura_s3_sync_resume' ),
 			'refreshNonce' => wp_create_nonce( 'sakura_s3_sync_refresh' ),
@@ -271,6 +273,7 @@ final class Sync_Center_Module implements Module {
 				/* translators: 1: first item index, 2: last item index, 3: total before filtering */
 				'summaryFiltered' => __( '显示 %1$s–%2$s 项，筛选自 %3$s 项', 'sakura-imgopt' ),
 				'pageError'       => __( '加载文件列表失败。', 'sakura-imgopt' ),
+				'previewError'    => __( '加载预览失败。', 'sakura-imgopt' ),
 				'logsEmpty'       => __( '暂无匹配日志。', 'sakura-imgopt' ),
 				/* translators: %d: number of hidden log entries */
 				'logsMore'        => __( '查询更多日志（还有 %d 条）', 'sakura-imgopt' ),
@@ -455,31 +458,6 @@ final class Sync_Center_Module implements Module {
 				'resumable'  => ! empty( $summary['resumable'] ),
 			)
 		);
-	}
-
-	/**
-	 * Turn a user search into the full object-key prefix.
-	 *
-	 * Keys are stored with the configured upload path in front, so typing
-	 * `2024/05/` must become `wp-content/uploads/2024/05/` to stay a prefix
-	 * seek instead of a leading-wildcard scan.
-	 *
-	 * @param string $search Raw search.
-	 */
-	private function search_prefix( string $search ): string {
-		$search = ltrim( trim( $search ), '/' );
-		if ( '' === $search ) {
-			return '';
-		}
-
-		$base = trim( (string) $this->options->upload_path(), '/' );
-		if ( '' === $base || '.' === $base ) {
-			return $search;
-		}
-		if ( 0 === strpos( $search, $base . '/' ) ) {
-			return $search;
-		}
-		return $base . '/' . $search;
 	}
 
 	/**
@@ -672,18 +650,53 @@ final class Sync_Center_Module implements Module {
 		$cursor = isset( $_POST['cursor'] ) ? sanitize_text_field( wp_unslash( $_POST['cursor'] ) ) : '';
 		$limit  = isset( $_POST['limit'] ) ? absint( wp_unslash( $_POST['limit'] ) ) : 25;
 
-		$page    = $this->index->page( $profile, $status, $this->search_prefix( $search ), $type, $days, $cursor, $limit );
+		$page    = $this->index->page( $profile, $status, $search, $type, $days, $cursor, $limit );
 		$summary = $this->index->summary( $profile );
 
 		wp_send_json_success(
 			array(
-				'rows'     => $this->decorate_rows( $page['rows'] ),
-				'cursor'   => $page['cursor'],
-				'has_more' => $page['has_more'],
-				'counts'   => $summary['counts'],
-				'total'    => $summary['total'],
+				'rows'           => $this->decorate_rows( $page['rows'] ),
+				'cursor'         => $page['cursor'],
+				'has_more'       => $page['has_more'],
+				'counts'         => $summary['counts'],
+				'total'          => $summary['total'],
+				'filtered_total' => $page['matched'],
 			)
 		);
+	}
+
+	/**
+	 * AJAX: full preview payload for one object.
+	 *
+	 * The fast list endpoint cannot build this: it runs under SHORTINIT, where
+	 * the translation, URL and nonce helpers are unavailable, and signing a
+	 * URL per row would slow down the whole page. The table therefore asks for
+	 * one row's preview the moment a visitor opens the details dialog.
+	 */
+	public function ajax_preview(): void {
+		check_ajax_referer( 'sakura_s3_sync_preview', 'nonce' );
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_send_json_error( array( 'message' => __( '权限不足。', 'sakura-imgopt' ) ), 403 );
+		}
+
+		$profile = (string) $this->options->active_profile_id();
+		if ( '' === $profile ) {
+			wp_send_json_error( array( 'message' => __( '尚未选择 S3 配置。', 'sakura-imgopt' ) ), 400 );
+		}
+
+		$key = $this->adapter->normalize_key( isset( $_POST['object_key'] ) ? (string) wp_unslash( $_POST['object_key'] ) : '' );
+		if ( false === $key ) {
+			wp_send_json_error( array( 'message' => __( '对象 Key 无效。', 'sakura-imgopt' ) ), 400 );
+		}
+
+		$row = $this->index->find_row( $profile, $key );
+		if ( null === $row ) {
+			wp_send_json_error( array( 'message' => __( '索引中没有找到这个文件，请重新对账后再试。', 'sakura-imgopt' ) ), 404 );
+		}
+
+		$rows = $this->decorate_rows( array( $row ) );
+
+		wp_send_json_success( array( 'preview' => $rows[0]['preview'] ) );
 	}
 
 	/**
@@ -697,21 +710,38 @@ final class Sync_Center_Module implements Module {
 		if ( ! $this->options->is_configured() ) {
 			wp_send_json_error( array( 'message' => __( '请先保存完整的 S3 连接配置。', 'sakura-imgopt' ) ), 400 );
 		}
+		$options = $this->options->all();
+
 		try {
-			$options = $this->options->all();
-			$start   = microtime( true );
-			Client_Factory::make( $options )->headBucket( array( 'Bucket' => (string) $options['bucket'] ) );
-			$latency = (int) round( ( microtime( true ) - $start ) * 1000 );
-			wp_send_json_success(
-				array(
-					'latency' => $latency,
-					'message' => sprintf( /* translators: %d: milliseconds. */ __( '连接正常，headBucket 耗时 %d ms。', 'sakura-imgopt' ), $latency ),
-				)
-			);
+			$client = Client_Factory::make( $options );
 		} catch ( \Throwable $e ) {
 			Log::write( __( '同步中心连接测试失败：', 'sakura-imgopt' ) . $e->getMessage() );
-			wp_send_json_error( array( 'message' => __( '连接失败，请检查服务商、Endpoint、存储桶和凭据。', 'sakura-imgopt' ) ), 500 );
+			wp_send_json_error( array( 'message' => $e->getMessage() ), 400 );
 		}
+
+		/*
+		 * Same probe as the settings-page test, so both screens explain a
+		 * failure the same way instead of printing a generic line.
+		 */
+		$probe = Connection_Probe::diagnose(
+			$client,
+			(string) $options['bucket'],
+			array( (string) ( $options['key'] ?? '' ), (string) ( $options['secret'] ?? '' ) )
+		);
+
+		if ( ! $probe['ok'] ) {
+			Log::write( __( '同步中心连接测试失败：', 'sakura-imgopt' ) . $probe['message'] );
+			wp_send_json_error( array( 'message' => $probe['message'], 'code' => $probe['code'] ), 500 );
+		}
+
+		wp_send_json_success(
+			array(
+				'latency' => $probe['latency'],
+				'message' => '' !== $probe['message']
+					? $probe['message']
+					: sprintf( /* translators: %d: milliseconds. */ __( '连接正常，headBucket 耗时 %d ms。', 'sakura-imgopt' ), $probe['latency'] ),
+			)
+		);
 	}
 
 	/**
@@ -1362,7 +1392,7 @@ final class Sync_Center_Module implements Module {
 		$truncated = false;
 
 		do {
-			$page = $this->index->page( $profile, $status, $this->search_prefix( $search ), $type, $days, $cursor, 500 );
+			$page = $this->index->page( $profile, $status, $search, $type, $days, $cursor, 500 );
 			foreach ( $page['rows'] as $row ) {
 				fputcsv(
 					$output,

@@ -17,8 +17,10 @@ defined( 'ABSPATH' ) || exit;
  * Query budget (measured on 1,000,000 rows, MariaDB 12.3):
  * - keyset page: 0.5 ms
  * - kind filter: 0.3 ms
- * - prefix search hit: ~110 ms, miss: ~2.7 s (full profile scan; callers must
- *   treat search as an explicit, slower user action)
+ * - search hit: ~110 ms when the term is a key prefix; a term that matches
+ *   anywhere in the key costs a full profile scan (seconds on a large index),
+ *   so callers must treat search as an explicit, slower user action
+ * - filtered count: one extra COUNT(*) on the first page only
  * - first paint: counts table + latest scan row only, never an aggregate.
  */
 final class Index_Repository {
@@ -1442,17 +1444,20 @@ final class Index_Repository {
 	 *
 	 * @param string $profile_id Profile.
 	 * @param string $status     all|synced|pending|failed|remote|mismatch.
-	 * @param string $search     Key prefix (design 5.2: prefix only).
+	 * @param string $search     Substring of the object key (filename or path).
 	 * @param string $type       all|image|video|archive|other.
 	 * @param int    $days       Modified within N days.
 	 * @param string $cursor     Opaque cursor: object key when searching, hash otherwise.
 	 * @param int    $limit      Rows.
-	 * @return array<string,mixed>
+	 * @return array<string,mixed> Rows, the next cursor, and `matched`: how many
+	 *                             rows the filters match across all pages (null
+	 *                             when there is nothing to filter or when this
+	 *                             is not the first page).
 	 */
 	public function page( string $profile_id, string $status = 'all', string $search = '', string $type = 'all', int $days = 0, string $cursor = '', int $limit = 50 ): array {
 		global $wpdb;
 		$limit  = max( 1, min( 200, $limit ) );
-		$search    = ltrim( trim( $search ), '/' );
+		$search    = Search_Term::normalize( $search );
 		$by_key    = '' !== $search;
 		$by_recent = $days > 0 && $this->recent_ready();
 		$where     = array( 'profile_id=%s' );
@@ -1464,7 +1469,7 @@ final class Index_Repository {
 		}
 		if ( $by_key ) {
 			$where[] = 'object_key LIKE %s';
-			$args[]  = $wpdb->esc_like( $search ) . '%';
+			$args[]  = Search_Term::pattern( $search, array( $wpdb, 'esc_like' ) );
 		}
 		if ( '' !== $type && 'all' !== $type && in_array( $type, array( 'image', 'video', 'archive', 'other' ), true ) ) {
 			$where[] = 'kind=%s';
@@ -1481,6 +1486,11 @@ final class Index_Repository {
 				$args[]  = $cut_str;
 			}
 		}
+		// Filter-only predicate, kept before the cursor clause: the count shown
+		// above the table describes the whole filtered set, not this page.
+		$filter_where = $where;
+		$filter_args  = $args;
+
 		if ( '' !== $cursor ) {
 			if ( $by_recent ) {
 				$boundary = Keyset_Cursor::decode_recent( $cursor );
@@ -1522,27 +1532,18 @@ final class Index_Repository {
 			array_pop( $rows );
 		}
 
+		// Rows matching the filters, across all pages. Only the first page of a
+		// filtered list needs it; an unfiltered list already knows its total.
+		$matched = null;
+		if ( '' === $cursor && count( $filter_where ) > 1 ) {
+			$count_sql = "SELECT COUNT(*) FROM {$this->index} WHERE " . implode( ' AND ', $filter_where );
+			// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name comes from Schema; the where clause is built with placeholders.
+			$matched = (int) $wpdb->get_var( $wpdb->prepare( $count_sql, $filter_args ) );
+		}
+
 		$out = array();
 		foreach ( $rows as $row ) {
-			$key   = (string) $row['object_key'];
-			$kind  = (string) ( $row['kind'] ?? '' );
-			$out[] = array(
-				'key'        => $key,
-				'name'       => wp_basename( $key ),
-				'path'       => (string) ( $row['local_path'] ?: $key ),
-				'type'       => '' !== $kind ? $kind : Kind::of( $key ),
-				'size'       => (int) $row['local_size'],
-				'cloud_size' => (int) $row['remote_size'],
-				'mtime'      => max(
-					(int) ( $row['local_mtime'] ? strtotime( (string) $row['local_mtime'] . ' UTC' ) : 0 ),
-					(int) ( $row['remote_mtime'] ? strtotime( (string) $row['remote_mtime'] . ' UTC' ) : 0 )
-				),
-				'status'     => (string) $row['status'],
-				'error'      => (string) ( $row['error_message'] ?? '' ),
-				'local'      => (bool) $row['seen_local'],
-				'cloud'      => (bool) $row['seen_remote'],
-				'id'         => 0,
-			);
+			$out[] = self::row_payload( $row );
 		}
 
 		$next = '';
@@ -1561,7 +1562,53 @@ final class Index_Repository {
 			'rows'     => $out,
 			'cursor'   => $next,
 			'has_more' => $has_more,
+			'matched'  => $matched,
 		);
+	}
+
+	/**
+	 * Normalize one database row into the shape page() returns.
+	 *
+	 * Kept apart from the query so both the table endpoint and the single-row
+	 * endpoint describe a row exactly the same way.
+	 *
+	 * @param array<string,mixed> $row Database row.
+	 * @return array<string,mixed>
+	 */
+	public static function row_payload( array $row ): array {
+		$key  = (string) ( $row['object_key'] ?? '' );
+		$kind = (string) ( $row['kind'] ?? '' );
+
+		return array(
+			'key'        => $key,
+			'name'       => wp_basename( $key ),
+			'path'       => (string) ( ( $row['local_path'] ?? '' ) ? $row['local_path'] : $key ),
+			'type'       => '' !== $kind ? $kind : Kind::of( $key ),
+			'size'       => (int) ( $row['local_size'] ?? 0 ),
+			'cloud_size' => (int) ( $row['remote_size'] ?? 0 ),
+			'mtime'      => max(
+				(int) ( empty( $row['local_mtime'] ) ? 0 : strtotime( (string) $row['local_mtime'] . ' UTC' ) ),
+				(int) ( empty( $row['remote_mtime'] ) ? 0 : strtotime( (string) $row['remote_mtime'] . ' UTC' ) )
+			),
+			'status'     => (string) ( $row['status'] ?? 'synced' ),
+			'error'      => (string) ( $row['error_message'] ?? '' ),
+			'local'      => ! empty( $row['seen_local'] ),
+			'cloud'      => ! empty( $row['seen_remote'] ),
+			'id'         => 0,
+		);
+	}
+
+	/**
+	 * Find one row by key, in the same shape page() returns.
+	 *
+	 * @param string $profile_id Profile.
+	 * @param string $key        Object key.
+	 * @return array<string,mixed>|null
+	 */
+	public function find_row( string $profile_id, string $key ): ?array {
+		$row = $this->find( $profile_id, $key );
+
+		return is_array( $row ) ? self::row_payload( $row ) : null;
 	}
 
 	/**

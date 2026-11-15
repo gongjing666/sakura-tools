@@ -30,6 +30,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 /** @var bool $scan_busy */
 /** @var bool $index_enabled */
 
+use Sakura\ImageOptimizer\S3\Bucket_Label;
 use Sakura\ImageOptimizer\S3\Inventory;
 use Sakura\ImageOptimizer\S3\Providers;
 
@@ -120,6 +121,9 @@ $scan_phase_label = $scan_phase_labels[ $scan_phase ] ?? '';
 $scan_meta_text   = sprintf( /* translators: 1: scan time, 2: phase. */ __( '同步记录表 %1$s · %2$s', 'sakura-imgopt' ), $scan_time ? wp_date( 'm-d H:i', $scan_time ) : __( '尚未核对', 'sakura-imgopt' ), $scan_running && $scan_phase_label ? sprintf( '%s %s', $scan_phase_label, number_format_i18n( $scan_processed ) ) : __( '实时读取', 'sakura-imgopt' ) );
 
 $bucket         = (string) $options->get( 'bucket', '' );
+$space          = $options->space();
+// 页头、KPI 副行与健康表都用它：多吉云的 s3Bucket 有 40 位，读不出空间名。
+$bucket_display = '' !== $bucket ? Bucket_Label::display( $bucket, $space ) : '';
 $endpoint       = (string) $options->get( 'endpoint', '' );
 $provider       = (string) $options->get( 'provider', '' );
 $provider_label = Providers::all()[ $provider ] ?? $provider;
@@ -294,7 +298,7 @@ $ignored_saved = isset( $_GET['ignored_saved'] ); // phpcs:ignore WordPress.Secu
 // tells them apart. The sub line restates the state from above; a coverage
 // percentage there read as if the connection were fine when it was not, and
 // the KPI strip already carries that number with room for context.
-$bucket_label    = '' !== $bucket ? $bucket : __( '未配置', 'sakura-imgopt' );
+$bucket_label    = '' !== $bucket ? $bucket_display : __( '未配置', 'sakura-imgopt' );
 $page_status_sub = $provider_label . ' · ' . $status_text;
 
 ob_start();
@@ -357,7 +361,7 @@ ob_start();
 	<article class="kpi">
 		<span class="kpi__label"><?php esc_html_e( '云端文件', 'sakura-imgopt' ); ?></span>
 		<span class="kpi__value"><?php echo esc_html( number_format_i18n( $cloud_objects ) ); ?><small><?php esc_html_e( '个文件', 'sakura-imgopt' ); ?></small></span>
-		<span class="kpi__sub"><?php echo esc_html( Inventory::format_bytes( $cloud_bytes ) . ' · ' . ( $bucket ? $bucket : '—' ) ); ?></span>
+		<span class="kpi__sub"<?php echo '' !== $bucket ? ' title="' . esc_attr( $bucket ) . '"' : ''; ?>><?php echo esc_html( Inventory::format_bytes( $cloud_bytes ) . ' · ' . ( '' !== $bucket_display ? $bucket_display : '—' ) ); ?></span>
 		<span class="kpi__sub"><?php esc_html_e( '按云存储清单统计', 'sakura-imgopt' ); ?></span>
 	</article>
 	<article class="kpi">
@@ -412,6 +416,7 @@ $sakura_sync_cards = static function () use (
 	$health_warn,
 	$provider_label,
 	$bucket,
+	$bucket_display,
 	$endpoint,
 	$media_label,
 	$jobs,
@@ -604,7 +609,7 @@ $sakura_sync_cards = static function () use (
 				'kicker' => __( 'Connection', 'sakura-imgopt' ),
 				'title'  => __( '连接与队列健康', 'sakura-imgopt' ),
 			),
-			static function () use ( $health_text, $health_warn, $provider_label, $bucket, $endpoint, $media_label, $scan_label, $local_files, $cloud_objects, $jobs, $queue_waiting, $queue_dead, $metric_pages, $metric_batches, $metric_batch_ms, $metric_429, $metric_5xx, $cron_next, $index_enabled, $toggle_nonce, $test_nonce, $settings_url, $frozen ): void {
+			static function () use ( $health_text, $health_warn, $provider_label, $bucket, $bucket_display, $endpoint, $media_label, $scan_label, $local_files, $cloud_objects, $jobs, $queue_waiting, $queue_dead, $metric_pages, $metric_batches, $metric_batch_ms, $metric_429, $metric_5xx, $cron_next, $index_enabled, $toggle_nonce, $test_nonce, $settings_url, $frozen ): void {
 				?>
 				<div class="health">
 					<div class="health__status<?php echo $health_warn ? ' is-warn' : ''; ?>">
@@ -614,7 +619,7 @@ $sakura_sync_cards = static function () use (
 					</div>
 					<dl class="health__list">
 						<div class="health__row"><dt><?php esc_html_e( '服务商', 'sakura-imgopt' ); ?></dt><dd><?php echo esc_html( $provider_label ); ?></dd></div>
-						<div class="health__row"><dt><?php esc_html_e( '存储桶', 'sakura-imgopt' ); ?></dt><dd><?php echo esc_html( $bucket ? $bucket : '—' ); ?></dd></div>
+						<div class="health__row"><dt><?php esc_html_e( '存储桶', 'sakura-imgopt' ); ?></dt><dd<?php echo '' !== $bucket ? ' title="' . esc_attr( $bucket ) . '"' : ''; ?>><?php echo esc_html( '' !== $bucket_display ? $bucket_display : '—' ); ?></dd></div>
 						<div class="health__row"><dt>Endpoint</dt><dd class="health__mono"><?php echo esc_html( $endpoint ? $endpoint : '—' ); ?></dd></div>
 						<div class="health__row"><dt><?php esc_html_e( '媒体 URL', 'sakura-imgopt' ); ?></dt><dd class="health__mono"><?php echo esc_html( $media_label ); ?></dd></div>
 						<div class="health__row"><dt><?php esc_html_e( '最近核对', 'sakura-imgopt' ); ?></dt><dd><?php echo esc_html( sprintf( /* translators: 1: time, 2: local, 3: cloud. */ __( '%1$s · %2$s / %3$s', 'sakura-imgopt' ), $scan_label, number_format_i18n( $local_files ), number_format_i18n( $cloud_objects ) ) ); ?></dd></div>
@@ -694,7 +699,7 @@ $sakura_sync_cards = static function () use (
 				'anchor'      => 'reconcile',
 				'class'       => 'card--wide',
 				'kicker'      => __( 'Reconciliation', 'sakura-imgopt' ),
-				'title'       => sprintf( /* translators: %d: total. */ __( '文件核对（%d 项差异）', 'sakura-imgopt' ), $total ),
+				'title'       => sprintf( /* translators: %d: number of rows that differ between local and cloud. */ __( '文件核对（%d 项差异）', 'sakura-imgopt' ), $difference ),
 				'description' => __( '按文件名、大小和修改时间比对本地与云端；删除操作始终二次确认。', 'sakura-imgopt' ),
 				'actions'     => array(
 					array(
@@ -738,7 +743,7 @@ $sakura_sync_cards = static function () use (
 					<div class="recon-tools">
 						<label class="recon-search">
 							<span class="screen-reader-text"><?php esc_html_e( '搜索文件', 'sakura-imgopt' ); ?></span>
-							<input id="file-search" type="search" placeholder="<?php esc_attr_e( '按路径前缀搜索，如 2024/05/…', 'sakura-imgopt' ); ?>" />
+							<input id="file-search" type="search" placeholder="<?php esc_attr_e( '搜索文件名或路径，如 x8BnM.webp', 'sakura-imgopt' ); ?>" />
 						</label>
 						<label class="screen-reader-text" for="type-filter"><?php esc_html_e( '文件类型', 'sakura-imgopt' ); ?></label>
 						<select id="type-filter">
@@ -953,6 +958,7 @@ $sakura_sync_cards = static function () use (
 					<li><strong><?php esc_html_e( '待上传：', 'sakura-imgopt' ); ?></strong><?php esc_html_e( '本地有、云端无；包含排队中的任务。', 'sakura-imgopt' ); ?></li>
 					<li><strong><?php esc_html_e( '仅云端：', 'sakura-imgopt' ); ?></strong><?php esc_html_e( '云端有、本地无；不会自动删除，避免误删 CDN 回源文件。', 'sakura-imgopt' ); ?></li>
 					<li><strong><?php esc_html_e( '内容不一致：', 'sakura-imgopt' ); ?></strong><?php esc_html_e( 'Key 相同但大小或内容（MD5/ETag）不一致，需重新上传或人工核对。', 'sakura-imgopt' ); ?></li>
+					<li><strong><?php esc_html_e( '搜索：', 'sakura-imgopt' ); ?></strong><?php esc_html_e( '按对象 Key 任意位置匹配，只输入文件名也能找到；筛选后的条数与分页按匹配结果计算。', 'sakura-imgopt' ); ?></li>
 					<li><strong><?php esc_html_e( '危险操作：', 'sakura-imgopt' ); ?></strong><?php esc_html_e( '删除云端文件必须二次确认；批量删除会先列出数量与对象。', 'sakura-imgopt' ); ?></li>
 				</ul>
 				<?php
@@ -992,6 +998,7 @@ $sync_body = ob_get_clean();
 		'status'  => array(
 			'label' => __( '当前存储桶', 'sakura-imgopt' ),
 			'value' => $bucket_label,
+			'title' => $bucket,
 			'sub'   => $page_status_sub,
 			'tone'  => $status_tone,
 		),

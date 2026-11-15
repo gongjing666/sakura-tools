@@ -674,6 +674,9 @@
 			var cursor      = tbody.getAttribute( 'data-cursor' ) || '';
 			var hasMore     = '1' === tbody.getAttribute( 'data-more' );
 			var totalRows   = parseInt( tbody.getAttribute( 'data-total' ) || '0', 10 ) || 0;
+			// Rows matching the active filters. The server reports it with the
+			// first page of a filtered list; until then it mirrors the total.
+			var matchedRows = totalRows;
 			var counts      = {};
 			var history     = [ '' ];
 			var selection   = {};
@@ -983,12 +986,65 @@
 				if ( ! preview.name ) {
 					preview.name = button.getAttribute( 'data-sakura-name' ) || '';
 				}
+
+				/*
+				 * Rows that come from the fast list endpoint carry no preview
+				 * URL: that endpoint runs under SHORTINIT, where the URL and
+				 * nonce helpers do not exist, and signing every row would make
+				 * the list slower than the dialog. Ask for the one row the
+				 * visitor actually opened instead.
+				 */
+				if ( ! preview.download && ! preview.url ) {
+					var row = button.closest( 'tr' );
+					var rowKey = row ? row.getAttribute( 'data-key' ) : '';
+					if ( ! rowKey ) {
+						rowKey = button.getAttribute( 'data-sakura-key' ) || '';
+					}
+					if ( rowKey ) {
+						loadPreview( rowKey, button, preview );
+						return;
+					}
+				}
+
+				openPreview( preview, button );
+			} );
+
+			var previewCache = {};
+
+			function openPreview( preview, button ) {
 				if ( admin.ui && 'function' === typeof admin.ui.mediaPreview ) {
 					admin.ui.mediaPreview( preview, { trigger: button } );
 					return;
 				}
 				toast( strings.unknownError, 'bad' );
-			} );
+			}
+
+			function loadPreview( key, button, fallback ) {
+				if ( previewCache[ key ] ) {
+					openPreview( previewCache[ key ], button );
+					return;
+				}
+
+				var restore = admin.ui && admin.ui.busy ? admin.ui.busy( button, true ) : function () {};
+
+				admin.api.ajax(
+					'sakura_s3_sync_preview',
+					{ object_key: key, nonce: config.previewNonce },
+					{ timeout: 25000 }
+				).then( function ( data ) {
+					restore();
+					var payload = data && data.preview ? data.preview : null;
+					if ( ! payload || ! payload.name ) {
+						openPreview( fallback || {}, button );
+						return;
+					}
+					previewCache[ key ] = payload;
+					openPreview( payload, button );
+				} ).catch( function ( error ) {
+					restore();
+					toast( errorText( error, strings.previewError ), 'bad' );
+				} );
+			}
 
 			/* Batches. */
 
@@ -1167,13 +1223,7 @@
 			}
 
 			function filteredTotal() {
-				if ( ! isFiltered() ) {
-					return totalRows;
-				}
-				if ( 'all' === filter ) {
-					return totalRows;
-				}
-				return Number( counts[ filter ] || 0 );
+				return isFiltered() ? matchedRows : totalRows;
 			}
 
 			function updateSummary( visible ) {
@@ -1183,8 +1233,11 @@
 				var total = filteredTotal();
 				var start = visible === 0 ? 0 : ( pageNo - 1 ) * pageSize + 1;
 				var end   = Math.min( ( pageNo - 1 ) * pageSize + visible, total );
+				// The filtered template's last number is the size of the whole
+				// index ("筛选自 130 项"), not the number of matches.
 				var template = isFiltered() ? ( strings.summaryFiltered || strings.summary ) : strings.summary;
-				summaryEl.textContent = format( template, admin.format.number( start ), admin.format.number( end ), admin.format.number( total ) );
+				var base     = isFiltered() ? totalRows : total;
+				summaryEl.textContent = format( template, admin.format.number( start ), admin.format.number( end ), admin.format.number( base ) );
 			}
 
 			function renderPager() {
@@ -1317,6 +1370,13 @@
 					hasMore = !! payload.has_more;
 					if ( payload.total !== undefined ) {
 						totalRows = parseInt( payload.total, 10 ) || 0;
+					}
+					// Only the first page of a filtered list carries a count; later
+					// pages keep the value that was measured when the list started.
+					if ( payload.filtered_total !== undefined && payload.filtered_total !== null ) {
+						matchedRows = parseInt( payload.filtered_total, 10 ) || 0;
+					} else if ( ! isFiltered() ) {
+						matchedRows = totalRows;
 					}
 					if ( payload.counts && 'object' === typeof payload.counts ) {
 						updateCounts( payload.counts );

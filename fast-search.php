@@ -44,6 +44,7 @@ require_once dirname( __FILE__, 4 ) . '/wp-load.php';
 require_once __DIR__ . '/src/Sync/Kind.php';
 require_once __DIR__ . '/src/Sync/Keyset_Cursor.php';
 require_once __DIR__ . '/src/Sync/Fast_Search_Query.php';
+require_once __DIR__ . '/src/Sync/Search_Term.php';
 
 $user_id   = (int) $_GET['u']; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Signed token below.
 $expires   = (int) $_GET['e']; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Signed token below.
@@ -98,13 +99,7 @@ if ( ! in_array( $type, array( 'all', 'image', 'video', 'archive', 'other' ), tr
 	$type = 'all';
 }
 
-$upload_path = trim( str_replace( '\\', '/', (string) get_option( 'upload_path', 'wp-content/uploads' ) ), '/' );
-if ( '' === $upload_path ) {
-	$upload_path = 'wp-content/uploads';
-}
-if ( '' !== $search && 0 !== strpos( $search, $upload_path . '/' ) ) {
-	$search = $upload_path . '/' . $search;
-}
+$search    = \Sakura\ImageOptimizer\Sync\Search_Term::normalize( $search );
 $by_key    = '' !== $search;
 $by_recent = $days > 0 && '1' === (string) get_option( 'sakura_imgopt_sync_recent_ready', '' );
 
@@ -117,7 +112,7 @@ if ( 'all' !== $status ) {
 }
 if ( $by_key ) {
 	$where[] = 'object_key LIKE %s';
-	$args[]  = $wpdb->esc_like( $search ) . '%';
+	$args[]  = \Sakura\ImageOptimizer\Sync\Search_Term::pattern( $search, array( $wpdb, 'esc_like' ) );
 }
 if ( 'all' !== $type ) {
 	$where[] = 'kind=%s';
@@ -134,6 +129,11 @@ if ( $days > 0 ) {
 		$args[]  = $cut;
 	}
 }
+
+// Filters only, captured before the cursor clause: the count returned with the
+// first page describes the whole filtered set, not the rows of this page.
+$filter_where = $where;
+$filter_args  = $args;
 
 if ( '' !== $cursor ) {
 	if ( $by_recent ) {
@@ -226,6 +226,13 @@ if ( $has_more && $rows ) {
 
 $total = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(item_count),0) FROM {$counts_table} WHERE profile_id=%s", $profile ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name from prefix.
 
+// Rows matching the filters across all pages; only the first page of a filtered
+// list needs it. An unfiltered list knows its total from the counts table.
+$filtered_total = null;
+if ( '' === $cursor && count( $filter_where ) > 1 ) {
+	$filtered_total = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$index_table} WHERE " . implode( ' AND ', $filter_where ), $filter_args ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Where clauses use placeholders; table name from prefix.
+}
+
 header( 'Content-Type: application/json; charset=utf-8' );
 header( 'Cache-Control: no-store, private, max-age=0' );
 header( 'X-Accel-Expires: 0' );
@@ -237,10 +244,11 @@ echo json_encode( // phpcs:ignore WordPress.WP.AlternativeFunctions.json_encode_
 	array(
 		'success' => true,
 		'data'    => array(
-			'rows'     => $out,
-			'cursor'   => $next,
-			'has_more' => $has_more,
-			'total'    => $total,
+			'rows'           => $out,
+			'cursor'         => $next,
+			'has_more'       => $has_more,
+			'total'          => $total,
+			'filtered_total' => $filtered_total,
 		),
 	),
 	JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE

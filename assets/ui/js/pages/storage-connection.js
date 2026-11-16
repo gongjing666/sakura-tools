@@ -475,11 +475,16 @@
 				/*
 				 * Space name when the provider reports one (DogeCloud), otherwise the
 				 * shortened bucket: a 40-character id is unreadable at chip size.
+				 * Auto-generated names already end with the space, so skip the
+				 * second line instead of printing the same word twice.
 				 */
-				var meta = document.createElement( 'span' );
-				meta.className = 'profile-chip__meta';
-				meta.textContent = profile.space || shortBucket( profile.bucket ) || profile.endpoint || '';
-				chip.appendChild( meta );
+				var metaText = profile.space || shortBucket( profile.bucket ) || profile.endpoint || '';
+				if ( metaText && name.textContent.indexOf( metaText ) === -1 ) {
+					var meta = document.createElement( 'span' );
+					meta.className = 'profile-chip__meta';
+					meta.textContent = metaText;
+					chip.appendChild( meta );
+				}
 
 				chip.addEventListener( 'click', function () {
 					load( profile );

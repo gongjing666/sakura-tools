@@ -119,7 +119,7 @@ final class Delete_Queue_Panel {
 		}
 
 		if ( 'drop' === $task ) {
-			$sql      = $wpdb->prepare( "DELETE FROM {$table} WHERE id IN ({$in})", $ids );
+			$sql      = $wpdb->prepare( "DELETE FROM {$table} WHERE id IN ({$in})", $ids ); // phpcs:ignore WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare -- IN list and arguments both derive from $ids.
 			$affected = false === $sql ? 0 : (int) $wpdb->query( $sql );
 			$this->redirect( array( 'sufm_deletes' => 'dropped', 'count' => $affected ) );
 		}
@@ -469,7 +469,7 @@ final class Delete_Queue_Panel {
 
 		if ( array() !== $ids ) {
 			$in  = implode( ',', array_fill( 0, count( $ids ), '%d' ) );
-			$sql = $wpdb->prepare( "{$sql} WHERE id IN ({$in})", $ids ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- placeholder list built from absint values.
+			$sql = $wpdb->prepare( "{$sql} WHERE id IN ({$in})", $ids ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare -- IN list and arguments both derive from absint IDs.
 		}
 
 		$rows = false === $sql ? array() : $wpdb->get_results( $sql . ' ORDER BY id ASC', ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- prepared above when needed.

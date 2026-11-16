@@ -1245,7 +1245,7 @@ final class Crop_Config_Scanner {
 			return $bool;
 		}
 
-		// array( 'crop' => true ) / array( 'crop' => false, ... ).
+		// The array form carries a crop key (true or false) plus other keys.
 		$crop_key_seen = false;
 		foreach ( $tokens as $index => $token ) {
 			if ( is_array( $token ) && T_CONSTANT_ENCAPSED_STRING === $token[0] ) {

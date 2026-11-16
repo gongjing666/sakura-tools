@@ -466,7 +466,7 @@ class S3_CLI {
 
 		if ( isset( $assoc_args['drop'] ) ) {
 			$this->require_yes( $assoc_args, '--drop' );
-			$sql     = $wpdb->prepare( "DELETE FROM {$table} WHERE {$where}", $states );
+			$sql     = $wpdb->prepare( "DELETE FROM {$table} WHERE {$where}", $states ); // phpcs:ignore WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare -- $where is a fixed state list; arguments match its placeholders.
 			$deleted = false === $sql ? 0 : (int) $wpdb->query( $sql );
 			\WP_CLI::success( sprintf( /* translators: %d: number of queue rows. */ __( '已删除 %1$d 行队列记录。', 'sakura-imgopt' ), $deleted ) );
 			return;

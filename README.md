@@ -6,7 +6,7 @@
 
 图片压缩 · 缩略图治理 · S3 对象存储 · 同步索引 · 用户文件空间
 
-[![版本](https://img.shields.io/badge/version-1.27.6-e85d8b?style=flat-square)](https://github.com/gongjing666/sakura-tools/releases/latest)
+[![版本](https://img.shields.io/badge/version-1.28.0-e85d8b?style=flat-square)](https://github.com/gongjing666/sakura-tools/releases/latest)
 [![PHPUnit](https://img.shields.io/badge/PHPUnit-10.5-4c1?style=flat-square)](https://github.com/gongjing666/sakura-tools/actions/workflows/tests.yml)
 [![PHPStan](https://img.shields.io/badge/PHPStan-level%205-4c1?style=flat-square)](https://github.com/gongjing666/sakura-tools/actions/workflows/phpstan.yml)
 ![WordPress](https://img.shields.io/badge/WordPress-6.4%2B-21759b?style=flat-square&logo=wordpress&logoColor=white)
@@ -40,6 +40,7 @@
 
 ## 最近更新
 
+- **1.28.0** — 对象存储多了两个页面。**链接改写**把数据库里旧的附件域名批量换成新域名（比如缤纷云 `bf.nboke.com` → 多吉云 `doge.nboke.com`），默认只扫文章与主题数据，插件自己的表要显式勾选；每行写前留原值，配回滚账本，改写后又被手改的行会被标成冲突并跳过。**费用估算**按存储量、流量、请求、图片处理和命中率，对多吉云、缤纷云、阿里云、腾讯云、七牛、又拍、百度、Cloudflare R2、Backblaze B2 与 MinIO 逐项算月账单，单价是内置公开价，不联网也不读厂商账单。同时把连接设置卡收敛成一张全宽卡：取消基础/高级折叠，移除会误导人的「文件访问权限（对象 ACL）」；多吉云/COS 的批量删除与分片 ETag 补了兼容兜底。PHPCS 的 37 条 warning 一并清零。详见 [readme.txt](readme.txt) 的 changelog。
 - **1.27.6** — 连接失败终于说清原因。S3「测试连接」以前无论什么错都提示「请检查服务商、地域、Endpoint、存储桶和凭据」；现在先 `headBucket`、失败再 `listObjectsV2` 取回带 XML 的错误码，直接告诉你 `InvalidAccessKeyId（HTTP 403）` 还是端点填成了管理 API。多吉云这条线补齐：填存储空间名称即可反查 `s3Bucket` / `s3Endpoint`，缩略图走命名样式（`/720wm`）或 `imageView2`；保存配置改为原地更新，不再偷偷新建一份。同步中心的裸文件名搜索修好了，并新增按需预览。媒体库的卡片与列表缩略图改走云存储，SVG/GIF 不再被拼样式后缀与转成静态图。顺带修掉后台通知条冒充页面根导致整页按钮失效（688px 空白带）与存储页「最后错误」只占半行的问题。详见 [readme.txt](readme.txt) 的 changelog。
 - **1.27.5** — 后台切页不再「糊一下」。WordPress 7.0 起给整个后台启用了跨文档 View Transitions，每次点模块或页签都把新旧两页整页交叉淡化 250ms；本插件后台是密集表格与卡片，两层半透明叠在一起就是文字互相穿透。现在用 `@view-transition { navigation: none }` 退出这套过渡，改由自己控制：新文档硬切，只有主内容列 180ms 淡入并上浮 6px，模块切换条、页签条与侧边栏完全不参与动画。顺带更快——命名为 `view-transition-name` 的元素会让浏览器多拍快照并单独分组渲染，实测净增约 15ms；完全不快照反而比默认过渡快约 30ms（点击到 load 完成：456 → 422ms 均值）。另加点击即时反馈：WordPress 引导一次后台请求约 300ms，这段时间页面停在旧内容上像没点中，现在点击同一帧顶部亮起 2px 樱色扫光条，新文档出来自然消失，`prefers-reduced-motion` 下改为常亮不扫光。
 - **1.27.4** — 卸载残留清理：勾选「删除数据」后仍留下外观设置、两把命名固定的锁、`sakura_imgopt_lock_*` 前缀锁与两条 usermeta；transient 扫描扩到 `sakura_imgopt_` 与 `sufm_` 两个命名空间（含 timeout 条目）。顺带修掉停用后 `sakura_imgopt_sync_calibrate` / `_now` 仍留在定时任务里的问题（这两个由校准器自己排期，不走激活流程）。
@@ -58,6 +59,7 @@
 | **图片优化** | 上传压缩；保持原格式或转 WebP / AVIF；质量、最大边长与体积上限；原图备份与单张还原；动图跳过；媒体库批量优化与进度 | 图片优化 → 优化规则 / 备份还原 / 统计 |
 | **缩略图** | 禁用不需要的尺寸；给缩略图地址加尺寸参数；列表、侧栏、正文可分别指定 | 图片优化 → 缩略图 |
 | **对象存储** | 10 家 S3 兼容服务；附件创建时同步上传；删除失败进补偿队列；Prometheus 指标与 webhook 告警 | 对象存储 → 连接配置 / 同步中心 / 删除队列 |
+| **存储工具** | 附件链接批量改写（带账本与回滚）；10 家云存储费用估算；连接参数与兼容性说明集中在一张卡 | 对象存储 → 链接改写 / 费用估算 |
 | **同步索引** | 本地与远端扫描；断点续跑；MD5 / ETag 校验；动作队列与结果核对 | 对象存储 → 同步中心 |
 | **用户文件空间** | 虚拟文件夹；单文件、每日、用户与站点配额；删除申请 → 审核 → 执行；媒体库归属与容量 | 文件空间 → 用户容量 / 审核与执行 |
 | **编辑页文件面板** | 拖到正文插入；右键插入；Shift / Ctrl 多选；批量操作条 | Zibll 发帖 / 编辑页 |
@@ -98,17 +100,17 @@ flowchart LR
 | 兼容层 | `includes/`、`includes/views/` | 旧实现与后台模板，仍由启动流程加载，不能盲删 |
 
 <details>
-<summary><strong>代码规模与仓库结构（1.27.6）</strong></summary>
+<summary><strong>代码规模与仓库结构（1.28.0）</strong></summary>
 
 | 指标 | 数值 |
 | --- | --- |
-| 生产 PHP | 200 文件 / 67,806 行 |
-| 类与接口 | 185（含 7 个接口） |
-| 注册钩子 | 211 |
-| 自定义表 | 23 |
-| 后台模块 | 4（13 个页签） |
-| 后台 CSS/JS | 38 文件 / 34,677 行（`assets/ui/` 27 文件 / 15,187 行） |
-| 测试 | 90 文件 / 12,823 行；570 tests / 2,608 assertions |
+| 生产 PHP | 208 文件 / 71,908 行 |
+| 类与接口 | 191（含 7 个接口） |
+| 注册钩子 | 220 |
+| 自定义表 | 24 |
+| 后台模块 | 4（15 个页签） |
+| 后台 CSS/JS | 43 文件 / 36,069 行（`assets/ui/` 31 文件 / 16,571 行） |
+| 测试 | 94 文件 / 14,014 行；623 tests / 2,940 assertions |
 
 ```text
 sakura-tools/
@@ -266,7 +268,7 @@ git clone https://github.com/gongjing666/sakura-tools.git
 | 文档 | 内容 |
 | --- | --- |
 | [开发规则索引](docs/开发规则/00-索引.md) | **改代码从这里开始**：五分钟上手路径、按任务找文档、十条铁律 |
-| [代码结构文档](docs/sakura-tools-代码结构-1.27.6.md) | 文件树、类职责、依赖矩阵、钩子分布，附类 / 钩子 / 文件三个索引；由 `docs/tools/` 生成 |
+| [代码结构文档](docs/sakura-tools-代码结构-1.28.0.md) | 文件树、类职责、依赖矩阵、钩子分布，附类 / 钩子 / 文件三个索引；由 `docs/tools/` 生成 |
 | [DECISIONS.md](DECISIONS.md) | 关键设计取舍与已知边界，记录「为什么」而不是「现在有什么」 |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | 环境、提交前必跑的命令、提交信息与 PR 要求 |
 
@@ -281,7 +283,7 @@ git clone https://github.com/gongjing666/sakura-tools.git
 | [05 测试与质量](docs/开发规则/05-测试与质量.md) | PHPUnit / PHPStan / PHPCS 口径、CI、手工验收 |
 | [06 发布流程](docs/开发规则/06-发布流程.md) | 版本号、changelog、三关检查、打包、Release、部署、回滚 |
 
-另有两类补充：3D 图谱静态页（[docs/graph-preview/index.html](docs/graph-preview/index.html)，GitHub 不执行页面脚本，克隆后用浏览器打开）；以及 [docs/history/](docs/history/) 里的归档文档（`DEVELOPMENT.md`、1.25.9 的两份分析产物、后台 UI 重构方案），**开头的声明都写着「不代表现状」**，只管追溯「当时为什么这么做」。
+另有两类补充：3D 图谱静态页（[docs/graph-preview/index.html](docs/graph-preview/index.html)，GitHub 不执行页面脚本，克隆后用浏览器打开）；以及 [docs/history/](docs/history/) 里的归档文档（`DEVELOPMENT.md`、1.25.9 / 1.27.5 / 1.27.6 的分析产物、后台 UI 重构方案），**开头的声明都写着「不代表现状」**，只管追溯「当时为什么这么做」。
 
 代码规模、节点数与钩子数会随版本变化；文档里的数字都以当轮扫描结果为准。
 
@@ -321,7 +323,7 @@ composer lint:strict
 本地构建（默认当前 HEAD）：
 
 ```bash
-bin/build-plugin-zip.sh --version 1.27.6 --out dist
+bin/build-plugin-zip.sh --version 1.28.0 --out dist
 ```
 
 补建历史版本包：

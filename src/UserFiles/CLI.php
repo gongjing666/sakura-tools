@@ -280,8 +280,8 @@ final class CLI {
 		$reused  = 0;
 
 		$seen = array();
-		$ensure = static function ( int $owner, int $parent, string $name ) use ( &$created, &$reused, &$seen, $folders, $wpdb, $table, $dry ) {
-			$key = $owner . '|' . $parent . '|' . $name;
+		$ensure = static function ( int $owner, int $parent_folder, string $name ) use ( &$created, &$reused, &$seen, $folders, $wpdb, $table, $dry ) {
+			$key = $owner . '|' . $parent_folder . '|' . $name;
 			if ( $dry && isset( $seen[ $key ] ) ) {
 				++$reused;
 				return $seen[ $key ];
@@ -291,7 +291,7 @@ final class CLI {
 				$wpdb->prepare(
 					"SELECT id FROM {$table} WHERE owner_id=%d AND parent_id=%d AND name=%s AND lifecycle='active' LIMIT 1",
 					$owner,
-					$parent,
+					$parent_folder,
 					$name
 				)
 			);
@@ -304,7 +304,7 @@ final class CLI {
 				$seen[ $key ] = -1 - count( $seen );
 				return $seen[ $key ];
 			}
-			$folder = $folders->create( $owner, $parent, $name );
+			$folder = $folders->create( $owner, $parent_folder, $name );
 			if ( is_wp_error( $folder ) ) {
 				\WP_CLI::warning(
 					sprintf(

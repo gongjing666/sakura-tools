@@ -61,10 +61,10 @@ final class Layout {
 			'order' => array( 'profiles', 'connection', 'behaviour', 'upload-metrics', 'monitoring' ),
 			'cards' => array(
 				'profiles' => array( 1, 1, 12 ),
-				// Tallest card on the screen: it owns the left column for both rows.
-				// The row span itself lives in assets/ui/pages/storage.css.
-				'connection' => array( 2, 1, 6 ),
-				'behaviour' => array( 2, 7, 6 ),
+				// Connection owns a full row: it is still the tallest card, and a
+				// half-width column forced its fields into one long strip.
+				'connection' => array( 2, 1, 12 ),
+				'behaviour' => array( 3, 1, 6 ),
 				'upload-metrics' => array( 3, 7, 6 ),
 				'monitoring' => array( 4, 1, 12 ),
 			),
@@ -149,6 +149,23 @@ final class Layout {
 				'logs' => array( 6, 1, 12 ),
 			),
 		),
+		'rewrite' => array(
+			'order' => array( 'target', 'scan', 'run', 'history' ),
+			'cards' => array(
+				'target'  => array( 1, 1, 12 ),
+				'scan'    => array( 2, 1, 12 ),
+				'run'     => array( 3, 1, 12 ),
+				'history' => array( 4, 1, 12 ),
+			),
+		),
+		'cost' => array(
+			'order' => array( 'demand', 'table', 'notes' ),
+			'cards' => array(
+				'demand' => array( 1, 1, 12 ),
+				'table'  => array( 2, 1, 12 ),
+				'notes'  => array( 3, 1, 12 ),
+			),
+		),
 		'files-queue' => array(
 			'order' => array( 'execute', 'queue' ),
 			'cards' => array(
@@ -225,6 +242,8 @@ final class Layout {
 			'storage-connection' => 's3',
 			'storage-sync'       => 'sync',
 			'storage-deletes'    => 'deletes',
+			'storage-rewrite'    => 'rewrite',
+			'storage-cost'       => 'cost',
 			'files-zibll'        => 'files-space',
 		);
 

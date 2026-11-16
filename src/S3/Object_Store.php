@@ -121,6 +121,26 @@ final class Object_Store {
 		try {
 			if ( $multipart ) {
 				$expected_etag = $this->upload_multipart( $key, $filename, $options, $content_type, $content_md5 );
+
+				/*
+				 * Tencent COS (and DogeCloud, which serves COS behind its S3
+				 * endpoint) returns a multipart ETag that is not the AWS
+				 * md5-of-part-md5s form.  Part ETags are still MD5s and COS
+				 * validates them in CompleteMultipartUpload, so the write is
+				 * already checked part by part; comparing the final ETag would
+				 * reject a complete object.  Keep the size check and the part
+				 * validation, skip only the final ETag comparison.
+				 */
+				$provider             = (string) ( $options['provider'] ?? '' );
+				$compare_final_etag   = (bool) apply_filters(
+					'sakura_imgopt_verify_multipart_etag',
+					! in_array( $provider, array( 'dogecloud', 'tencent' ), true ),
+					$provider,
+					$key
+				);
+				if ( ! $compare_final_etag ) {
+					$expected_etag = '';
+				}
 			} else {
 				// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fopen -- Small single-part uploads use a stream.
 				$handle = fopen( $filename, 'rb' );
@@ -785,15 +805,38 @@ final class Object_Store {
 		}
 		try {
 			$options = (array) call_user_func( $this->options );
+			$client  = call_user_func( $this->client );
+			$bucket  = (string) ( $options['bucket'] ?? '' );
 			foreach ( array_chunk( $keys, 1000 ) as $chunk ) {
-				$response = call_user_func( $this->client )->deleteObjects( array(
-					'@retries' => 0,
-					'Bucket' => (string) ( $options['bucket'] ?? '' ),
-					'Delete' => array(
-						'Objects' => array_map( static fn( $key ) => array( 'Key' => $key ), $chunk ),
-						'Quiet' => true,
-					),
-				) );
+				try {
+					$response = $client->deleteObjects( array(
+						'@retries' => 0,
+						'Bucket' => $bucket,
+						'Delete' => array(
+							'Objects' => array_map( static fn( $key ) => array( 'Key' => $key ), $chunk ),
+							'Quiet' => true,
+						),
+					) );
+				} catch ( \Throwable $e ) {
+					/*
+					 * Tencent COS (and DogeCloud behind it) rejects DeleteObjects
+					 * with "Missing required header ... Content-MD5". Single-object
+					 * DeleteObject needs no such header, so fall back per key
+					 * instead of leaving every deletion stuck in "uncertain".
+					 */
+					if ( false === stripos( $e->getMessage(), 'Content-MD5' ) ) {
+						throw $e;
+					}
+					call_user_func( $this->log, __( '批量删除被服务端拒绝（要求 Content-MD5），改为逐对象删除。', 'sakura-imgopt' ) );
+					foreach ( $chunk as $key ) {
+						$client->deleteObject( array(
+							'@retries' => 0,
+							'Bucket' => $bucket,
+							'Key' => $key,
+						) );
+					}
+					continue;
+				}
 				$errors = (array) ( $response['Errors'] ?? array() );
 				if ( $errors ) {
 					return new \WP_Error( 'sio_delete_partial', __( '云端返回部分删除失败，已停止后续删除并等待核对。', 'sakura-imgopt' ), array( 'errors' => $errors ) );

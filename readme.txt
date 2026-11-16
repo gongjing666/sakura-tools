@@ -4,7 +4,7 @@ Tags: image optimization, webp, avif, imagick, media library
 Requires at least: 6.4
 Tested up to: 7.1.4
 Requires PHP: 8.2
-Stable tag: 1.27.6
+Stable tag: 1.28.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -19,6 +19,7 @@ License URI: https://www.gnu.org/licenses/gpl-2.0.html
 * 处理前自动备份原图，支持单张还原；还能检测备份目录是否会被外网直接下载。
 * 媒体库支持按格式筛选、批量优化，并显示处理进度。
 * 可选把图片同步到云存储（支持 Cloudflare R2、MinIO、缤纷云等 S3 兼容服务）。
+* 「对象存储」内置链接改写与费用估算：迁移存储域名后批量替换数据库里的旧附件链接（带账本与一键回滚），并按存储量、流量与请求量比较 10 家服务商的月费。
 * 可选给缩略图地址加上尺寸参数，并让列表、侧边栏和正文分别使用指定尺寸。
 * 「系统设置」页集中展示 PHP-FPM 运行参数、图像引擎与扩展状态，并可调整卡片表面色、圆角与边框，方便先确认环境再开功能。
 * 用户文件空间：为投稿者提供虚拟文件夹、容量配额和上传权限，删除必须走「申请 → 管理员审核 → 后台确认执行」，媒体库可直接查看归属、容量与申请状态。
@@ -78,6 +79,17 @@ Access Key 和 Secret 会加密后存进数据库，页面和源码都不会显�
 插件目前没有接管这个跳转。等出现「既要防直链、又要保留购买校验」的需求时再研发，方向是在主题之前拦截下载请求，由插件代理输出或签发短时有效的预签名地址；若暂时需要这层保护，请关闭「上传后删除本地文件」，让文件保留在本地。
 
 == Changelog ==
+
+= 1.28.0 =
+
+* 新增：**对象存储「链接改写」页**，用于存储服务迁移后批量替换数据库里残留的旧附件域名。支持扫描预览、按内容/主题数据分组执行、12 秒分片续跑；每行改写前把原值记进 `{prefix}sio_url_rewrites` 账本，可一键回滚；改写后又被手动改过的行标为「冲突」并跳过，不会覆盖新内容。同时处理纯文本、序列化数组与 JSON 里的域名，域名边界严格匹配（`bf.example.com.evil.test` 不会命中）。生产实测把 `bf.nboke.com` 换成 `doge.nboke.com`：`posts.post_content` 17 行、`posts.guid` 130 行、`postmeta` 3 行、`termmeta` 6 行、`zibll_options` 11 行、`zibll_options_backup` 101 行，合计 268 行；回滚与冲突保护均已验证。
+* 新增：**对象存储「费用估算」页**，按存储量、月流量、读写请求、图片处理量、缓存命中率与 HTTPS 占比，比较多吉云、缤纷云、阿里云 OSS、腾讯云 COS、七牛云 KODO、又拍云、百度云 BOS、Cloudflare R2、Backblaze B2 与 MinIO 自建共 10 种方案的月费。单价内置自各家官方价格页（`PRICED_AT = 2026-11-16`），累进阶梯计算，纯本地运算：不联网、不读厂商账单、不写数据库。
+* 调整：**对象存储连接设置卡改为单列全宽、字段两列排布**，取消「基础设置 / 高级设置」分级与折叠，并移除「文件访问权限（对象 ACL）」选项——实测对象 ACL 不能决定自定义域名能否匿名访问，最终可见性由存储空间策略或 CDN 决定，继续暴露该选项只会误导。云端路径前缀与图片地址前缀仍在同一张卡内，保存按钮固定在卡片底部。连接卡不再提交 `object_acl` 后，`Settings_Saver::object_acl_for_save()` 会保留被编辑档案或当前活动配置里的旧值，不会把已有的 `private` 静默重置成 `public-read`。
+* 调整：**服务商下拉只展示当前可用的 7 家**（Cloudflare R2、Backblaze B2、MinIO、腾讯云 COS、阿里云 OSS、缤纷云、多吉云），七牛、百度、又拍移入隐藏列表；已有旧档案仍能正常读取与切换，不会被删除。
+* 修复：**多吉云 / 腾讯云 COS 的批量删除失败**。这两家对 `DeleteObjects` 要求 `Content-MD5`，缺失时返回 `InvalidRequest: Missing required header for this request: Content-MD5`，此前整批删除会被判为「结果不确定」。现在捕获该错误后自动退化为逐对象 `DeleteObject`，其余异常仍按原逻辑上报，不会把失败伪装成成功。生产实测删除两个测试对象后列表剩余 0，远端操作守卫的 inflight / uncertain 均为 0。
+* 调整：**多吉云 / 腾讯云 COS 的分片上传不再比较最终复合 ETag**。这两家的分片 ETag 不是标准 S3 复合值，严格比较会把已经上传成功的 20MB 以上文件误判为失败；现在仍校验对象大小与各分片 ETag，只跳过最终复合值比较。可通过 `sakura_imgopt_verify_multipart_etag` 过滤器改回。
+* 质量：PHPCS 从 37 条 warning 清零到 **0 error / 0 warning**（未关闭任何安全检查，动态 SQL 占位符逐处加带理由的豁免），全量 **623 tests / 2,940 assertions / 6 skipped**，PHPStan level 5 无错误。
+* 影响范围：新增 `src/S3/{Link_Rewriter,Url_Rewrite_Repository,Url_Rewrite_Service,Url_Rewrite_Panel,Cost_Estimator,Cost_Panel}.php`、`includes/views/{storage-url-rewrite,storage-cost}.php`、`assets/ui/js/pages/{storage-rewrite,storage-cost}.js`、`assets/ui/pages/{storage-rewrite,storage-cost}.css`；存储模块新增 `rewrite`、`cost` 两个页签。新增 1 张表 `{prefix}sio_url_rewrites` 与 2 个 option（`sakura_imgopt_url_rewrite_schema`、`sakura_imgopt_url_rewrite_state`），激活时自动建表，卸载时一并清理。**不改既有路由、option 键名与钩子语义**；连接页去掉的 ACL 控件不再提交，旧配置值仍被保留。
 
 = 1.27.6 =
 

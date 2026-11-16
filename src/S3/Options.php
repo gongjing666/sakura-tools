@@ -127,11 +127,11 @@ class Options {
 	 * One option value.
 	 *
 	 * @param string $key     Option key.
-	 * @param mixed  $default Fallback.
+	 * @param mixed  $fallback Fallback.
 	 * @return mixed
 	 */
-	public function get( string $key, $default = null ) {
-		return $this->options[ $key ] ?? $default;
+	public function get( string $key, $fallback = null ) {
+		return $this->options[ $key ] ?? $fallback;
 	}
 
 	/**

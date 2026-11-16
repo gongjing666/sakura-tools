@@ -569,18 +569,18 @@ final class Settings {
 	 * class and the well-known Redis constants. It is for reporting only; the
 	 * rewrite path never branches on it.
 	 *
-	 * @param string|null $class Optional class name override (tests).
+	 * @param string|null $class_name Optional class name override (tests).
 	 * @return array{type:string,label:string,group_flush:bool,class:string}
 	 */
-	public static function object_cache_backend( ?string $class = null ): array {
-		if ( null === $class ) {
-			$class = '';
+	public static function object_cache_backend( ?string $class_name = null ): array {
+		if ( null === $class_name ) {
+			$class_name = '';
 			if ( isset( $GLOBALS['wp_object_cache'] ) && is_object( $GLOBALS['wp_object_cache'] ) ) {
-				$class = (string) get_class( $GLOBALS['wp_object_cache'] );
+				$class_name = (string) get_class( $GLOBALS['wp_object_cache'] );
 			}
 		}
-		$class = strtolower( $class );
-		$is_memcached_class = false !== strpos( $class, 'memcache' );
+		$class_name = strtolower( $class_name );
+		$is_memcached_class = false !== strpos( $class_name, 'memcache' );
 
 		$group_flush = function_exists( 'wp_cache_flush_group' ) && ( ! function_exists( 'wp_cache_supports' ) || wp_cache_supports( 'flush_group' ) );
 		$is_external = ! function_exists( 'wp_using_ext_object_cache' ) || wp_using_ext_object_cache();
@@ -590,16 +590,16 @@ final class Settings {
 				'type'        => 'none',
 				'label'       => __( 'WordPress 内置缓存（非持久）', 'sakura-imgopt' ),
 				'group_flush' => false,
-				'class'       => $class,
+				'class'       => $class_name,
 			);
 		}
 
-		if ( false !== strpos( $class, 'redis' ) || ( ! $is_memcached_class && ( defined( 'WP_REDIS_VERSION' ) || defined( 'WP_REDIS_CONFIG' ) ) ) ) {
+		if ( false !== strpos( $class_name, 'redis' ) || ( ! $is_memcached_class && ( defined( 'WP_REDIS_VERSION' ) || defined( 'WP_REDIS_CONFIG' ) ) ) ) {
 			return array(
 				'type'        => 'redis',
 				'label'       => __( 'Redis', 'sakura-imgopt' ),
 				'group_flush' => $group_flush,
-				'class'       => $class,
+				'class'       => $class_name,
 			);
 		}
 
@@ -608,7 +608,7 @@ final class Settings {
 				'type'        => 'memcached',
 				'label'       => __( 'Memcached', 'sakura-imgopt' ),
 				'group_flush' => $group_flush,
-				'class'       => $class,
+				'class'       => $class_name,
 			);
 		}
 
@@ -616,7 +616,7 @@ final class Settings {
 			'type'        => 'other',
 			'label'       => __( '其他持久对象缓存', 'sakura-imgopt' ),
 			'group_flush' => $group_flush,
-			'class'       => $class,
+			'class'       => $class_name,
 		);
 	}
 

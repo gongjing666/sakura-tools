@@ -121,6 +121,11 @@ final class Uninstaller {
 			$wpdb->query( "DROP TABLE IF EXISTS `{$name}`" );
 		}
 
+		// 链接改写账本只服务于本插件的回滚页，随插件移除；源值本身仍在业务表里。
+		$name = $wpdb->prefix . 'sio_url_rewrites';
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.SchemaChange, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Fixed table name.
+		$wpdb->query( "DROP TABLE IF EXISTS `{$name}`" );
+
 		delete_option( 'sakura_imgopt_sync_schema' );
 		delete_option( 'sakura_imgopt_sync_migration' );
 		delete_option( 'sakura_imgopt_s3_queue_schema' );
@@ -184,6 +189,8 @@ final class Uninstaller {
 			'sakura_imgopt_crop_scan_names',
 			'sakura_imgopt_s3_migrate_state',
 			'sakura_imgopt_s3_options',
+			'sakura_imgopt_url_rewrite_schema',
+			'sakura_imgopt_url_rewrite_state',
 			'sakura_imgopt_sync_dir_indexed',
 			'sakura_imgopt_sync_full_at',
 			'sakura_imgopt_sync_metrics',

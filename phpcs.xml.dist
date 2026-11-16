@@ -65,10 +65,11 @@
 	</rule>
 
 	<!--
-		Known warnings (29) are dynamic-SQL false positives: IN (...) lists are
-		built with implode( ',', array_fill( 0, count( $ids ), '%d' ) ), which the
-		PreparedSQLPlaceholders sniff cannot count statically. Every query was
-		reviewed by hand; see docs in the audit report.
+		Dynamic-SQL false positives are annotated at each call site with a
+		phpcs:ignore that names the invariant: the IN (...) placeholder list and
+		the argument array are generated from the same ID array. The
+		PreparedSQLPlaceholders sniffs stay enabled so a genuinely mismatched
+		placeholder count is still reported.
 	-->
 
 	<rule ref="WordPress.WP.I18n">

@@ -230,7 +230,6 @@ final class Storage implements Module {
 
 		$this->status->clear( $attachment_id );
 		Delete_Worker::kick();
-		return;
 	}
 
 	/**

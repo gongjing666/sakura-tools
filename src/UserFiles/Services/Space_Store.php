@@ -2022,14 +2022,14 @@ final class Space_Store {
 
 		$where = "state = 'active' AND expires_at IS NOT NULL AND expires_at <> '0000-00-00 00:00:00' AND expires_at <= %s";
 
-		$owners = $wpdb->get_col( $wpdb->prepare( "SELECT DISTINCT owner_id FROM {$table} WHERE {$where}", $now ) );
+		$owners = $wpdb->get_col( $wpdb->prepare( "SELECT DISTINCT owner_id FROM {$table} WHERE {$where}", $now ) ); // phpcs:ignore WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare -- $where contains a fixed %s; $now supplies it.
 
 		if ( ! is_array( $owners ) || array() === $owners ) {
 			return 0;
 		}
 
 		$rows = (int) $wpdb->query(
-			$wpdb->prepare( "UPDATE {$table} SET state = 'expired', updated_at = %s WHERE {$where}", $now, $now )
+			$wpdb->prepare( "UPDATE {$table} SET state = 'expired', updated_at = %s WHERE {$where}", $now, $now ) // phpcs:ignore WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber -- one literal %s plus the fixed %s inside $where; both receive $now.
 		);
 
 		if ( 0 >= $rows ) {

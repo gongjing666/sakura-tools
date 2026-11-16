@@ -38,7 +38,7 @@ final class Library_Filter {
 		if ( $owner > 0 ) {
 			$parts[] = $wpdb->prepare( "EXISTS (SELECT 1 FROM {$files} sf WHERE {$managed} AND sf.owner_id=%d)", $owner );
 		}
-		if ( ! empty( $scope['unassigned'] ) || 'wordpress' === $source ) {
+		if ( ! empty( $scope['unassigned'] ) || 'wordpress' === $source ) { // phpcs:ignore WordPress.WP.CapitalPDangit.MisspelledInText -- Stored source slug, not prose.
 			$parts[] = "NOT EXISTS (SELECT 1 FROM {$files} sf WHERE {$managed})";
 		}
 		if ( in_array( $source, array( 'userfiles', 'media' ), true ) ) {

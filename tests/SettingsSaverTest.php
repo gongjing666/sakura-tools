@@ -58,6 +58,42 @@ final class SettingsSaverTest extends TestCase {
 	}
 
 	/**
+	 * The ACL control is gone from the connection card; editing a profile must
+	 * keep the private value it already had instead of flipping it on save.
+	 */
+	public function test_missing_acl_keeps_the_edited_profile_value(): void {
+		$this->assertSame(
+			'private',
+			Settings_Saver::object_acl_for_save( '', array( 'object_acl' => 'private' ), array( 'object_acl' => 'public-read' ) )
+		);
+	}
+
+	/**
+	 * A new profile and a legacy profile without the field both inherit the
+	 * active value; only a fresh install falls back to public-read.
+	 */
+	public function test_missing_acl_falls_back_to_the_active_value(): void {
+		$this->assertSame(
+			'private',
+			Settings_Saver::object_acl_for_save( '', array(), array( 'object_acl' => 'private' ) )
+		);
+	}
+
+	public function test_invalid_acl_falls_back_to_public_read(): void {
+		$this->assertSame(
+			'public-read',
+			Settings_Saver::object_acl_for_save( 'everyone', array(), array( 'object_acl' => 'invalid' ) )
+		);
+	}
+
+	public function test_submitted_acl_still_wins(): void {
+		$this->assertSame(
+			'private',
+			Settings_Saver::object_acl_for_save( 'private', array( 'object_acl' => 'public-read' ), array( 'object_acl' => 'public-read' ) )
+		);
+	}
+
+	/**
 	 * A different bucket is a different target: inheriting the old space name
 	 * would label it with a name that describes nothing.
 	 */

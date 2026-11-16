@@ -96,6 +96,7 @@ final class Verify_Worker implements Module {
 	 * Schedule the recurring event (activation/upgrade path).
 	 */
 	public static function schedule(): void {
+		// phpcs:ignore WordPress.WP.CronInterval.CronSchedulesInterval -- Five-minute verification cadence is intentional.
 		\add_filter( 'cron_schedules', array( __CLASS__, 'add_schedule' ) );
 		if ( ! \wp_next_scheduled( self::HOOK ) ) {
 			\wp_schedule_event( \time() + 5 * MINUTE_IN_SECONDS, self::SCHEDULE, self::HOOK );

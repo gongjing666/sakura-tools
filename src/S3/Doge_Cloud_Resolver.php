@@ -136,21 +136,21 @@ final class Doge_Cloud_Resolver {
 	}
 
 	/**
-	 * @param array<string,string>             $match     Resolved entry.
+	 * @param array<string,string>             $entry     Resolved entry.
 	 * @param array<int,array<string,string>>  $catalogue All entries.
 	 * @return array<string,mixed>
 	 */
-	private static function succeed( array $match, array $catalogue ): array {
+	private static function succeed( array $entry, array $catalogue ): array {
 		return array(
 			'ok'      => true,
 			'code'    => 'ok',
 			'message' => sprintf(
 				/* translators: 1: storage space name, 2: s3Bucket value. */
 				__( '已按空间「%1$s」填入 SDK 参数（存储桶 %2$s）。', 'sakura-imgopt' ),
-				$match['space'],
-				$match['bucket']
+				$entry['space'],
+				$entry['bucket']
 			),
-			'match'   => $match,
+			'match'   => $entry,
 			'choices' => $catalogue,
 		);
 	}

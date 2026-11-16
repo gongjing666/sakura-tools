@@ -24,6 +24,8 @@ final class ViewManifestTest extends TestCase {
 		'editor-picker-app.php',
 		'media-progress.php',
 		's3-sync-center.php',
+		'storage-url-rewrite.php',
+		'storage-cost.php',
 		'settings-backup.php',
 		'settings-main.php',
 		'settings-stats.php',

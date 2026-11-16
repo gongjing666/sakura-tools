@@ -155,17 +155,17 @@ final class Module implements Module_Contract {
 	/**
 	 * Write plugin edits of the theme limits back into the theme option.
 	 *
-	 * @param mixed $old Previous option value.
-	 * @param mixed $new New option value.
+	 * @param mixed $old       Previous option value.
+	 * @param mixed $new_value New option value.
 	 * @return void
 	 */
-	public function sync_theme_limits( $old, $new ): void {
-		if ( self::$syncing_theme || ! is_array( $new ) || ! is_array( $old ) ) {
+	public function sync_theme_limits( $old, $new_value ): void {
+		if ( self::$syncing_theme || ! is_array( $new_value ) || ! is_array( $old ) ) {
 			return;
 		}
 
-		$ten = (int) ( $new['theme_upload_limit_ten_minutes'] ?? 0 );
-		$day = (int) ( $new['theme_upload_limit_day'] ?? 0 );
+		$ten = (int) ( $new_value['theme_upload_limit_ten_minutes'] ?? 0 );
+		$day = (int) ( $new_value['theme_upload_limit_day'] ?? 0 );
 
 		if ( $ten === (int) ( $old['theme_upload_limit_ten_minutes'] ?? 0 ) && $day === (int) ( $old['theme_upload_limit_day'] ?? 0 ) ) {
 			return;
@@ -180,9 +180,9 @@ final class Module implements Module_Contract {
 		self::$syncing_theme = true;
 
 		if ( Theme_Limits::write( $theme['id'], $ten, $day ) ) {
-			$new['theme_upload_limit_source']    = $theme['id'];
-			$new['theme_upload_limit_synced_at'] = \Nboke\UserFiles\Support\Time::now();
-			update_option( Settings::OPTION, $new, false );
+			$new_value['theme_upload_limit_source']    = $theme['id'];
+			$new_value['theme_upload_limit_synced_at'] = \Nboke\UserFiles\Support\Time::now();
+			update_option( Settings::OPTION, $new_value, false );
 		}
 
 		self::$syncing_theme = false;

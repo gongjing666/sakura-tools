@@ -2,9 +2,9 @@
 
 给在这个仓库里改代码的 AI 会话和开发者。**本文件只放「必须先知道」和「该去哪儿读」，规则正文一律在 `docs/开发规则/`，不要在这里复述。**
 
-- 版本基线 **1.27.6**，分支 `main`，要求 PHP 8.2+ / WordPress 6.4+
-- 开发期版本号写 `1.27.6-beta-N`（每轮 +1），正式版本号只在开发者说「同步到 GitHub」时才加；**纯 `.md` 文档改动不碰版本号，直接 push `main`**——见 §5.1
-- 类、方法、钩子、文件清单：`docs/sakura-tools-代码结构-1.27.6.md`（**生成物，不要手改**）
+- 版本基线 **1.28.0**，分支 `main`，要求 PHP 8.2+ / WordPress 6.4+
+- 开发期版本号写 `1.28.0-beta-N`（每次动代码 +1，纯 `.md` 不动），正式版本号只在开发者说「同步到 GitHub」时才加；**纯 `.md` 文档改动不碰版本号，直接 push `main`**——见 §5.1
+- 类、方法、钩子、文件清单：`docs/sakura-tools-代码结构-1.28.0.md`（**生成物，不要手改**）
 - 设计动机（为什么这么做）：`DECISIONS.md`
 
 ## 1. 按任务选一篇文档
@@ -60,7 +60,7 @@ docs/                   文档（不进发布包）
 |---|---|---|---|
 | system | `sakura-tools` | `manage_options` | settings |
 | image | `sakura-tools-image` | `manage_options` | rules, thumb, backup, stats |
-| storage | `sakura-tools-storage` | `manage_options` | connection, sync, deletes |
+| storage | `sakura-tools-storage` | `manage_options` | connection, sync, deletes, rewrite, cost |
 | files | `sakura-tools-files` | `review` | settings, users, queue, log, zibll |
 
 页签参数是 `t`，**不是 `tab`**；`Registry::url( $module, $tab )` :213 在默认页签时省略 `t`。`Registry::current()` 对非本插件页面返回 `array( '', '' )`——任何「当前是不是我的页」的判断都必须走它。
@@ -75,7 +75,7 @@ docs/                   文档（不进发布包）
 - 停用 `Deactivation::run()` :22 —— 清 8 个具名 cron + `wp_unschedule_hook` 兜底 + 撤 6 个能力
 - 卸载 `uninstall.php` + `Uninstaller::run()` :31 —— `uninstall.php` **必须先 `require_once` 主文件**，否则 autoloader 没注册会 fatal
 
-**数据落在哪**：23 张自定义表、三个 Schema 类（`Sync\Schema` / `UserFiles\Schema` / `S3\Upload_Metrics` + `S3\Delete_Jobs`）。option 前缀 `sakura_imgopt_`，UserFiles 用 `sufm_`。表名一律走各 Schema 的 `table()`，不手拼。
+**数据落在哪**：24 张自定义表、`Sync\Schema` / `UserFiles\Schema` / `S3\Upload_Metrics` / `S3\Delete_Jobs` / `S3\Url_Rewrite_Repository` 等 Schema 类。option 前缀 `sakura_imgopt_`，UserFiles 用 `sufm_`。表名一律走各 Schema 的 `table()`，不手拼。
 
 **前台入口只有三处**：`fast-search.php`、`UserFiles\Module::register_frontend()`（挂 `after_setup_theme`，此时主题 helper 才存在）、`Space_Panel::register()`。
 
@@ -97,9 +97,9 @@ docs/                   文档（不进发布包）
 ## 4. 验证命令
 
 ```bash
-composer test          # PHPUnit，基线 570 tests / 2608 assertions / 6 skipped
+composer test          # PHPUnit，基线 623 tests / 2940 assertions / 6 skipped
 composer phpstan       # level 5，必须 [OK] No errors
-composer lint:strict   # PHPCS，必须 0 error（warning 基线 36 条，不得新增）
+composer lint:strict   # PHPCS，必须 0 error / 0 warning（新增任何一条都当 error）
 php -l <file>          # 改动的每个 PHP 文件
 node --check <file>    # 改动的每个 JS 文件
 git diff --check       # 行尾空白
@@ -121,19 +121,19 @@ git diff --check       # 行尾空白
 
 | 阶段 | 版本号 | 什么时候改 |
 |---|---|---|
-| 基准（已发布） | `1.27.6` | — |
-| 第 1 轮改动 | `1.27.6-beta-1` | 开始改动时 |
-| 第 2 轮改动 | `1.27.6-beta-2` | 开始新一轮时 +1 |
-| 开发者说「同步到 GitHub」 | `1.27.7` | 发版时收敛成正式号 |
+| 基准（已发布） | `1.28.0` | — |
+| 第 1 次代码改动 | `1.28.0-beta-1` | 动第一行 `.php` / `.js` / `.css` 前 |
+| 第 2 次代码改动 | `1.28.0-beta-2` | 下一次动代码前 +1 |
+| 开发者说「同步到 GitHub」 | `1.28.1` | 发版时收敛成正式号 |
 
-- **一轮** = 开发者提出的一批改动（一次需求或一次会话）；同一轮里追加的小修沿用当前 beta 号，不重复 +1。
-- **三处一起改**：头部 `* Version:`、`SAKURA_TOOLS_VERSION`、`Stable tag:` 都写 `1.27.6-beta-N`。`release.yml` 与打包脚本的正则 `^[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$` 接受这个形式。
-- **正式版本号只由开发者拍板**：他说「同步到 GitHub」才把 beta 收敛成正式号，默认在基准上 PATCH +1（`1.27.6` → `1.27.7`）；这批改动若含新功能或破坏兼容，按 `06-发布流程.md` §1 的语义走 MINOR/MAJOR，具体号以他确认为准。
-- **beta 号不要 push 到 `main`**：`release.yml` 在 push `main` 时触发，会给 `1.27.6-beta-1` 打 `v1.27.6-beta-1` tag 并发 Release（不标 prerelease）；生产的插件目录就是 `main` 的 checkout，push 等于上线。beta 号留在本地，发布时才换成正式号推。
+- **每次动代码就 +1**：只要改动涉及 `.php` / `.js` / `.css`，动第一行代码前就把三处版本号 +1；只有整轮只改 `.md` 时才完全不动版本号。
+- **三处一起改**：头部 `* Version:`、`SAKURA_TOOLS_VERSION`、`Stable tag:` 都写 `1.28.0-beta-N`。`release.yml` 与打包脚本的正则 `^[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$` 接受这个形式。
+- **正式版本号只由开发者拍板**：他说「同步到 GitHub」才把 beta 收敛成正式号，默认在基准上 PATCH +1（`1.28.0` → `1.28.1`）；这批改动若含新功能或破坏兼容，按 `06-发布流程.md` §1 的语义走 MINOR/MAJOR，具体号以他确认为准。
+- **beta 号不要 push 到 `main`**：`release.yml` 在 push `main` 时触发，会给 `1.28.0-beta-1` 打 `v1.28.0-beta-1` tag 并发 Release（不标 prerelease）；生产的插件目录就是 `main` 的 checkout，push 等于上线。beta 号留在本地，发布时才换成正式号推。
 - **changelog 只在发布时写**：beta 期不动 `readme.txt` 的 changelog，发布时把整批改动合并成一条 `= 正式版本号 =`，免得 Release 正文抽到空的 beta 段落。
 - **纯文档改动不碰版本号**：只改 `.md`（`AGENTS.md`、`docs/**`、`README.md`、`CONTRIBUTING.md`）时三处版本号原样不动，既不写 beta 号也不写正式号，changelog 也不动，这一轮不跑测试（没有代码变化）；提交后直接 push `main` 同步 GitHub——`release.yml` 的 `paths` 只认 `sakura-tools.php`、`readme.txt`、`bin/build-plugin-zip.sh` 与自身，纯文档提交不会打包发版。详见 `06-发布流程.md` §1。
-- **beta 号在数据库看来是降级**：`Upgrade_Guard::needs_upgrade()`（`src/Upgrade_Guard.php:60`）用 `version_compare( $installed, $current, '<' )` 判断，`1.27.6-beta-1` 比 `1.27.6` 小——已经装过 1.27.6 的站点在 beta 期**不会**自动补建表 / option / cron。beta 里新增了这些，验证前先把 `sakura_imgopt_version` 删掉或改小。
-- 本地可以出 beta 包做验证：`bin/build-plugin-zip.sh --version 1.27.6-beta-1 --out dist`。
+- **beta 号在数据库看来是降级**：`Upgrade_Guard::needs_upgrade()`（`src/Upgrade_Guard.php:60`）用 `version_compare( $installed, $current, '<' )` 判断，`1.28.0-beta-1` 比 `1.28.0` 小——已经装过 1.28.0 的站点在 beta 期**不会**自动补建表 / option / cron。beta 里新增了这些，验证前先把 `sakura_imgopt_version` 删掉或改小。
+- 本地可以出 beta 包做验证：`bin/build-plugin-zip.sh --version 1.28.0-beta-1 --out dist`。
 - **不自行发版**：不加正式号、不 push `main`、不打 tag。
 
 发布检查与打包：

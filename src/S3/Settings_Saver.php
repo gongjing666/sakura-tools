@@ -70,6 +70,31 @@ final class Settings_Saver {
 		return trim( (string) $value );
 	}
 
+	/**
+	 * Keep the stored object ACL when the connection card no longer posts one.
+	 *
+	 * The control was removed because an object ACL does not decide whether a
+	 * custom domain can serve a file. Older profiles may still carry private,
+	 * and an unrelated save must not silently flip them back to the default.
+	 *
+	 * @param mixed               $submitted Posted value, when a form still sends the field.
+	 * @param array<string,mixed> $editing   Profile the form is editing (empty for a new one).
+	 * @param array<string,mixed> $current   Active options.
+	 */
+	public static function object_acl_for_save( $submitted, array $editing, array $current ): string {
+		$allowed = array( 'public-read', 'private' );
+		if ( is_string( $submitted ) && in_array( $submitted, $allowed, true ) ) {
+			return $submitted;
+		}
+
+		$fallback = (string) ( $editing['object_acl'] ?? '' );
+		if ( ! in_array( $fallback, $allowed, true ) ) {
+			$fallback = (string) ( $current['object_acl'] ?? '' );
+		}
+
+		return in_array( $fallback, $allowed, true ) ? $fallback : 'public-read';
+	}
+
 	public function save(): void {
 		if ( ! current_user_can( 'manage_options' ) ) {
 			wp_die( esc_html__( '权限不足。', 'sakura-imgopt' ) );
@@ -150,7 +175,7 @@ final class Settings_Saver {
 			'no_thumb'        => $connection_only ? (string) ( $old['no_thumb'] ?? 'false' ) : ( isset( $_POST['no_thumb'] ) ? 'true' : 'false' ),
 			'no_local_saving' => $connection_only ? (string) ( $old['no_local_saving'] ?? 'false' ) : ( isset( $_POST['no_local_saving'] ) ? 'true' : 'false' ),
 			'upload_url_path' => $upload_url,
-			'object_acl'      => isset( $_POST['object_acl'] ) && in_array( wp_unslash( $_POST['object_acl'] ), array( 'public-read', 'private' ), true ) ? wp_unslash( $_POST['object_acl'] ) : 'public-read',
+			'object_acl'      => self::object_acl_for_save( isset( $_POST['object_acl'] ) ? wp_unslash( $_POST['object_acl'] ) : '', $editing, $old ),
 		);
 		if ( ! $connection_only ) {
 			$upload_concurrency = self::sanitize_upload_concurrency( isset( $_POST['upload_concurrency'] ) ? wp_unslash( $_POST['upload_concurrency'] ) : 1 );

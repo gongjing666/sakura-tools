@@ -227,6 +227,55 @@ final class ObjectStoreTest extends TestCase {
 	}
 
 	/**
+	 * COS rejects DeleteObjects without Content-MD5; retry each key singly.
+	 */
+	public function test_delete_keys_falls_back_to_single_deletes_when_content_md5_is_required(): void {
+		$client = new class() {
+			/** @var string[] */
+			public array $deleted = array();
+
+			/** @var int */
+			public int $batches = 0;
+
+			/**
+			 * @param array<string,mixed> $args Request.
+			 * @return void
+			 */
+			public function deleteObjects( $args ) {
+				++$this->batches;
+				throw new RuntimeException( 'Missing required header for this request: Content-MD5' );
+			}
+
+			/**
+			 * @param array<string,mixed> $args Request.
+			 * @return void
+			 */
+			public function deleteObject( $args ) {
+				$this->deleted[] = $args['Key'];
+			}
+		};
+
+		$store = new Object_Store(
+			static function () use ( $client ) {
+				return $client;
+			},
+			static function () {
+				return array( 'bucket' => 'test-bucket' );
+			},
+			static function () {
+				return 'public-read';
+			},
+			static function () {
+				return;
+			}
+		);
+
+		$this->assertTrue( $store->delete_keys( array( 'a.jpg', 'b.jpg' ) ) );
+		$this->assertSame( 1, $client->batches );
+		$this->assertSame( array( 'a.jpg', 'b.jpg' ), $client->deleted );
+	}
+
+	/**
 	 * Files over the multipart threshold use create/upload/complete.
 	 */
 	public function test_upload_multipart_large_file(): void {
@@ -523,5 +572,114 @@ final class ObjectStoreTest extends TestCase {
 
 		$this->assertTrue( $store->upload_file( '2026/10/md5.jpg', $this->file, false ) );
 		$this->assertSame( base64_encode( md5( 'jpeg-bytes', true ) ), $client->puts[0]['ContentMD5'] );
+	}
+
+	/**
+	 * COS-style providers are allowed to return a non-AWS multipart ETag.
+	 *
+	 * @dataProvider cos_provider_provider
+	 * @param string $provider Provider id.
+	 */
+	public function test_multipart_etag_skipped_for_cos_providers( string $provider ): void {
+		list( $store, $file ) = $this->multipart_store( $provider, '"d0cf65d15fc10ffe1f57c137cd776fb5-3"' );
+
+		try {
+			$this->assertTrue( $store->upload_file( '2026/10/large.bin', $file, false ) );
+		} finally {
+			@unlink( $file );
+		}
+	}
+
+	/**
+	 * Providers with the AWS multipart ETag still reject a wrong final ETag.
+	 */
+	public function test_multipart_etag_mismatch_fails_for_standard_provider(): void {
+		list( $store, $file ) = $this->multipart_store( 'minio', '"d0cf65d15fc10ffe1f57c137cd776fb5-3"' );
+
+		try {
+			$result = $store->upload_file( '2026/10/large.bin', $file, false );
+			$this->assertInstanceOf( WP_Error::class, $result );
+			$this->assertSame( 'sio_upload_verify_failed', $result->get_error_code() );
+		} finally {
+			@unlink( $file );
+		}
+	}
+
+	/**
+	 * COS providers for the data provider.
+	 *
+	 * @return array<string,array{0:string}>
+	 */
+	public static function cos_provider_provider(): array {
+		return array(
+			'dogecloud' => array( 'dogecloud' ),
+			'tencent'   => array( 'tencent' ),
+		);
+	}
+
+	/**
+	 * Build a store whose 17 MiB upload returns a chosen final ETag.
+	 *
+	 * @param string $provider   Provider id.
+	 * @param string $remote_etag Final ETag returned by HEAD.
+	 * @return array{0:Object_Store,1:string}
+	 */
+	private function multipart_store( string $provider, string $remote_etag ): array {
+		$file   = sys_get_temp_dir() . '/sakura-multipart-etag-' . uniqid( '', true ) . '.bin';
+		$handle = fopen( $file, 'wb' );
+		ftruncate( $handle, 17 * 1024 * 1024 );
+		fclose( $handle );
+
+		$client = new class( $remote_etag ) {
+			/** @var string */
+			private string $etag;
+
+			public function __construct( string $etag ) {
+				$this->etag = $etag;
+			}
+
+			public function createMultipartUpload( $args ) {
+				return array( 'UploadId' => 'upload-etag' );
+			}
+
+			public function uploadPart( $args ) {
+				return array( 'ETag' => '"etag-' . $args['PartNumber'] . '"' );
+			}
+
+			public function completeMultipartUpload( $args ) {
+				return array();
+			}
+
+			public function headObject( $args ) {
+				return array(
+					'ContentLength' => 17 * 1024 * 1024,
+					'ETag'          => $this->etag,
+				);
+			}
+
+			public function abortMultipartUpload( $args ) {
+				return array();
+			}
+		};
+
+		$store = new Object_Store(
+			static function () use ( $client ) {
+				return $client;
+			},
+			static function () use ( $provider ) {
+				return array(
+					'bucket'   => 'test-bucket',
+					'provider' => $provider,
+				);
+			},
+			static function () {
+				return 'private';
+			},
+			static function () {
+				return;
+			}
+		);
+
+		return array( $store, $file );
 	}
 }

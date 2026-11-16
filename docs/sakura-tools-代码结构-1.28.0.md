@@ -1,11 +1,11 @@
 # 樱花工具箱（sakura-tools）代码结构分析报告
 
-> **版本** 1.27.6 ｜ **代码基线** commit `a1e8d27` ＋ 随本版发布的 1.27.6 提交 ｜ **分析日期** 2026-11-15
-> **分析对象** `/root/work/sakura-tools` 工作树（发版前与生产 `/www/wwwroot/www.nboke.com/wp-content/plugins/sakura-tools` 逐文件核对后一起刷新到 `v1.27.6`）；本轮扫描与三关验证都在工作树执行，未在生产执行任何写操作
+> **版本** 1.28.0 ｜ **代码基线** commit `78e3ab8` ＋ 随本版发布的 1.28.0 提交 ｜ **分析日期** 2026-11-16
+> **分析对象** `/root/work/sakura-tools` 工作树（发版前与生产 `/www/wwwroot/www.nboke.com/wp-content/plugins/sakura-tools` 逐文件核对后一起刷新到 `v1.28.0`）；扫描与三关验证都在工作树执行；除经用户批准、先备份数据库的附件链接改写生产验证外，未在生产执行其他写操作
 > **测试环境** `/root/sio-e2e`（独立 WordPress + MariaDB 127.0.0.1:13316 + MinIO 127.0.0.1:19010），行为与生产一致
 > **配套产物** 3D 图谱 `docs/graph-preview/index.html`（同源数据 `graph.json`）、生成器 `docs/tools/build-code-structure.mjs`、图谱说明 `docs/history/sakura-tools-图谱同步-1.25.9.md`（生成方法仍适用，数字属 1.25.9）、开发规则 `docs/开发规则/00-索引.md`
 
-> **本版口径（2026-11-15 重生成）** 表格、图谱与统计数字统一刷新到 **1.27.6**；第 1 章后半的「上一轮更新」是按版本追加的**历史记录**（1.22.9 → 1.27.6），其中的行数、节点数与连线数只代表当时那一版，不要当作当前值。正文里的 `文件:行` 证据已在 1.27.6 工作树上重新核对；历史段落里的行号按当时版本保留，可能已偏移。
+> **本版口径（2026-11-16 重生成）** 表格、图谱与统计数字统一刷新到 **1.28.0**；第 1 章后半的「上一轮更新」是按版本追加的**历史记录**（1.22.9 → 1.28.0），其中的行数、节点数与连线数只代表当时那一版，不要当作当前值。正文里的 `文件:行` 证据已在 1.28.0 工作树上重新核对；历史段落里的行号按当时版本保留，可能已偏移。
 
 ---
 
@@ -42,15 +42,15 @@
 
 | 指标 | 数值 | 口径 |
 |---|---:|---|
-| 生产 PHP 文件 | **200** | 不含 `tests/`(90 文件 / 12,823 行) `stubs/`(2) `vendor/` `assets/`(JS/CSS) |
-| 生产 PHP 行数 | **67,806** | 同上，含空行与注释。按「换行符数」统计；生成器按「换行符数 + 1」计数会多出约一个文件的量，两套口径同时给出时以本表为准 |
-| 类 / 接口 | **185** | 含 7 个接口；另有 1 个生产全局函数（`fast-search.php:27`）未计入图谱节点。扫描器统计的 function 节点含 tests/stubs，不是生产全局函数数 |
-| 钩子注册 | **211** | 仅生产代码中的具名 `add_action`/`add_filter`（153 + 58），不含 `do_action` 触发点、`add_submenu_page` 与 `Hook_Loader` 的内部转发 |
-| 后台资源 | **38 文件 / 34,677 行** | `assets/` 下的 CSS/JS，另有 1 个 SVG；其中 `assets/ui/` 27 文件 / 15,187 行 |
-| 自定义数据表 | **23** | 15 张 `{prefix}sufm_*` + 6 张 `{prefix}sio_sync_*` + 2 张 `{prefix}sio_s3_*`（`sio_s3_deletes`、`sio_s3_upload_events`） |
-| 后台页面 | **13** | 4 个顶级模块下的 13 个 tab（system 1 + image 4 + storage 3 + files 5） |
+| 生产 PHP 文件 | **208** | 不含 `tests/`(94 文件 / 14,014 行) `stubs/`(2) `vendor/` `assets/`(JS/CSS) |
+| 生产 PHP 行数 | **71,908** | 同上，含空行与注释。按「换行符数」统计；生成器按「换行符数 + 1」计数会多出约一个文件的量，两套口径同时给出时以本表为准 |
+| 类 / 接口 | **191** | 含 7 个接口；另有 1 个生产全局函数（`fast-search.php:27`）未计入图谱节点。扫描器统计的 function 节点含 tests/stubs，不是生产全局函数数 |
+| 钩子注册 | **220** | 仅生产代码中的具名 `add_action`/`add_filter`（162 + 58），不含 `do_action` 触发点、`add_submenu_page` 与 `Hook_Loader` 的内部转发 |
+| 后台资源 | **43 文件 / 36,069 行** | `assets/` 下的 CSS/JS，另有 1 个 SVG；其中 `assets/ui/` 31 文件 / 16,571 行 |
+| 自定义数据表 | **24** | 15 张 `{prefix}sufm_*` + 6 张 `{prefix}sio_sync_*` + 3 张 `{prefix}sio_s3_*`（`sio_s3_deletes`、`sio_s3_upload_events`、`sio_url_rewrites`） |
+| 后台页面 | **15** | 4 个顶级模块下的 15 个 tab（system 1 + image 4 + storage 5 + files 5） |
 
-> 说明：`includes/views/` 的 12 个模板文件不含类与函数声明，因此不出现在类索引中，但它们承担全部旧版页面渲染（见 §2.3）。
+> 说明：`includes/views/` 的 14 个模板文件不含类与函数声明，因此不出现在类索引中，但它们承担旧版页面渲染与两个新页面的表单（见 §2.3）。
 
 ---
 
@@ -58,14 +58,14 @@
 
 **先看这十条，能省掉 80% 的翻文件时间。**
 
-1. **双轨架构，且短期内不会合并。** `includes/` 是 1.3–1.9 的旧层（14 个类文件 / 6,421 行 / 14 类，另有 12 个 `views/` 模板 5,586 行），`src/` 是 1.10 之后的新层（171 类，含 7 个接口）。两层的通信方式是**构造函数注入 + 类直接调用**，没有中间容器；唯一共享的抽象是 `src/Contracts/` 的 5 个接口。旧层没有被淘汰，反而承载了图片优化的核心链路（`includes/class-image-processor.php`）。
+1. **双轨架构，且短期内不会合并。** `includes/` 是 1.3–1.9 的旧层（14 个类文件 / 6,435 行 / 14 类，另有 14 个 `views/` 模板 6,288 行），`src/` 是 1.10 之后的新层（177 类，含 7 个接口）。两层的通信方式是**构造函数注入 + 类直接调用**，没有中间容器；唯一共享的抽象是 `src/Contracts/` 的 5 个接口。旧层没有被淘汰，反而承载了图片优化的核心链路（`includes/class-image-processor.php`）。
 2. **全插件的装配只有一个入口。** `src/Plugin.php:71-206` 的 `boot()`（:71-115）+ `build_modules()`（:124-206） 能看到**所有**依赖关系：先建 5 个仓储，再按固定顺序 new 出 20 多个模块/服务，最后 `Admin\Menu` 必须最后注册（`src/Plugin.php:195`）。读代码从这里开始，比按目录读快得多。
 3. **模块契约极窄。** `src/Contracts/Module.php:23-31` 只有一个 `register_hooks(Hook_Loader): void`，且明确禁止在构造函数里挂 WP 钩子。所有钩子集中到 `src/Support/Hook_Loader.php`，先入队、`register()` 时一次性交付，**注册后新加的钩子立即生效**（`register_frontend` 依赖这个行为）。
-4. **后台信息架构是静态声明的。** `src/Admin/Registry.php:41-105` 用一张常量数组声明「模块 → tab → 权限门 → renderer key」；`Menu` 只做建屏与分发，`Shell` 只画外壳。**加一个 tab = 改 Registry + 注册 renderer 两处**，不需要动菜单代码。
+4. **后台信息架构是静态声明的。** `src/Admin/Registry.php:41-105` 用一张常量数组声明「模块 → tab → 权限门 → renderer key」；`Menu` 只做建屏与分发，`Shell` 只画外壳。**加一个 tab 要动五处**：`Registry::modules()`、`build_modules()` 的 `register_renderer`、`Layout::PAGES`、`Layout::layout_for_page()` 的别名（页面 id 与布局 id 不同时）、`includes/views/{page}.php`，不需要动菜单代码。
 5. **功能面是 5 个子系统 + 3 条横切。** 子系统：图片优化管线（§4）、缩略图 URL 重写（§5）、对象存储 S3（§6）、同步索引 Sync（§7）、用户文件空间 UserFiles（§8）。横切：数据落点（§9）、钩子索引（§9.2）、REST/CLI/Cron（§9.3）。
-6. **代码量集中在两处。** UserFiles（46 文件 / 22,262 行）与 S3（40 文件 / 13,044 行）合计 35,306 行，占生产代码的 52.1%；两者也是自定义表、加密凭据与补偿队列最集中的部分。
-7. **运行时可访问性已验证，生产写路径仍保持只读。** 11 条后台路由全部 200 且无 fatal（h1 是模块名，与 tab 子页名不完全相同）、45 条 `/sufm/v1` REST 路由（51 个端点）全部注册、7 个插件 cron 事件已排程、12 项函数级探针结果符合预期（§10）。**未验证**的是生产环境的写路径（配额扣减、删除审核、卸载清理）——生产保持只读。测试站上补做了六批：5 张并发上传（§10.6）跑通「上传 → 压缩 → S3 PUT → 索引落库」，4×200 条并发指标写入（§10.11）验证事件表零丢失，1.24.0 的对账失败退避与历史 grant 回填（§10.14）验证了退避序列、租约与字段白名单，1.24.1 的快捷多选（§10.15）在用户中心与编辑页分别通过 17/17、24/24 项浏览器断言，1.24.2 的运维观测（§10.16）验证 health、守卫分页/计数与 Prometheus gauge，以及 1.24.2 的三条空白补测（§10.17：Quota 提交/回滚、删除审核→Executor、卸载两轨、扫描游标三种损坏、编辑器覆盖与插入顺序）。**补测发现的一项缺陷已在 1.24.3 修复**：显式删除数据的卸载路径曾漏删 `file_tokens` 表；现在改为遍历 `Schema::tables()`，并在隔离环境复跑 15 张表→0，见 §12.7。
-8. **过期的文档已全部归档，不要当作事实源。** `DEVELOPMENT.md`（第 1 节的"当前文件结构"停在 1.3.3 的 6 个文件）与两份 1.25.9 的分析产物已移入 `docs/history/`，开头都有历史声明；`/root/WordPress/docs/sakura-image-optimizer-代码分析报告.md`（本机历史报告，未随仓库分发）停在 1.9.0 之前的命名。当前有效的规则文档是 `docs/开发规则/`，同步的代码结构产物是本文与 3D 图谱；`DECISIONS.md` 仍然有效（记录的是"为什么"，不是"现在有什么"）。
+6. **代码量集中在两处。** UserFiles（46 文件 / 22,309 行）与 S3（46 文件 / 16,255 行）合计 38,564 行，占生产代码的 53.6%；两者也是自定义表、加密凭据与补偿队列最集中的部分。
+7. **运行时可访问性已验证，生产写路径只在经批准的链接改写上执行。** 15 条后台路由全部 200 且无 fatal（h1 是模块名，与 tab 子页名不完全相同）、45 条 `/sufm/v1` REST 路由（51 个端点）全部注册、7 个插件 cron 事件已排程、12 项函数级探针结果符合预期（§10）。**未验证**的是生产环境的写路径（配额扣减、删除审核、卸载清理）——生产保持只读。测试站上补做了六批：5 张并发上传（§10.6）跑通「上传 → 压缩 → S3 PUT → 索引落库」，4×200 条并发指标写入（§10.11）验证事件表零丢失，1.24.0 的对账失败退避与历史 grant 回填（§10.14）验证了退避序列、租约与字段白名单，1.24.1 的快捷多选（§10.15）在用户中心与编辑页分别通过 17/17、24/24 项浏览器断言，1.24.2 的运维观测（§10.16）验证 health、守卫分页/计数与 Prometheus gauge，以及 1.24.2 的三条空白补测（§10.17：Quota 提交/回滚、删除审核→Executor、卸载两轨、扫描游标三种损坏、编辑器覆盖与插入顺序）。**补测发现的一项缺陷已在 1.24.3 修复**：显式删除数据的卸载路径曾漏删 `file_tokens` 表；现在改为遍历 `Schema::tables()`，并在隔离环境复跑 15 张表→0，见 §12.7。
+8. **过期的文档已全部归档，不要当作事实源。** `DEVELOPMENT.md`（第 1 节的"当前文件结构"停在 1.3.3 的 6 个文件）与 1.25.9、1.27.5、1.27.6 的分析产物已移入 `docs/history/`，开头都有历史声明；`/root/WordPress/docs/sakura-image-optimizer-代码分析报告.md`（本机历史报告，未随仓库分发）停在 1.9.0 之前的命名。当前有效的规则文档是 `docs/开发规则/`，同步的代码结构产物是本文与 3D 图谱；`DECISIONS.md` 仍然有效（记录的是"为什么"，不是"现在有什么"）。
 9. **文档与图谱同源，不会再脱节。** 两者都由同一份扫描事实表（来自 `dsh-codegraph` 的 `lib/scanner.php`）经 `docs/tools/build-code-structure.mjs` 生成。改代码后重跑一次命令即可同时刷新表格与图谱（§13.6）。
 10. **上传指标已从单 option 改为事件表。** 旧实现每次 `record_batch()` 读改写同一个 option，4 进程各写 200 条只留下 202 条（丢 75%）；现在每条结果独立 INSERT 到 `{prefix}sio_s3_upload_events`（`src/S3/Upload_Metrics.php:79`、`:149`），`snapshot()` 用 SQL 聚合（`:204`），成功与失败分别由 `sakura_imgopt_s3_uploaded` / `sakura_imgopt_s3_upload_failed` 采集（`src/S3/Upload_Observer.php:30-31`）。返回结构不变，旧 option 只作为冻结基线读取。详见 §6.9 与 §10.11。
 
@@ -173,7 +173,23 @@
 
 规模（生产代码，1.27.5）：**191 文件 / 65,780 行 / 176 类与接口 / 207 具名钩子 / 23 张自定义表**；`src/S3` 37 文件 12,211 行，`src/UserFiles` 46 文件 22,262 行，`src/Sync` 18 文件 6,039 行，`src/Admin` 17 文件 3,246 行，`includes/views` 12 文件 5,579 行，后台资源 38 文件 / **33,897 行**（其中 `assets/ui/` 27 文件 / **14,407 行**）。tests 79 文件 / 11,205 行；全量验证 **470 tests / 2,411 assertions / 6 skipped**，PHPStan level 5 无错误。图谱 **193 节点 / 881 连线**（655 ref + 50 modref + 176 contains），模块 17 个。
 
-**本轮更新（2026-11-15，1.27.6 连接排障、多吉云适配与媒体库缩略图）**：这一段的主体是「把看不见的原因显示出来」，以及对象存储侧补齐多吉云这条线。
+**本轮更新（2026-11-16，1.28.0 链接批量改写、费用估算与连接页收敛）**：这一段有两个新页面，以及一条把对象存储拉回「能连、能传、能删、能回显、失败不丢文件」的收敛线。
+
+**① 数据库附件链接批量改写（storage → rewrite）**：新增 `S3\Link_Rewriter`（纯函数）、`S3\Url_Rewrite_Service`（扫描/执行）、`S3\Url_Rewrite_Repository`（回滚账本）与 `S3\Url_Rewrite_Panel`（6 个 AJAX）。`normalize_host()` 接受域名、完整 URL 与协议相对 URL；`rewrite_string()` 成对处理 `https://旧`、`http://旧`、`//旧` 与裸域名，并用域名边界拒绝 `bf.nboke.com.evil.test`；`rewrite_value()` 对序列化值递归修正字符串长度前缀，遇到对象值返回 `safe=false` 跳过。默认组只扫内容与主题（`posts`、`postmeta`、`termmeta`、`terms`、`term_taxonomy`、`comments`、`commentmeta`、`links`），插件前缀 `sio_`/`sufm_`/`ldbc_`/`zse_` 要显式勾选；拒绝列 `user_pass`、`user_activation_key`、`post_password`、`session_tokens`，拒绝 option `siteurl`、`home`、`active_plugins`、`recently_activated`、`user_roles`、`cron`、`rewrite_rules`。扫描与执行各按 12 秒分片、每批 50 行（上限 200），游标存 option 可续跑。回滚账本表 `{prefix}sio_url_rewrites` 每次写前记原值，状态 0 待回滚 / 1 已回滚 / 2 冲突；改写后又被手改的行标冲突并跳过。生产实测 `posts.post_content` 17 行、`posts.guid` 130 行、`postmeta` 3 行、`termmeta` 6 行、`zibll_options` 11 行、`zibll_options_backup` 101 行由 `bf.nboke.com` 改为 `doge.nboke.com`，`zse_*` 97 行按设计保留待手动勾选；回滚与冲突保护均复跑通过（§10.28）。
+
+**② 云存储费用估算（storage → cost）**：新增 `S3\Cost_Estimator` 与 `S3\Cost_Panel`。按存储量、月流量、读写请求、图片处理量、命中率、忙时占比、HTTPS 占比、CDN/直出与美元汇率，对多吉云、缤纷云、阿里云 OSS、腾讯云 COS、七牛云 KODO、又拍云、百度云 BOS、Cloudflare R2、Backblaze B2 与 MinIO（自建）逐项计算存储、流量、请求、图片处理与合计；阶梯价累进，MinIO 自建排最后。单价是内置公开价（`PRICED_AT='2026-11-16'`），不联网、不读厂商账单、不写库。
+
+**③ 连接设置卡片收敛**：`S3_Storage_Page` 的连接卡改为全宽单卡，字段按「启用 S3 | 服务商 → 兼容性说明 → 已保存配置 → 配置名称 | 另存为新配置 → 存储空间 → 地域 | 服务地址 → Access Key | Secret Key → 云端路径前缀 → 图片地址前缀」两列排布；取消基础/高级折叠与「文件访问权限（对象 ACL）」控件——ACL 是 S3 遗留机制，实测多吉云对象设为 private 后自定义域名仍匿名可读，真正的可见性由存储空间策略 / CDN 决定，留在界面上只会误导。`Settings_Saver::object_acl_for_save()` 在字段不再提交时沿用被编辑档案/活动值，避免把既有 private 静默重置为 public-read。`Providers::selectable()` / `hidden()` 把七牛、百度、又拍从服务商下拉里收起（旧档案仍可切换）。上传行为与上传吞吐并排一行，监控卡单独一行。
+
+**④ 能删与能传的兜底**：`Object_Store::delete_keys()` 遇 `deleteObjects` 返回 `Missing required header for this request: Content-MD5`（多吉云 / COS）时改为逐对象 `deleteObject`，其他异常仍按不确定处理；多吉云/腾讯云的分片上传跳过最终复合 ETag 比较（过滤器 `sakura_imgopt_verify_multipart_etag` 默认对这两家 false），保留尺寸与分片 ETag 校验，避免非 MD5 的 ETag 把已成功的上传判成失败。生产用 21MB 文件实测分片 ETag `…-3` 成功，批量删除两个对象后 `remaining=0`、guard 三类计数归零。
+
+**⑤ 质量门禁**：把 37 条 PHPCS warning 清零——21 条动态 SQL 占位符误报逐处 `phpcs:ignore` 并写明「占位符列表与参数数组来自同一个 ID 数组」，10 处保留字参数名改成 `$fallback`、`$catalogue`、`$parent_node`、`$new_value` 等，其余 6 条按语义修掉（注释散文、冗余 return、cron 间隔与 `error_log` 的有意豁免）。`PreparedSQLPlaceholders` sniff 没有关闭。全量 623 tests / 2,940 assertions / 6 skipped、PHPStan 无错误、PHPCS 0 error / 0 warning。新增 4 个测试文件：`LinkRewriterTest` 21 例、`UrlRewriteGroupingTest` 3 例、`UrlRewriteRepositoryTest` 4 例、`CostEstimatorTest` 16 例。
+
+**⑥ 接线**：`Registry` 的 storage tabs 增加 rewrite/cost，`Layout::PAGES` 增加两页与 `storage-rewrite → rewrite`、`storage-cost → cost` 两个别名，`Plugin::build_modules()` 注册两个 renderer，`Activation` 调 `Url_Rewrite_Repository::maybe_install()`，`Uninstaller` 删表与两个状态 option。新增 6 类、9 条钩子、1 张表。
+
+规模（生产代码，1.28.0）：**208 文件 / 71,908 行 / 191 类与接口 / 220 具名钩子 / 24 张自定义表**；`src/S3` 46 文件 16,255 行，`src/UserFiles` 46 文件 22,309 行，`src/Sync` 19 文件 6,171 行，`src/Thumbnail` 20 文件 4,616 行，`src/Admin` 17 文件 3,290 行，`includes/views` 14 文件 6,288 行，后台资源 43 文件 / **36,069 行**（其中 `assets/ui/` 31 文件 / **16,571 行**）。tests 94 文件 / 14,014 行；全量验证 **623 tests / 2,940 assertions / 6 skipped**，PHPStan level 5 无错误、PHPCS **0 error / 0 warning**。图谱 **208 节点 / 944 连线**（702 ref + 51 modref + 191 contains），模块 17 个。本轮**新增 6 个类、9 条钩子、1 张表**：`add_action` 153→162、`add_filter` 58→58 不变；钩子 `sakura_url_rewrite` 的 6 个 AJAX 与 `sakura_storage_cost_estimate`，外加两个 `admin_enqueue_scripts`。详见 §9.2、§10.28、§13。
+
+**上一轮更新（2026-11-15，1.27.6 连接排障、多吉云适配与媒体库缩略图）**：这一段的主体是「把看不见的原因显示出来」，以及对象存储侧补齐多吉云这条线。
 
 **① 连接测试不再只说「请检查」**：新增 `src/S3/Connection_Probe.php`（261 行）的 `public static function diagnose( S3Client $client, string $bucket, array $redact = array() ): array`，返回 `{ok,message,code,status,latency}`；先 `headBucket()`，失败再用 `listObjectsV2( MaxKeys=1 )` 取带 XML 的错误码（HEAD 无响应体），HEAD 失败但列举成功仍算可达。`src/S3/Connection_Tester.php` 改走 `Client_Factory::make()` + `diagnose()`，失败时把真实错误原样重定向（不再笼统提示「请检查服务商、地域、Endpoint、存储桶和凭据」），`private function redirect( array $args = array() ): never`。`src/S3/Error_Mapper.php` 新增 `PathStyleDomainForbidden` / `PermanentRedirect` / `AuthorizationHeaderMalformed` → `sakura_s3_endpoint_mismatch`，中文提示「服务商要求用存储桶域名访问…」「存储桶实际所在地域与服务地址不一致…」。这条改动直接解释了本轮开头那次「配置没动却连不上」：缤纷云侧把 Access Key 删了，旧文案只会在五六个可能性之间打转，新文案一眼给出 `InvalidAccessKeyId (HTTP 403)`。
 
@@ -208,7 +224,7 @@ sakura-tools/
 ├── sakura-tools.php            主文件：常量、自动加载、Plugin::boot 调用
 ├── uninstall.php               卸载入口（守卫 + 手动加载器 + Uninstaller）
 ├── fast-search.php             SHORTINIT 直连的只读索引查询端点
-├── includes/                   14 个类文件 / 6,421 行 / 14 类    ← 旧层（1.3–1.9）
+├── includes/                   14 个类文件 / 6,435 行 / 14 类    ← 旧层（1.3–1.9）
 │   ├── class-image-processor.php       钩子门面，把 7 个 WP 钩子转给 src/Image
 │   ├── class-imagick-handler.php       Imagick 编码与原子替换
 │   ├── class-gd-handler.php            GD 编码与原子替换
@@ -223,27 +239,27 @@ sakura-tools/
 │   ├── class-thumbnail-optimizer-module.php 缩略图子系统唯一装配点
 │   ├── class-thumbnail-manager.php     按尺寸禁用缩略图生成
 │   └── class-s3-storage-module.php     对象存储设置页
-├── includes/views/             12 文件 / 5,586 行               ← 旧版页面模板
-├── src/                        5 文件 / 935 行                  ← 组合根与升级守卫
+├── includes/views/             14 文件 / 6,288 行               ← 旧版页面模板与新页面表单
+├── src/                        5 文件 / 958 行                  ← 组合根与升级守卫
 │   ├── Plugin.php              启动、装配、注册 WP-CLI 命令
 │   ├── Activation.php          默认值、迁移、建表、排程
 │   ├── Deactivation.php        清排程与能力，保留数据
 │   ├── Uninstaller.php         两轨卸载（临时数据 / 持久数据 opt-in）
 │   └── Upgrade_Guard.php       覆盖升级自愈：版本判断、加锁、补跑 Activation
-├── src/Admin/                  17 文件 / 3,252 行   后台 IA、UI 内核、资源加载与外观令牌
-├── src/Image/                  10 文件 / 3,167 行   上传链路、引擎回退、元数据、还原、尺寸目录
-├── src/Oss/                    2 文件 / 503 行      HTML 过滤器与 URL 重写纯函数
-├── src/Thumbnail/              20 文件 / 4,596 行   缩略图策略、供应商、探测、统计、主题桥
-├── src/S3/                     40 文件 / 13,044 行  凭据加密、上传、删除队列、同步中心、监控
-├── src/Sync/                   19 文件 / 6,151 行   索引表、扫描状态机、动作队列、校验、CLI、每月校准
-├── src/UserFiles/              46 文件 / 22,262 行  上传/配额/审核/执行/REST/空间套餐/Zibll 桥
-├── src/Backup/                 2 文件 / 457 行
-├── src/Contracts/              5 文件 / 387 行      5 个接口
-├── src/Filesystem/ src/Settings/ src/Stats/ src/Support/   5 文件 / 628 行
-├── assets/ui/                  27 文件 / 15,187 行  后台唯一样式栈：tokens/base/components + 分页 CSS 与脚本
-├── assets/                     11 文件 / 19,490 行  前台与媒体库资源（editor-picker、userfiles、media-folders）
+├── src/Admin/                  17 文件 / 3,290 行   后台 IA、UI 内核、资源加载与外观令牌
+├── src/Image/                  10 文件 / 3,177 行   上传链路、引擎回退、元数据、还原、尺寸目录
+├── src/Oss/                    2 文件 / 505 行      HTML 过滤器与 URL 重写纯函数
+├── src/Thumbnail/              20 文件 / 4,616 行   缩略图策略、供应商、探测、统计、主题桥
+├── src/S3/                     46 文件 / 16,255 行  凭据加密、上传、删除队列、同步中心、链接改写、费用估算、监控
+├── src/Sync/                   19 文件 / 6,171 行   索引表、扫描状态机、动作队列、校验、CLI、每月校准
+├── src/UserFiles/              46 文件 / 22,309 行  上传/配额/审核/执行/REST/空间套餐/Zibll 桥
+├── src/Backup/                 2 文件 / 459 行
+├── src/Contracts/              5 文件 / 392 行      5 个接口
+├── src/Filesystem/ src/Settings/ src/Stats/ src/Support/   5 文件 / 633 行
+├── assets/ui/                  31 文件 / 16,571 行  后台唯一样式栈：tokens/base/components + 分页 CSS 与脚本
+├── assets/                     11 文件 / 19,498 行  前台与媒体库资源（editor-picker、userfiles、media-folders）
 ├── languages/                  翻译文件
-├── tests/                      90 文件 / 12,823 行  PHPUnit（不计入生产规模）
+├── tests/                      94 文件 / 14,014 行  PHPUnit（不计入生产规模）
 ├── stubs/                      2 文件 / 139 行      PHPStan 引导
 ├── vendor/                     第三方依赖（AWS SDK 等，不计入）
 ├── docs/开发规则/               六份开发规则 + 索引（新功能从这里查）
@@ -257,15 +273,15 @@ sakura-tools/
 
 | 模块 | 文件数 | 代码行 | 类(含接口) | 说明 |
 |---|---:|---:|---:|---|
-| src/UserFiles | 46 | 22308 | 46 | 用户文件空间：上传、配额、审核执行、REST、Zibll 桥接 |
-| src/S3 | 40 | 13084 | 40 | 对象存储：配置/加密、上传同步、删除队列、同步中心、监控告警 |
+| src/UserFiles | 46 | 22309 | 46 | 用户文件空间：上传、配额、审核执行、REST、Zibll 桥接 |
+| src/S3 | 46 | 16255 | 46 | 对象存储：配置/加密、上传同步、删除队列、同步中心、监控告警 |
 | includes | 14 | 6435 | 14 | 1.3–1.9 时代的旧类，仍在承重（媒体库、优化器、缩略图、S3、处理器） |
-| src/Sync | 19 | 6170 | 19 | 持久化同步索引：扫描、任务、校验、CLI、快速检索查询 |
-| includes/views | 12 | 5598 | 0 | 旧式页面模板（由 includes 类 require 渲染） |
+| includes/views | 14 | 6288 | 0 | 旧式页面模板（由 includes 类 require 渲染） |
+| src/Sync | 19 | 6171 | 19 | 持久化同步索引：扫描、任务、校验、CLI、快速检索查询 |
 | src/Thumbnail | 20 | 4616 | 20 | 缩略图 URL 重写策略：上下文、尺寸、供应商、探测、缓存 |
-| src/Admin | 17 | 3269 | 17 | 后台信息架构：Registry 路由表、Menu、Layout、Shell、Assets、环境自检 |
+| src/Admin | 17 | 3290 | 17 | 后台信息架构：Registry 路由表、Menu、Layout、Shell、Assets、环境自检 |
 | src/Image | 10 | 3177 | 10 | 图片处理管线：改名、备份、引擎选择、元数据、还原、尺寸目录 |
-| src | 5 | 940 | 5 | 组合根与生命周期：Plugin、Activation、Deactivation、Uninstaller |
+| src | 5 | 958 | 5 | 组合根与生命周期：Plugin、Activation、Deactivation、Uninstaller |
 | src/Oss | 2 | 505 | 2 | HTML 过滤器与 URL 重写工具（缩略图策略复用的纯函数） |
 | src/Backup | 2 | 459 | 2 | 原图备份仓储与公网暴露探测 |
 | 根文件 | 3 | 420 | 0 | 插件入口、卸载入口、前台快速检索入口 |
@@ -274,7 +290,7 @@ sakura-tools/
 | src/Support | 2 | 178 | 2 | Hook_Loader（延迟注册）与 UTF-8 截断工具 |
 | src/Filesystem | 1 | 97 | 1 | 文件系统仓储适配器 |
 | src/Stats | 1 | 73 | 1 | 统计仓储适配器 |
-| 合计 | 200 | 68006 | 185 | 生产代码；另有 tests 90 文件/12823 行、stubs 2 文件另计 |
+| 合计 | 208 | 71908 | 191 | 生产代码；另有 tests 94 文件/14014 行、stubs 2 文件另计 |
 
 **怎么读这张表**：行数不等于复杂度——`src/UserFiles` 22k 行里有 40% 是 REST 控制器与视图模板（重复度高、改动风险低）；`src/Sync` 只有 6.0k 行却包含状态机与 SQL 层，是改动风险最高的模块。
 
@@ -528,7 +544,7 @@ register() 之后调用     → 直接 add_action/add_filter 到 WP（不再入�
 | `Provider_Registry` | src/Thumbnail/Provider_Registry.php:26 |  | 3 / 3 | 6 / 3 |  | Maps an S3 provider id to the class that knows its image syntax. |
 | `Provider_Status` | src/Thumbnail/Provider_Status.php:17 |  | 5 / 5 | 9 / 0 |  | 保存缩略图探测结果的值对象 |
 | `Rendition` | src/Thumbnail/Rendition.php:21 |  | 8 / 8 | 24 / 0 |  | 描述一次目标图片尺寸与裁剪模式 |
-| `Settings` | src/Thumbnail/Settings.php:21 |  | 26 / 31 | 33 / 10 |  | 统一读写 sakura_imgopt_oss_thumb 设置 |
+| `Settings` | src/Thumbnail/Settings.php:21 |  | 26 / 31 | 35 / 10 |  | 统一读写 sakura_imgopt_oss_thumb 设置 |
 | `Size_Catalog` | src/Thumbnail/Size_Catalog.php:17 |  | 3 / 3 | 0 / 0 |  | 为设置表与 CLI 列出核心及注册尺寸 |
 | `Stats` | src/Thumbnail/Stats.php:17 |  | 3 / 5 | 9 / 1 | 1 | 按请求缓冲缩略图计数并在关闭时落盘 |
 | `Style_Suffix` | src/Thumbnail/Style_Suffix.php:24 |  | 4 / 5 | 8 / 0 |  | Recognises and strips the `/style` suffix DogeCloud appends to a URL. |
@@ -657,6 +673,8 @@ register() 之后调用     → 直接 add_action/add_filter 到 WP（不再入�
 | `Config_Notice` | src/S3/Config_Notice.php:35 |  | 6 / 10 | 6 / 3 |  | 用居中弹窗提示 S3 配置未完成，可按用户稍后再看 |
 | `Connection_Probe` | src/S3/Connection_Probe.php:31 |  | 1 / 7 | 8 / 3 |  | Turns a failed connection test into a message that names the real cause. |
 | `Connection_Tester` | src/S3/Connection_Tester.php:11 |  | 2 / 3 | 2 / 9 |  | 处理后台提交的 S3 连接测试 |
+| `Cost_Estimator` | src/S3/Cost_Estimator.php:20 |  | 4 / 11 | 4 / 0 |  | Estimates what one month of storage + CDN traffic costs at each vendor. |
+| `Cost_Panel` | src/S3/Cost_Panel.php:27 | implements Module | 4 / 7 | 2 / 10 | 2 | Wires the storage/cost tab: one form, one estimate, no persistence. |
 | `Credential_Cipher` | src/S3/Credential_Cipher.php:21 |  | 5 / 7 | 12 / 1 |  | 加密写入 wp_options 的存储凭据 |
 | `Delete_Jobs` | src/S3/Delete_Jobs.php:22 |  | 22 / 22 | 23 / 0 |  | 为首次删除失败的对象保存持久删除任务 |
 | `Delete_Queue_Panel` | src/S3/Delete_Queue_Panel.php:23 |  | 5 / 12 | 2 / 9 | 2 | 渲染删除队列页面并处理行内操作 |
@@ -667,18 +685,19 @@ register() 之后调用     → 直接 add_action/add_filter 到 WP（不再入�
 | `Ignored_Paths` | src/S3/Ignored_Paths.php:20 |  | 4 / 4 | 4 / 0 |  | 保存同步扫描需跳过的额外路径前缀 |
 | `Inventory` | src/S3/Inventory.php:22 |  | 1 / 1 | 2 / 0 |  | 把字节宽度换算为可读格式 |
 | `Legacy_Snapshot` | src/S3/Legacy_Snapshot.php:24 |  | 3 / 5 | 3 / 7 |  | 无同步索引时构建缓存的本地远端快照 |
+| `Link_Rewriter` | src/S3/Link_Rewriter.php:27 |  | 8 / 9 | 8 / 0 |  | Rewrites one attachment host to another inside plain text, serialized arrays and nested serialized strings, r… |
 | `Log` | src/S3/Log.php:17 |  | 1 / 1 | 10 / 0 |  | 仅在 WP_DEBUG 开启时输出 S3 日志 |
 | `Migration_Service` | src/S3/Migration_Service.php:17 |  | 2 / 2 | 2 / 0 |  | 以注入回调执行纯迁移循环 |
 | `Monitoring_Panel` | src/S3/Monitoring_Panel.php:21 |  | 4 / 8 | 4 / 8 |  | 渲染监控与 webhook 表单并处理提交 |
 | `Object_Store` | src/S3/Object_Store.php:19 |  | 8 / 11 | 8 / 11 |  | 以注入客户端执行无状态对象存储操作 |
-| `Options` | src/S3/Options.php:19 |  | 24 / 26 | 84 / 4 |  | 规范化 s3_options 并处理旧版迁移与常量覆盖 |
+| `Options` | src/S3/Options.php:19 |  | 24 / 26 | 86 / 4 |  | 规范化 s3_options 并处理旧版迁移与常量覆盖 |
 | `Profile_Manager` | src/S3/Profile_Manager.php:23 |  | 2 / 3 | 3 / 5 |  | 按保存的配置档切换当前生效配置 |
 | `Prometheus` | src/S3/Prometheus.php:25 | implements Module | 8 / 12 | 7 / 10 | 3 | 输出受令牌保护的 Prometheus 指标文档 |
-| `Providers` | src/S3/Providers.php:9 |  | 2 / 2 | 8 / 0 |  | 列出受支持的 S3 兼容服务商 |
+| `Providers` | src/S3/Providers.php:9 |  | 4 / 4 | 8 / 0 |  | 列出受支持的 S3 兼容服务商 |
 | `Remote_Operation_Guard` | src/S3/Remote_Operation_Guard.php:14 |  | 7 / 11 | 11 / 2 |  | 以无 TTL 预约守卫远端操作并要求显式对账 |
 | `Restore_Plan` | src/S3/Restore_Plan.php:27 |  | 3 / 3 | 8 / 0 |  | 比对附件新旧对象键以生成还原计划 |
 | `S3_Storage_Page` | src/S3/S3_Storage_Page.php:12 |  | 2 / 4 | 2 / 22 |  | 渲染 S3 设置页与只读跳转提示 |
-| `Settings_Saver` | src/S3/Settings_Saver.php:13 |  | 6 / 9 | 6 / 17 |  | 处理 S3 设置的后台提交保存 |
+| `Settings_Saver` | src/S3/Settings_Saver.php:13 |  | 7 / 10 | 6 / 17 |  | 处理 S3 设置的后台提交保存 |
 | `Storage` | src/S3/Storage.php:22 | implements Module | 20 / 24 | 6 / 33 | 14 | 注册 S3 钩子并协调上传入队 |
 | `Storage_Adapter` | src/S3/Storage_Adapter.php:20 |  | 13 / 18 | 34 / 13 |  | 把本地路径映射为对象键并经对象存储上传 |
 | `Sync_Actions` | src/S3/Sync_Actions.php:20 |  | 5 / 5 | 4 / 10 |  | 对清单选定对象执行上传、下载或删除 |
@@ -690,7 +709,10 @@ register() 之后调用     → 直接 add_action/add_filter 到 WP（不再入�
 | `Upload_Metrics` | src/S3/Upload_Metrics.php:27 |  | 10 / 18 | 14 / 2 |  | 把上传结果逐条追加到事件表并按 SQL 聚合快照 |
 | `Upload_Observer` | src/S3/Upload_Observer.php:20 | implements Module | 4 / 4 | 3 / 12 | 2 | 记录上传成功/失败事件并回写索引 MD5 |
 | `Upload_URL` | src/S3/Upload_URL.php:9 |  | 2 / 2 | 7 / 0 |  | 接管上传目录与地址选项的改写生命周期 |
-| `Upload_Verify` | src/S3/Upload_Verify.php:20 |  | 3 / 3 | 6 / 0 |  | 比对本地文件与 S3 对象上报的 ETag |`
+| `Upload_Verify` | src/S3/Upload_Verify.php:20 |  | 3 / 3 | 6 / 0 |  | 比对本地文件与 S3 对象上报的 ETag |
+| `Url_Rewrite_Panel` | src/S3/Url_Rewrite_Panel.php:27 | implements Module | 10 / 17 | 2 / 20 | 7 | Wires the storage/rewrite tab: one scan, one run, one ledger. |
+| `Url_Rewrite_Repository` | src/S3/Url_Rewrite_Repository.php:22 |  | 17 / 17 | 8 / 0 |  | Owns the rewrite ledger table and the single in-progress scan state option. |
+| `Url_Rewrite_Service` | src/S3/Url_Rewrite_Service.php:22 |  | 8 / 27 | 5 / 6 |  | Finds every text column that mentions the old host, rewrites matching rows in time-boxed batches, and replays… |`
 
 装配层（`includes/`）：`S3_Storage_Module`（`includes/class-s3-storage-module.php:25`）负责后台三页中的 connection 页与全部 admin-post/AJAX 分发；`S3_CLI`（`includes/class-s3-cli.php:14`）只在 `WP_CLI` 时被 require；`S3_Doge_Cloud`（`includes/class-s3-doge-cloud.php:16`）是多吉云临时凭据换取。
 
@@ -1079,7 +1101,7 @@ d3AtY29udGVudC91cGxvYWRzL3Byb2JlLzA5OTkuYmluW21pbmlvX2NhY2hlOnYyLHJldHVybjpd
 
 ---
 
-## 8. 子系统 E：用户文件空间（src/UserFiles/，46 文件 / 22,262 行）
+## 8. 子系统 E：用户文件空间（src/UserFiles/，46 文件 / 22,309 行）
 
 ### 8.1 职责与边界
 
@@ -1087,7 +1109,7 @@ d3AtY29udGVudC91cGxvYWRzL3Byb2JlLzA5OTkuYmluW21pbmlvX2NhY2hlOnYyLHJldHVybjpd
 
 这是全插件最大、也是唯一带**五层权限门**（`can_use_files` / `can_review` / `can_execute` / `can_manage_media` / `space_can_*`）的子系统。这里的 `space_can_*` 不是一个权限，而是 `space_can_use`、`space_can_review`、`space_can_manage` 三个不同门。改它之前必须先读 `src/UserFiles/Capabilities.php` 与 `src/UserFiles/Schema.php`。
 
-**权限与开关速查（当前 1.27.6）**：
+**权限与开关速查（当前 1.28.0）**：
 
 | 范围 | 当前判定 | `entry_enabled` 关闭时 |
 |---|---|---|
@@ -1240,7 +1262,7 @@ d3AtY29udGVudC91cGxvYWRzL3Byb2JlLzA5OTkuYmluW21pbmlvX2NhY2hlOnYyLHJldHVybjpd
 | 与 Admin IA | 向 Registry 的 `files` 模块注册 4 个 renderer（settings/users/queue/log） | `src/UserFiles/Admin/Page.php:71-78` |
 | 与 Zibll | 能力探测单例 `Zibll_Bridge`；tab、订单卡、空间面板都走它 | `src/UserFiles/Services/Zibll_Bridge.php:23` |
 
-### 8.9 空间扩容支付收口（历史变更记录；2026-11-08/09；当前代码以 1.27.6 为准）
+### 8.9 空间扩容支付收口（历史变更记录；2026-11-08/09；当前代码以 1.28.0 为准）
 
 **结论：空间扩容的现金入口由管理员在后台显式勾选，默认只开放余额；积分入口有独立开关；订单按实际支付渠道记账；退款按渠道补偿；每日对账用租约 + 指数退避；历史 order: 授权提供手动审计/回填命令。** 退款失败（refund_failed）仍坚持人工核对，不自动复活——这是有意保留的资金安全边界，不是遗漏。
 
@@ -1383,7 +1405,7 @@ Space_Panel::build_data()（src/UserFiles/Space_Panel.php:112）先取 $plans/$m
 - **历史授权回填**：合成 order: 空字段行 dry-run 为 pending，--apply --yes 后字段恢复为 purchase/balance/order_id=21/order_num=990.../price=30.00/points=0，bytes/state/label 不变；第二次运行 candidates=0。见 §10.14-B。
 - **单测（历史记录）**：当时的 `phpunit --filter 'SpaceStoreReconcileTest|SpaceStoreRefundTest|SpaceStorePaymentTest|SpaceSettingsTest'` 全绿；该记录中的 SpaceStoreReconcileTest 为 10 tests / 59 assertions。
 
-**1.27.6 当前基线（2026-11-15）**：当前同一过滤器在工作树运行结果为 **30 tests / 119 assertions，OK**；完整套件为 **570 tests / 2,608 assertions / 6 skipped**。测试站运行时注册 **45 条路径 / 51 个 HTTP 端点**；未认证 REST 返回 401，认证后 summary/capacity/items/picker 返回 200；用户 2/3 的文件、文件夹、picker 数据互不泄漏，交叉读取返回 404。以上是本次测试站和代码版本的证据，不是对所有站点配置的保证。
+**1.27.6 基线（2026-11-15 的历史记录）**：当前同一过滤器在工作树运行结果为 **30 tests / 119 assertions，OK**；完整套件为 **570 tests / 2,608 assertions / 6 skipped**。测试站运行时注册 **45 条路径 / 51 个 HTTP 端点**；未认证 REST 返回 401，认证后 summary/capacity/items/picker 返回 200；用户 2/3 的文件、文件夹、picker 数据互不泄漏，交叉读取返回 404。以上是本次测试站和代码版本的证据，不是对所有站点配置的保证。
 
 测试后清理：t_sufm_space_grants 恢复为 1 行（原 points: 授权），t_zibpay_order 恢复为 1 行，临时订单/grant/事件已删；sufm_space_reconcile_last 恢复为测试前的标量 1794152631，wp sufm status 读回 recon_next=1794239031；sufm_space_settings 未留下临时值。
 
@@ -1489,7 +1511,7 @@ Space_Panel::build_data()（src/UserFiles/Space_Panel.php:112）先取 $plans/$m
 
 #### 8.10.6 验证与边界
 
-运行记录见 §10.13（**历史 1.23.0 验证，不是当前 1.27.6 基线**）。摘要：
+运行记录见 §10.13（**历史 1.23.0 验证，不是当前 1.28.0 基线**）。摘要：
 
 | 检查 | 结果 |
 |---|---|
@@ -1606,7 +1628,7 @@ Space_Panel::build_data()（src/UserFiles/Space_Panel.php:112）先取 $plans/$m
 
 #### 8.11.6 验证与边界
 
-运行记录见 §10.15（**历史 1.24.1 验证，不是当前 1.27.6 基线**）。摘要：
+运行记录见 §10.15（**历史 1.24.1 验证，不是当前 1.28.0 基线**）。摘要：
 
 | 检查 | 结果 |
 |---|---|
@@ -1630,9 +1652,9 @@ Space_Panel::build_data()（src/UserFiles/Space_Panel.php:112）先取 $plans/$m
 
 ## 9. 横切：数据落点、钩子、REST、CLI 与 Cron
 
-### 9.1 数据落点总表（23 张自定义表）
+### 9.1 数据落点总表（24 张自定义表）
 
-测试站实测 23 张（15 张 `sufm_*` + 6 张 `sio_sync_*` + 2 张 `sio_s3_*`，命令见 §10.2）：
+测试站实测 24 张（15 张 `sufm_*` + 6 张 `sio_sync_*` + 3 张 `sio_s3_*`，命令见 §10.2）：
 
 | 表 | 归属 | 用途 | 建立位置 |
 |---|---|---|---|
@@ -1659,25 +1681,26 @@ Space_Panel::build_data()（src/UserFiles/Space_Panel.php:112）先取 $plans/$m
 | `sio_sync_operations` | S3 / Sync | 远端变更准入记录 | `src/Sync/Schema.php:188-201` |
 | `sio_s3_deletes` | S3 | 远端删除补偿队列 | `src/S3/Delete_Jobs.php:109` |
 | `sio_s3_upload_events` | S3 | 上传结果事件（成功/失败逐条追加，快照按 SQL 聚合） | `src/S3/Upload_Metrics.php:79-115` |
+| `sio_url_rewrites` | S3 / Url_Rewrite | 附件链接改写账本（每行写前原值，支持回滚与冲突标记） | `src/S3/Url_Rewrite_Repository.php:97` |
 
 > 表名在源码里以 `$wpdb->prefix . 'sufm_files'` 形式拼接（`src/UserFiles/Schema.php:41`），前缀随站点变化；测试站前缀为 `t_`。
 
 **非表落点**（分章详见 §4.5 / §5.5 / §6.5 / §7.5 / §8.6）：option 约 60 个、postmeta 约 13 个（8 个 `_sakura_imgopt_s3_*` + `_sakura_imgopt_backup` / `sakura_imgopt_log` / `_sakura_imgopt_orig` + `sufm_quota_bytes` + 只读 `_wp_attached_file`）、transient 7 个、上传目录 1 个子目录（`sakura-imgopt-backup/`）。
 
-### 9.2 钩子分布（211 条）
+### 9.2 钩子分布（220 条）
 
 | 模块 | 钩子数 | 说明 |
 |---|---:|---|
 | `includes/` | 70 | 旧层：图片门面 7 + 缩略图装配 9 + S3 设置页 11 + 媒体库/设置页 AJAX 等 |
 | `src/UserFiles` | 62 | 最大；REST 只注册 1 个 `rest_api_init`，其余是 cron、媒体库、Zibll、支付 |
-| `src/S3` | 48 | admin-post 10 + ajax 13 + 附件 3 + cron 2 + 同步中心 10 + 其余（含失败观测与媒体下载） |
+| `src/S3` | 57 | admin-post 10 + ajax 21 + 附件 3 + cron 2 + 同步中心 10 + 其余（含失败观测与媒体下载） |
 | `src/Sync` | 20 | 3 个附件钩子 + 7 个 cron + `cron_schedules`/`init`/`admin_init` + 4 条附件收养过滤（1.25.5 起的每月校准占了 5 条：`cron_schedules`、`init`、`admin_init`、`sakura_imgopt_sync_calibrate`、`sakura_imgopt_sync_calibrate_now`） |
 | `src/Admin` | 5 | `admin_menu` / `admin_enqueue_scripts` / `admin_init` / `admin_body_class` / `admin_page_access_denied` |
 | `src/Thumbnail` | 1 | 只有主题缓存桥（`the_post`） |
 | `src/`（根） | 1 | `sakura_imgopt_daily_backup_cleanup`（回调在 `src/Plugin.php:112`，排程在 `src/Activation.php:119-120`） |
 | 未归属（模板/函数） | 4 | `sakura-tools.php` 根文件的闭包（`:25`、`:96`、`:103`、`:121`） |
 
-完整 211 条见**附录 B**（按模块分组，含文件:行、优先级、回调）。这 211 条是具名注册（153 `add_action` + 58 `add_filter`）；`add_submenu_page` 与 `Hook_Loader` 的 4 处通用转发不计入。
+完整 220 条见**附录 B**（按模块分组，含文件:行、优先级、回调）。这 220 条是具名注册（162 `add_action` + 58 `add_filter`）；`add_submenu_page` 与 `Hook_Loader` 的 4 处通用转发不计入。
 
 ### 9.3 REST、CLI 与 Cron
 
@@ -2857,21 +2880,70 @@ PHPCS 的 36 条 warning 全部落在本轮未改动的既有文件，集中在�
 > 本轮（1.25.9）不改任何 PHP：生产 PHP 仍 **190 文件 / 65,847 行**，类 175、节点 192、连线 873、钩子 209、模块 17、`modref` 50 全部不变。变化的只有后台资源行数：34,805 → **34,815 行**（`assets/ui/` 15,315 → 15,325，差异来自 `storage.css` 的 10 行净增与注释）。当时的约定写回 `docs/后台UI规则.md:160`，该文件现为 `docs/开发规则/03-后台UI.md`（1.26.0 起重写）。
 
 
+### 10.28 附件链接改写与费用估算的运行期验证（1.28.0，2026-11-16）
+
+**A. 环境与边界**
+
+生产站 `https://www.nboke.com`，插件目录 `/www/wwwroot/www.nboke.com/wp-content/plugins/sakura-tools`，数据库前缀 `nb_`。本轮经用户明确批准，**在生产执行了附件链接改写的写操作**；执行前数据库已完整备份，改写账本逐行保留原值。费用估算页只做读取与本地计算，没有写库；其余对象存储验证沿用临时前缀 `sakura-verify/20261116/`，结束后已清理。
+
+**B. 链接改写结果（`bf.nboke.com` → `doge.nboke.com`）**
+
+| 位置 | 改写行数 | 结果 |
+|---|---:|---|
+| `posts.post_content` | 17 | 正文里的旧域名全部替换 |
+| `posts.guid` | 130 | 附件 GUID 全部替换 |
+| `postmeta` | 3 | 序列化值按长度前缀修正后替换 |
+| `termmeta` | 6 | 同上 |
+| `zibll_options` | 11 | 主题设置里的图片/附件地址替换 |
+| `zibll_options_backup` | 101 | 主题备份设置一并替换 |
+| **合计** | **268** | 全部命中，无跳过、无冲突 |
+
+`zse_*` 插件表的 97 行旧域名与 `s3_options`、`oss_thumb`、`backup_probe` 各 1 处旧域名**按设计保留**：它们不在默认内容/主题组内，需要操作者在界面上显式勾选插件前缀后才会进入扫描范围。改写后用账本 `nb_sio_url_rewrites` 执行回滚验证：被改写行逐行恢复，回滚后又被人工改过的行标为冲突并跳过；随后再次执行改写，结果仍为 268 行。
+
+**C. 费用估算**
+
+页面在生产打开后，10 家服务商逐行返回（多吉云、缤纷云、阿里云 OSS、腾讯云 COS、七牛云 KODO、又拍云、百度云 BOS、Cloudflare R2、Backblaze B2、MinIO），按合计金额升序排列，MinIO 自建固定排最后；输入项为默认值（存储 100GB、月流量 300GB、读 100 万次、写 1 万次、命中率 80%、忙时 100%、HTTPS 100%、CDN 路径、汇率 7.2）。计算在服务端完成，不联网、不读厂商账单、不持久化。
+
+**D. 对象存储回归**
+
+| 检查 | 结果 |
+|---|---|
+| 21MB 分片上传 | `sakura-verify/20261116/multipart-21mb-1794819256.bin`，22,020,096 bytes，ETag `e0c183cddbbeb22846f1b98da217e8a2-3`，远端大小一致，删除成功 |
+| 批量删除回退 | 两个测试对象经 `delete_keys()` 删除成功；`sakura-verify/20261116/` 剩余 0，Remote_Operation_Guard 的 inflight / uncertain / total 均为 0 |
+| 对象 ACL | public 与 private 两个对象的 ACL 都写入成功；private 的 `getObjectAcl` 仅有 owner FULL_CONTROL，但两者经自定义域名匿名访问都返回 200——可见性最终由存储空间策略 / CDN 决定 |
+| 连接页保存 | 保存前后 `s3_options` 仅 `saved_at` 变化，活动档案仍为 `prof_feacd4ec5427`，桶、密钥与档案结构未变 |
+| 连接页布局 | 1440 视口连接卡全宽，行为与吞吐并排；390 视口无页面横向溢出，字段单列 |
+
+**E. 静态检查（1.28.0）**
+
+| 检查 | 命令 | 结果 |
+|---|---|---|
+| PHPUnit | `composer test` | **623 tests / 2,940 assertions / 6 skipped**，OK |
+| PHPStan | `composer phpstan` | `[OK] No errors`（level 5） |
+| PHPCS | `composer lint:strict` | **0 errors / 0 warnings**（37 条 warning 已清零） |
+| PHP 语法 | `php -l` 全部改动文件 | No syntax errors |
+| JS 语法 | `node --check` 改动的 5 个 JS | 通过 |
+| 行尾空白 | `git diff --check` | 通过 |
+
+**F. 规模**
+
+生产 PHP **208 文件 / 71,908 行 / 191 类与接口 / 220 具名钩子 / 24 张自定义表**；`src/S3` 46 文件 16,255 行，`src/UserFiles` 46 文件 22,309 行，`src/Sync` 19 文件 6,171 行，`src/Thumbnail` 20 文件 4,616 行，`src/Admin` 17 文件 3,290 行，`includes/views` 14 文件 6,288 行，后台资源 43 文件 / 36,069 行（`assets/ui/` 31 文件 / 16,571 行）。tests 94 文件 / 14,014 行。图谱 208 节点 / 944 连线（702 `ref` + 51 `modref` + 191 `contains`），模块 17 个。
+
 ## 11. 依赖关系与图谱口径
 
 ### 11.1 模块依赖矩阵（类级引用边计数）
 
-| 从 / 到 | UserFiles | S3 | includes | Sync | includes/views | Thumbnail | Admin | Image | src | Oss | Backup | 根文件 | Contracts | Settings | Support | Filesystem | Stats |
+| 从 / 到 | UserFiles | S3 | includes | includes/views | Sync | Thumbnail | Admin | Image | src | Oss | Backup | 根文件 | Contracts | Settings | Support | Filesystem | Stats |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
 | UserFiles |  |  |  |  |  |  | 18 |  |  |  |  |  |  |  | 14 |  |  |
-| S3 |  |  | 9 | 40 |  |  | 34 |  |  |  |  |  | 6 | 6 | 9 |  |  |
-| includes |  | 52 |  | 7 |  | 11 | 22 | 22 |  | 1 | 7 |  | 17 | 9 | 6 | 3 | 5 |
-| Sync |  | 38 |  |  |  |  |  |  |  |  |  |  | 5 |  | 5 |  |  |
+| S3 |  |  | 9 |  | 40 | 2 | 46 |  |  |  |  |  | 8 | 6 | 11 |  |  |
+| includes |  | 52 |  |  | 7 | 11 | 22 | 22 |  | 1 | 7 |  | 17 | 9 | 6 | 3 | 5 |
 | includes/views |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |
+| Sync |  | 38 |  |  |  |  |  |  |  |  |  |  | 5 |  | 5 |  |  |
 | Thumbnail |  | 1 |  |  |  |  |  |  |  | 2 |  |  |  |  |  |  |  |
 | Admin | 9 |  |  |  |  |  |  |  |  |  |  |  | 2 |  | 2 |  |  |
 | Image |  |  | 9 |  |  |  |  |  |  |  |  |  | 22 | 9 |  | 2 |  |
-| src | 9 | 25 | 10 | 24 |  | 1 | 6 |  |  |  | 1 |  |  | 2 | 3 | 1 | 1 |
+| src | 9 | 31 | 10 |  | 24 | 1 | 6 |  |  |  | 1 |  |  | 2 | 3 | 1 | 1 |
 | Oss |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |
 | Backup |  |  | 4 |  |  |  |  |  |  |  |  |  | 1 |  |  |  |  |
 | 根文件 |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |
@@ -2912,15 +2984,15 @@ PHPCS 的 36 条 warning 全部落在本轮未改动的既有文件，集中在�
 | from | to | 类型 | 次数 | 证据行 |
 |---|---|---|---:|---|
 | `Scan_Service` | `Index_Repository` | 调用 | 45 | src/Sync/Scan_Service.php:137,151 |
-| `S3_Storage_Page` | `UI` | 静态调用 | 26 | src/S3/S3_Storage_Page.php:54,90 |
-| `S3_Storage_Page` | `UI` | 调用 | 26 | src/S3/S3_Storage_Page.php:54,90 |
+| `Url_Rewrite_Service` | `Url_Rewrite_Repository` | 静态调用 | 29 | src/S3/Url_Rewrite_Service.php:94,110 |
+| `Url_Rewrite_Service` | `Url_Rewrite_Repository` | 调用 | 27 | src/S3/Url_Rewrite_Service.php:94,110 |
 | `Sync_Center_Module` | `Index_Repository` | 调用 | 26 | src/S3/Sync_Center_Module.php:472,475 |
+| `S3_Storage_Page` | `UI` | 静态调用 | 25 | src/S3/S3_Storage_Page.php:54,90 |
+| `S3_Storage_Page` | `UI` | 调用 | 25 | src/S3/S3_Storage_Page.php:54,90 |
 | `Storage` | `Options` | 调用 | 25 | src/S3/Storage.php:108,110 |
 | `Controller` | `Requests` | 调用 | 25 | src/UserFiles/Rest/Controller.php:1230,1268 |
 | `Executor` | `Time` | 静态调用 | 25 | src/UserFiles/Services/Executor.php:174,242 |
 | `Executor` | `Time` | 调用 | 25 | src/UserFiles/Services/Executor.php:174,242 |
-| `Media_Hooks` | `Requests` | 静态调用 | 24 | src/UserFiles/Media/Media_Hooks.php:290,291 |
-| `Requests` | `Schema` | 静态调用 | 24 | src/UserFiles/Repositories/Requests.php:86,123 |
 
 ---
 
@@ -3007,9 +3079,9 @@ PHPCS 的 36 条 warning 全部落在本轮未改动的既有文件，集中在�
 
 | 项 | 本次结果 |
 |---|---|
-| 节点 | 202 = 185 类 + 17 模块 |
-| 连线 | **916** = 681 `ref` + 50 `modref` + 185 `contains` |
-| 钩子 | 211（面板显示，不建节点） |
+| 节点 | 208 = 191 类 + 17 模块 |
+| 连线 | **944** = 702 `ref` + 51 `modref` + 191 `contains` |
+| 钩子 | 220（面板显示，不建节点） |
 | 悬空边 | 0 |
 | 上一轮变更（1.25.0） | 1.25.0 的后台 UI 重构**净增 10 个类节点**：新增 11 个（`Admin\Appearance`、`Admin\Card_Form`、`Admin\Page_Assets`、`Admin\Route`、`Admin\UI`、`Admin\UI\Card`、`Admin\UI\Feedback`、`Admin\UI\Field`、`Admin\UI\Page`、`Admin\System_Settings_Module`、`S3\Config_Notice`），删除 1 个（`Admin\Basic_Settings_Module`，其视图 `includes/views/basic-settings.php` 同时移除，能力并入新的系统设置页）；`ref` 612→637、`contains` 164→174、节点 181→191、连线 826→861；`modref` 仍 50（模块集合未变）。钩子 199→203（新增 `admin_post`/`ajax` 处理器与 `admin_print_footer_scripts`） |
 | 上一轮变更（1.25.1） | 只新增 1 个 `admin_enqueue_scripts` 闭包（`sakura-tools.php:121-137`，卸载 `wp-commands` / `wp-core-commands` 与对应样式）：钩子 203→204、`add_action` 147→148；节点仍 191、连线仍 861（637 `ref` + 50 `modref` + 174 `contains`），`modref` 仍 50 |
@@ -3022,10 +3094,11 @@ PHPCS 的 36 条 warning 全部落在本轮未改动的既有文件，集中在�
 | 上一轮变更（1.25.8） | 只改 9 个 PHP 文件（`Settings_Saver.php` 新增静态方法 `profile_id_for_save()`、`S3_Storage_Page.php` 的两处文案、`Sync_Center_Module.php` 的一条守卫、`Index_Repository.php` 的 `purge_index()` 加两张表、`CLI.php` 的三处文案、`Admin/UI/Card.php` 的 `save_disabled` 参数、`class-s3-storage-module.php` 的清理调用、`s3-sync-center.php` 的 `$frozen` 与抬头）与两个前端文件 + 测试，**全是方法级改动，不新增类、钩子、模块或数据表**：节点 192、连线 873（648 `ref` + 50 `modref` + 175 `contains`）、钩子 209、模块 17 全部不变；生产 PHP 65,792 → 65,847 行（190 文件不变），`src/S3` 12,147 → 12,183、`src/Admin` 3,292 → 3,297、`includes`（根）6,192 → 6,198、`src/Sync` 6,048 → 6,057、`includes/views` 5,542 → 5,541；`assets/` 34,759 → 34,805、`assets/ui/` 15,269 → 15,315；tests 仍 78 文件、10,639 → 10,730 行 |
 | 本轮变更（1.25.9） | 只改 `assets/ui/pages/storage.css`（弹窗图标、眉标、标题居中，正文去掉 `max-width: 46ch`）与 `docs/后台UI规则.md`（§5.1 补一条对齐约定），**不改任何 PHP**：生产 PHP 仍 190 文件 / 65,847 行，类 175、节点 192、连线 873、钩子 209、模块 17、`modref` 50 全部不变；后台资源 34,805 → **34,815 行**（`assets/ui/` 15,315 → 15,325）。详见 §10.27 |
 | 上一轮变更（1.26.0–1.27.5） | 后台 UI 三次结构性调整 + 一次卸载修复，**类节点净增 1**：新增 `Admin\UI\Modal`（1.26.0 统一提示弹窗），删除拖拽布局引擎相关的无类代码（`layout.js`/`layout.css` 本来就不在图谱里）。节点 192→**193**、连线 873→**881**（`ref` 648→655、`contains` 175→176）、**模块仍 17、`modref` 仍 50**。钩子 209→**207**（`src/Admin` 7→5，`Sync_Calibrator` 与停用清单的两条 cron 归属调整）；生产 PHP 191 文件 / 65,780 行。详见 §1 的「本轮更新」段 |
-| 本轮变更（1.27.6） | **新增 9 个类**，全在 `src/`：`S3\Connection_Probe`、`S3\Doge_Cloud_Resolver`、`S3\Bucket_Label`、`Sync\Search_Term`、`Thumbnail\Provider_Registry`、`Thumbnail\Providers\Doge`、`Thumbnail\Style_Suffix`、`Thumbnail\Format_Rule`、`Thumbnail\Admin_Thumbnails`。节点 193→**202**、连线 881→**916**（`ref` 655→681、`contains` 176→185）、**模块仍 17、`modref` 仍 50**。钩子 207→**211**（`includes` 67→70 含新增 `image_downsize` 与 2 个 S3 AJAX，`src/S3` 47→48 含 `wp_ajax_sakura_s3_sync_preview`）；`add_action` 150→153、`add_filter` 57→58，**无钩子被删除或改名**。生产 PHP 200 文件 / 67,806 行。详见 §1 的「本轮更新」段 |
-| 数据来源 | 2026-11-15 重新扫描的 1.27.6 工作树事实表（codegraph `scanner.php` 输出）——由 `docs/tools/collect-comments.php` 与 `docs/tools/collect-hooks.php` 生成，与本文所有表格同源 |
+| 上一轮变更（1.27.6） | **新增 9 个类**，全在 `src/`：`S3\Connection_Probe`、`S3\Doge_Cloud_Resolver`、`S3\Bucket_Label`、`Sync\Search_Term`、`Thumbnail\Provider_Registry`、`Thumbnail\Providers\Doge`、`Thumbnail\Style_Suffix`、`Thumbnail\Format_Rule`、`Thumbnail\Admin_Thumbnails`。节点 193→**202**、连线 881→**916**（`ref` 655→681、`contains` 176→185）、**模块仍 17、`modref` 仍 50**。钩子 207→**211**（`includes` 67→70 含新增 `image_downsize` 与 2 个 S3 AJAX，`src/S3` 47→48 含 `wp_ajax_sakura_s3_sync_preview`）；`add_action` 150→153、`add_filter` 57→58，**无钩子被删除或改名**。生产 PHP 200 文件 / 67,806 行。详见 §1 的「本轮更新」段 |
+| 本轮变更（1.28.0） | **新增 6 个类**：`S3\Link_Rewriter`、`S3\Url_Rewrite_Repository`、`S3\Url_Rewrite_Service`、`S3\Url_Rewrite_Panel`、`S3\Cost_Estimator`、`S3\Cost_Panel`。节点 202→**208**、连线 916→**944**（`ref` 681→702、`modref` 50→51、`contains` 185→191）、**模块仍 17**。钩子 211→**220**：`src/S3` 48→57（6 个改写 AJAX、1 个费用 AJAX、2 个 `admin_enqueue_scripts`），`add_action` 153→162、`add_filter` 58 不变；新增数据表 `sio_url_rewrites`（图谱不建表节点，但 §9.1 从 23 变 24）。生产 PHP 208 文件 / 71,908 行。详见 §1 的「本轮更新」段 |
+| 数据来源 | 2026-11-16 重新扫描的 1.28.0 工作树事实表（codegraph `scanner.php` 输出）——由 `docs/tools/collect-comments.php` 与 `docs/tools/collect-hooks.php` 生成，与本文所有表格同源 |
 
-1.24.3 的卸载修复与 1.24.4 的覆盖升级自愈都没有改变模块划分；1.25.0 的后台 UI 重构在原有两个后台模块（`system`/`image`）之外**没有新增模块节点**——它把 13 个页签的呈现收敛到一套 UI 内核，因此模块仍 17 个、`modref` 仍 50 条，增量全在类级；1.25.5 新增的每月校准同样只是一个类，模块集合不变。到 1.27.5 为止：节点 193（176 类 + 17 模块）、连线 881（655 `ref` + 50 `modref` + 176 `contains`）、钩子 207；生产 PHP 文件 191 个 / 65,780 行，其中 `src` 5 文件 / 901 行、`src/UserFiles` 22,305 行、`includes`（根）6,198 行、`src/S3` 12,183 行、`src/Sync` 18 文件 6,057 行、`src/Admin` 3,297 行、`includes/views` 5,541 行。编辑页 JS/CSS 不是图谱对象，`assets/ui/` 的行数不进入图谱。1.25.9 只改该目录下的 `pages/storage.css`，图谱口径里的所有计数一律不变；**1.27.6 改变了计数**：节点 193→202（176→185 类）、连线 881→916（`ref` 655→681、`contains` 176→185）、钩子 207→211，模块仍 17、`modref` 仍 50，生产 PHP 200 文件 / 67,806 行。
+1.24.3 的卸载修复与 1.24.4 的覆盖升级自愈都没有改变模块划分；1.25.0 的后台 UI 重构在原有两个后台模块（`system`/`image`）之外**没有新增模块节点**——它把 13 个页签的呈现收敛到一套 UI 内核，因此模块仍 17 个、`modref` 仍 50 条，增量全在类级；1.25.5 新增的每月校准同样只是一个类，模块集合不变。到 1.27.5 为止：节点 193（176 类 + 17 模块）、连线 881（655 `ref` + 50 `modref` + 176 `contains`）、钩子 207；生产 PHP 文件 191 个 / 65,780 行，其中 `src` 5 文件 / 901 行、`src/UserFiles` 22,305 行、`includes`（根）6,198 行、`src/S3` 12,183 行、`src/Sync` 18 文件 6,057 行、`src/Admin` 3,297 行、`includes/views` 5,541 行。编辑页 JS/CSS 不是图谱对象，`assets/ui/` 的行数不进入图谱。1.25.9 只改该目录下的 `pages/storage.css`，图谱口径里的所有计数一律不变；**1.27.6 改变了计数**：节点 193→202（176→185 类）、连线 881→916（`ref` 655→681、`contains` 176→185）、钩子 207→211，模块仍 17、`modref` 仍 50，生产 PHP 200 文件 / 67,806 行。**1.28.0 再次改变计数**：节点 202→208（185→191 类）、连线 916→944（`ref` 681→702、`modref` 50→51、`contains` 185→191）、钩子 211→220，模块仍 17；生产 PHP 208 文件 / 71,908 行。
 
 `fast-search.php` 是脚本型文件，本来就不进入图谱；`Space_Store` 的字段缺陷已在 §8.9 修复，不再是未修复缺陷。
 
@@ -3039,7 +3112,7 @@ PHPCS 的 36 条 warning 全部落在本轮未改动的既有文件，集中在�
 
 ---
 
-## 附录 A：类索引（185 类）
+## 附录 A：类索引（191 类）
 
 | # | 类 | 文件:行 | 方法数 |
 |---:|---|---|---:|
@@ -3100,136 +3173,142 @@ PHPCS 的 36 条 warning 全部落在本轮未改动的既有文件，集中在�
 | 55 | `Sakura\ImageOptimizer\S3\Config_Notice` | src/S3/Config_Notice.php:35 | 10 |
 | 56 | `Sakura\ImageOptimizer\S3\Connection_Probe` | src/S3/Connection_Probe.php:31 | 7 |
 | 57 | `Sakura\ImageOptimizer\S3\Connection_Tester` | src/S3/Connection_Tester.php:11 | 3 |
-| 58 | `Sakura\ImageOptimizer\S3\Credential_Cipher` | src/S3/Credential_Cipher.php:21 | 7 |
-| 59 | `Sakura\ImageOptimizer\S3\Delete_Jobs` | src/S3/Delete_Jobs.php:22 | 22 |
-| 60 | `Sakura\ImageOptimizer\S3\Delete_Queue_Panel` | src/S3/Delete_Queue_Panel.php:23 | 12 |
-| 61 | `Sakura\ImageOptimizer\S3\Delete_Worker` | src/S3/Delete_Worker.php:20 | 15 |
-| 62 | `Sakura\ImageOptimizer\S3\Doge_Cloud_Resolver` | src/S3/Doge_Cloud_Resolver.php:19 | 5 |
-| 63 | `Sakura\ImageOptimizer\S3\Error_Mapper` | src/S3/Error_Mapper.php:15 | 3 |
-| 64 | `Sakura\ImageOptimizer\S3\History_Migrator` | src/S3/History_Migrator.php:19 | 15 |
-| 65 | `Sakura\ImageOptimizer\S3\Ignored_Paths` | src/S3/Ignored_Paths.php:20 | 4 |
-| 66 | `Sakura\ImageOptimizer\S3\Inventory` | src/S3/Inventory.php:22 | 1 |
-| 67 | `Sakura\ImageOptimizer\S3\Legacy_Snapshot` | src/S3/Legacy_Snapshot.php:24 | 5 |
-| 68 | `Sakura\ImageOptimizer\S3\Log` | src/S3/Log.php:17 | 1 |
-| 69 | `Sakura\ImageOptimizer\S3\Migration_Service` | src/S3/Migration_Service.php:17 | 2 |
-| 70 | `Sakura\ImageOptimizer\S3\Monitoring_Panel` | src/S3/Monitoring_Panel.php:21 | 8 |
-| 71 | `Sakura\ImageOptimizer\S3\Object_Store` | src/S3/Object_Store.php:19 | 11 |
-| 72 | `Sakura\ImageOptimizer\S3\Options` | src/S3/Options.php:19 | 26 |
-| 73 | `Sakura\ImageOptimizer\S3\Profile_Manager` | src/S3/Profile_Manager.php:23 | 3 |
-| 74 | `Sakura\ImageOptimizer\S3\Prometheus` | src/S3/Prometheus.php:25 | 12 |
-| 75 | `Sakura\ImageOptimizer\S3\Providers` | src/S3/Providers.php:9 | 2 |
-| 76 | `Sakura\ImageOptimizer\S3\Remote_Operation_Guard` | src/S3/Remote_Operation_Guard.php:14 | 11 |
-| 77 | `Sakura\ImageOptimizer\S3\Restore_Plan` | src/S3/Restore_Plan.php:27 | 3 |
-| 78 | `Sakura\ImageOptimizer\S3\S3_Storage_Page` | src/S3/S3_Storage_Page.php:12 | 4 |
-| 79 | `Sakura\ImageOptimizer\S3\Settings_Saver` | src/S3/Settings_Saver.php:13 | 9 |
-| 80 | `Sakura\ImageOptimizer\S3\Storage` | src/S3/Storage.php:22 | 24 |
-| 81 | `Sakura\ImageOptimizer\S3\Storage_Adapter` | src/S3/Storage_Adapter.php:20 | 18 |
-| 82 | `Sakura\ImageOptimizer\S3\Sync_Actions` | src/S3/Sync_Actions.php:20 | 5 |
-| 83 | `Sakura\ImageOptimizer\S3\Sync_Center_Module` | src/S3/Sync_Center_Module.php:29 | 38 |
-| 84 | `Sakura\ImageOptimizer\S3\Sync_Center_Panel` | src/S3/Sync_Center_Panel.php:20 | 1 |
-| 85 | `Sakura\ImageOptimizer\S3\Sync_Status` | src/S3/Sync_Status.php:23 | 23 |
-| 86 | `Sakura\ImageOptimizer\S3\Synchronous_Uploader` | src/S3/Synchronous_Uploader.php:26 | 13 |
-| 87 | `Sakura\ImageOptimizer\S3\Upload_Capabilities` | src/S3/Upload_Capabilities.php:23 | 3 |
-| 88 | `Sakura\ImageOptimizer\S3\Upload_Metrics` | src/S3/Upload_Metrics.php:27 | 18 |
-| 89 | `Sakura\ImageOptimizer\S3\Upload_Observer` | src/S3/Upload_Observer.php:20 | 4 |
-| 90 | `Sakura\ImageOptimizer\S3\Upload_URL` | src/S3/Upload_URL.php:9 | 2 |
-| 91 | `Sakura\ImageOptimizer\S3\Upload_Verify` | src/S3/Upload_Verify.php:20 | 3 |
-| 92 | `Sakura\ImageOptimizer\Settings\Settings_Repository` | src/Settings/Settings_Repository.php:23 | 22 |
-| 93 | `Sakura\ImageOptimizer\Stats\Stats_Repository` | src/Stats/Stats_Repository.php:20 | 5 |
-| 94 | `Sakura\ImageOptimizer\Support\Hook_Loader` | src/Support/Hook_Loader.php:20 | 5 |
-| 95 | `Sakura\ImageOptimizer\Support\Text` | src/Support/Text.php:21 | 1 |
-| 96 | `Sakura\ImageOptimizer\Sync\Action_Worker` | src/Sync/Action_Worker.php:28 | 7 |
-| 97 | `Sakura\ImageOptimizer\Sync\Attachment_Adopter` | src/Sync/Attachment_Adopter.php:26 | 9 |
-| 98 | `Sakura\ImageOptimizer\Sync\Attachment_Indexer` | src/Sync/Attachment_Indexer.php:28 | 9 |
-| 99 | `Sakura\ImageOptimizer\Sync\Checksums` | src/Sync/Checksums.php:17 | 3 |
-| 100 | `Sakura\ImageOptimizer\Sync\CLI` | src/Sync/CLI.php:25 | 9 |
-| 101 | `Sakura\ImageOptimizer\Sync\Fast_Search_Query` | src/Sync/Fast_Search_Query.php:24 | 2 |
-| 102 | `Sakura\ImageOptimizer\Sync\Feature` | src/Sync/Feature.php:20 | 2 |
-| 103 | `Sakura\ImageOptimizer\Sync\Index_Repository` | src/Sync/Index_Repository.php:26 | 71 |
-| 104 | `Sakura\ImageOptimizer\Sync\Keyset_Cursor` | src/Sync/Keyset_Cursor.php:21 | 6 |
-| 105 | `Sakura\ImageOptimizer\Sync\Kind` | src/Sync/Kind.php:20 | 2 |
-| 106 | `Sakura\ImageOptimizer\Sync\Metrics` | src/Sync/Metrics.php:20 | 3 |
-| 107 | `Sakura\ImageOptimizer\Sync\Scan_Service` | src/Sync/Scan_Service.php:30 | 25 |
-| 108 | `Sakura\ImageOptimizer\Sync\Scan_Worker` | src/Sync/Scan_Worker.php:27 | 10 |
-| 109 | `Sakura\ImageOptimizer\Sync\Schema` | src/Sync/Schema.php:21 | 5 |
-| 110 | `Sakura\ImageOptimizer\Sync\Search_Term` | src/Sync/Search_Term.php:24 | 2 |
-| 111 | `Sakura\ImageOptimizer\Sync\Search_Token` | src/Sync/Search_Token.php:22 | 4 |
-| 112 | `Sakura\ImageOptimizer\Sync\Sync_Calibrator` | src/Sync/Sync_Calibrator.php:32 | 9 |
-| 113 | `Sakura\ImageOptimizer\Sync\Verify_Service` | src/Sync/Verify_Service.php:24 | 7 |
-| 114 | `Sakura\ImageOptimizer\Sync\Verify_Worker` | src/Sync/Verify_Worker.php:25 | 6 |
-| 115 | `Sakura\ImageOptimizer\Thumbnail\Admin_Thumbnails` | src/Thumbnail/Admin_Thumbnails.php:28 | 10 |
-| 116 | `Sakura\ImageOptimizer\Thumbnail\Providers\Bitiful` | src/Thumbnail/Providers/Bitiful.php:24 | 7 |
-| 117 | `Sakura\ImageOptimizer\Thumbnail\CLI` | src/Thumbnail/CLI.php:17 | 5 |
-| 118 | `Sakura\ImageOptimizer\Thumbnail\Context` | src/Thumbnail/Context.php:18 | 7 |
-| 119 | `Sakura\ImageOptimizer\Thumbnail\Decorator` | src/Thumbnail/Decorator.php:23 | 18 |
-| 120 | `Sakura\ImageOptimizer\Thumbnail\Providers\Doge` | src/Thumbnail/Providers/Doge.php:30 | 7 |
-| 121 | `Sakura\ImageOptimizer\Thumbnail\Format_Rule` | src/Thumbnail/Format_Rule.php:22 | 1 |
-| 122 | `Sakura\ImageOptimizer\Thumbnail\Providers\Generic` | src/Thumbnail/Providers/Generic.php:24 | 5 |
-| 123 | `Sakura\ImageOptimizer\Thumbnail\Policy` | src/Thumbnail/Policy.php:18 | 5 |
-| 124 | `Sakura\ImageOptimizer\Thumbnail\Probe` | src/Thumbnail/Probe.php:23 | 11 |
-| 125 | `Sakura\ImageOptimizer\Thumbnail\Provider` | src/Thumbnail/Provider.php:21 | 4 |
-| 126 | `Sakura\ImageOptimizer\Thumbnail\Provider_Registry` | src/Thumbnail/Provider_Registry.php:26 | 3 |
-| 127 | `Sakura\ImageOptimizer\Thumbnail\Provider_Status` | src/Thumbnail/Provider_Status.php:17 | 5 |
-| 128 | `Sakura\ImageOptimizer\Thumbnail\Rendition` | src/Thumbnail/Rendition.php:21 | 8 |
-| 129 | `Sakura\ImageOptimizer\Thumbnail\Settings` | src/Thumbnail/Settings.php:21 | 31 |
-| 130 | `Sakura\ImageOptimizer\Thumbnail\Size_Catalog` | src/Thumbnail/Size_Catalog.php:17 | 3 |
-| 131 | `Sakura\ImageOptimizer\Thumbnail\Stats` | src/Thumbnail/Stats.php:17 | 5 |
-| 132 | `Sakura\ImageOptimizer\Thumbnail\Style_Suffix` | src/Thumbnail/Style_Suffix.php:24 | 5 |
-| 133 | `Sakura\ImageOptimizer\Thumbnail\Theme_Bridge` | src/Thumbnail/Theme_Bridge.php:21 | 2 |
-| 134 | `Sakura\ImageOptimizer\Thumbnail\Theme_Cache` | src/Thumbnail/Theme_Cache.php:23 | 6 |
-| 135 | `Nboke\UserFiles\Services\Adoption_Manifest` | src/UserFiles/Services/Adoption_Manifest.php:7 | 2 |
-| 136 | `Nboke\UserFiles\Editor\Assets` | src/UserFiles/Editor/Assets.php:20 | 1 |
-| 137 | `Nboke\UserFiles\Support\Assets` | src/UserFiles/Support/Assets.php:21 | 1 |
-| 138 | `Nboke\UserFiles\Capabilities` | src/UserFiles/Capabilities.php:20 | 8 |
-| 139 | `Nboke\UserFiles\CLI` | src/UserFiles/CLI.php:23 | 8 |
-| 140 | `Nboke\UserFiles\Editor\Context` | src/UserFiles/Editor/Context.php:20 | 3 |
-| 141 | `Nboke\UserFiles\Rest\Controller` | src/UserFiles/Rest/Controller.php:34 | 71 |
-| 142 | `Nboke\UserFiles\Support\Db_Transaction` | src/UserFiles/Support/Db_Transaction.php:22 | 5 |
-| 143 | `Nboke\UserFiles\Frontend\Entry` | src/UserFiles/Frontend/Entry.php:24 | 7 |
-| 144 | `Nboke\UserFiles\Repositories\Events` | src/UserFiles/Repositories/Events.php:22 | 2 |
-| 145 | `Nboke\UserFiles\Services\Executor` | src/UserFiles/Services/Executor.php:30 | 21 |
-| 146 | `Nboke\UserFiles\Repositories\Files` | src/UserFiles/Repositories/Files.php:24 | 20 |
-| 147 | `Nboke\UserFiles\Repositories\Folders` | src/UserFiles/Repositories/Folders.php:28 | 38 |
-| 148 | `Nboke\UserFiles\Frontend\Providers\Generic` | src/UserFiles/Frontend/Providers/Generic.php:24 | 12 |
-| 149 | `Nboke\UserFiles\Media\Library_Filter` | src/UserFiles/Media/Library_Filter.php:15 | 1 |
-| 150 | `Nboke\UserFiles\Media\Media_Hooks` | src/UserFiles/Media/Media_Hooks.php:37 | 52 |
-| 151 | `Nboke\UserFiles\Services\Media_Move_Failure` | src/UserFiles/Services/Media_Move_Failure.php:21 | 1 |
-| 152 | `Nboke\UserFiles\Services\Media_Mover` | src/UserFiles/Services/Media_Mover.php:14 | 15 |
-| 153 | `Nboke\UserFiles\Services\Media_Notifications` | src/UserFiles/Services/Media_Notifications.php:8 | 1 |
-| 154 | `Nboke\UserFiles\Editor\Module` | src/UserFiles/Editor/Module.php:21 | 3 |
-| 155 | `Nboke\UserFiles\Module` | src/UserFiles/Module.php:33 | 11 |
-| 156 | `Nboke\UserFiles\Repositories\Notifications` | src/UserFiles/Repositories/Notifications.php:23 | 7 |
-| 157 | `Nboke\UserFiles\Services\Notifier` | src/UserFiles/Services/Notifier.php:20 | 7 |
-| 158 | `Nboke\UserFiles\Admin\Page` | src/UserFiles/Admin/Page.php:28 | 9 |
-| 159 | `Nboke\UserFiles\Editor\Picker` | src/UserFiles/Editor/Picker.php:32 | 1 |
-| 160 | `Nboke\UserFiles\Rest\Picker_Controller` | src/UserFiles/Rest/Picker_Controller.php:30 | 8 |
-| 161 | `Nboke\UserFiles\Frontend\Provider` | src/UserFiles/Frontend/Provider.php:24 | 6 |
-| 162 | `Nboke\UserFiles\Services\Quota` | src/UserFiles/Services/Quota.php:28 | 8 |
-| 163 | `Nboke\UserFiles\Services\Rate_Limiter` | src/UserFiles/Services/Rate_Limiter.php:23 | 4 |
-| 164 | `Nboke\UserFiles\Repositories\Requests` | src/UserFiles/Repositories/Requests.php:28 | 28 |
-| 165 | `Nboke\UserFiles\Schema` | src/UserFiles/Schema.php:24 | 7 |
-| 166 | `Nboke\UserFiles\Settings` | src/UserFiles/Settings.php:21 | 16 |
-| 167 | `Nboke\UserFiles\Admin\Space_Page` | src/UserFiles/Admin/Space_Page.php:28 | 7 |
-| 168 | `Nboke\UserFiles\Space_Panel` | src/UserFiles/Space_Panel.php:23 | 11 |
-| 169 | `Nboke\UserFiles\Services\Space_Rules` | src/UserFiles/Services/Space_Rules.php:24 | 13 |
-| 170 | `Nboke\UserFiles\Space_Settings` | src/UserFiles/Space_Settings.php:20 | 33 |
-| 171 | `Nboke\UserFiles\Services\Space_Store` | src/UserFiles/Services/Space_Store.php:22 | 64 |
-| 172 | `Nboke\UserFiles\Services\Sync_Service` | src/UserFiles/Services/Sync_Service.php:26 | 9 |
-| 173 | `Nboke\UserFiles\Frontend\Tab` | src/UserFiles/Frontend/Tab.php:22 | 16 |
-| 174 | `Nboke\UserFiles\Support\Theme_Levels` | src/UserFiles/Support/Theme_Levels.php:22 | 4 |
-| 175 | `Nboke\UserFiles\Services\Theme_Limits` | src/UserFiles/Services/Theme_Limits.php:22 | 2 |
-| 176 | `Nboke\UserFiles\Support\Time` | src/UserFiles/Support/Time.php:18 | 4 |
-| 177 | `Nboke\UserFiles\Services\Uploader` | src/UserFiles/Services/Uploader.php:27 | 9 |
-| 178 | `Nboke\UserFiles\Frontend\Providers\Zibll` | src/UserFiles/Frontend/Providers/Zibll.php:21 | 7 |
-| 179 | `Nboke\UserFiles\Services\Zibll_Bridge` | src/UserFiles/Services/Zibll_Bridge.php:23 | 16 |
-| 180 | `Nboke\UserFiles\Space\Zibll_Order_Card` | src/UserFiles/Space/Zibll_Order_Card.php:26 | 12 |
-| 181 | `Sakura\ImageOptimizer\Activation` | src/Activation.php:17 | 1 |
-| 182 | `Sakura\ImageOptimizer\Deactivation` | src/Deactivation.php:17 | 1 |
-| 183 | `Sakura\ImageOptimizer\Plugin` | src/Plugin.php:43 | 3 |
-| 184 | `Sakura\ImageOptimizer\Uninstaller` | src/Uninstaller.php:26 | 10 |
-| 185 | `Sakura\ImageOptimizer\Upgrade_Guard` | src/Upgrade_Guard.php:23 | 3 |
+| 58 | `Sakura\ImageOptimizer\S3\Cost_Estimator` | src/S3/Cost_Estimator.php:20 | 11 |
+| 59 | `Sakura\ImageOptimizer\S3\Cost_Panel` | src/S3/Cost_Panel.php:27 | 7 |
+| 60 | `Sakura\ImageOptimizer\S3\Credential_Cipher` | src/S3/Credential_Cipher.php:21 | 7 |
+| 61 | `Sakura\ImageOptimizer\S3\Delete_Jobs` | src/S3/Delete_Jobs.php:22 | 22 |
+| 62 | `Sakura\ImageOptimizer\S3\Delete_Queue_Panel` | src/S3/Delete_Queue_Panel.php:23 | 12 |
+| 63 | `Sakura\ImageOptimizer\S3\Delete_Worker` | src/S3/Delete_Worker.php:20 | 15 |
+| 64 | `Sakura\ImageOptimizer\S3\Doge_Cloud_Resolver` | src/S3/Doge_Cloud_Resolver.php:19 | 5 |
+| 65 | `Sakura\ImageOptimizer\S3\Error_Mapper` | src/S3/Error_Mapper.php:15 | 3 |
+| 66 | `Sakura\ImageOptimizer\S3\History_Migrator` | src/S3/History_Migrator.php:19 | 15 |
+| 67 | `Sakura\ImageOptimizer\S3\Ignored_Paths` | src/S3/Ignored_Paths.php:20 | 4 |
+| 68 | `Sakura\ImageOptimizer\S3\Inventory` | src/S3/Inventory.php:22 | 1 |
+| 69 | `Sakura\ImageOptimizer\S3\Legacy_Snapshot` | src/S3/Legacy_Snapshot.php:24 | 5 |
+| 70 | `Sakura\ImageOptimizer\S3\Link_Rewriter` | src/S3/Link_Rewriter.php:27 | 9 |
+| 71 | `Sakura\ImageOptimizer\S3\Log` | src/S3/Log.php:17 | 1 |
+| 72 | `Sakura\ImageOptimizer\S3\Migration_Service` | src/S3/Migration_Service.php:17 | 2 |
+| 73 | `Sakura\ImageOptimizer\S3\Monitoring_Panel` | src/S3/Monitoring_Panel.php:21 | 8 |
+| 74 | `Sakura\ImageOptimizer\S3\Object_Store` | src/S3/Object_Store.php:19 | 11 |
+| 75 | `Sakura\ImageOptimizer\S3\Options` | src/S3/Options.php:19 | 26 |
+| 76 | `Sakura\ImageOptimizer\S3\Profile_Manager` | src/S3/Profile_Manager.php:23 | 3 |
+| 77 | `Sakura\ImageOptimizer\S3\Prometheus` | src/S3/Prometheus.php:25 | 12 |
+| 78 | `Sakura\ImageOptimizer\S3\Providers` | src/S3/Providers.php:9 | 4 |
+| 79 | `Sakura\ImageOptimizer\S3\Remote_Operation_Guard` | src/S3/Remote_Operation_Guard.php:14 | 11 |
+| 80 | `Sakura\ImageOptimizer\S3\Restore_Plan` | src/S3/Restore_Plan.php:27 | 3 |
+| 81 | `Sakura\ImageOptimizer\S3\S3_Storage_Page` | src/S3/S3_Storage_Page.php:12 | 4 |
+| 82 | `Sakura\ImageOptimizer\S3\Settings_Saver` | src/S3/Settings_Saver.php:13 | 10 |
+| 83 | `Sakura\ImageOptimizer\S3\Storage` | src/S3/Storage.php:22 | 24 |
+| 84 | `Sakura\ImageOptimizer\S3\Storage_Adapter` | src/S3/Storage_Adapter.php:20 | 18 |
+| 85 | `Sakura\ImageOptimizer\S3\Sync_Actions` | src/S3/Sync_Actions.php:20 | 5 |
+| 86 | `Sakura\ImageOptimizer\S3\Sync_Center_Module` | src/S3/Sync_Center_Module.php:29 | 38 |
+| 87 | `Sakura\ImageOptimizer\S3\Sync_Center_Panel` | src/S3/Sync_Center_Panel.php:20 | 1 |
+| 88 | `Sakura\ImageOptimizer\S3\Sync_Status` | src/S3/Sync_Status.php:23 | 23 |
+| 89 | `Sakura\ImageOptimizer\S3\Synchronous_Uploader` | src/S3/Synchronous_Uploader.php:26 | 13 |
+| 90 | `Sakura\ImageOptimizer\S3\Upload_Capabilities` | src/S3/Upload_Capabilities.php:23 | 3 |
+| 91 | `Sakura\ImageOptimizer\S3\Upload_Metrics` | src/S3/Upload_Metrics.php:27 | 18 |
+| 92 | `Sakura\ImageOptimizer\S3\Upload_Observer` | src/S3/Upload_Observer.php:20 | 4 |
+| 93 | `Sakura\ImageOptimizer\S3\Upload_URL` | src/S3/Upload_URL.php:9 | 2 |
+| 94 | `Sakura\ImageOptimizer\S3\Upload_Verify` | src/S3/Upload_Verify.php:20 | 3 |
+| 95 | `Sakura\ImageOptimizer\S3\Url_Rewrite_Panel` | src/S3/Url_Rewrite_Panel.php:27 | 17 |
+| 96 | `Sakura\ImageOptimizer\S3\Url_Rewrite_Repository` | src/S3/Url_Rewrite_Repository.php:22 | 17 |
+| 97 | `Sakura\ImageOptimizer\S3\Url_Rewrite_Service` | src/S3/Url_Rewrite_Service.php:22 | 27 |
+| 98 | `Sakura\ImageOptimizer\Settings\Settings_Repository` | src/Settings/Settings_Repository.php:23 | 22 |
+| 99 | `Sakura\ImageOptimizer\Stats\Stats_Repository` | src/Stats/Stats_Repository.php:20 | 5 |
+| 100 | `Sakura\ImageOptimizer\Support\Hook_Loader` | src/Support/Hook_Loader.php:20 | 5 |
+| 101 | `Sakura\ImageOptimizer\Support\Text` | src/Support/Text.php:21 | 1 |
+| 102 | `Sakura\ImageOptimizer\Sync\Action_Worker` | src/Sync/Action_Worker.php:28 | 7 |
+| 103 | `Sakura\ImageOptimizer\Sync\Attachment_Adopter` | src/Sync/Attachment_Adopter.php:26 | 9 |
+| 104 | `Sakura\ImageOptimizer\Sync\Attachment_Indexer` | src/Sync/Attachment_Indexer.php:28 | 9 |
+| 105 | `Sakura\ImageOptimizer\Sync\Checksums` | src/Sync/Checksums.php:17 | 3 |
+| 106 | `Sakura\ImageOptimizer\Sync\CLI` | src/Sync/CLI.php:25 | 9 |
+| 107 | `Sakura\ImageOptimizer\Sync\Fast_Search_Query` | src/Sync/Fast_Search_Query.php:24 | 2 |
+| 108 | `Sakura\ImageOptimizer\Sync\Feature` | src/Sync/Feature.php:20 | 2 |
+| 109 | `Sakura\ImageOptimizer\Sync\Index_Repository` | src/Sync/Index_Repository.php:26 | 71 |
+| 110 | `Sakura\ImageOptimizer\Sync\Keyset_Cursor` | src/Sync/Keyset_Cursor.php:21 | 6 |
+| 111 | `Sakura\ImageOptimizer\Sync\Kind` | src/Sync/Kind.php:20 | 2 |
+| 112 | `Sakura\ImageOptimizer\Sync\Metrics` | src/Sync/Metrics.php:20 | 3 |
+| 113 | `Sakura\ImageOptimizer\Sync\Scan_Service` | src/Sync/Scan_Service.php:30 | 25 |
+| 114 | `Sakura\ImageOptimizer\Sync\Scan_Worker` | src/Sync/Scan_Worker.php:27 | 10 |
+| 115 | `Sakura\ImageOptimizer\Sync\Schema` | src/Sync/Schema.php:21 | 5 |
+| 116 | `Sakura\ImageOptimizer\Sync\Search_Term` | src/Sync/Search_Term.php:24 | 2 |
+| 117 | `Sakura\ImageOptimizer\Sync\Search_Token` | src/Sync/Search_Token.php:22 | 4 |
+| 118 | `Sakura\ImageOptimizer\Sync\Sync_Calibrator` | src/Sync/Sync_Calibrator.php:32 | 9 |
+| 119 | `Sakura\ImageOptimizer\Sync\Verify_Service` | src/Sync/Verify_Service.php:24 | 7 |
+| 120 | `Sakura\ImageOptimizer\Sync\Verify_Worker` | src/Sync/Verify_Worker.php:25 | 6 |
+| 121 | `Sakura\ImageOptimizer\Thumbnail\Admin_Thumbnails` | src/Thumbnail/Admin_Thumbnails.php:28 | 10 |
+| 122 | `Sakura\ImageOptimizer\Thumbnail\Providers\Bitiful` | src/Thumbnail/Providers/Bitiful.php:24 | 7 |
+| 123 | `Sakura\ImageOptimizer\Thumbnail\CLI` | src/Thumbnail/CLI.php:17 | 5 |
+| 124 | `Sakura\ImageOptimizer\Thumbnail\Context` | src/Thumbnail/Context.php:18 | 7 |
+| 125 | `Sakura\ImageOptimizer\Thumbnail\Decorator` | src/Thumbnail/Decorator.php:23 | 18 |
+| 126 | `Sakura\ImageOptimizer\Thumbnail\Providers\Doge` | src/Thumbnail/Providers/Doge.php:30 | 7 |
+| 127 | `Sakura\ImageOptimizer\Thumbnail\Format_Rule` | src/Thumbnail/Format_Rule.php:22 | 1 |
+| 128 | `Sakura\ImageOptimizer\Thumbnail\Providers\Generic` | src/Thumbnail/Providers/Generic.php:24 | 5 |
+| 129 | `Sakura\ImageOptimizer\Thumbnail\Policy` | src/Thumbnail/Policy.php:18 | 5 |
+| 130 | `Sakura\ImageOptimizer\Thumbnail\Probe` | src/Thumbnail/Probe.php:23 | 11 |
+| 131 | `Sakura\ImageOptimizer\Thumbnail\Provider` | src/Thumbnail/Provider.php:21 | 4 |
+| 132 | `Sakura\ImageOptimizer\Thumbnail\Provider_Registry` | src/Thumbnail/Provider_Registry.php:26 | 3 |
+| 133 | `Sakura\ImageOptimizer\Thumbnail\Provider_Status` | src/Thumbnail/Provider_Status.php:17 | 5 |
+| 134 | `Sakura\ImageOptimizer\Thumbnail\Rendition` | src/Thumbnail/Rendition.php:21 | 8 |
+| 135 | `Sakura\ImageOptimizer\Thumbnail\Settings` | src/Thumbnail/Settings.php:21 | 31 |
+| 136 | `Sakura\ImageOptimizer\Thumbnail\Size_Catalog` | src/Thumbnail/Size_Catalog.php:17 | 3 |
+| 137 | `Sakura\ImageOptimizer\Thumbnail\Stats` | src/Thumbnail/Stats.php:17 | 5 |
+| 138 | `Sakura\ImageOptimizer\Thumbnail\Style_Suffix` | src/Thumbnail/Style_Suffix.php:24 | 5 |
+| 139 | `Sakura\ImageOptimizer\Thumbnail\Theme_Bridge` | src/Thumbnail/Theme_Bridge.php:21 | 2 |
+| 140 | `Sakura\ImageOptimizer\Thumbnail\Theme_Cache` | src/Thumbnail/Theme_Cache.php:23 | 6 |
+| 141 | `Nboke\UserFiles\Services\Adoption_Manifest` | src/UserFiles/Services/Adoption_Manifest.php:7 | 2 |
+| 142 | `Nboke\UserFiles\Editor\Assets` | src/UserFiles/Editor/Assets.php:20 | 1 |
+| 143 | `Nboke\UserFiles\Support\Assets` | src/UserFiles/Support/Assets.php:21 | 1 |
+| 144 | `Nboke\UserFiles\Capabilities` | src/UserFiles/Capabilities.php:20 | 8 |
+| 145 | `Nboke\UserFiles\CLI` | src/UserFiles/CLI.php:23 | 8 |
+| 146 | `Nboke\UserFiles\Editor\Context` | src/UserFiles/Editor/Context.php:20 | 3 |
+| 147 | `Nboke\UserFiles\Rest\Controller` | src/UserFiles/Rest/Controller.php:34 | 71 |
+| 148 | `Nboke\UserFiles\Support\Db_Transaction` | src/UserFiles/Support/Db_Transaction.php:22 | 5 |
+| 149 | `Nboke\UserFiles\Frontend\Entry` | src/UserFiles/Frontend/Entry.php:24 | 7 |
+| 150 | `Nboke\UserFiles\Repositories\Events` | src/UserFiles/Repositories/Events.php:22 | 2 |
+| 151 | `Nboke\UserFiles\Services\Executor` | src/UserFiles/Services/Executor.php:30 | 21 |
+| 152 | `Nboke\UserFiles\Repositories\Files` | src/UserFiles/Repositories/Files.php:24 | 20 |
+| 153 | `Nboke\UserFiles\Repositories\Folders` | src/UserFiles/Repositories/Folders.php:28 | 38 |
+| 154 | `Nboke\UserFiles\Frontend\Providers\Generic` | src/UserFiles/Frontend/Providers/Generic.php:24 | 12 |
+| 155 | `Nboke\UserFiles\Media\Library_Filter` | src/UserFiles/Media/Library_Filter.php:15 | 1 |
+| 156 | `Nboke\UserFiles\Media\Media_Hooks` | src/UserFiles/Media/Media_Hooks.php:37 | 52 |
+| 157 | `Nboke\UserFiles\Services\Media_Move_Failure` | src/UserFiles/Services/Media_Move_Failure.php:21 | 1 |
+| 158 | `Nboke\UserFiles\Services\Media_Mover` | src/UserFiles/Services/Media_Mover.php:14 | 15 |
+| 159 | `Nboke\UserFiles\Services\Media_Notifications` | src/UserFiles/Services/Media_Notifications.php:8 | 1 |
+| 160 | `Nboke\UserFiles\Editor\Module` | src/UserFiles/Editor/Module.php:21 | 3 |
+| 161 | `Nboke\UserFiles\Module` | src/UserFiles/Module.php:33 | 11 |
+| 162 | `Nboke\UserFiles\Repositories\Notifications` | src/UserFiles/Repositories/Notifications.php:23 | 7 |
+| 163 | `Nboke\UserFiles\Services\Notifier` | src/UserFiles/Services/Notifier.php:20 | 7 |
+| 164 | `Nboke\UserFiles\Admin\Page` | src/UserFiles/Admin/Page.php:28 | 9 |
+| 165 | `Nboke\UserFiles\Editor\Picker` | src/UserFiles/Editor/Picker.php:32 | 1 |
+| 166 | `Nboke\UserFiles\Rest\Picker_Controller` | src/UserFiles/Rest/Picker_Controller.php:30 | 8 |
+| 167 | `Nboke\UserFiles\Frontend\Provider` | src/UserFiles/Frontend/Provider.php:24 | 6 |
+| 168 | `Nboke\UserFiles\Services\Quota` | src/UserFiles/Services/Quota.php:28 | 8 |
+| 169 | `Nboke\UserFiles\Services\Rate_Limiter` | src/UserFiles/Services/Rate_Limiter.php:23 | 4 |
+| 170 | `Nboke\UserFiles\Repositories\Requests` | src/UserFiles/Repositories/Requests.php:28 | 28 |
+| 171 | `Nboke\UserFiles\Schema` | src/UserFiles/Schema.php:24 | 7 |
+| 172 | `Nboke\UserFiles\Settings` | src/UserFiles/Settings.php:21 | 16 |
+| 173 | `Nboke\UserFiles\Admin\Space_Page` | src/UserFiles/Admin/Space_Page.php:28 | 7 |
+| 174 | `Nboke\UserFiles\Space_Panel` | src/UserFiles/Space_Panel.php:23 | 11 |
+| 175 | `Nboke\UserFiles\Services\Space_Rules` | src/UserFiles/Services/Space_Rules.php:24 | 13 |
+| 176 | `Nboke\UserFiles\Space_Settings` | src/UserFiles/Space_Settings.php:20 | 33 |
+| 177 | `Nboke\UserFiles\Services\Space_Store` | src/UserFiles/Services/Space_Store.php:22 | 64 |
+| 178 | `Nboke\UserFiles\Services\Sync_Service` | src/UserFiles/Services/Sync_Service.php:26 | 9 |
+| 179 | `Nboke\UserFiles\Frontend\Tab` | src/UserFiles/Frontend/Tab.php:22 | 16 |
+| 180 | `Nboke\UserFiles\Support\Theme_Levels` | src/UserFiles/Support/Theme_Levels.php:22 | 4 |
+| 181 | `Nboke\UserFiles\Services\Theme_Limits` | src/UserFiles/Services/Theme_Limits.php:22 | 2 |
+| 182 | `Nboke\UserFiles\Support\Time` | src/UserFiles/Support/Time.php:18 | 4 |
+| 183 | `Nboke\UserFiles\Services\Uploader` | src/UserFiles/Services/Uploader.php:27 | 9 |
+| 184 | `Nboke\UserFiles\Frontend\Providers\Zibll` | src/UserFiles/Frontend/Providers/Zibll.php:21 | 7 |
+| 185 | `Nboke\UserFiles\Services\Zibll_Bridge` | src/UserFiles/Services/Zibll_Bridge.php:23 | 16 |
+| 186 | `Nboke\UserFiles\Space\Zibll_Order_Card` | src/UserFiles/Space/Zibll_Order_Card.php:26 | 12 |
+| 187 | `Sakura\ImageOptimizer\Activation` | src/Activation.php:17 | 1 |
+| 188 | `Sakura\ImageOptimizer\Deactivation` | src/Deactivation.php:17 | 1 |
+| 189 | `Sakura\ImageOptimizer\Plugin` | src/Plugin.php:43 | 3 |
+| 190 | `Sakura\ImageOptimizer\Uninstaller` | src/Uninstaller.php:26 | 10 |
+| 191 | `Sakura\ImageOptimizer\Upgrade_Guard` | src/Upgrade_Guard.php:23 | 3 |
 
-## 附录 B：钩子索引（211 条，按模块分组）
+## 附录 B：钩子索引（220 条，按模块分组）
 
 ### includes（70 个）
 
@@ -3322,13 +3401,15 @@ PHPCS 的 36 条 warning 全部落在本轮未改动的既有文件，集中在�
 | `admin_page_access_denied` | action | redirect_legacy | src/Admin/Menu.php:37 |
 | `init` | action | redirect_legacy | src/Admin/Menu.php:36 |
 
-### src/S3（48 个）
+### src/S3（57 个）
 
 | 钩子 | 类型 | 回调 | 注册位置 |
 |---|---|---|---|
 | `add_attachment` | action | queue_attachment | src/S3/Storage.php:138 |
 | `admin_enqueue_scripts` | action | enqueue_assets | src/S3/Sync_Center_Module.php:110 |
 | `admin_enqueue_scripts` | action | enqueue | src/S3/Delete_Queue_Panel.php:43 |
+| `admin_enqueue_scripts` | action | enqueue_assets | src/S3/Cost_Panel.php:47 |
+| `admin_enqueue_scripts` | action | enqueue_assets | src/S3/Url_Rewrite_Panel.php:63 |
 | `admin_init` | action | maybe_migrate | src/S3/Storage.php:146 |
 | `admin_init` | action | resume_pending_restores | src/S3/Storage.php:152 |
 | `admin_init` | action | array( __CLASS__, 'schedule' ) | src/S3/Alerting.php:377 |
@@ -3345,7 +3426,7 @@ PHPCS 的 36 条 warning 全部落在本轮未改动的既有文件，集中在�
 | `cron_schedules` | filter | array( __CLASS__, 'add_schedule' ) | src/S3/Alerting.php:365 |
 | `cron_schedules` | filter | array( __CLASS__, 'add_schedule' ) | src/S3/Alerting.php:374 |
 | `cron_schedules` | filter | array( __CLASS__, 'add_schedule' ) | src/S3/Delete_Worker.php:47 |
-| `cron_schedules` | filter | array( __CLASS__, 'add_schedule' ) | src/S3/Delete_Worker.php:69 |
+| `cron_schedules` | filter | array( __CLASS__, 'add_schedule' ) | src/S3/Delete_Worker.php:70 |
 | `delete_attachment` | action | delete_remote_attachment | src/S3/Storage.php:144 |
 | `init` | action | array( __CLASS__, 'schedule' ) | src/S3/Alerting.php:376 |
 | `init` | action | ensure_scheduled | src/S3/Delete_Worker.php:48 |
@@ -3370,6 +3451,13 @@ PHPCS 的 36 条 warning 全部落在本轮未改动的既有文件，集中在�
 | `wp_ajax_sakura_s3_sync_scan` | action | ajax_scan | src/S3/Sync_Center_Module.php:111 |
 | `wp_ajax_sakura_s3_sync_test` | action | ajax_test | src/S3/Sync_Center_Module.php:117 |
 | `wp_ajax_sakura_s3_sync_toggle_index` | action | ajax_toggle_index | src/S3/Sync_Center_Module.php:120 |
+| `wp_ajax_sakura_storage_cost_estimate` | action | ajax_estimate | src/S3/Cost_Panel.php:48 |
+| `wp_ajax_sakura_url_rewrite_preview` | action | ajax_preview | src/S3/Url_Rewrite_Panel.php:67 |
+| `wp_ajax_sakura_url_rewrite_reset` | action | ajax_reset | src/S3/Url_Rewrite_Panel.php:69 |
+| `wp_ajax_sakura_url_rewrite_revert` | action | ajax_revert | src/S3/Url_Rewrite_Panel.php:68 |
+| `wp_ajax_sakura_url_rewrite_run` | action | ajax_run | src/S3/Url_Rewrite_Panel.php:66 |
+| `wp_ajax_sakura_url_rewrite_scan_step` | action | ajax_scan_step | src/S3/Url_Rewrite_Panel.php:65 |
+| `wp_ajax_sakura_url_rewrite_scan` | action | ajax_scan | src/S3/Url_Rewrite_Panel.php:64 |
 | `wp_generate_attachment_metadata` | filter | array( $this->uploader, 'note_generation_done' ) | src/S3/Storage.php:143 |
 | `wp_get_attachment_url` | filter | revert_unsynced_url | src/S3/Storage.php:133 |
 | `wp_get_attachment_url` | filter | normalize_root_url | src/S3/Storage.php:155 |
@@ -3504,9 +3592,9 @@ PHPCS 的 36 条 warning 全部落在本轮未改动的既有文件，集中在�
 		}
 	} | sakura-tools.php:25 |
 
-合计 211 条具名钩子（add_action 153 + add_filter 58；已排除 tests/stubs、add_submenu_page 与 Hook_Loader 通用转发）。
+合计 220 条具名钩子（add_action 162 + add_filter 58；已排除 tests/stubs、add_submenu_page 与 Hook_Loader 通用转发）。
 
-## 附录 C：文件索引（200 个生产 PHP 文件）
+## 附录 C：文件索引（208 个生产 PHP 文件）
 
 | 文件 | 模块 | 行数 | 声明类 |
 |---|---|---:|---|
@@ -3531,6 +3619,8 @@ PHPCS 的 36 条 warning 全部落在本轮未改动的既有文件，集中在�
 | includes/views/settings-backup.php | includes/views | 214 | — |
 | includes/views/settings-main.php | includes/views | 159 | — |
 | includes/views/settings-stats.php | includes/views | 199 | — |
+| includes/views/storage-cost.php | includes/views | 333 | — |
+| includes/views/storage-url-rewrite.php | includes/views | 357 | — |
 | includes/views/system-settings.php | includes/views | 612 | — |
 | includes/views/thumb-settings.php | includes/views | 499 | — |
 | includes/views/userfiles-admin.php | includes/views | 731 | — |
@@ -3538,15 +3628,15 @@ PHPCS 的 36 条 warning 全部落在本轮未改动的既有文件，集中在�
 | includes/views/userfiles-space-panel.php | includes/views | 276 | — |
 | includes/views/userfiles-tab.php | includes/views | 308 | — |
 | sakura-tools.php | 根文件 | 138 | — |
-| src/Activation.php | src | 136 | `Activation` |
+| src/Activation.php | src | 139 | `Activation` |
 | src/Admin/Appearance.php | src/Admin | 139 | `Appearance` |
 | src/Admin/Assets.php | src/Admin | 28 | `Assets` |
 | src/Admin/Card_Form.php | src/Admin | 148 | `Card_Form` |
 | src/Admin/Environment_Report.php | src/Admin | 343 | `Environment_Report` |
-| src/Admin/Layout.php | src/Admin | 245 | `Layout` |
+| src/Admin/Layout.php | src/Admin | 264 | `Layout` |
 | src/Admin/Menu.php | src/Admin | 245 | `Menu` |
 | src/Admin/Page_Assets.php | src/Admin | 190 | `Page_Assets` |
-| src/Admin/Registry.php | src/Admin | 354 | `Registry` |
+| src/Admin/Registry.php | src/Admin | 356 | `Registry` |
 | src/Admin/Route.php | src/Admin | 55 | `Route` |
 | src/Admin/Shell.php | src/Admin | 123 | `Shell` |
 | src/Admin/System_Settings_Module.php | src/Admin | 120 | `System_Settings_Module` |
@@ -3577,37 +3667,40 @@ PHPCS 的 36 条 warning 全部落在本轮未改动的既有文件，集中在�
 | src/Image/Upload_Renamer.php | src/Image | 226 | `Upload_Renamer` |
 | src/Oss/Html_Filter.php | src/Oss | 260 | `Html_Filter` |
 | src/Oss/Url_Rewriter.php | src/Oss | 245 | `Url_Rewriter` |
-| src/Plugin.php | src | 208 | `Plugin` |
+| src/Plugin.php | src | 216 | `Plugin` |
 | src/S3/Alerting.php | src/S3 | 396 | `Alerting` |
 | src/S3/Bucket_Label.php | src/S3 | 53 | `Bucket_Label` |
 | src/S3/Client_Factory.php | src/S3 | 151 | `Client_Factory` |
 | src/S3/Config_Notice.php | src/S3 | 338 | `Config_Notice` |
 | src/S3/Connection_Probe.php | src/S3 | 262 | `Connection_Probe` |
 | src/S3/Connection_Tester.php | src/S3 | 88 | `Connection_Tester` |
+| src/S3/Cost_Estimator.php | src/S3 | 582 | `Cost_Estimator` |
+| src/S3/Cost_Panel.php | src/S3 | 161 | `Cost_Panel` |
 | src/S3/Credential_Cipher.php | src/S3 | 227 | `Credential_Cipher` |
 | src/S3/Delete_Jobs.php | src/S3 | 585 | `Delete_Jobs` |
 | src/S3/Delete_Queue_Panel.php | src/S3 | 516 | `Delete_Queue_Panel` |
-| src/S3/Delete_Worker.php | src/S3 | 308 | `Delete_Worker` |
+| src/S3/Delete_Worker.php | src/S3 | 309 | `Delete_Worker` |
 | src/S3/Doge_Cloud_Resolver.php | src/S3 | 174 | `Doge_Cloud_Resolver` |
 | src/S3/Error_Mapper.php | src/S3 | 125 | `Error_Mapper` |
 | src/S3/History_Migrator.php | src/S3 | 406 | `History_Migrator` |
 | src/S3/Ignored_Paths.php | src/S3 | 122 | `Ignored_Paths` |
 | src/S3/Inventory.php | src/S3 | 42 | `Inventory` |
 | src/S3/Legacy_Snapshot.php | src/S3 | 220 | `Legacy_Snapshot` |
+| src/S3/Link_Rewriter.php | src/S3 | 287 | `Link_Rewriter` |
 | src/S3/Log.php | src/S3 | 31 | `Log` |
 | src/S3/Migration_Service.php | src/S3 | 161 | `Migration_Service` |
 | src/S3/Monitoring_Panel.php | src/S3 | 282 | `Monitoring_Panel` |
-| src/S3/Object_Store.php | src/S3 | 809 | `Object_Store` |
+| src/S3/Object_Store.php | src/S3 | 852 | `Object_Store` |
 | src/S3/Options.php | src/S3 | 619 | `Options` |
 | src/S3/Profile_Manager.php | src/S3 | 143 | `Profile_Manager` |
 | src/S3/Prometheus.php | src/S3 | 257 | `Prometheus` |
-| src/S3/Providers.php | src/S3 | 52 | `Providers` |
+| src/S3/Providers.php | src/S3 | 80 | `Providers` |
 | src/S3/Remote_Operation_Guard.php | src/S3 | 214 | `Remote_Operation_Guard` |
 | src/S3/Restore_Plan.php | src/S3 | 87 | `Restore_Plan` |
-| src/S3/S3_Storage_Page.php | src/S3 | 757 | `S3_Storage_Page` |
-| src/S3/Settings_Saver.php | src/S3 | 360 | `Settings_Saver` |
+| src/S3/S3_Storage_Page.php | src/S3 | 750 | `S3_Storage_Page` |
+| src/S3/Settings_Saver.php | src/S3 | 385 | `Settings_Saver` |
 | src/S3/Storage_Adapter.php | src/S3 | 477 | `Storage_Adapter` |
-| src/S3/Storage.php | src/S3 | 780 | `Storage` |
+| src/S3/Storage.php | src/S3 | 779 | `Storage` |
 | src/S3/Sync_Actions.php | src/S3 | 161 | `Sync_Actions` |
 | src/S3/Sync_Center_Module.php | src/S3 | 1968 | `Sync_Center_Module` |
 | src/S3/Sync_Center_Panel.php | src/S3 | 91 | `Sync_Center_Panel` |
@@ -3618,6 +3711,9 @@ PHPCS 的 36 条 warning 全部落在本轮未改动的既有文件，集中在�
 | src/S3/Upload_Observer.php | src/S3 | 108 | `Upload_Observer` |
 | src/S3/Upload_URL.php | src/S3 | 44 | `Upload_URL` |
 | src/S3/Upload_Verify.php | src/S3 | 95 | `Upload_Verify` |
+| src/S3/Url_Rewrite_Panel.php | src/S3 | 339 | `Url_Rewrite_Panel` |
+| src/S3/Url_Rewrite_Repository.php | src/S3 | 465 | `Url_Rewrite_Repository` |
+| src/S3/Url_Rewrite_Service.php | src/S3 | 1248 | `Url_Rewrite_Service` |
 | src/Settings/Settings_Repository.php | src/Settings | 285 | `Settings_Repository` |
 | src/Stats/Stats_Repository.php | src/Stats | 73 | `Stats_Repository` |
 | src/Support/Hook_Loader.php | src/Support | 128 | `Hook_Loader` |
@@ -3640,7 +3736,7 @@ PHPCS 的 36 条 warning 全部落在本轮未改动的既有文件，集中在�
 | src/Sync/Search_Token.php | src/Sync | 94 | `Search_Token` |
 | src/Sync/Sync_Calibrator.php | src/Sync | 256 | `Sync_Calibrator` |
 | src/Sync/Verify_Service.php | src/Sync | 282 | `Verify_Service` |
-| src/Sync/Verify_Worker.php | src/Sync | 135 | `Verify_Worker` |
+| src/Sync/Verify_Worker.php | src/Sync | 136 | `Verify_Worker` |
 | src/Thumbnail/Admin_Thumbnails.php | src/Thumbnail | 285 | `Admin_Thumbnails` |
 | src/Thumbnail/CLI.php | src/Thumbnail | 145 | `CLI` |
 | src/Thumbnail/Context.php | src/Thumbnail | 121 | `Context` |
@@ -3661,7 +3757,7 @@ PHPCS 的 36 条 warning 全部落在本轮未改动的既有文件，集中在�
 | src/Thumbnail/Style_Suffix.php | src/Thumbnail | 97 | `Style_Suffix` |
 | src/Thumbnail/Theme_Bridge.php | src/Thumbnail | 79 | `Theme_Bridge` |
 | src/Thumbnail/Theme_Cache.php | src/Thumbnail | 284 | `Theme_Cache` |
-| src/Uninstaller.php | src | 404 | `Uninstaller` |
+| src/Uninstaller.php | src | 411 | `Uninstaller` |
 | src/Upgrade_Guard.php | src | 128 | `Upgrade_Guard` |
 | src/UserFiles/Admin/Page.php | src/UserFiles | 403 | `Page` |
 | src/UserFiles/Admin/Space_Page.php | src/UserFiles | 298 | `Space_Page` |
@@ -3681,7 +3777,7 @@ PHPCS 的 36 条 warning 全部落在本轮未改动的既有文件，集中在�
 | src/UserFiles/Module.php | src/UserFiles | 362 | `Module` |
 | src/UserFiles/Repositories/Events.php | src/UserFiles | 86 | `Events` |
 | src/UserFiles/Repositories/Files.php | src/UserFiles | 728 | `Files` |
-| src/UserFiles/Repositories/Folders.php | src/UserFiles | 871 | `Folders` |
+| src/UserFiles/Repositories/Folders.php | src/UserFiles | 872 | `Folders` |
 | src/UserFiles/Repositories/Notifications.php | src/UserFiles | 226 | `Notifications` |
 | src/UserFiles/Repositories/Requests.php | src/UserFiles | 1202 | `Requests` |
 | src/UserFiles/Rest/Controller.php | src/UserFiles | 2411 | `Controller` |

@@ -326,8 +326,8 @@ final class Folders {
 		if ( ! $owner_ids ) { return array(); }
 		$folders = Schema::table( 'folders' ); $files = Schema::table( 'files' );
 		$marks = implode( ',', array_fill( 0, count( $owner_ids ), '%d' ) );
-		$rows = $load_tree ? (array) $this->db_get_results( $wpdb->prepare( "SELECT * FROM {$folders} WHERE lifecycle='active' AND owner_id IN ({$marks}) ORDER BY sort_order,id", $owner_ids ) ) : array();
-		$counts = (array) $this->db_get_results( $wpdb->prepare( "SELECT f.owner_id,f.folder_id,COUNT(*) AS c FROM {$files} f INNER JOIN {$wpdb->posts} p ON p.ID=f.attachment_id AND p.post_type='attachment' AND p.post_status NOT IN ('trash','auto-draft') WHERE f.lifecycle<>'purged' AND f.owner_id IN ({$marks}) GROUP BY f.owner_id,f.folder_id", $owner_ids ) );
+		$rows = $load_tree ? (array) $this->db_get_results( $wpdb->prepare( "SELECT * FROM {$folders} WHERE lifecycle='active' AND owner_id IN ({$marks}) ORDER BY sort_order,id", $owner_ids ) ) : array(); // phpcs:ignore WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare -- IN list and arguments both derive from $owner_ids.
+		$counts = (array) $this->db_get_results( $wpdb->prepare( "SELECT f.owner_id,f.folder_id,COUNT(*) AS c FROM {$files} f INNER JOIN {$wpdb->posts} p ON p.ID=f.attachment_id AND p.post_type='attachment' AND p.post_status NOT IN ('trash','auto-draft') WHERE f.lifecycle<>'purged' AND f.owner_id IN ({$marks}) GROUP BY f.owner_id,f.folder_id", $owner_ids ) ); // phpcs:ignore WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare -- IN list and arguments both derive from $owner_ids.
 		$by_owner = array(); $owned = array(); $unassigned = array();
 		foreach ( $counts as $count ) {
 			$uid = (int) $count->owner_id; $owned[ $uid ] = ( $owned[ $uid ] ?? 0 ) + (int) $count->c;
@@ -341,10 +341,10 @@ final class Folders {
 		foreach ( $owner_ids as $uid ) {
 			$user = get_userdata( $uid ); $valid = $user && is_user_member_of_blog( $uid );
 			$nodes = $by_owner[ $uid ] ?? array();
-			$build = function ( int $parent, int $depth, bool $locked, array $seen ) use ( &$build, $nodes, $valid ): array {
+			$build = function ( int $parent_node, int $depth, bool $locked, array $seen ) use ( &$build, $nodes, $valid ): array {
 				$result = array();
 				foreach ( $nodes as $node ) {
-					if ( $node['parent_id'] !== $parent || isset( $seen[ $node['id'] ] ) || $depth > 64 ) { continue; }
+					if ( $node['parent_id'] !== $parent_node || isset( $seen[ $node['id'] ] ) || $depth > 64 ) { continue; }
 					$next = $seen; $next[ $node['id'] ] = true;
 					$node['depth'] = $depth; $node['locked'] = $locked || $node['locked'];
 					$node['can_drop'] = $valid && ! $node['locked'];
@@ -398,7 +398,7 @@ final class Folders {
 		$marks = implode( ',', array_fill( 0, count( $owner_ids ), '%d' ) );
 		$rows  = $wpdb->get_results(
 			$wpdb->prepare(
-				"SELECT owner_id, COUNT(*) AS total FROM {$table} WHERE lifecycle='active' AND owner_id IN ({$marks}) GROUP BY owner_id", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				"SELECT owner_id, COUNT(*) AS total FROM {$table} WHERE lifecycle='active' AND owner_id IN ({$marks}) GROUP BY owner_id", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare -- IN list and arguments both derive from $owner_ids.
 				$owner_ids
 			)
 		);
@@ -794,6 +794,7 @@ final class Folders {
 				continue;
 			}
 
+			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- Debug-only diagnostic, gated by WP_DEBUG.
 			if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) { error_log( 'sufm folder write failed: ' . $message ); }
 
 			return new WP_Error( 'sufm_folder_conflict', __( '目录状态已变化或写入失败，本次整理未提交，请刷新后重试。', 'sakura-imgopt' ), array( 'status' => 409 ) );

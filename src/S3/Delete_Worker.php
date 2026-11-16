@@ -66,6 +66,7 @@ final class Delete_Worker implements Module {
 	public static function schedule(): void {
 		Delete_Jobs::maybe_install();
 		self::retire_legacy_hooks();
+		// phpcs:ignore WordPress.WP.CronInterval.CronSchedulesInterval -- One-minute delete tick is intentional; the queue is lease-based.
 		add_filter( 'cron_schedules', array( __CLASS__, 'add_schedule' ) );
 		if ( ! wp_next_scheduled( self::HOOK ) ) {
 			wp_schedule_event( time() + MINUTE_IN_SECONDS, self::SCHEDULE, self::HOOK );

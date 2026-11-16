@@ -201,13 +201,13 @@ final class Remote_Operation_Guard {
 	 * Explicit operator assertion, NOT timeout-based or HEAD-based reclamation.
 	 * Caller must establish that all old senders and provider requests settled.
 	 */
-	public function acknowledge_settled( string $resource, string $token ): bool {
-		if ( ! preg_match( '/^[a-f0-9]{64}$/D', $resource ) || ! preg_match( '/^[a-f0-9]{64}$/D', $token ) ) {
+	public function acknowledge_settled( string $resource_hash, string $token ): bool {
+		if ( ! preg_match( '/^[a-f0-9]{64}$/D', $resource_hash ) || ! preg_match( '/^[a-f0-9]{64}$/D', $token ) ) {
 			return false;
 		}
 		return 1 === (int) $this->db->query( $this->db->prepare(
 			"DELETE FROM {$this->table} WHERE resource_hash = %s AND token = %s",
-			$resource, $token
+			$resource_hash, $token
 		) );
 	}
 }

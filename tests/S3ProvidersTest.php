@@ -11,4 +11,18 @@ final class S3ProvidersTest extends TestCase {
 		$this->assertArrayHasKey( 'bitiful', $providers );
 		$this->assertSame( '缤纷云', $providers['bitiful'] );
 	}
+
+	public function test_selectable_hides_unverified_providers(): void {
+		$selectable = Providers::selectable();
+		$this->assertCount( 7, $selectable );
+		foreach ( array( 'cloudflare', 'backblaze', 'minio', 'tencent', 'aliyun', 'bitiful', 'dogecloud' ) as $provider ) {
+			$this->assertArrayHasKey( $provider, $selectable );
+			$this->assertTrue( Providers::exists( $provider ) );
+		}
+		foreach ( array( 'qiniu', 'upyun', 'baidu' ) as $provider ) {
+			$this->assertArrayNotHasKey( $provider, $selectable );
+			$this->assertTrue( Providers::exists( $provider ) );
+			$this->assertContains( $provider, Providers::hidden() );
+		}
+	}
 }

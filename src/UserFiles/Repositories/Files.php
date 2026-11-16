@@ -616,7 +616,7 @@ final class Files {
 		$marks = implode( ',', array_fill( 0, count( $owner_ids ), '%d' ) );
 		$rows  = $wpdb->get_results(
 			$wpdb->prepare(
-				"SELECT owner_id, COUNT(*) AS total FROM {$table} WHERE lifecycle='active' AND owner_id IN ({$marks}) GROUP BY owner_id", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				"SELECT owner_id, COUNT(*) AS total FROM {$table} WHERE lifecycle='active' AND owner_id IN ({$marks}) GROUP BY owner_id", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare -- IN list and arguments both derive from $owner_ids.
 				$owner_ids
 			)
 		);

@@ -94,15 +94,15 @@ final class Media_Mover {
 				$this->row( $wpdb->prepare( "SELECT * FROM {$usage} WHERE owner_id=%d FOR UPDATE", $uid ) );
 			}
 			$placeholders = implode( ',', array_fill( 0, count( $ids ), '%d' ) );
-			$this->rows( $wpdb->prepare( "SELECT ID FROM {$wpdb->posts} WHERE ID IN ({$placeholders}) ORDER BY ID FOR UPDATE", $ids ) );
-			$this->rows( $wpdb->prepare( "SELECT meta_id FROM {$wpdb->postmeta} WHERE post_id IN ({$placeholders}) ORDER BY post_id,meta_id FOR UPDATE", $ids ) );
+			$this->rows( $wpdb->prepare( "SELECT ID FROM {$wpdb->posts} WHERE ID IN ({$placeholders}) ORDER BY ID FOR UPDATE", $ids ) ); // phpcs:ignore WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare -- IN list and arguments both derive from $ids.
+			$this->rows( $wpdb->prepare( "SELECT meta_id FROM {$wpdb->postmeta} WHERE post_id IN ({$placeholders}) ORDER BY post_id,meta_id FOR UPDATE", $ids ) ); // phpcs:ignore WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare -- IN list and arguments both derive from $ids.
 			$files = Schema::table( 'files' );
-			$this->rows( $wpdb->prepare( "SELECT id FROM {$files} WHERE attachment_id IN ({$placeholders}) ORDER BY attachment_id FOR UPDATE", $ids ) );
+			$this->rows( $wpdb->prepare( "SELECT id FROM {$files} WHERE attachment_id IN ({$placeholders}) ORDER BY attachment_id FOR UPDATE", $ids ) ); // phpcs:ignore WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare -- IN list and arguments both derive from $ids.
 			// Folder locks protect every source/target ancestor from concurrent changes.
 			$folders = Schema::table( 'folders' );
 			$owner_marks = implode( ',', array_fill( 0, count( $owners ), '%d' ) );
-			$this->rows( $wpdb->prepare( "SELECT id FROM {$folders} WHERE owner_id IN ({$owner_marks}) ORDER BY owner_id,id FOR UPDATE", $owners ) );
-			$valid_users = $this->rows( $wpdb->prepare( "SELECT ID FROM {$wpdb->users} WHERE ID IN ({$owner_marks}) ORDER BY ID FOR UPDATE", $owners ) );
+			$this->rows( $wpdb->prepare( "SELECT id FROM {$folders} WHERE owner_id IN ({$owner_marks}) ORDER BY owner_id,id FOR UPDATE", $owners ) ); // phpcs:ignore WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare -- IN list and arguments both derive from $owners.
+			$valid_users = $this->rows( $wpdb->prepare( "SELECT ID FROM {$wpdb->users} WHERE ID IN ({$owner_marks}) ORDER BY ID FOR UPDATE", $owners ) ); // phpcs:ignore WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare -- IN list and arguments both derive from $owners.
 			if ( ! in_array( $owner, array_map( static fn( $u ) => (int) $u->ID, $valid_users ), true ) ) { $this->fail( 'sufm_owner', __( '目标用户已不存在，请重新预览。', 'sakura-imgopt' ) ); }
 			$membership = $this->row( $wpdb->prepare( "SELECT umeta_id FROM {$wpdb->usermeta} WHERE user_id=%d AND meta_key=%s FOR UPDATE", $owner, $wpdb->prefix . 'capabilities' ) );
 			if ( ! $membership ) { $this->fail( 'sufm_owner', __( '目标用户已退出本站，请重新预览。', 'sakura-imgopt' ) ); }

@@ -98,6 +98,9 @@ final class Activation {
 		// 上传指标事件表：并发写入用追加行，而不是读改写 option。
 		\Sakura\ImageOptimizer\S3\Upload_Metrics::maybe_install();
 
+		// 附件链接改写的回滚账本；beta 期版本号不触发升级守卫，页面自身也会懒建表。
+		\Sakura\ImageOptimizer\S3\Url_Rewrite_Repository::maybe_install();
+
 		// 用户文件空间：建表并记录版本；后台任务由 Module 在 init 上排程。
 		\Nboke\UserFiles\Schema::maybe_install();
 		if ( ! wp_next_scheduled( 'sufm_tick' ) ) {

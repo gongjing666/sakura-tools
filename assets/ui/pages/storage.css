@@ -1222,42 +1222,16 @@
 	}
 }
 
-/* --------------------------------------------------- connection page grid */
+/* ------------------------------------------------ connection page fields */
 
-/*
- * 连接设置 is by far the tallest card on this screen while 上传行为 and
- * 上传吞吐 are short. Sharing one grid row stretches all three to the
- * tallest card (the grid uses align-items: stretch), which is where the
- * large empty band under the short cards came from. The two short cards
- * therefore share a stack of their own: each keeps its content height, and
- * 连接设置 spans both rows in the left column.
- */
-.sakura-admin[data-sakura-page^="storage-"] .card-grid > .card-stack {
-	grid-row: 2;
-	grid-column: 7 / span 6;
-	display: flex;
-	flex-direction: column;
-	gap: var(--g-grid-gap-y);
-	align-self: start;
-	min-width: 0;
-}
-
-.sakura-admin[data-sakura-page^="storage-"] .card-grid > .card[data-sakura-card="connection"] {
-	grid-row: 2 / span 2;
+.s3-field-note {
+	grid-column: 1 / -1;
+	margin: 0;
 }
 
 /* --------------------------------------------------------------- responsive */
 
 @media (max-width: 1100px) {
-	.sakura-admin[data-sakura-page^="storage-"] .card-grid > .card-stack {
-		grid-row: auto;
-		grid-column: auto;
-		gap: 16px;
-	}
-
-	.sakura-admin[data-sakura-page^="storage-"] .card-grid > .card[data-sakura-card="connection"] {
-		grid-row: auto;
-	}
 
 	.sakura-admin[data-sakura-page="storage-connection"] .monitor-grid,
 	.sakura-admin[data-sakura-page="storage-connection"] .monitor-fields {

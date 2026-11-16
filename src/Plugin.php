@@ -186,9 +186,17 @@ final class Plugin {
 			$delete_queue = new S3\Delete_Queue_Panel();
 			$modules[]      = $delete_queue;
 
+			$url_rewrite = new S3\Url_Rewrite_Panel();
+			$modules[]   = $url_rewrite;
+
+			$cost_panel = new S3\Cost_Panel();
+			$modules[]  = $cost_panel;
+
 			Admin\Registry::register_renderer( 'storage', 'connection', array( $s3_storage, 'render' ) );
 			Admin\Registry::register_renderer( 'storage', 'sync', array( $sync_center, 'render' ) );
 			Admin\Registry::register_renderer( 'storage', 'deletes', array( $delete_queue, 'render' ) );
+			Admin\Registry::register_renderer( 'storage', 'rewrite', array( $url_rewrite, 'render' ) );
+			Admin\Registry::register_renderer( 'storage', 'cost', array( $cost_panel, 'render' ) );
 
 			// The menu is registered last so every renderer exists by the time
 			// WordPress asks for a screen.

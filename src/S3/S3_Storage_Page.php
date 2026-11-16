@@ -132,11 +132,17 @@ final class S3_Storage_Page {
 
 				$provider_hints = array(
 					'dogecloud' => array(
-						'endpoint'     => __( '多吉云要填控制台「SDK 参数」里的 s3Endpoint（形如 https://cos.ap-chengdu.myqcloud.com）。api.dogecloud.com 是管理 API，不是 S3 端点，填它会返回 404。', 'sakura-imgopt' ),
+						'endpoint'     => __( '多吉云填控制台「SDK 参数」里的 s3Endpoint；api.dogecloud.com 是管理 API，填它会 404。', 'sakura-imgopt' ),
 						'bucket'       => __( '填多吉云控制台的存储空间名称，再点右侧按钮自动换成 s3Bucket（形如 doss-v2-3081…-1258813047）和 s3Endpoint，不用手抄。', 'sakura-imgopt' ),
 						'bucket_label' => __( '存储空间名称', 'sakura-imgopt' ),
-						'region'       => __( '多吉云填 automatic 即可，地域由服务端按存储空间所在区域决定。', 'sakura-imgopt' ),
+						'region'       => __( '多吉云填 automatic；用「获取 SDK 参数」会填入具体地域（如 ap-chengdu），两者都能用。', 'sakura-imgopt' ),
 						'placeholder'  => 'https://cos.ap-chengdu.myqcloud.com',
+					),
+					'minio'     => array(
+						'endpoint'     => __( '填 MinIO 的 S3 API 地址，通常是 http://主机:9000；9001 是管理控制台端口，填它连不上。', 'sakura-imgopt' ),
+						'bucket'       => __( '填控制台里已经创建好的桶名；MinIO 不会在上传时自动建桶。', 'sakura-imgopt' ),
+						'region'       => __( 'MinIO 默认 us-east-1；服务端如果显式配置了别的 region，按服务端填写。', 'sakura-imgopt' ),
+						'placeholder'  => 'http://127.0.0.1:9000',
 					),
 				);
 
@@ -278,13 +284,20 @@ final class S3_Storage_Page {
 				}
 
 				$provider_options = array();
-				foreach ( Providers::all() as $key => $label ) {
+				foreach ( Providers::selectable() as $key => $label ) {
 					$count  = (int) ( $provider_counts[ $key ] ?? 0 );
 					$suffix = $count > 0
 						/* translators: %d: number of saved profiles for this provider. */
 						? sprintf( __( '（已保存 %d 个）', 'sakura-imgopt' ), $count )
 						: __( '（未保存）', 'sakura-imgopt' );
 					$provider_options[ (string) $key ] = (string) $label . $suffix;
+				}
+				// 当前激活的厂商可能已经被隐藏；不补进下拉，页面会显示成第一个选项。
+				$active_provider = (string) $options['provider'];
+				if ( '' !== $active_provider && ! isset( $provider_options[ $active_provider ] ) ) {
+					$all_labels = Providers::all();
+					$label      = isset( $all_labels[ $active_provider ] ) ? (string) $all_labels[ $active_provider ] : $active_provider;
+					$provider_options[ $active_provider ] = $label . __( '（当前配置，已隐藏新建入口）', 'sakura-imgopt' );
 				}
 
 				UI::card(
@@ -316,8 +329,6 @@ final class S3_Storage_Page {
 							)
 						); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Component escapes internally.
 
-						echo '<p class="card__note">' . esc_html__( '下面这些设置会跟着每份配置单独保存；切换配置时，访问权限、云端路径和图片地址前缀也会一起切换。', 'sakura-imgopt' ) . '</p>';
-
 						echo '<div class="field-list">';
 						$this->check_field(
 							'enabled',
@@ -325,7 +336,7 @@ final class S3_Storage_Page {
 							__( '新上传的图片自动同步到云存储，并沿用它原来的文件名和尺寸。', 'sakura-imgopt' ),
 							'true' === (string) $options['enabled'],
 							false,
-							true
+							false
 						);
 
 						/*
@@ -340,7 +351,7 @@ final class S3_Storage_Page {
 								'type'    => 'custom',
 								'id'      => 'sakura-s3-provider',
 								'label'   => __( '服务商', 'sakura-imgopt' ),
-								'full'    => true,
+								'full'    => false,
 								'control' => static function () use ( $options, $provider_options ) {
 									$select = '<select class="field__grow" id="sakura-s3-provider" name="provider" data-sakura-provider-select="1">';
 									foreach ( $provider_options as $provider_value => $provider_label ) {
@@ -355,6 +366,8 @@ final class S3_Storage_Page {
 								},
 							)
 						); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Component escapes internally.
+
+						echo '<p class="card__note s3-field-note">' . esc_html__( '七牛云、百度云、又拍云的 S3 兼容性还在验证，新建配置时暂不列出；已保存的配置仍可照常切换。', 'sakura-imgopt' ) . '</p>';
 
 						/*
 						 * Saved configs for the chosen provider, right under the picker.
@@ -379,7 +392,7 @@ final class S3_Storage_Page {
 								'value'       => $active_name,
 								'placeholder' => __( '例如：主站图床、备份桶', 'sakura-imgopt' ),
 								'hint'        => __( '用于区分同一服务商下的多个存储桶；留空会自动按服务商和存储桶命名。', 'sakura-imgopt' ),
-								'full'        => true,
+								'full'        => false,
 							)
 						); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Component escapes internally.
 
@@ -389,7 +402,7 @@ final class S3_Storage_Page {
 							__( '切换配置不会顺手开启或关闭同步，也不会改动缩略图和「删除本地文件」这类全局设置；文章里已有的图片地址不会被批量替换。', 'sakura-imgopt' ),
 							false,
 							false,
-							true
+							false
 						);
 
 						/*
@@ -440,7 +453,7 @@ final class S3_Storage_Page {
 								'value'       => (string) $options['endpoint'],
 								'placeholder' => (string) $field_hints['placeholder'],
 								'hint'        => (string) $field_hints['endpoint'],
-								'full'        => true,
+								'full'        => false,
 							)
 						); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Component escapes internally.
 
@@ -453,8 +466,8 @@ final class S3_Storage_Page {
 								'value'        => '',
 								'autocomplete' => 'new-password',
 								'placeholder'  => '' !== (string) $options['key'] ? __( '已保存，留空保持不变', 'sakura-imgopt' ) : __( '请输入访问密钥', 'sakura-imgopt' ),
-								'hint'         => __( '密钥会加密保存在数据库里，页面上不会显示。建议在站点配置文件里设置一个固定的加密密钥；更换后需要重新填写。', 'sakura-imgopt' ),
-								'full'         => true,
+								'hint'         => __( '加密保存，页面不回显；更换站点加密密钥后需要重新填写。', 'sakura-imgopt' ),
+								'full'         => false,
 							)
 						); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Component escapes internally.
 
@@ -467,24 +480,8 @@ final class S3_Storage_Page {
 								'value'        => '',
 								'autocomplete' => 'new-password',
 								'placeholder'  => '' !== (string) $options['secret'] ? __( '已保存，留空保持不变', 'sakura-imgopt' ) : __( '请输入密钥', 'sakura-imgopt' ),
-								'hint'         => __( '密钥会加密保存在数据库里，页面上不会显示。更换加密密钥或站点安全密钥后，旧密钥会失效，需要重新填写。', 'sakura-imgopt' ),
-								'full'         => true,
-							)
-						); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Component escapes internally.
-
-						UI::field(
-							array(
-								'type'    => 'select',
-								'id'      => 'sakura-s3-acl',
-								'name'    => 'object_acl',
-								'label'   => __( '文件访问权限', 'sakura-imgopt' ),
-								'value'   => (string) $options['object_acl'],
-								'options' => array(
-									'public-read' => __( '公开读取', 'sakura-imgopt' ),
-									'private'     => __( '私有', 'sakura-imgopt' ),
-								),
-								'hint'    => __( '只在上传时作为权限参数提交，能否生效由云存储服务商决定：Cloudflare R2、MinIO 会忽略；缤纷云等由存储桶策略或 CDN 决定。只影响之后上传的文件，不会改变已有文件。', 'sakura-imgopt' ),
-								'full'    => true,
+								'hint'         => __( '加密保存，页面不回显；更换加密密钥或站点安全密钥后需要重填。', 'sakura-imgopt' ),
+								'full'         => false,
 							)
 						); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Component escapes internally.
 
@@ -521,8 +518,6 @@ final class S3_Storage_Page {
 						echo '</div>';
 					}
 				);
-
-				echo '<div class="card-stack">';
 
 				UI::card(
 					array(
@@ -602,8 +597,6 @@ final class S3_Storage_Page {
 				);
 
 				Sync_Center_Panel::render( $this->status ?? new Sync_Status() );
-
-				echo '</div>'; // .card-stack
 
 				Monitoring_Panel::render();
 

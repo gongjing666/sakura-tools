@@ -100,14 +100,14 @@ final class Settings_Repository implements Settings_Repository_Interface {
 	 * Read a setting.
 	 *
 	 * @param string $key     Key.
-	 * @param mixed  $default Optional fallback.
+	 * @param mixed  $fallback Optional fallback.
 	 * @return mixed
 	 */
-	public function get( string $key, $default = null ) {
+	public function get( string $key, $fallback = null ) {
 		$name = $this->option_name( $key );
 
 		if ( func_num_args() > 1 ) {
-			return get_option( $name, $default );
+			return get_option( $name, $fallback );
 		}
 
 		return get_option( $name, self::DEFAULTS[ $name ] ?? null );

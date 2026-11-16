@@ -20,10 +20,10 @@ interface Settings_Repository_Interface {
 	 * Read one plugin option.
 	 *
 	 * @param string $key     Option key, with or without the `sakura_imgopt_` prefix.
-	 * @param mixed  $default Fallback when the option does not exist.
+	 * @param mixed  $fallback Fallback when the option does not exist.
 	 * @return mixed
 	 */
-	public function get( string $key, $default = null );
+	public function get( string $key, $fallback = null );
 
 	/**
 	 * Persist one plugin option.

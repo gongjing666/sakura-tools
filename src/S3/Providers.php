@@ -33,6 +33,34 @@ final class Providers {
 	}
 
 	/**
+	 * 目前开放新建配置的 provider key => label。
+	 *
+	 * 七牛、百度、又拍的 S3 兼容面尚未验证，先不放进新建下拉；已保存的档案
+	 * 与 exists() 校验仍保留，切换到旧档案不会因为这里收窄而失效。
+	 *
+	 * @return array<string,string>
+	 */
+	public static function selectable(): array {
+		$all        = self::all();
+		$selectable = array();
+		foreach ( array( 'cloudflare', 'minio', 'dogecloud', 'aliyun', 'tencent', 'backblaze', 'bitiful' ) as $provider ) {
+			if ( isset( $all[ $provider ] ) ) {
+				$selectable[ $provider ] = $all[ $provider ];
+			}
+		}
+		return $selectable;
+	}
+
+	/**
+	 * 暂时从新建列表中隐藏的 provider。
+	 *
+	 * @return string[]
+	 */
+	public static function hidden(): array {
+		return array( 'qiniu', 'baidu', 'upyun' );
+	}
+
+	/**
 	 * 判断 provider 是否受支持。
 	 *
 	 * 只比较标识，不生成标签，因此不会触发翻译加载；可在 `plugins_loaded`

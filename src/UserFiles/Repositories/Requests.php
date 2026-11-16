@@ -337,7 +337,7 @@ final class Requests {
 			if ( $file_ids ) {
 				$files_table = Schema::table( 'files' );
 				$in          = implode( ',', array_fill( 0, count( $file_ids ), '%d' ) );
-				// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare,WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber -- fixed SET/WHERE placeholders plus an IN list sized from $file_ids; arguments are merged in the same order.
 				$locked = (int) $wpdb->query( $wpdb->prepare( "UPDATE {$files_table} SET pending_request_id=%d WHERE owner_id=%d AND pending_request_id=0 AND id IN ({$in})", array_merge( array( $request_id, $owner_id ), $file_ids ) ) );
 
 				if ( count( $file_ids ) !== $locked ) {
@@ -349,7 +349,7 @@ final class Requests {
 			if ( $folder_ids ) {
 				$folders_table = Schema::table( 'folders' );
 				$in            = implode( ',', array_fill( 0, count( $folder_ids ), '%d' ) );
-				// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare,WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber -- fixed SET/WHERE placeholders plus an IN list sized from $folder_ids; arguments are merged in the same order.
 				$locked = (int) $wpdb->query( $wpdb->prepare( "UPDATE {$folders_table} SET pending_request_id=%d WHERE owner_id=%d AND pending_request_id=0 AND id IN ({$in})", array_merge( array( $request_id, $owner_id ), $folder_ids ) ) );
 
 				if ( count( $folder_ids ) !== $locked ) {
@@ -1120,9 +1120,9 @@ final class Requests {
 			$params[] = $status;
 		}
 
-		$total = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$table} WHERE {$where}", $params ) ); // phpcs:ignore WordPress.DB.PreparedSQL
+		$total = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$table} WHERE {$where}", $params ) ); // phpcs:ignore WordPress.DB.PreparedSQL,WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare -- $where is assembled from fixed fragments; $params gains one value per fragment.
 		$rows  = $wpdb->get_results(
-			$wpdb->prepare(
+			$wpdb->prepare( // phpcs:ignore WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber -- $where contributes a variable number of placeholders; LIMIT/OFFSET add two fixed ones.
 				"SELECT * FROM {$table} WHERE {$where} ORDER BY id DESC LIMIT %d OFFSET %d", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 				array_merge( $params, array( $per_page, max( 0, ( $page - 1 ) * $per_page ) ) )
 			)
@@ -1165,10 +1165,10 @@ final class Requests {
 
 		$from = "{$table} r LEFT JOIN {$wpdb->users} u ON u.ID=r.owner_id";
 
-		$total = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$from} WHERE {$where}", $params ) ); // phpcs:ignore WordPress.DB.PreparedSQL
+		$total = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$from} WHERE {$where}", $params ) ); // phpcs:ignore WordPress.DB.PreparedSQL,WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare -- $where is assembled from fixed fragments; $params gains one value per fragment.
 
 		$rows = $wpdb->get_results(
-			$wpdb->prepare(
+			$wpdb->prepare( // phpcs:ignore WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber -- $where contributes a variable number of placeholders; LIMIT/OFFSET add two fixed ones.
 				"SELECT r.* , u.display_name AS owner_name, u.user_login AS owner_login FROM {$from} WHERE {$where} ORDER BY (r.status='pending_review') DESC, r.id DESC LIMIT %d OFFSET %d", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 				array_merge( $params, array( $per, max( 0, ( $page - 1 ) * $per ) ) )
 			)

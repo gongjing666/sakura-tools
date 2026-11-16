@@ -67,6 +67,8 @@ final class Registry {
 					'connection' => array( 'label' => __( '连接配置', 'sakura-imgopt' ) ),
 					'sync'       => array( 'label' => __( '同步中心', 'sakura-imgopt' ) ),
 					'deletes'    => array( 'label' => __( '删除队列', 'sakura-imgopt' ) ),
+					'rewrite'    => array( 'label' => __( '链接改写', 'sakura-imgopt' ) ),
+					'cost'       => array( 'label' => __( '费用估算', 'sakura-imgopt' ) ),
 				),
 			),
 			'files'   => array(

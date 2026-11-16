@@ -296,16 +296,16 @@ class Thumbnail_Optimizer_Module implements Module {
 	 * provider/host. Keeping them after a switch would either advertise URLs
 	 * that 404 or leave "probe passed" on screen for a host nobody tested.
 	 *
-	 * @param mixed $old Previous option value.
-	 * @param mixed $new New option value.
+	 * @param mixed $old          Previous option value.
+	 * @param mixed $new_settings New option value.
 	 */
-	public function on_s3_options_changed( $old, $new ): void {
-		$old = is_array( $old ) ? $old : array();
-		$new = is_array( $new ) ? $new : array();
+	public function on_s3_options_changed( $old, $new_settings ): void {
+		$old          = is_array( $old ) ? $old : array();
+		$new_settings = is_array( $new_settings ) ? $new_settings : array();
 
 		$changed = false;
 		foreach ( array( 'provider', 'upload_url_path', 'endpoint' ) as $key ) {
-			if ( (string) ( $old[ $key ] ?? '' ) !== (string) ( $new[ $key ] ?? '' ) ) {
+			if ( (string) ( $old[ $key ] ?? '' ) !== (string) ( $new_settings[ $key ] ?? '' ) ) {
 				$changed = true;
 				break;
 			}

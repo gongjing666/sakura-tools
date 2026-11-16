@@ -1229,6 +1229,27 @@
 	margin: 0;
 }
 
+/*
+ * "This save creates a new configuration" line, shown while the provider picker
+ * no longer matches the saved profile the form is editing. It is a direct child
+ * of the two-column field list, so it has to span both columns.
+ */
+.s3-auto-new-note {
+	grid-column: 1 / -1;
+	margin: 0;
+	padding: var(--g-space-2) var(--g-space-3);
+	border-left: 3px solid var(--g-warn);
+	border-radius: 0 var(--g-radius-sm) var(--g-radius-sm) 0;
+	background: var(--g-warn-bg);
+	color: var(--g-warn);
+	font-size: var(--g-fs-meta);
+	line-height: var(--g-lh-body);
+}
+
+.s3-auto-new-note[hidden] {
+	display: none;
+}
+
 /* --------------------------------------------------------------- responsive */
 
 @media (max-width: 1100px) {

@@ -29,23 +29,47 @@ final class Settings_Saver {
 	}
 
 	/**
-	 * Pick the profile a save writes to.
+	 * Decide whether a save writes a new profile instead of rewriting one.
 	 *
-	 * A saved profile is edited in place: the connection form always posts the
-	 * id it is showing, and rewriting its provider, bucket or endpoint keeps
-	 * that id. Minting a second profile behind the operator's back — which is
-	 * what happened when only the target changed — looked like a phantom
+	 * Editing a saved profile keeps its id: the connection form always posts the
+	 * id it is showing, and moving that profile to another bucket, space,
+	 * endpoint or path is still the same account, so rewriting it in place is
+	 * what the operator means. Minting a second profile behind their back — which
+	 * is what used to happen whenever the target moved — looked like a phantom
 	 * duplicate in the picker.
 	 *
-	 * Moving a target is handled where it actually matters: the previous target
-	 * is archived under `retired_targets` so queued delete jobs can still reach
-	 * the old objects, and the profile's reconciliation rows are purged in
-	 * save(), so the sync center cannot print the old bucket's counts under the
-	 * new address.
+	 * Switching provider is not an edit of that profile: another provider means
+	 * another account, another bucket and new credentials, so a save under it is
+	 * an additional configuration. Treat it as "save as new" even when the
+	 * checkbox is unticked, otherwise the connection the operator was editing is
+	 * silently replaced — the exact way a second storage account eats the first.
+	 *
+	 * @param bool                $posted           Whether the operator ticked "save as new".
+	 * @param bool                $provider_changed Whether the submitted provider differs from the edited profile.
+	 * @param array<string,mixed> $editing          Profile the form is editing (empty when there is none).
+	 */
+	public static function save_as_new_for_save( bool $posted, bool $provider_changed, array $editing ): bool {
+		if ( $posted ) {
+			return true;
+		}
+
+		// Only a real edit can be overwritten; a new profile has nothing to lose.
+		return $provider_changed && array() !== $editing;
+	}
+
+	/**
+	 * Pick the profile a save writes to.
+	 *
+	 * A saved profile is edited in place unless save_as_new_for_save() says the
+	 * save is a new one. Moving a target is handled where it actually matters:
+	 * the previous target is archived under `retired_targets` so queued delete
+	 * jobs can still reach the old objects, and the profile's reconciliation rows
+	 * are purged in save(), so the sync center cannot print the old bucket's
+	 * counts under the new address.
 	 *
 	 * @param array<string,array<string,mixed>> $profiles     Saved profiles keyed by id.
 	 * @param string                            $submitted_id Profile the form was editing ('' for none).
-	 * @param bool                              $save_as_new  Whether the operator asked for a copy.
+	 * @param bool                              $save_as_new  Whether this save writes a new profile (see save_as_new_for_save()).
 	 */
 	public static function profile_id_for_save( array $profiles, string $submitted_id, bool $save_as_new ): string {
 		if ( $save_as_new || '' === $submitted_id || ! isset( $profiles[ $submitted_id ] ) ) {
@@ -126,6 +150,9 @@ final class Settings_Saver {
 		// provider picker can load a saved config without activating it, and a
 		// provider change there has to invalidate that entry's credentials.
 		$provider_changed = $provider !== (string) ( array() !== $editing ? ( $editing['provider'] ?? '' ) : ( $old['provider'] ?? '' ) );
+		// A different provider is a different account, so this save adds a
+		// profile instead of rewriting the one the form was showing.
+		$save_as_new      = self::save_as_new_for_save( $save_as_new, $provider_changed, $editing );
 		$profile_name     = isset( $_POST['profile_name'] ) ? sanitize_text_field( wp_unslash( $_POST['profile_name'] ) ) : '';
 		$bucket_raw       = isset( $_POST['bucket'] ) ? sanitize_text_field( wp_unslash( $_POST['bucket'] ) ) : '';
 		// 空间名由「获取 SDK 参数」写入隐藏字段；没有这个字段的服务商保持空串。

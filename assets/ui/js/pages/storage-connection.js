@@ -445,6 +445,8 @@
 
 			loaded = profile.id || '';
 			render();
+			// The provider-switch guard re-reads the profile id this line wrote.
+			admin.events.emit( 'profile-load', profile );
 			admin.ui.toast( strings.profileLoadedKey || '', 'info' );
 		}
 
@@ -498,6 +500,98 @@
 
 		admin.on( select, 'change', render );
 		render();
+	}
+
+	/**
+	 * A save under another provider is a new configuration, not an edit.
+	 *
+	 * The form posts the profile id it is showing, so switching the picker and
+	 * pressing save used to rewrite that profile under a provider it was never
+	 * configured for — the old connection vanished. The server now mints a new
+	 * profile in that case, and this keeps the form honest about it: the
+	 * save-as-new flag is ticked and disabled (it cannot be turned off, because
+	 * the save would ignore it) together with a line explaining why.
+	 *
+	 * A form that is not editing a saved profile has nothing to overwrite, so
+	 * the guard stays out of the way entirely.
+	 */
+	function initProviderSwitchGuard( root ) {
+		var form   = admin.qs( '#sakura-s3-connection-form', root );
+		var select = admin.qs( '[data-sakura-provider-select]', root );
+		var flag   = form ? admin.qs( 'input[name="save_as_new"]', form ) : null;
+		var idField = form ? admin.qs( 'input[name="profile_id"]', form ) : null;
+
+		if ( ! form || ! select || ! flag || ! idField ) {
+			return;
+		}
+
+		var note = admin.qs( '[data-sakura-auto-new-text]', form );
+		var box  = admin.qs( '[data-sakura-auto-new-note]', form );
+		var profiles = config.profiles || [];
+		// Null means "this save is not a provider switch": either the form edits
+		// no saved profile, or it edits one whose provider is the selected one.
+		var restore = null;
+
+		function savedProvider() {
+			var id = idField.value;
+			if ( ! id ) {
+				return '';
+			}
+
+			for ( var index = 0; index < profiles.length; index++ ) {
+				if ( profiles[ index ] && profiles[ index ].id === id ) {
+					return String( profiles[ index ].provider || '' );
+				}
+			}
+
+			return '';
+		}
+
+		function setGuarded( on ) {
+			if ( on ) {
+				if ( null === restore ) {
+					restore = flag.checked;
+				}
+				flag.checked = true;
+				flag.disabled = true;
+			} else if ( null !== restore ) {
+				flag.disabled = false;
+				flag.checked = restore;
+				restore = null;
+			}
+
+			if ( box ) {
+				box.hidden = ! on;
+			}
+			if ( on && note ) {
+				note.textContent = strings.providerSwitchNote || '';
+			}
+		}
+
+		function sync() {
+			var saved = savedProvider();
+			setGuarded( '' !== saved && saved !== select.value );
+		}
+
+		admin.on( select, 'change', sync );
+		// Loading a saved config rewrites the profile id and the flag first, so the
+		// decision from the previous profile no longer applies.
+		admin.events.on( 'profile-load', function () {
+			restore = null;
+			flag.disabled = false;
+			sync();
+		} );
+		/*
+		 * "Add profile" pre-ticks the flag without loading anything, so a later
+		 * switch back must not undo it: the previous state is "another profile,
+		 * please", not whatever was in the box beforehand.
+		 */
+		admin.delegate( root, 'click', '[data-sakura-action="add-profile"]', function () {
+			restore = true;
+			sync();
+		} );
+
+		sync();
 	}
 
 	/**
@@ -847,6 +941,7 @@
 		initProbe( root );
 		initProviderHints( root );
 		initProviderProfiles( root );
+		initProviderSwitchGuard( root );
 		initSpaceTracking( root );
 	} );
 }( window, document ) );

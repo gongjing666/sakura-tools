@@ -178,6 +178,7 @@ final class S3_Storage_Page {
 					'probeTitleBad'  => __( '连接不可用', 'sakura-imgopt' ),
 					'probeNonce'     => wp_create_nonce( 'sakura_s3_probe' ),
 					'profileLoadedKey' => __( '已载入这份配置。密钥留空表示沿用这份配置已保存的密钥；点「保存连接配置」才会生效。', 'sakura-imgopt' ),
+					'providerSwitchNote' => __( '已更换服务商：这次保存会新建一份配置，原来那份保持不动。想继续用原来的配置，把服务商切回去即可。', 'sakura-imgopt' ),
 				);
 				?>
 				<div class="sakura-admin__data" data-sakura-connection-strings="<?php echo esc_attr( wp_json_encode( array( 'strings' => $page_strings, 'hints' => $live_hints, 'profiles' => array_values( $saved_profiles ) ), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_UNESCAPED_UNICODE ) ); ?>" hidden></div>
@@ -404,6 +405,14 @@ final class S3_Storage_Page {
 							false,
 							false
 						);
+
+						/*
+						 * Filled by storage-connection.js when the provider picker no longer
+						 * matches the profile the form is editing: a save then writes a new
+						 * configuration, and the checkbox above is forced on and disabled so
+						 * the form cannot claim otherwise.
+						 */
+						echo '<p class="s3-auto-new-note" data-sakura-auto-new-note hidden><span data-sakura-auto-new-text></span></p>';
 
 						/*
 						 * The bucket row carries the DogeCloud resolver button. It ships

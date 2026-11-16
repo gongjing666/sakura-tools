@@ -157,11 +157,11 @@ final class SettingsSaverTest extends TestCase {
 	}
 
 	/**
-	 * The provider and endpoint no longer take part in the decision: loading a
-	 * different saved config in the connection card, fixing its endpoint and
-	 * saving must not leave a third copy behind.
+	 * The endpoint no longer takes part in the decision: loading a different
+	 * saved config in the connection card, fixing its endpoint and saving must
+	 * not leave a third copy behind.
 	 */
-	public function test_changing_the_provider_or_endpoint_updates_the_same_profile(): void {
+	public function test_changing_the_endpoint_updates_the_same_profile(): void {
 		$profiles = array(
 			'prof_live' => array(
 				'id'       => 'prof_live',
@@ -202,5 +202,55 @@ final class SettingsSaverTest extends TestCase {
 			'prof_gone',
 			Settings_Saver::profile_id_for_save( array(), 'prof_gone', false )
 		);
+	}
+
+	/**
+	 * A form with no saved profile behind it has nothing to protect, so the
+	 * provider picker stays a plain choice.
+	 */
+	public function test_a_new_profile_is_not_forced_to_save_as_new(): void {
+		$this->assertFalse( Settings_Saver::save_as_new_for_save( false, true, array() ) );
+	}
+
+	/**
+	 * Keeping the provider is an ordinary edit, including when the bucket or the
+	 * endpoint underneath it moves.
+	 */
+	public function test_same_provider_edits_in_place(): void {
+		$editing = array(
+			'id'       => 'prof_live',
+			'provider' => 'dogecloud',
+			'bucket'   => 'space-1234',
+		);
+
+		$this->assertFalse( Settings_Saver::save_as_new_for_save( false, false, $editing ) );
+	}
+
+	/**
+	 * Switching the provider writes a new profile even when the operator never
+	 * ticked the box. Without this the save rewrites the connection it was
+	 * editing, which is how a second storage account replaces the first.
+	 */
+	public function test_switching_the_provider_mints_a_new_profile(): void {
+		$editing = array(
+			'id'       => 'prof_live',
+			'provider' => 'dogecloud',
+			'bucket'   => 'space-1234',
+		);
+
+		$this->assertTrue( Settings_Saver::save_as_new_for_save( false, true, $editing ) );
+	}
+
+	/**
+	 * The unticked box must not be able to talk that rule back down.
+	 */
+	public function test_ticking_the_box_still_mints_a_new_profile(): void {
+		$editing = array(
+			'id'       => 'prof_live',
+			'provider' => 'dogecloud',
+			'bucket'   => 'space-1234',
+		);
+
+		$this->assertTrue( Settings_Saver::save_as_new_for_save( true, false, $editing ) );
 	}
 }

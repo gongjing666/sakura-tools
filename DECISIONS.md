@@ -569,3 +569,19 @@ body.upload-php.sufm-tree-active.folded { --sufm-tree-left: 56px; }
 - 积分入口由 `points[enabled]` 独立控制，但已售出的积分授权不受关闭影响。
 
 **维护动作**：改支付/发放/退款/对账代码必须同步 `tests/Services/SpaceStorePaymentTest.php`、`SpaceStoreRefundTest.php`、`SpaceStoreReconcileTest.php`、`tests/SpaceSettingsTest.php`，跑 `phpunit`/`phpstan`/`phpcs`，并按《图谱同步说明》重扫图谱。
+
+## 上传目标指纹以「桶身份」为准，profile 行 id 不参与（1.28.1-beta-5，2026-11-16）
+
+**背景**：同一家厂商、同一个桶、同一套凭据存成两条配置（换服务商测试后新建的那条，就是原配置的副本），切换后 130 张已同步附件的 CDN 地址全部回退成站点域名；同步中心的附件详情跟着加载站点域名；缩略图「立即测试」报「服务器返回 404，请求被拒绝。」。
+
+**决策**：
+
+1. **上传指纹 = 目的地**，不再包含配置行 id。`Synchronous_Uploader::target_hash_for()`（`src/S3/Synchronous_Uploader.php:496`）现在算 `sha256("v2|provider|bucket|endpoint|upload_path")`。两条配置指向同一个桶就是同一个目标；换了桶、换了 endpoint、换了对象前缀仍然是换目标。
+2. **旧指纹继续被接受，不重写全站 post meta**。`target_hashes_for()`（`:519`）返回当前身份加每个已知配置行的旧写法别名（`sha256(profile_id|provider|bucket|endpoint|upload_path)`），`target_matches()`（`:554`）按集合判断。生产存量 130 张附件写的是旧值，靠别名命中，立即恢复 CDN 地址。
+3. **判定点统一走 `target_matches()`**：`Storage::revert_unsynced_url()`（`src/S3/Storage.php:677`）、`Synchronous_Uploader::finalize()`（`:226`）、`Action_Worker::run()`（`:102`）与 `write_back()`（`:235`，多收一个 profile id，用于队列行所属配置已被删除的情形）、`History_Migrator::run_batch()`（`:158`）。任何一处改回 `hash_equals` 都会把同桶换配置重新判成换桶。
+4. **上传侧与删除侧仍然不互比**。`Delete_Jobs::target_hash()`（`src/S3/Delete_Jobs.php:61`）继续算 `provider|bucket|endpoint|region`，语义是「这条删除任务属于哪个桶」，改了会让 `sio_s3_deletes.target_hash` 全部 drift。本次只改上传侧。
+5. **预览与探测用媒体域名**。`Sync_Center_Module::preview_payload()`（`src/S3/Sync_Center_Module.php:1577`）对已同步的公开对象优先给 CDN 地址；`Probe::sample()`（`src/Thumbnail/Probe.php:377`）优先取已同步附件，并把取样 URL 经 `Storage::map_local_to_cdn()`（`src/S3/Storage.php:734`）换到 CDN 域名。命名样式 `/siothumb` 只在 CDN 域名存在，用站点域名探测必然 404。
+
+**已知边界**：别名表只覆盖「当前站点还知道 id」的配置行。队列行里记录的 profile 已从 `s3_options.profiles` 删除时，靠 `target_matches()` 的第三个参数（队列行自己的 profile id）兜住；两者都拿不到时按换目标处理，宁可停止动作也不写错桶。
+
+**维护动作**：改 `target_hash_for()` 的字段集合必须同时改 `target_hashes_for()` 的旧别名构造，并跑 `tests/TargetFingerprintTest.php`（6 条）与 `tests/StorageUrlGateTest.php`（含 `map_local_to_cdn` 两条）。

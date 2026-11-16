@@ -22,17 +22,12 @@ final class ThumbnailConflictsTest extends TestCase {
 		$GLOBALS['sakura_test_options'] = array();
 	}
 
-	/** URL rewriting against a private bucket produces unsigned URLs. */
-	public function test_private_acl_with_url_rewrite_is_reported(): void {
-		$this->assertContains( 'private_acl', $this->codes( $this->opt(), $this->s3() ) );
-	}
-
-	/** Public-read keeps the rewritten URLs reachable. */
-	public function test_public_acl_is_clean(): void {
-		$s3               = $this->s3();
-		$s3['object_acl'] = 'public-read';
-
-		$this->assertSame( array(), $this->codes( $this->opt(), $s3 ) );
+	/**
+	 * Object ACL is no longer exposed in the UI: visibility is decided by the
+	 * bucket policy / CDN, so a stored private value must not raise a warning.
+	 */
+	public function test_private_acl_with_url_rewrite_is_not_reported(): void {
+		$this->assertSame( array(), $this->codes( $this->opt(), $this->s3() ) );
 	}
 
 	/** Rewriting to sub-sizes that are never uploaded produces 404s. */
@@ -58,8 +53,9 @@ final class ThumbnailConflictsTest extends TestCase {
 		$opt['advanced']['custom_provider_template'] = 'https://img.example.com/{path}?w={width}';
 		$s3                                          = $this->s3();
 		$s3['provider']                              = 'aliyun';
+		$s3['no_thumb']                              = 'true';
 
-		$this->assertContains( 'private_acl', $this->codes( $opt, $s3 ) );
+		$this->assertSame( array( 'no_thumb' ), $this->codes( $opt, $s3 ) );
 	}
 
 	/** Native sizing never rewrites URLs. */

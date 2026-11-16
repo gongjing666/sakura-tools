@@ -2,7 +2,7 @@
 # This file is distributed under the GPL-2.0-or-later.
 msgid ""
 msgstr ""
-"Project-Id-Version: 樱花工具箱 1.28.0\n"
+"Project-Id-Version: 樱花工具箱 1.28.1\n"
 "Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/sakura-tools\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -8503,14 +8503,10 @@ msgid "其他持久对象缓存"
 msgstr ""
 
 #: src/Thumbnail/Settings.php:977
-msgid "缩略图地址改写已开启，但 S3 对象权限是“私有”。改写后的地址不带签名，访客会收到 403；如已配置签名 CDN，可忽略。"
-msgstr ""
-
-#: src/Thumbnail/Settings.php:985
 msgid "缩略图地址改写已开启，但 S3 设置为“不上传缩略图”。页面会指向未上传的子尺寸，可能出现 404；请关闭改写或允许上传缩略图。"
 msgstr ""
 
-#: src/Thumbnail/Settings.php:996
+#: src/Thumbnail/Settings.php:988
 msgid "多吉云的宽高参数走 imageView2，需要 CDN 加速域名的缓存规则关闭「忽略参数」，否则参数被丢弃、访客拿到的是原图。也可以用命名样式避开这个设置。"
 msgstr ""
 

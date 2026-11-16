@@ -4,7 +4,7 @@ Tags: image optimization, webp, avif, imagick, media library
 Requires at least: 6.4
 Tested up to: 7.1.4
 Requires PHP: 8.2
-Stable tag: 1.28.0
+Stable tag: 1.28.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -79,6 +79,11 @@ Access Key 和 Secret 会加密后存进数据库，页面和源码都不会显�
 插件目前没有接管这个跳转。等出现「既要防直链、又要保留购买校验」的需求时再研发，方向是在主题之前拦截下载请求，由插件代理输出或签发短时有效的预签名地址；若暂时需要这层保护，请关闭「上传后删除本地文件」，让文件保留在本地。
 
 == Changelog ==
+
+= 1.28.1 =
+
+* 修复：**移除误导性的「S3 对象权限是私有」缩略图警告**。1.28.0 已从连接设置移除对象 ACL 控件；Settings::conflicts() 仍会读取旧的 object_acl=private 并提示「访客会收到 403」，但实测自定义域名能否匿名访问由存储空间策略 / CDN 决定，该提示不成立。现在不再产生 private_acl 警告，对象 ACL 的底层兼容值继续保留，不影响既有上传。
+* 影响范围：仅 src/Thumbnail/Settings.php 与 tests/ThumbnailConflictsTest.php；不改路由、数据表、option 键名与钩子语义。
 
 = 1.28.0 =
 

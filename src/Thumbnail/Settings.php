@@ -970,14 +970,6 @@ final class Settings {
 		$rewrite = ! empty( $opt['enabled'] ) && in_array( $mode, array( 'style', 'params' ), true );
 		$out     = array();
 
-		if ( $rewrite && 'private' === (string) ( $s3['object_acl'] ?? 'public-read' ) ) {
-			$out[] = array(
-				'code'     => 'private_acl',
-				'severity' => 'warning',
-				'message'  => __( '缩略图地址改写已开启，但 S3 对象权限是“私有”。改写后的地址不带签名，访客会收到 403；如已配置签名 CDN，可忽略。', 'sakura-imgopt' ),
-			);
-		}
-
 		if ( $rewrite && 'true' === (string) ( $s3['no_thumb'] ?? 'false' ) ) {
 			$out[] = array(
 				'code'     => 'no_thumb',

@@ -6,7 +6,7 @@
 
 图片压缩 · 缩略图治理 · S3 对象存储 · 同步索引 · 用户文件空间
 
-[![版本](https://img.shields.io/badge/version-1.28.0-e85d8b?style=flat-square)](https://github.com/gongjing666/sakura-tools/releases/latest)
+[![版本](https://img.shields.io/badge/version-1.28.1-e85d8b?style=flat-square)](https://github.com/gongjing666/sakura-tools/releases/latest)
 [![PHPUnit](https://img.shields.io/badge/PHPUnit-10.5-4c1?style=flat-square)](https://github.com/gongjing666/sakura-tools/actions/workflows/tests.yml)
 [![PHPStan](https://img.shields.io/badge/PHPStan-level%205-4c1?style=flat-square)](https://github.com/gongjing666/sakura-tools/actions/workflows/phpstan.yml)
 ![WordPress](https://img.shields.io/badge/WordPress-6.4%2B-21759b?style=flat-square&logo=wordpress&logoColor=white)
@@ -40,6 +40,7 @@
 
 ## 最近更新
 
+- **1.28.1** — 去掉一条已经不再成立的缩略图警告。连接页在 1.28.0 已移除对象 ACL 控件，但旧配置里的 private 仍会触发「访客会收到 403」提示；实际可见性由存储空间策略 / CDN 决定，现在不再显示该警告。只是移除提示，不改上传与已有对象。
 - **1.28.0** — 对象存储多了两个页面。**链接改写**把数据库里旧的附件域名批量换成新域名（比如缤纷云 `bf.nboke.com` → 多吉云 `doge.nboke.com`），默认只扫文章与主题数据，插件自己的表要显式勾选；每行写前留原值，配回滚账本，改写后又被手改的行会被标成冲突并跳过。**费用估算**按存储量、流量、请求、图片处理和命中率，对多吉云、缤纷云、阿里云、腾讯云、七牛、又拍、百度、Cloudflare R2、Backblaze B2 与 MinIO 逐项算月账单，单价是内置公开价，不联网也不读厂商账单。同时把连接设置卡收敛成一张全宽卡：取消基础/高级折叠，移除会误导人的「文件访问权限（对象 ACL）」；多吉云/COS 的批量删除与分片 ETag 补了兼容兜底。PHPCS 的 37 条 warning 一并清零。详见 [readme.txt](readme.txt) 的 changelog。
 - **1.27.6** — 连接失败终于说清原因。S3「测试连接」以前无论什么错都提示「请检查服务商、地域、Endpoint、存储桶和凭据」；现在先 `headBucket`、失败再 `listObjectsV2` 取回带 XML 的错误码，直接告诉你 `InvalidAccessKeyId（HTTP 403）` 还是端点填成了管理 API。多吉云这条线补齐：填存储空间名称即可反查 `s3Bucket` / `s3Endpoint`，缩略图走命名样式（`/720wm`）或 `imageView2`；保存配置改为原地更新，不再偷偷新建一份。同步中心的裸文件名搜索修好了，并新增按需预览。媒体库的卡片与列表缩略图改走云存储，SVG/GIF 不再被拼样式后缀与转成静态图。顺带修掉后台通知条冒充页面根导致整页按钮失效（688px 空白带）与存储页「最后错误」只占半行的问题。详见 [readme.txt](readme.txt) 的 changelog。
 - **1.27.5** — 后台切页不再「糊一下」。WordPress 7.0 起给整个后台启用了跨文档 View Transitions，每次点模块或页签都把新旧两页整页交叉淡化 250ms；本插件后台是密集表格与卡片，两层半透明叠在一起就是文字互相穿透。现在用 `@view-transition { navigation: none }` 退出这套过渡，改由自己控制：新文档硬切，只有主内容列 180ms 淡入并上浮 6px，模块切换条、页签条与侧边栏完全不参与动画。顺带更快——命名为 `view-transition-name` 的元素会让浏览器多拍快照并单独分组渲染，实测净增约 15ms；完全不快照反而比默认过渡快约 30ms（点击到 load 完成：456 → 422ms 均值）。另加点击即时反馈：WordPress 引导一次后台请求约 300ms，这段时间页面停在旧内容上像没点中，现在点击同一帧顶部亮起 2px 樱色扫光条，新文档出来自然消失，`prefers-reduced-motion` 下改为常亮不扫光。

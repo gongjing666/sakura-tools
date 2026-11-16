@@ -456,6 +456,15 @@
 	opacity: .6;
 }
 
+/* A locked-but-checked box must still read as checked: the disabled rule paints
+   the wash surface, which makes a forced "save as new" look unticked. */
+.sakura-admin input[type="checkbox"]:checked:disabled,
+.sakura-admin input[type="radio"]:checked:disabled {
+	background: var(--g-select);
+	border-color: var(--g-select);
+	opacity: .75;
+}
+
 .sakura-admin .check {
 	display: flex;
 	align-items: flex-start;

@@ -26,12 +26,34 @@
 		} );
 	}
 
+	/*
+	 * Vendors append a tail that is identical for every bucket on the account, so
+	 * it says nothing about which bucket this is. Tencent COS names read
+	 * "<custom-name>-<10-digit APPID>"; keeping the APPID turns sakura-clover into
+	 * "sakura-c…4331" and drops the only informative part. Mirrors
+	 * Sakura\ImageOptimizer\S3\Bucket_Label::AUTO_SUFFIX so the chip and the
+	 * saved card agree.
+	 */
+	var BUCKET_AUTO_SUFFIX = {
+		tencent: /-\d{10}$/
+	};
+
+	function stripBucketSuffix( value, provider ) {
+		var pattern = BUCKET_AUTO_SUFFIX[ String( provider || '' ) ];
+		if ( ! pattern ) {
+			return value;
+		}
+
+		var stripped = value.replace( pattern, '' );
+		return stripped || value;
+	}
+
 	/**
 	 * Shorten a long bucket id the way the PHP side does, so the chip, the card
 	 * and the status line all read the same. Full value stays in title.
 	 */
-	function shortBucket( bucket ) {
-		var value = String( bucket === undefined || bucket === null ? '' : bucket );
+	function shortBucket( bucket, provider ) {
+		var value = stripBucketSuffix( String( bucket === undefined || bucket === null ? '' : bucket ), provider );
 		if ( value.length <= 22 ) {
 			return value;
 		}
@@ -480,7 +502,7 @@
 				 * Auto-generated names already end with the space, so skip the
 				 * second line instead of printing the same word twice.
 				 */
-				var metaText = profile.space || shortBucket( profile.bucket ) || profile.endpoint || '';
+				var metaText = profile.space || shortBucket( profile.bucket, profile.provider ) || profile.endpoint || '';
 				if ( metaText && name.textContent.indexOf( metaText ) === -1 ) {
 					var meta = document.createElement( 'span' );
 					meta.className = 'profile-chip__meta';

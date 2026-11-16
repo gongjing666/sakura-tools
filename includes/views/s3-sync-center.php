@@ -122,10 +122,11 @@ $scan_meta_text   = sprintf( /* translators: 1: scan time, 2: phase. */ __( '同
 
 $bucket         = (string) $options->get( 'bucket', '' );
 $space          = $options->space();
-// 页头、KPI 副行与健康表都用它：多吉云的 s3Bucket 有 40 位，读不出空间名。
-$bucket_display = '' !== $bucket ? Bucket_Label::display( $bucket, $space ) : '';
-$endpoint       = (string) $options->get( 'endpoint', '' );
 $provider       = (string) $options->get( 'provider', '' );
+// 页头、KPI 副行与健康表都用它：多吉云的 s3Bucket 有 40 位，读不出空间名；
+// 腾讯云的桶名尾巴是账号级 APPID，也要按厂商剥掉再缩写。
+$bucket_display = '' !== $bucket ? Bucket_Label::display( $bucket, $space, $provider ) : '';
+$endpoint       = (string) $options->get( 'endpoint', '' );
 $provider_label = Providers::all()[ $provider ] ?? $provider;
 $upload_path    = $options->upload_path();
 $upload_base    = isset( $uploads['baseurl'] ) ? (string) $uploads['baseurl'] : '';

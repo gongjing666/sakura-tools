@@ -350,7 +350,8 @@ class Options {
 	public static function default_profile_name( string $provider, string $bucket, string $space = '' ): string {
 		$label = Providers::all()[ $provider ] ?? $provider;
 		// 优先用控制台里那个名字：多吉云的 s3Bucket 是一串 40 位 id，看不出是哪个空间。
-		$shown = '' !== trim( $space ) ? trim( $space ) : $bucket;
+		// 没有空间名时用剥掉厂商尾巴的桶名，别把腾讯云的账号级 APPID 写进配置名。
+		$shown = '' !== trim( $space ) ? trim( $space ) : Bucket_Label::strip( $bucket, $provider );
 
 		return trim( $label . ( '' !== $shown ? ' · ' . $shown : '' ) );
 	}

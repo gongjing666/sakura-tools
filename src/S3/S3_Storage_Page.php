@@ -47,7 +47,8 @@ final class S3_Storage_Page {
 		$enabled          = $this->options->is_enabled();
 		$configured       = $this->options->is_configured();
 		// 状态卡显示空间名（多吉云 nboke），没有就用缩写；完整桶名进 title。
-		$status_value     = '' !== $bucket ? Bucket_Label::display( $bucket, $space ) : __( '未配置', 'sakura-imgopt' );
+		// 缩写要知道厂商：腾讯云的桶名尾巴是账号级 APPID，留着只剩数字。
+		$status_value     = '' !== $bucket ? Bucket_Label::display( $bucket, $space, (string) ( $options['provider'] ?? '' ) ) : __( '未配置', 'sakura-imgopt' );
 		$status_sub       = $provider_label . ' · ' . ( $enabled ? __( '已启用', 'sakura-imgopt' ) : __( '已停用', 'sakura-imgopt' ) );
 		$status_tone      = $configured ? ( $enabled ? 'ok' : 'warn' ) : 'bad';
 
@@ -239,7 +240,7 @@ final class S3_Storage_Page {
 							// 配置卡上显示空间名或缩写桶名，完整 s3Bucket 放 title。
 							$card_bucket = (string) ( $profile['bucket'] ?? '' );
 							$card_space  = (string) ( $profile['space'] ?? '' );
-							echo '<span class="profile-card__meta profile-card__meta--mono"' . ( '' !== $card_bucket ? ' title="' . esc_attr( $card_bucket ) . '"' : '' ) . '>' . esc_html( '' !== $card_bucket ? Bucket_Label::display( $card_bucket, $card_space ) : __( '未填写存储桶', 'sakura-imgopt' ) ) . '</span>';
+							echo '<span class="profile-card__meta profile-card__meta--mono"' . ( '' !== $card_bucket ? ' title="' . esc_attr( $card_bucket ) . '"' : '' ) . '>' . esc_html( '' !== $card_bucket ? Bucket_Label::display( $card_bucket, $card_space, (string) ( $profile['provider'] ?? '' ) ) : __( '未填写存储桶', 'sakura-imgopt' ) ) . '</span>';
 							echo '<span class="profile-card__meta profile-card__meta--mono">' . esc_html( '' !== (string) ( $profile['endpoint'] ?? '' ) ? (string) $profile['endpoint'] : __( '默认服务地址', 'sakura-imgopt' ) ) . '</span>';
 							if ( ! $complete ) {
 								echo '<span class="profile-card__warning">' . esc_html__( '配置不完整，补全后可切换', 'sakura-imgopt' ) . '</span>';

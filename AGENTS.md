@@ -131,7 +131,7 @@ git diff --check       # 行尾空白
 - **正式版本号只由开发者拍板**：他说「同步到 GitHub」才把 beta 收敛成正式号，默认在基准上 PATCH +1（`1.27.6` → `1.27.7`）；这批改动若含新功能或破坏兼容，按 `06-发布流程.md` §1 的语义走 MINOR/MAJOR，具体号以他确认为准。
 - **beta 号不要 push 到 `main`**：`release.yml` 在 push `main` 时触发，会给 `1.27.6-beta-1` 打 `v1.27.6-beta-1` tag 并发 Release（不标 prerelease）；生产的插件目录就是 `main` 的 checkout，push 等于上线。beta 号留在本地，发布时才换成正式号推。
 - **changelog 只在发布时写**：beta 期不动 `readme.txt` 的 changelog，发布时把整批改动合并成一条 `= 正式版本号 =`，免得 Release 正文抽到空的 beta 段落。
-- **纯文档改动不碰版本号**：只改 `.md`（`AGENTS.md`、`docs/**`、`README.md`、`CONTRIBUTING.md`）时三处版本号原样不动，既不写 beta 号也不写正式号，changelog 也不动；提交后直接 push `main` 同步 GitHub——`release.yml` 的 `paths` 只认 `sakura-tools.php`、`readme.txt`、`bin/build-plugin-zip.sh` 与自身，纯文档提交不会打包发版。详见 `06-发布流程.md` §1。
+- **纯文档改动不碰版本号**：只改 `.md`（`AGENTS.md`、`docs/**`、`README.md`、`CONTRIBUTING.md`）时三处版本号原样不动，既不写 beta 号也不写正式号，changelog 也不动，这一轮不跑测试（没有代码变化）；提交后直接 push `main` 同步 GitHub——`release.yml` 的 `paths` 只认 `sakura-tools.php`、`readme.txt`、`bin/build-plugin-zip.sh` 与自身，纯文档提交不会打包发版。详见 `06-发布流程.md` §1。
 - **beta 号在数据库看来是降级**：`Upgrade_Guard::needs_upgrade()`（`src/Upgrade_Guard.php:60`）用 `version_compare( $installed, $current, '<' )` 判断，`1.27.6-beta-1` 比 `1.27.6` 小——已经装过 1.27.6 的站点在 beta 期**不会**自动补建表 / option / cron。beta 里新增了这些，验证前先把 `sakura_imgopt_version` 删掉或改小。
 - 本地可以出 beta 包做验证：`bin/build-plugin-zip.sh --version 1.27.6-beta-1 --out dist`。
 - **不自行发版**：不加正式号、不 push `main`、不打 tag。
@@ -159,7 +159,7 @@ chown -R www:www .        # 部署后属主会被 git 改成 root，必须修回
 - 打包脚本用 `git archive` 只取**已跟踪文件**，然后删掉 `docs/`、`tests/`、`bin/`、`stubs/`、`.github/` 与各配置文件。`docs/` 下的文档不会进发布包，可以放心写细节；**但根目录新增的 `.md` 会进包**，要加进 `bin/build-plugin-zip.sh` 的 `rm -f` 列表。
 - `.agents/worktrees/` 下可能有多份工作副本（未被 git 跟踪），改之前确认自己在哪个分支，别改错副本。
 - 本地实验站：`/root/sio-e2e/site`（`php -S 127.0.0.1:18080`，域名 demo.77il.cn），装的是同一插件的实体副本，不是符号链接，**同步时要整目录拷**。
-- **插件整体不进环境测试。** 不把插件装进任何站点（本地实验站 `/root/sio-e2e/site`、生产站、别的环境）去验证，也不要为了「看一眼」把目录拷过去；改完的验证就是 §4 的静态三关（外加 `php -l` / `node --check` / `git diff --check`）。需要真机看的（第 10 条的 1440/390、保存与弹窗回流、console）写在交付说明里，由开发者自己跑；他明确要求时才接手，且只在他指定的环境做。详见 `05-测试与质量.md` §6。
+- **代码改动要测，纯文档改动不测。** 改 PHP / JS / CSS 必须跑完 §4 的静态三关（外加 `php -l` / `node --check` / `git diff --check`）；需要真实 WordPress 才看得出的验证（第 10 条的 1440/390、保存与弹窗回流、console）跑在**开发者指定的环境**，他没指定就不要自行部署到实验站或生产站，只把要看的点写进交付说明。**只改 `.md` 的整轮不测**，也不动版本号，直接 push `main`。详见 `05-测试与质量.md` §6。
 - 生产站 `/www/wwwroot/www.nboke.com`，DB 前缀 `nb_`；主题是子比（zibll），部分后台能力与它耦合（`Zibll_Bridge`）。
 
 ## 7. 文档怎么维护

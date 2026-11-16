@@ -155,7 +155,7 @@ final class History_Migrator {
 			// silently skipping everything below the old cursor.
 			$target = \Sakura\ImageOptimizer\S3\Synchronous_Uploader::target_hash_for( $this->options );
 
-			if ( '' !== $target && $target !== (string) $state['target_hash'] ) {
+			if ( '' !== $target && ! Synchronous_Uploader::target_matches( (string) $state['target_hash'], $this->options ) ) {
 				$state                = self::defaults();
 				$state['target_hash'] = $target;
 			}

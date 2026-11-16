@@ -45,6 +45,24 @@ final class StorageUrlGateTest extends TestCase {
 		$this->assertSame( $url, Storage::map_cdn_to_local( $url, 'https://cdn.example.com', '' ) );
 	}
 
+	public function test_maps_local_prefix_to_cdn(): void {
+		$this->assertSame(
+			'https://doge.example.com/wp-content/uploads/2026/11/a.webp',
+			Storage::map_local_to_cdn(
+				'https://www.example.com/wp-content/uploads/2026/11/a.webp',
+				'https://www.example.com/wp-content/uploads',
+				'https://doge.example.com/wp-content/uploads'
+			)
+		);
+	}
+
+	public function test_local_to_cdn_ignores_urls_already_on_the_cdn(): void {
+		$url = 'https://doge.example.com/wp-content/uploads/2026/11/a.webp';
+		$this->assertSame( $url, Storage::map_local_to_cdn( $url, 'https://www.example.com/wp-content/uploads', 'https://doge.example.com/wp-content/uploads' ) );
+		$this->assertSame( $url, Storage::map_local_to_cdn( $url, '', 'https://doge.example.com' ) );
+		$this->assertSame( $url, Storage::map_local_to_cdn( $url, 'https://www.example.com/wp-content/uploads', '' ) );
+	}
+
 	public function test_unknown_status_keeps_cdn_url(): void {
 		$this->assertFalse( Storage::should_keep_local( '', true ) );
 	}

@@ -669,9 +669,12 @@ final class Storage implements Module {
 		$status = (string) $this->status->status( $id );
 		$target_match = null;
 		if ( Sync_Status::SYNCED === $status ) {
+			// Two saved profiles that point at the same bucket are the same
+			// destination: switching between them must not send every attachment
+			// back to the local URL. target_hashes_for() also accepts the
+			// fingerprints written before the profile row id left the algorithm.
 			$stored_target = $this->status->target_hash( $id );
-			$current_target = Synchronous_Uploader::target_hash_for( $this->options );
-			$target_match = '' !== $stored_target && '' !== $current_target && hash_equals( $stored_target, $current_target );
+			$target_match  = Synchronous_Uploader::target_matches( $stored_target, $this->options );
 		}
 		if ( ! self::should_keep_local( $status, $has, $target_match ) ) {
 			return $url;
@@ -715,6 +718,26 @@ final class Storage implements Module {
 			return $url;
 		}
 		return $local . substr( $url, strlen( $cdn ) );
+	}
+
+	/**
+	 * Swap the local uploads base for the CDN base, leaving the path untouched.
+	 *
+	 * The provider's image processor only exists on the media host, so a URL
+	 * that still points at the site has to move there before it is probed.
+	 *
+	 * @param string $url        Attachment URL.
+	 * @param string $local_base Local uploads URL base.
+	 * @param string $cdn_base   Configured upload_url_path.
+	 * @return string
+	 */
+	public static function map_local_to_cdn( string $url, string $local_base, string $cdn_base ): string {
+		$cdn   = untrailingslashit( $cdn_base );
+		$local = untrailingslashit( $local_base );
+		if ( '' === $cdn || '' === $local || 0 !== strpos( $url, $local ) ) {
+			return $url;
+		}
+		return $cdn . substr( $url, strlen( $local ) );
 	}
 
 	/**

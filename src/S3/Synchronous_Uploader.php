@@ -221,7 +221,9 @@ final class Synchronous_Uploader {
 		$versions     = $this->versions( $manifest );
 		$target_hash  = $this->target_hash();
 		$stored_target = $this->status->target_hash( $attachment_id );
-		$target_match = '' !== $stored_target && '' !== $target_hash && hash_equals( $stored_target, $target_hash );
+		// A row created under a different profile that points at this same bucket
+		// still counts as confirmed; see target_hashes_for().
+		$target_match = self::target_matches( $stored_target, $this->options );
 		if ( Sync_Status::SYNCED === $this->status->status( $attachment_id ) && $this->status->versions( $attachment_id ) === $versions && $target_match ) {
 			// The object set is already confirmed. The intermediate pass may
 			// have marked it synced before sub-size generation finished, so the
@@ -477,23 +479,84 @@ final class Synchronous_Uploader {
 	 * Stored with every queued manual action so a later settings switch cannot
 	 * redirect that action into a different bucket.
 	 *
+	 * The identity is the destination - provider, bucket, endpoint and object
+	 * prefix - and deliberately not the profile row id. Two saved profiles that
+	 * point at the same bucket are the same target; binding the row id made a
+	 * switch between them look like a bucket change, which reverted every synced
+	 * attachment to the local URL and re-queued uploads that were confirmed.
+	 *
 	 * This is deliberately not the same fingerprint as Delete_Jobs::target_hash():
-	 * uploads bind the active profile id and upload_path as well, while deletes
-	 * bind the bucket identity including the region. The two are never compared
-	 * with each other; changing either algorithm invalidates hashes already
-	 * stored in post meta, sio_sync_jobs and sio_s3_deletes.
+	 * uploads bind the upload_path as well, while deletes bind the bucket
+	 * identity including the region. The two are never compared with each
+	 * other; changing either algorithm invalidates hashes already stored in
+	 * post meta, sio_sync_jobs and sio_s3_deletes.
 	 *
 	 * @param Options $options Options snapshot.
 	 */
 	public static function target_hash_for( Options $options ): string {
 		$parts = array(
-			$options->active_profile_id(),
+			'v2',
 			(string) $options->get( 'provider', '' ),
 			(string) $options->get( 'bucket', '' ),
 			(string) $options->get( 'endpoint', '' ),
 			(string) $options->get( 'upload_path', '' ),
 		);
 		return hash( 'sha256', implode( '|', $parts ) );
+	}
+
+	/**
+	 * Every fingerprint that still describes the bucket the options point at.
+	 *
+	 * The current identity first, then the legacy form for each profile row the
+	 * site knows about: hashes written before the row id was dropped bind one
+	 * specific row, so that row has to stay acceptable without rewriting the
+	 * post meta of every attachment on the site.
+	 *
+	 * @param Options $options    Options snapshot.
+	 * @param string  $profile_id Extra row id to accept (queue row snapshot).
+	 * @return array<int,string>
+	 */
+	public static function target_hashes_for( Options $options, string $profile_id = '' ): array {
+		$base = array(
+			(string) $options->get( 'provider', '' ),
+			(string) $options->get( 'bucket', '' ),
+			(string) $options->get( 'endpoint', '' ),
+			(string) $options->get( 'upload_path', '' ),
+		);
+
+		$ids = array_map( 'strval', array_keys( $options->profiles() ) );
+		if ( '' !== $profile_id ) {
+			$ids[] = $profile_id;
+		}
+		$active = $options->active_profile_id();
+		if ( '' !== $active ) {
+			$ids[] = $active;
+		}
+
+		$hashes = array( hash( 'sha256', implode( '|', array_merge( array( 'v2' ), $base ) ) ) );
+		foreach ( array_unique( $ids ) as $id ) {
+			if ( '' === $id ) {
+				continue;
+			}
+			$hashes[] = hash( 'sha256', implode( '|', array_merge( array( $id ), $base ) ) );
+		}
+
+		return array_values( array_unique( $hashes ) );
+	}
+
+	/**
+	 * Whether a stored fingerprint still describes the options' bucket.
+	 *
+	 * @param string  $stored     Fingerprint from post meta or a queue row.
+	 * @param Options $options    Options snapshot.
+	 * @param string  $profile_id Extra row id to accept.
+	 */
+	public static function target_matches( string $stored, Options $options, string $profile_id = '' ): bool {
+		if ( '' === $stored ) {
+			return false;
+		}
+
+		return in_array( $stored, self::target_hashes_for( $options, $profile_id ), true );
 	}
 
 	/**

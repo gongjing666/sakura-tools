@@ -99,7 +99,7 @@ final class Action_Worker implements Module {
 			$resolved = $this->resolve( $profile );
 			if ( is_wp_error( $resolved ) ) {
 				$result = $resolved;
-			} elseif ( '' !== $target && ! hash_equals( $target, Synchronous_Uploader::target_hash_for( $resolved['options'] ) ) ) {
+			} elseif ( '' !== $target && ! Synchronous_Uploader::target_matches( $target, $resolved['options'], $profile ) ) {
 				$result = new \WP_Error( 'sio_job_target_changed', __( '排队后存储目标已变更，已停止该动作，请重新发起。', 'sakura-imgopt' ) );
 			} else {
 				try {
@@ -144,7 +144,7 @@ final class Action_Worker implements Module {
 				continue;
 			}
 			$this->index->apply_action( $profile, $key, $action );
-			$this->write_back( $attachment_id, $key, $action, $resolved, $target );
+			$this->write_back( $attachment_id, $key, $action, $resolved, $target, $profile );
 			Metrics::bump( array( 'actions_ok' => 1 ) );
 			$this->index->event( $profile, 'info', 'action_ok', sprintf( /* translators: 1: action, 2: object key. */ __( '队列动作 %1$s 完成：%2$s', 'sakura-imgopt' ), $action, $key ), array( 'job' => $job_id ) );
 		}
@@ -203,9 +203,10 @@ final class Action_Worker implements Module {
 	 * @param string              $action        Action.
 	 * @param array<string,mixed> $resolved      Resolved options/adapter.
 	 * @param string              $job_target    Target captured when queued.
+	 * @param string              $profile_id    Profile the row belongs to.
 	 * @return void
 	 */
-	public function write_back( int $attachment_id, string $key, string $action, $resolved, string $job_target = '' ): void {
+	public function write_back( int $attachment_id, string $key, string $action, $resolved, string $job_target = '', string $profile_id = '' ): void {
 		if ( $attachment_id <= 0 || ! is_array( $resolved ) ) {
 			return;
 		}
@@ -228,7 +229,10 @@ final class Action_Worker implements Module {
 			}
 			$status->set_versions( $attachment_id, $versions );
 			$resolved_target = Synchronous_Uploader::target_hash_for( $resolved['options'] );
-			if ( '' !== $job_target && ! hash_equals( $job_target, $resolved_target ) ) {
+			// A row queued before the fingerprint dropped the profile row id still
+			// points at this same bucket, so it may finish and re-stamp the
+			// attachment with the current form.
+			if ( '' !== $job_target && ! Synchronous_Uploader::target_matches( $job_target, $resolved['options'], $profile_id ) ) {
 				return;
 			}
 			$status->mark_synced( $attachment_id, $resolved_target );

@@ -305,6 +305,66 @@ final class Probe {
 	}
 
 	/**
+	 * Local and media URL bases for the configured bucket.
+	 *
+	 * The provider's image processor only lives on the media host: a style suffix
+	 * such as /siothumb answers 404 on the site domain and 200 on the bucket
+	 * domain. Probing the URL WordPress hands out therefore tested the wrong
+	 * host - and, with local uploads intact, that URL is the site's.
+	 *
+	 * @return array{local:string,cdn:string}
+	 */
+	private function media_base(): array {
+		$config = Settings::s3_config();
+		$cdn    = trim( $config['upload_url_path'] );
+		if ( '' === $cdn || ! class_exists( '\Sakura\ImageOptimizer\S3\Storage' ) ) {
+			return array(
+				'local' => '',
+				'cdn'   => '',
+			);
+		}
+
+		return array(
+			'local' => \Sakura\ImageOptimizer\S3\Storage::local_upload_base_url(),
+			'cdn'   => $cdn,
+		);
+	}
+
+	/**
+	 * Move an attachment URL onto the media host, leaving CDN URLs untouched.
+	 *
+	 * @param string $url        Attachment URL.
+	 * @param string $local_base Local uploads URL base.
+	 * @param string $cdn_base   Configured media URL base.
+	 */
+	private function on_media_host( string $url, string $local_base, string $cdn_base ): string {
+		if ( '' === $local_base || '' === $cdn_base ) {
+			return $url;
+		}
+
+		return \Sakura\ImageOptimizer\S3\Storage::map_local_to_cdn( $url, $local_base, $cdn_base );
+	}
+
+	/**
+	 * Whether an attachment is confirmed to be in the bucket.
+	 *
+	 * Sampling an attachment that is not uploaded yet answers 404 on the media
+	 * host, which the probe would report as a blocked style: a false negative
+	 * caused purely by the choice of sample.
+	 *
+	 * @param int $attachment_id Attachment id.
+	 */
+	private function in_bucket( int $attachment_id ): bool {
+		if ( ! class_exists( '\Sakura\ImageOptimizer\S3\Sync_Status' ) ) {
+			return false;
+		}
+
+		$status = new \Sakura\ImageOptimizer\S3\Sync_Status();
+
+		return \Sakura\ImageOptimizer\S3\Sync_Status::SYNCED === $status->status( $attachment_id );
+	}
+
+	/**
 	 * Find a real image attachment wider than the box the probe will request.
 	 *
 	 * A sample smaller than the requested width cannot demonstrate anything:
@@ -334,37 +394,47 @@ final class Probe {
 		);
 
 		$fallback = null;
+		$media    = $this->media_base();
 
-		foreach ( (array) $ids as $id ) {
-			$url = wp_get_attachment_url( (int) $id );
-			if ( ! is_string( $url ) || '' === $url ) {
-				continue;
-			}
-			$path = (string) wp_parse_url( $url, PHP_URL_PATH );
-			if ( ! preg_match( '/\.(jpe?g|png|webp|avif)$/i', $path ) ) {
-				continue;
-			}
-			$width  = 0;
-			$height = 0;
-			if ( function_exists( 'wp_get_attachment_metadata' ) ) {
-				$meta = wp_get_attachment_metadata( (int) $id );
-				if ( is_array( $meta ) ) {
-					$width  = (int) ( $meta['width'] ?? 0 );
-					$height = (int) ( $meta['height'] ?? 0 );
+		// An attachment that is not in the bucket yet answers 404 on the media
+		// host, which would be reported as a blocked style. Confirmed uploads first,
+		// everything else only if the library has nothing confirmed.
+		foreach ( array( true, false ) as $want_in_bucket ) {
+			foreach ( (array) $ids as $id ) {
+				if ( $this->in_bucket( (int) $id ) !== $want_in_bucket ) {
+					continue;
 				}
-			}
+				$url = wp_get_attachment_url( (int) $id );
+				if ( ! is_string( $url ) || '' === $url ) {
+					continue;
+				}
+				$url  = $this->on_media_host( $url, $media['local'], $media['cdn'] );
+				$path = (string) wp_parse_url( $url, PHP_URL_PATH );
+				if ( ! preg_match( '/\.(jpe?g|png|webp|avif)$/i', $path ) ) {
+					continue;
+				}
+				$width  = 0;
+				$height = 0;
+				if ( function_exists( 'wp_get_attachment_metadata' ) ) {
+					$meta = wp_get_attachment_metadata( (int) $id );
+					if ( is_array( $meta ) ) {
+						$width  = (int) ( $meta['width'] ?? 0 );
+						$height = (int) ( $meta['height'] ?? 0 );
+					}
+				}
 
-			if ( $min_width <= 0 || $width > $min_width ) {
-				return array( $url, $width, $height );
-			}
+				if ( $min_width <= 0 || $width > $min_width ) {
+					return array( $url, $width, $height );
+				}
 
-			if ( null === $fallback ) {
-				$fallback = array( $url, $width, $height );
+				if ( null === $fallback ) {
+					$fallback = array( $url, $width, $height );
+				}
 			}
 		}
 
 		// Every candidate is smaller than the requested box: the probe will report
-			// that it could not observe a shrink, which is the honest answer.
+		// that it could not observe a shrink, which is the honest answer.
 		return $fallback;
 	}
 

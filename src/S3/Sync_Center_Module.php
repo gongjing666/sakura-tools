@@ -1027,7 +1027,8 @@ final class Sync_Center_Module implements Module {
 					$key,
 					'upload',
 					array( 'options' => $this->options, 'adapter' => $this->adapter ),
-					\Sakura\ImageOptimizer\S3\Synchronous_Uploader::target_hash_for( $this->options )
+					\Sakura\ImageOptimizer\S3\Synchronous_Uploader::target_hash_for( $this->options ),
+					$profile
 				);
 			}
 		}
@@ -1569,13 +1570,18 @@ final class Sync_Center_Module implements Module {
 
 		$url = '';
 		if ( in_array( $kind, array( 'image', 'video' ), true ) ) {
-			if ( $local ) {
+			// A confirmed public object is served from the bucket, so the preview has
+			// to show the CDN address the media library hands out. Falling back to
+			// the local copy first hid a working CDN behind the site domain and made
+			// the row look unsynced after a profile switch.
+			if ( $cloud && $is_public && '' !== $cloud_base && 'synced' === $status ) {
+				$url = $this->cloud_media_url( $key, $upload_path, $cloud_base );
+			}
+			if ( '' === $url && $local ) {
 				$url = $this->local_media_url( $key, $upload_path, $local_base );
 			}
 			if ( '' === $url && $cloud ) {
-				$url = ( $is_public && '' !== $cloud_base )
-					? $this->cloud_media_url( $key, $upload_path, $cloud_base )
-					: $this->adapter->presigned_url( $key, '+1 hour', '', $mime );
+				$url = $this->adapter->presigned_url( $key, '+1 hour', '', $mime );
 			}
 		}
 

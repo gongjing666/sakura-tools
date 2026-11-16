@@ -98,6 +98,29 @@ final class SyncStatusTest extends TestCase {
 		$this->assertSame( '', $status->target_hash( 14 ) );
 	}
 
+	public function test_retarget_only_rewrites_the_fingerprint(): void {
+		$status = new Sync_Status();
+		$status->mark_synced( 16, 'target-a' );
+		$GLOBALS['sakura_test_post_meta'][16][ Sync_Status::SYNCED_META ] = 1700000000;
+
+		$status->retarget( 16, 'target-b' );
+
+		$this->assertSame( 'target-b', $status->target_hash( 16 ) );
+		$this->assertSame( Sync_Status::SYNCED, $status->status( 16 ) );
+		$this->assertSame( 1700000000, (int) get_post_meta( 16, Sync_Status::SYNCED_META, true ) );
+	}
+
+	public function test_retarget_ignores_empty_fingerprints_and_invalid_ids(): void {
+		$status = new Sync_Status();
+		$status->mark_synced( 17, 'target-a' );
+
+		$status->retarget( 17, '' );
+		$status->retarget( 0, 'target-b' );
+
+		$this->assertSame( 'target-a', $status->target_hash( 17 ) );
+		$this->assertSame( '', $status->target_hash( 0 ) );
+	}
+
 	public function test_removed_object_marks_existing_attachment_failed(): void {
 		$GLOBALS['sakura_test_posts'][ 15 ] = (object) array( 'ID' => 15 );
 		$status = new Sync_Status();

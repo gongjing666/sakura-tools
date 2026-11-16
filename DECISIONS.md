@@ -585,3 +585,22 @@ body.upload-php.sufm-tree-active.folded { --sufm-tree-left: 56px; }
 **已知边界**：别名表只覆盖「当前站点还知道 id」的配置行。队列行里记录的 profile 已从 `s3_options.profiles` 删除时，靠 `target_matches()` 的第三个参数（队列行自己的 profile id）兜住；两者都拿不到时按换目标处理，宁可停止动作也不写错桶。
 
 **维护动作**：改 `target_hash_for()` 的字段集合必须同时改 `target_hashes_for()` 的旧别名构造，并跑 `tests/TargetFingerprintTest.php`（6 条）与 `tests/StorageUrlGateTest.php`（含 `map_local_to_cdn` 两条）。
+
+## 换桶后 URL 用同步索引自愈，指纹纠正不重启同步时钟（1.28.1-beta-6，2026-11-17）
+
+**背景**：从腾讯云切到缤纷云（真正的换桶）后，130 张已同步附件的地址全部退回站点域名，而不是 `bf.nboke.com`。上一版（beta-5）只解决了「同一个桶存成两条配置」，换桶这一步仍然按「不是同一目标」把 URL 拉回本地。
+
+**根因**：`Storage::revert_unsynced_url()`（`src/S3/Storage.php:660`）只相信附件 post meta 里的目标指纹（`_sakura_imgopt_s3_target`）。换桶后指纹必然不匹配，于是 `should_keep_local()` 判定回退；而切换配置（`Profile_Manager::switch_profile()`）根本不碰 post meta，所以没有任何路径把指纹改写成新的，URL 永远不会自愈。生产实测证明对象其实已经在缤纷云桶里：`nb_sio_sync_index` 中 130 行对该 profile 全部 `status=synced`、`seen_local=1`、`seen_remote=1`、`local_size=remote_size`，抽查 10 个 key 两个 CDN 都返回 200。
+
+**决策**：
+
+1. **指纹不匹配时用同步索引作证据，而不是直接回退本地**。`confirmed_in_active_bucket()`（`:711`）先走 `target_matches()` 快路径（同桶别名，零查询）；不命中且附件有本地文件时才进 `index_confirms()`（`:742`）：把该附件 `_sakura_imgopt_s3_objects` 记录的每个 key，到 `nb_sio_sync_index` 里按当前活动 profile 查行，任何一行不是 `synced` 就判不确认，全部是 `synced` 才认为对象确实已经在新桶，保留 CDN 地址。
+2. **`status='synced'` 这一条就够，不再自己比大小**。`Index_Repository::reconcile()`（`src/Sync/Index_Repository.php:858`）的 UPDATE 已经保证 `synced` 蕴含 `seen_local=1 AND seen_remote=1 AND local_size=remote_size`；重复判断只会引入两套口径。
+3. **确认后一次性改写指纹，把慢路径收敛回快路径**。`Sync_Status::retarget()`（`src/S3/Sync_Status.php:95`）只写 `_sakura_imgopt_s3_target`，**不动 `_sakura_imgopt_s3_synced_at`**。不能用 `mark_synced()`（`:69`）：它会刷新同步时间，界面会显示成「刚刚重新上传过」，而实际上一个字节都没上传。改写之后 `wp_get_attachment_url` 回到纯 post meta 判断，不再查库。
+4. **每请求缓存 miss 与 hit 两种结论**。`Storage::$index_confirmed` 保证一张附件在一个请求里最多查一次索引；命中后因为指纹已改写，下一个请求走快路径。
+5. **开关与未装索引都退回旧行为**。`Sync\Feature::enabled()` 为假（同步索引被关闭）、或 `Sync\Schema::VERSION` 与 `sakura_imgopt_sync_schema` 不一致（表没建）时 `index_confirms()` 直接返回 false，行为与 beta-5 完全一致：换桶即回退本地域名。宁可显示站点域名，也不要在没有证据时把 URL 指向可能不存在的对象。
+6. **对象 key 允许多种写法**。`key_candidates()`（`:802`）接受完整对象键、去掉 `ABSPATH` 的相对路径、补上 `upload_path` 前缀的写法，因为历史数据里 `_sakura_imgopt_s3_objects` 三种形态都出现过。生产现存的是完整对象键。
+
+**已知边界**：索引只能证明「扫描看到的云端对象」，不能证明对象可公开读取；CDN 域名本身是否可用仍由 `Probe` 那一侧验证。索引被 `Settings_Saver` 在换桶保存时 `purge_index()` 清空后，在下次扫描完成前，URL 会退回站点域名——这是有意的降级，不是回归。
+
+**维护动作**：改索引判定必须同时跑 `tests/StorageBucketSwitchTest.php`（11 条，含「指纹改写后同步时间不变」「索引缺证据时回退本地」「索引功能关闭时回退本地」「索引未安装时不查库」）与 `tests/StorageUrlGateTest.php`（11 条）、`tests/SyncStatusTest.php`（11 条，含 `retarget()` 不刷新时间）。

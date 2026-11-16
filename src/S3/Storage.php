@@ -12,7 +12,9 @@ namespace Sakura\ImageOptimizer\S3;
 use Sakura\ImageOptimizer\Contracts\Module;
 use Sakura\ImageOptimizer\Support\Hook_Loader;
 use Sakura\ImageOptimizer\Sync\Action_Worker;
+use Sakura\ImageOptimizer\Sync\Feature;
 use Sakura\ImageOptimizer\Sync\Index_Repository;
+use Sakura\ImageOptimizer\Sync\Schema;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -83,6 +85,16 @@ final class Storage implements Module {
 	 * @var Delete_Jobs
 	 */
 	private Delete_Jobs $deletes;
+
+	/**
+	 * Per-request answers from the sync index about the active bucket.
+	 *
+	 * A confirmed attachment has its fingerprint rewritten, so only a miss can
+	 * repeat: caching it keeps one attachment at one lookup per request.
+	 *
+	 * @var array<int,bool>
+	 */
+	private array $index_confirmed = array();
 
 	/**
 	 * Constructor.
@@ -664,23 +676,146 @@ final class Storage implements Module {
 
 		// Never point at a missing local file: media uploaded with
 		// no_local_saving keeps working through the CDN only.
-		$file = get_attached_file( $id );
-		$has  = is_string( $file ) && '' !== $file && is_file( $file );
+		$file   = get_attached_file( $id );
+		$has    = is_string( $file ) && '' !== $file && is_file( $file );
 		$status = (string) $this->status->status( $id );
+
+		// Only a synced attachment with a local copy can fall back to the local
+		// host, so only that case is worth confirming; it is the single question
+		// that decides whether a bucket switch breaks every URL.
 		$target_match = null;
-		if ( Sync_Status::SYNCED === $status ) {
-			// Two saved profiles that point at the same bucket are the same
-			// destination: switching between them must not send every attachment
-			// back to the local URL. target_hashes_for() also accepts the
-			// fingerprints written before the profile row id left the algorithm.
-			$stored_target = $this->status->target_hash( $id );
-			$target_match  = Synchronous_Uploader::target_matches( $stored_target, $this->options );
+		if ( Sync_Status::SYNCED === $status && $has ) {
+			$target_match = $this->confirmed_in_active_bucket( $id );
 		}
 		if ( ! self::should_keep_local( $status, $has, $target_match ) ) {
 			return $url;
 		}
 
 		return self::map_cdn_to_local( $url, $cdn, self::local_upload_base_url( $this->options ) );
+	}
+
+	/**
+	 * Whether the active bucket really holds this attachment's objects now.
+	 *
+	 * The fingerprint in post meta records which destination produced the
+	 * current object set, so a plain bucket switch makes every attachment look
+	 * unconfirmed and sends its URL back to the local host. The sync index knows
+	 * better: when a scan saw every recorded key in the active bucket with
+	 * matching sizes, the objects are there and the attachment can stay on the
+	 * CDN. The fingerprint is then rewritten once, so later requests answer from
+	 * post meta alone.
+	 *
+	 * @param int $attachment_id Attachment ID.
+	 * @return bool True when the current bucket is a valid target.
+	 */
+	private function confirmed_in_active_bucket( int $attachment_id ): bool {
+		$stored = $this->status->target_hash( $attachment_id );
+		if ( Synchronous_Uploader::target_matches( $stored, $this->options ) ) {
+			return true;
+		}
+		if ( ! Feature::enabled() ) {
+			return false;
+		}
+		if ( isset( $this->index_confirmed[ $attachment_id ] ) ) {
+			return $this->index_confirmed[ $attachment_id ];
+		}
+
+		$confirmed = $this->index_confirms( $attachment_id );
+		if ( $confirmed ) {
+			$this->status->retarget( $attachment_id, $this->uploader->target_hash() );
+		}
+
+		$this->index_confirmed[ $attachment_id ] = $confirmed;
+
+		return $confirmed;
+	}
+
+	/**
+	 * Ask the sync index whether every recorded key is in the active bucket.
+	 *
+	 * A row reports the synced state only after a scan saw the object locally
+	 * and in the bucket with the same size, so one agreement per key is enough.
+	 *
+	 * @param int $attachment_id Attachment ID.
+	 * @return bool
+	 */
+	private function index_confirms( int $attachment_id ): bool {
+		$keys    = Restore_Plan::normalize( $this->status->objects( $attachment_id ) );
+		$profile = (string) $this->options->active_profile_id();
+		$path    = (string) $this->options->get( 'upload_path', '' );
+
+		if ( ! $keys || '' === $profile ) {
+			return false;
+		}
+
+		// Without the schema option the index tables were never installed, and
+		// querying them would be a wasted, failing round trip per attachment.
+		if ( Schema::VERSION !== (string) get_option( Schema::OPTION, '' ) ) {
+			return false;
+		}
+
+		$prefix = '' === $path || '.' === $path ? '' : untrailingslashit( ltrim( wp_normalize_path( $path ), '/' ) );
+		$index  = new Index_Repository();
+
+		foreach ( $keys as $key ) {
+			if ( ! $this->index_has_key( $index, $profile, (string) $key, $prefix ) ) {
+				return false;
+			}
+		}
+
+		return true;
+	}
+
+	/**
+	 * Whether the index reports one recorded key as synced in this bucket.
+	 *
+	 * Recorded keys are usually the object key itself, but an install that
+	 * scanned while uploads lived at the site root wrote them relative to the
+	 * uploads directory, and a path rebuilt from disk can be absolute. Every
+	 * form is tried before answering no, so a key written by any generation of
+	 * the plugin still resolves to its row.
+	 *
+	 * @param Index_Repository $index   Repository to query.
+	 * @param string           $profile Active profile.
+	 * @param string           $key     Recorded key or path.
+	 * @param string           $prefix  Normalized upload path, empty at the root.
+	 * @return bool
+	 */
+	private function index_has_key( Index_Repository $index, string $profile, string $key, string $prefix ): bool {
+		foreach ( self::key_candidates( $key, $prefix ) as $candidate ) {
+			$row = $index->find( $profile, $candidate );
+			if ( is_array( $row ) && Sync_Status::SYNCED === (string) ( $row['status'] ?? '' ) ) {
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	/**
+	 * Object keys one recorded key may correspond to.
+	 *
+	 * @param string $key    Recorded key or path.
+	 * @param string $prefix Normalized upload path, empty when uploads go to the root.
+	 * @return array<int,string>
+	 */
+	private static function key_candidates( string $key, string $prefix ): array {
+		$key        = ltrim( wp_normalize_path( trim( $key ) ), '/' );
+		$root       = ltrim( untrailingslashit( wp_normalize_path( ABSPATH ) ), '/' );
+		$candidates = array( $key );
+
+		if ( '' !== $root && 0 === strpos( $key, $root . '/' ) ) {
+			$candidates[] = ltrim( substr( $key, strlen( $root ) ), '/' );
+		}
+
+		foreach ( $candidates as $candidate ) {
+			if ( '' === $prefix || 0 === strpos( $candidate, $prefix . '/' ) ) {
+				continue;
+			}
+			$candidates[] = $prefix . '/' . $candidate;
+		}
+
+		return array_values( array_unique( $candidates ) );
 	}
 
 	/**

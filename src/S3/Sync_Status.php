@@ -82,6 +82,24 @@ final class Sync_Status {
 	}
 
 	/**
+	 * Rewrite only the target fingerprint of an attachment already synced.
+	 *
+	 * A bucket switch makes every stored fingerprint name the previous
+	 * destination, but the objects themselves may already sit in the new one.
+	 * Correcting the fingerprint must not touch the sync time: nothing was
+	 * uploaded again, so refreshing it would fake a fresh sync in the UI.
+	 *
+	 * @param int    $attachment_id Attachment ID.
+	 * @param string $target_hash   Provider/endpoint/bucket/prefix fingerprint.
+	 */
+	public function retarget( int $attachment_id, string $target_hash ): void {
+		if ( $attachment_id <= 0 || '' === $target_hash ) {
+			return;
+		}
+		update_post_meta( $attachment_id, self::TARGET_META, $target_hash );
+	}
+
+	/**
 	 * Target fingerprint stored with the last successful object set.
 	 *
 	 * @param int $attachment_id Attachment ID.

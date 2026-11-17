@@ -89,13 +89,57 @@ final class Sync_Actions {
 
 			// A restored object without an attachment row would be invisible in
 			// the media library; adopt it so the two views agree.
-			$adopter = new \Sakura\ImageOptimizer\Sync\Attachment_Adopter();
+			$adopter       = new \Sakura\ImageOptimizer\Sync\Attachment_Adopter();
+			$attachment_id = 0;
 			if ( $adopter->can_adopt( $key ) ) {
-				$adopter->adopt( $key, get_current_user_id() );
+				$adopted = $adopter->adopt( $key, get_current_user_id() );
+				if ( ! is_wp_error( $adopted ) ) {
+					$attachment_id = (int) $adopted;
+				}
 			}
+			if ( $attachment_id <= 0 ) {
+				$attachment_id = (int) $this->adapter->attachment_id_for_key( $key );
+			}
+			$this->mark_downloaded( $attachment_id, $key );
 		}
 
 		return $result;
+	}
+
+	/**
+	 * Mirror a finished download into attachment sync state.
+	 *
+	 * `add_attachment` marks every new row pending, and the adopted row skips
+	 * finalize, so a restored attachment would stay pending forever: the URL
+	 * filter then falls back to the local uploads URL even though the object is
+	 * sitting in the active bucket. The bookkeeping itself lives in
+	 * Action_Worker::write_back() so the inline and queued paths stamp exactly
+	 * the same meta.
+	 *
+	 * @param int    $attachment_id Attachment id (0 when unknown).
+	 * @param string $key           Object key that was just restored.
+	 * @return void
+	 */
+	private function mark_downloaded( int $attachment_id, string $key ): void {
+		if ( $attachment_id <= 0 ) {
+			return;
+		}
+
+		( new \Sakura\ImageOptimizer\Sync\Action_Worker(
+			$this->options,
+			$this->adapter,
+			new \Sakura\ImageOptimizer\Sync\Index_Repository()
+		) )->write_back(
+			$attachment_id,
+			$key,
+			'download',
+			array(
+				'options' => $this->options,
+				'adapter' => $this->adapter,
+			),
+			Synchronous_Uploader::target_hash_for( $this->options ),
+			$this->options->active_profile_id()
+		);
 	}
 
 	/**

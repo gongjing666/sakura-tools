@@ -215,7 +215,10 @@ final class Action_Worker implements Module {
 			$status->mark_object_removed( $attachment_id, $key );
 			return;
 		}
-		if ( 'upload' !== $action ) {
+		// Upload and download rebuild the same bookkeeping: the manifest lists
+		// what is on disk, and a restored key is known to sit in this bucket
+		// because it was just read from it.
+		if ( 'upload' !== $action && 'download' !== $action ) {
 			return;
 		}
 		$status->record_object( $attachment_id, $key );

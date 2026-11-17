@@ -4,7 +4,7 @@ Tags: image optimization, webp, avif, imagick, media library
 Requires at least: 6.4
 Tested up to: 7.1.4
 Requires PHP: 8.2
-Stable tag: 1.29.0
+Stable tag: 1.28.2
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -80,7 +80,7 @@ Access Key 和 Secret 会加密后存进数据库，页面和源码都不会显�
 
 == Changelog ==
 
-= 1.29.0 =
+= 1.28.2 =
 
 * 修复：**切换存储服务商时不再覆盖原配置**。连接设置卡隐藏提交的 profile_id 是当前活动配置，服务端只判断「另存为新配置 / id 为空 / id 不存在」三件事，没有厂商判定，于是从多吉云切到腾讯云再保存，原多吉云配置被整条重写成腾讯云。现在服务商一变就强制新建一份配置，前端把「另存为新配置」勾上并禁用，同时在卡片里说明这次保存会新建、原配置保持不动。生产实测：保存后配置 3 份变 4 份，原配置内容零改动。
 * 修复：**换桶之后附件 URL 不再永久退回站点域名**。旧判定只认附件 post meta 里的目标指纹，换桶必然不匹配，而切换配置从不改写 post meta，于是已上传的附件全部退回站点域名。现在指纹不匹配时会再查同步索引：该附件记录的全部对象键在当前活动配置下都是已同步状态，就认定云端确实有这份文件，把指纹一次性纠正到当前桶，并保持同步时间不变（不伪装成刚重新上传）。生产实测：切到多吉云 129/129 附件 URL 跟着换到 doge.nboke.com，切回缤纷云 129/129 回到 bf.nboke.com，同步时间全程未变。

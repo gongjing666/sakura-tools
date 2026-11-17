@@ -18,6 +18,7 @@ use Nboke\UserFiles\Repositories\Events;
 use Nboke\UserFiles\Repositories\Files;
 use Nboke\UserFiles\Repositories\Folders;
 use Nboke\UserFiles\Repositories\Requests;
+use Nboke\UserFiles\Services\Media_Adoption;
 use Nboke\UserFiles\Services\Quota;
 use Nboke\UserFiles\Services\Sync_Service;
 use Nboke\UserFiles\Services\Uploader;
@@ -1002,15 +1003,16 @@ final class Media_Hooks {
 			return $file;
 		}
 
-		if ( ! $this->sync || ! $this->sync->adopt( $attachment_id ) ) {
+		if ( ! $this->sync ) {
 			return null;
 		}
 
-		$file = $this->files->get_by_attachment( $attachment_id );
+		// One implementation of "create the row, then charge the recorded
+		// bytes". The bucket-download path (Sync_Actions::download()) runs the
+		// same service, so the two entry points cannot drift apart.
+		( new Media_Adoption( $this->files, $this->quota, $this->sync ) )->adopt( $attachment_id );
 
-		if ( $file && $this->quota && (int) $file->charged_bytes > 0 ) {
-			$this->quota->adjust_used( (int) $file->owner_id, (int) $file->charged_bytes );
-		}
+		$file = $this->files->get_by_attachment( $attachment_id );
 
 		return $file ?: null;
 	}

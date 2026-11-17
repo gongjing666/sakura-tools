@@ -140,6 +140,35 @@ final class Sync_Actions {
 			Synchronous_Uploader::target_hash_for( $this->options ),
 			$this->options->active_profile_id()
 		);
+
+		$this->charge_owner( $attachment_id );
+	}
+
+	/**
+	 * Put the restored attachment into the user file space ledger.
+	 *
+	 * Attachment_Adopter suppresses adoption on purpose - the `add_attachment`
+	 * hook fires while the row is still being written, before the author is
+	 * known - so nothing else ever adds the ledger row: the file then counts
+	 * against no quota and sits in the media library's "unassigned media" view
+	 * forever. The download is the moment the attachment becomes real, and the
+	 * bytes are already on local disk, so this is where the charge belongs.
+	 *
+	 * The user file space owns its own tables and services; keep the dependency
+	 * one-way and optional so the storage module still works on a site where
+	 * that code is absent.
+	 *
+	 * @param int $attachment_id Attachment id.
+	 * @return void
+	 */
+	private function charge_owner( int $attachment_id ): void {
+		$class = '\Nboke\UserFiles\Services\Media_Adoption';
+
+		if ( ! class_exists( $class ) ) {
+			return;
+		}
+
+		( new $class() )->adopt( $attachment_id );
 	}
 
 	/**

@@ -19,6 +19,18 @@ if ( ! defined( 'MB_IN_BYTES' ) ) {
 if ( ! defined( 'GB_IN_BYTES' ) ) {
 	define( 'GB_IN_BYTES', 1073741824 );
 }
+if ( ! defined( 'OBJECT' ) ) {
+	define( 'OBJECT', 'OBJECT' );
+}
+if ( ! defined( 'OBJECT_K' ) ) {
+	define( 'OBJECT_K', 'OBJECT_K' );
+}
+if ( ! defined( 'ARRAY_A' ) ) {
+	define( 'ARRAY_A', 'ARRAY_A' );
+}
+if ( ! defined( 'ARRAY_N' ) ) {
+	define( 'ARRAY_N', 'ARRAY_N' );
+}
 define( 'MINUTE_IN_SECONDS', 60 );
 define( 'HOUR_IN_SECONDS', 3600 );
 
@@ -820,6 +832,73 @@ if ( ! class_exists( 'Sakura_Test_Wpdb', false ) ) {
 		public function query( $sql ) {
 			$this->queries[] = (string) $sql;
 			return true;
+		}
+
+		/**
+		 * Baseline readers. They answer "nothing there" the way a real
+		 * connection would when the row does not exist, so code that runs an
+		 * optional lookup cannot blow up on the double's missing method.
+		 *
+		 * @param string $query Query.
+		 * @param string $output Output format.
+		 * @param int    $y Row index.
+		 * @return object|null
+		 */
+		public function get_row( $query, $output = OBJECT, $y = 0 ) {
+			$this->queries[] = (string) $query;
+			return null;
+		}
+
+		/**
+		 * @param string $query Query.
+		 * @param int    $x Column index.
+		 * @param int    $y Row index.
+		 * @return string|null
+		 */
+		public function get_var( $query, $x = 0, $y = 0 ) {
+			$this->queries[] = (string) $query;
+			return null;
+		}
+
+		/**
+		 * @param string $query Query.
+		 * @param string $output Output format.
+		 * @return array<int,mixed>
+		 */
+		public function get_results( $query, $output = OBJECT ) {
+			$this->queries[] = (string) $query;
+			return array();
+		}
+
+		/**
+		 * @param string $query Query.
+		 * @param int    $x Column index.
+		 * @return array<int,string>
+		 */
+		public function get_col( $query = '', $x = 0 ) {
+			$this->queries[] = (string) $query;
+			return array();
+		}
+
+		/**
+		 * @param string              $table Table name.
+		 * @param array<string,mixed> $data  Columns.
+		 * @return int|false
+		 */
+		public function insert( $table, $data ) {
+			$this->queries[] = (string) $table;
+			return false;
+		}
+
+		/**
+		 * @param string              $table        Table name.
+		 * @param array<string,mixed> $data         Columns.
+		 * @param array<string,mixed> $where        Conditions.
+		 * @return int|false
+		 */
+		public function update( $table, $data, $where ) {
+			$this->queries[] = (string) $table;
+			return 0;
 		}
 
 		/**

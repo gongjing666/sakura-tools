@@ -119,6 +119,39 @@ final class Settings_Saver {
 		return in_array( $fallback, $allowed, true ) ? $fallback : 'public-read';
 	}
 
+	/**
+	 * Top-level option keys that mirror whichever profile is live.
+	 *
+	 * @var string[]
+	 */
+	private const MIRROR_FIELDS = array( 'provider', 'bucket', 'space', 'region', 'endpoint', 'key', 'secret', 'object_acl', 'upload_path', 'upload_url_path' );
+
+	/**
+	 * Keep the live mirror on a save that does not write the live profile.
+	 *
+	 * The mirror is what uploads, the status strip and the media URL rewriting
+	 * read, so a stored-but-unused profile must not overwrite it. The values are
+	 * copied from the option exactly as WordPress stores them — credentials are
+	 * still ciphertext there. Reading them from Options::all() instead hands back
+	 * the decrypted view, and writing that into the option would either store the
+	 * secret in plaintext or silently re-encrypt it under a fresh nonce on every
+	 * unrelated save, which makes two saves of the same form look like a
+	 * credential change in every diff.
+	 *
+	 * @param array<string,mixed> $stored Prepared option being written.
+	 * @param array<string,mixed> $raw    Option exactly as stored, credentials still encrypted.
+	 * @return array<string,mixed>
+	 */
+	public static function keep_live_mirror( array $stored, array $raw ): array {
+		foreach ( self::MIRROR_FIELDS as $field ) {
+			if ( array_key_exists( $field, $raw ) ) {
+				$stored[ $field ] = $raw[ $field ];
+			}
+		}
+
+		return $stored;
+	}
+
 	public function save(): void {
 		if ( ! current_user_can( 'manage_options' ) ) {
 			wp_die( esc_html__( '权限不足。', 'sakura-imgopt' ) );
@@ -326,11 +359,7 @@ final class Settings_Saver {
 			// use: the same keys drive uploads, the status strip and the media
 			// URL rewriting, so letting a stored-but-unused profile overwrite
 			// them would point the whole site at a bucket nobody selected.
-			foreach ( array( 'provider', 'bucket', 'space', 'region', 'endpoint', 'key', 'secret', 'object_acl', 'upload_path', 'upload_url_path' ) as $field ) {
-				if ( array_key_exists( $field, $old ) ) {
-					$stored[ $field ] = $old[ $field ];
-				}
-			}
+			$stored = self::keep_live_mirror( $stored, $raw );
 		}
 
 		$stored['profiles']          = $profiles;

@@ -253,4 +253,57 @@ final class SettingsSaverTest extends TestCase {
 
 		$this->assertTrue( Settings_Saver::save_as_new_for_save( true, false, $editing ) );
 	}
+
+	/**
+	 * A save that writes some other profile must leave the live mirror byte for
+	 * byte as it was: credentials in the option are ciphertext, and copying the
+	 * decrypted view back would store the secret in plaintext (then re-encrypt it
+	 * under a new nonce on the next request, which looks like a changed key in
+	 * every diff).
+	 */
+	public function test_keeping_the_live_mirror_copies_ciphertext_untouched(): void {
+		$raw = array(
+			'provider'        => 'dogecloud',
+			'bucket'          => 'doss-v2-live',
+			'key'             => 'sio1s:live-key-ciphertext',
+			'secret'          => 'sio1s:live-secret-ciphertext',
+			'upload_url_path' => 'https://doge.example/uploads',
+			'profiles'        => array( 'prof_live' => array() ),
+		);
+
+		$stored = Settings_Saver::keep_live_mirror(
+			array(
+				'provider' => 'bitiful',
+				'bucket'   => 'nboke',
+				'key'      => 'plaintext-key',
+				'secret'   => 'plaintext-secret',
+			),
+			$raw
+		);
+
+		$this->assertSame( 'dogecloud', $stored['provider'] );
+		$this->assertSame( 'doss-v2-live', $stored['bucket'] );
+		$this->assertSame( 'sio1s:live-key-ciphertext', $stored['key'] );
+		$this->assertSame( 'sio1s:live-secret-ciphertext', $stored['secret'] );
+		$this->assertSame( 'https://doge.example/uploads', $stored['upload_url_path'] );
+	}
+
+	/**
+	 * Keys the option never had must not appear out of nowhere, and keys that are
+	 * not part of the mirror belong to the save that is running.
+	 */
+	public function test_keeping_the_live_mirror_leaves_other_keys_alone(): void {
+		$stored = Settings_Saver::keep_live_mirror(
+			array(
+				'key'      => 'new-key',
+				'enabled'  => 'true',
+				'profiles' => array( 'prof_new' => array() ),
+			),
+			array( 'enabled' => 'false' )
+		);
+
+		$this->assertSame( 'new-key', $stored['key'] );
+		$this->assertSame( 'true', $stored['enabled'] );
+		$this->assertSame( array( 'prof_new' => array() ), $stored['profiles'] );
+	}
 }

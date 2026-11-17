@@ -99,7 +99,7 @@ docs/                   文档（不进发布包）
 ## 4. 验证命令
 
 ```bash
-composer test          # PHPUnit，基线 622 tests / 2939 assertions / 6 skipped
+composer test          # PHPUnit，基线 656 tests / 3016 assertions / 6 skipped
 composer phpstan       # level 5，必须 [OK] No errors
 composer lint:strict   # PHPCS，必须 0 error / 0 warning（新增任何一条都当 error）
 php -l <file>          # 改动的每个 PHP 文件

@@ -604,3 +604,86 @@ body.upload-php.sufm-tree-active.folded { --sufm-tree-left: 56px; }
 **已知边界**：索引只能证明「扫描看到的云端对象」，不能证明对象可公开读取；CDN 域名本身是否可用仍由 `Probe` 那一侧验证。索引被 `Settings_Saver` 在换桶保存时 `purge_index()` 清空后，在下次扫描完成前，URL 会退回站点域名——这是有意的降级，不是回归。
 
 **维护动作**：改索引判定必须同时跑 `tests/StorageBucketSwitchTest.php`（11 条，含「指纹改写后同步时间不变」「索引缺证据时回退本地」「索引功能关闭时回退本地」「索引未安装时不查库」）与 `tests/StorageUrlGateTest.php`（11 条）、`tests/SyncStatusTest.php`（11 条，含 `retarget()` 不刷新时间）。
+
+## 启用开关只由配置卡片写入，保存表单不再决定 S3 开没开（1.28.1-beta-7，2026-11-17）
+
+**背景**：「启用 S3 存储」原本是连接设置卡里的一个复选框，与「用哪一份配置」分开存放。两个控件可以各自为真，于是出现半应用状态：站点图片地址已被改写、上传却仍在暂停；或反过来，配置看着在用、地址却指向站点域名。beta-1 修换服务商覆盖、beta-6 修换桶 URL 也是同一个形状——状态没被显式建模，只能靠填表时顺手带过去。
+
+**决策**：
+
+1. **一张卡片就是一次操作意图**。点非活动卡片 = 切换并启用（`Profile_Manager::enable_profile()`，`src/S3/Profile_Manager.php:49`）；点当前活动卡片 = 关闭但保留 `active_profile_id`（`:62` 的 `disable()`）。三者共用私有 `activate( $id, ?bool $enabled )`（`:87`），`switch_profile()`（`:35`）只是 `$enabled = null` 的别名，保留给不接受开关语义的调用方。
+2. **`Settings_Saver::save()` 不再读 `$_POST['enabled']`**，一律沿用库里旧值（`src/S3/Settings_Saver.php:237`）。保存表单只负责配置内容，启停与切换都不归它管。
+3. **AJAX 就地重绘，不整页刷新**。`wp_ajax_sakura_s3_toggle_profile`（`includes/class-s3-storage-module.php:82`，处理函数 `:146`）校验 `manage_options` 与 `sakura_s3_toggle_profile` nonce 后，回传 `S3_Storage_Page::state_payload()`（`src/S3/S3_Storage_Page.php:720`）——卡片深浅、徽章、删除按钮文案、顶部状态卡一次往返全换，前端不重新取页面。
+4. **保存非活动配置不动活动镜像**。`keep_live_mirror()`（`src/S3/Settings_Saver.php:145`）保留 `MIRROR_FIELDS`（`:127`：provider/bucket/space/region/endpoint/key/secret/object_acl/upload_path/upload_url_path）。这些键同时驱动上传、状态卡与附件 URL 改写，让一份没在用的配置覆盖它们等于把整站点指向没人选过的桶。
+5. **连接卡回归「新增 + 编辑」**。删掉复选框后，连接卡只剩新增与回填两种用途；表单默认留空，「新增账户配置」会清空残留的 `profile_id`，避免「新增」变成「覆盖」。
+6. **停用提示跟着 `enabled` 走**。`Config_Notice::should_prompt_paused()`（`src/S3/Config_Notice.php:105`）在 `is_enabled()` 为真时不再提示，卡片是唯一开关后，这条提示的语义才与界面一致。
+
+**已知边界**：`enabled` 与 `active_profile_id` 仍然可以各自独立地写进 option（例如 CLI 直接改库），`disable()` 不清 `active_profile_id` 是刻意的——重新点回那张卡片不该要人重选桶。
+
+**维护动作**：改开关语义必须同时跑 `tests/ProfileManagerTest.php`（含 `switch_profile()` 不改 `enabled` 的回归断言）与 `tests/ConfigNoticePausedTest.php`；`state_payload()` 增删字段要让前端 `initProfileToggle()`（`assets/ui/js/pages/storage-connection.js:579`）同步。
+
+## 连接表单不接受空桶名：宁可退回，也不要存出半份配置（1.28.1-beta-8，2026-11-17）
+
+**背景**：beta-7 把连接卡改成「新增配置」的空白表单后，直接点保存会拿顶层凭据存下一份没有桶名的配置，卡片永久停在「配置不完整」，还会占住 `profiles` 里的一行。
+
+**决策**：`Settings_Saver::save()` 在 `'' === $bucket_raw` 时立即 `redirect( array( 'saved' => '0', 'error' => 'bucket' ) )`（`src/S3/Settings_Saver.php:201-202`），错误文案指向「去点已保存的配置小卡片」。空白表单的默认保存是误操作，不是半成品草稿——草稿只在**编辑**一份已有配置时才允许不完整。
+
+**已知边界**：「活动且启用的配置必须完整」是另一道守卫（`:353`，`error=config`），两者不重叠：前者拦新增，后者拦切换/启用。
+
+**维护动作**：放宽这条守卫等于允许 `profiles` 里出现无桶名行，届时所有按 `bucket` 过滤的渲染（`Options::saved_profiles()`）都要同步处理。
+
+## 保存一份没在用的配置，不能把活动凭据写成明文（1.28.1-beta-9，2026-11-17）
+
+**背景**：beta-7 加 `keep_live_mirror()` 时，回填来源是 `Options::all()`——那是解密后的视图。于是每次保存非活动配置，顶层 `key`/`secret` 都以明文写进 `s3_options`，下一次请求才由 `Credential_Cipher::migrate_legacy_option()` 重新加密。表现有两层：明文落库的窗口确实存在；即使不看安全，sodium 每次用新 nonce，顶层密文每次都变，逐字段 diff 无法判断是否真的改了凭据（beta-9 验收就是靠 diff 只有一条 `saved_at` 才证明保存没副作用）。
+
+**决策**：`keep_live_mirror( array $stored, array $raw )` 的第二个参数改成**从 `get_option()` 取到的原始值**，密文原样搬过去，绝不经 `Options` 的解密视图。逻辑从 `save()` 内联抽成独立静态方法，便于单测（`tests/SettingsSaverTest.php` 两条用例：密文原样、缺键不回填）。
+
+**已知边界**：这条规则只保护「非活动配置保存」这条路径；`save_behaviour()`、`Profile_Manager::activate()` 写的是各配置自己的字段，本来就不是密文视图。
+
+**维护动作**：任何「把 option 里的值搬到另一个键」的新逻辑，来源必须是 `get_option()` 的原始数组，不是 `Options::all()`。
+
+## 配置文件卡片直接跑连接测试，不改活动配置也不写库（1.28.1-beta-10，2026-11-17）
+
+**背景**：已保存的配置卡底部原本只有一枚通栏「删除此配置」。想确认「这份配置还活着吗」的唯一办法是切过去、传一张图、再看结果——而切换本身会改活动配置与站点图片地址，是一个有副作用的诊断手段。
+
+**决策**：
+
+1. **只读探测**。`wp_ajax_sakura_s3_probe_profile`（`includes/class-s3-storage-module.php:81`，处理函数 `:366`）只收 `profile_id`，用该配置自己的密钥建客户端跑 `Connection_Probe::diagnose()`（`src/S3/Connection_Probe.php:51`），全程不切配置、不写 option、不触发上传。
+2. **快照是密文，必须先过 `Options`**。`Options::profile_options()` 返回的是库里的原始快照（`key`/`secret` 仍是密文），而 `Client_Factory::make()` 直接从数组读 `key`/`secret` 去签名。因此处理函数先 `new Options( $snapshot )->all()` 解密再交给工厂——否则会把密文当 Access Key 使用。多吉云还依赖这一步在工厂里换临时凭据。
+3. **慢但可用要单独说**。往返超过 800ms 报「能用但偏慢」，避免一次跨地域重试被读成健康；失败与缺字段分别给「找不到这份配置」与 `missing_fields_message()` 的原文。
+4. **按钮是删除表单的兄弟节点，不是 `<button type="submit">`**。放表单里点测试会提交删除。样式上两按钮等分卡片宽度的两列网格（`assets/ui/pages/storage.css:156` 起），都带可见边框与底色，不用 `.btn--quiet`。
+
+**已知边界**：探测用的是配置里存的凭据，密钥失效或桶已删除都会如实报错，但**不校验桶里是否还有本插件的对象**——那需要列举，属于核对而不是连接测试。
+
+**维护动作**：改 `Connection_Probe::diagnose()` 的返回结构要同步前端 `initProfileProbe()`（`assets/ui/js/pages/storage-connection.js:1106`）的 tone 判定。
+
+## 卡片动作按钮：等分两列、静止态就有边框、禁用态自己管透明度（1.28.1-beta-11 / beta-12，2026-11-17）
+
+**背景**：两枚动作按钮原本都挂 `.btn--quiet`——透明底、透明边框、`--g-muted` 文字，读起来像说明文字而不是控件；宽度按文字收缩贴左侧，行宽 252px 里右侧空 57–82px。更麻烦的是子比主题 `admin-main.min.css` 有一条全局 `[disabled] { opacity: .6 !important }`，把「使用中不可删除」压到 60%，插件自己的 opacity 规则被 `!important` 盖掉，灰色禁用文字看起来像消失了一半。
+
+**决策**：
+
+1. **等分两列网格**（`assets/ui/pages/storage.css:156` 起：`grid-template-columns: minmax(0,1fr) minmax(0,1fr)`），按钮各占一半、文字居中，卡片左右不留空档。
+2. **静止态就有可见边框与底色**：测试按钮 `--g-card` 底 + `--g-line-strong` 框 + `--g-ink-soft` 字（对比度 12.56），hover 才转强调色；删除按钮静止态即危险色（`--g-bad` 字 + `--g-bad-bg` 底 + `--g-bad-line` 框，5.64），hover 反白填满。**不用 `.btn--quiet` 承载需要被认出的控件**。
+3. **禁用态写 `opacity: 1 !important`**（`:188` 起），覆盖主题那条全局规则——禁用的原因文案（「使用中不可删除」）必须可读，对比度 6.17。CSS 里留了注释说明为什么需要 `!important`，免得被当成冗余删掉。
+4. **测试按钮必须是删除表单的兄弟节点**，不是 `<button type="submit">`，否则点测试会提交删除。
+
+**已知边界**：主题升级若把那条 `!important` 改成更高特异度选择器，覆盖会失效；验收时量一下禁用按钮的实际对比度。
+
+**维护动作**：这条规则已写进 `docs/开发规则/03-后台UI.md` §4，改插件卡片动作样式时对照那一节。
+
+## 卡片点击不回填表单，表单只用于新增（1.28.1-beta-13，2026-11-17）
+
+**背景**：配置卡片原本是一个提交表单（`sakura_s3_switch`），点一下整页往返；换成 AJAX 之后又出现新的歧义——点卡片到底是在「切换」还是「把这份配置载入下面的表单准备修改」？两种语义混在一个点击上，就会出现「我只是想切一下，表单却被填满了」。
+
+**决策**：
+
+1. **职责切开**：配置卡（`[data-sakura-role="profiles"]`）= 启用、停用、切换；连接卡里的 chip（`.profile-chip`）= 载入表单准备修改。点配置卡片不改写任何表单字段，实测点完 `profile_id` 仍为空。
+2. **连接卡更名「添加存储配置」，kicker `NEW PROFILE`，保存按钮「保存为新配置」**（`src/S3/S3_Storage_Page.php:332-333`）。名字必须与它现在唯一的职责一致，否则「连接设置」这个名字会让人以为 S3 连接是在这里管的。
+3. **服务商与其已存配置并到同一行**（`:396-413` 的 `.s3-provider-row` 两半结构）：左半是标签 + 下拉框 + 测试按钮，右半是「服务商的已保存配置」标签 + chip 列表。两半各自「标签 → 控件」竖排，标签同字号同粗细，控件落在同一条基线；chip 固定 `height: var(--g-ctl-h)` 单行显示，才能和 38px 下拉框等高。
+4. **chip 列表不加 `max-height` / 内部滚动**。chip 是进入编辑的唯一入口，藏在滚动条后等于让人找不到；让它自然换行，左侧控件靠 `align-items: start` 钉在首行。
+5. **没有已存配置时右列整体收起**（`.s3-provider-row.is-empty` 改单列、`hidden` 隐藏），避免右侧挂一个空标签。
+
+**已知边界**：宽度断点里改 `grid-template-columns` 的媒体查询必须写在这条规则**之后**——同特异度下后写的赢，写在前面的会被基础规则整体覆盖，表现成「窄屏下选择框溢出自己的单元格」（beta-14 就是这么修的）。
+
+**维护动作**：`.profile-chip` 的尺寸与 `.field__row` 里控件高度耦合（都取 `--g-ctl-h`），改任一处要在 1440 与 390 下同时看标签基线与控件等高。

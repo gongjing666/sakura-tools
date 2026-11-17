@@ -73,8 +73,12 @@
 	}
 
 	/**
-	 * "Add profile" scrolls to the connection card and pre-ticks the
-	 * save-as-new flag without touching the form values already typed.
+	 * "Add profile" empties the connection form so it starts a new configuration.
+	 *
+	 * The form is an add form by default; editing happens through the chips under
+	 * the provider picker, which fill in a profile id. Without this reset that id
+	 * would survive, and "add" would quietly overwrite the profile whose chip was
+	 * clicked last.
 	 */
 	function initAddProfile( root ) {
 		var button = admin.qs( '[data-sakura-action="add-profile"]', root );
@@ -86,6 +90,34 @@
 			var form = admin.qs( '#sakura-s3-connection-form', root );
 			var flag = form ? admin.qs( 'input[name="save_as_new"]', form ) : null;
 			var name = form ? admin.qs( '#sakura-s3-profile-name', form ) : null;
+
+			if ( form ) {
+				var idField = admin.qs( 'input[name="profile_id"]', form );
+				if ( idField ) {
+					idField.value = '';
+				}
+
+				[
+					'sakura-s3-bucket',
+					'sakura-s3-region',
+					'sakura-s3-endpoint',
+					'sakura-s3-path',
+					'sakura-s3-url',
+					'sakura-s3-key',
+					'sakura-s3-secret',
+				].forEach( function ( id ) {
+					var input = document.getElementById( id );
+					if ( input ) {
+						input.value = '';
+					}
+				} );
+
+				var space = document.getElementById( 'sakura-s3-space' );
+				if ( space ) {
+					space.value = '';
+					delete space.dataset.bucket;
+				}
+			}
 
 			if ( flag ) {
 				flag.checked = true;
@@ -525,6 +557,110 @@
 	}
 
 	/**
+	 * The profile cards are the S3 switch.
+	 *
+	 * Clicking a light card activates that configuration and turns S3 on;
+	 * clicking the dark card turns S3 off but keeps the selection. Both run
+	 * through AJAX so the panel repaints in place — a reload would drop the
+	 * operator back to the top of a long page and, worse, re-render the
+	 * connection form from the database, which is not what these cards edit.
+	 *
+	 * The server answers with the whole state (state_payload), so every card,
+	 * the badge inside it and the status strip come from one round trip and
+	 * cannot disagree with each other.
+	 */
+	function initProfileToggle( root ) {
+		var nonce = strings.toggleNonce || '';
+
+		admin.delegate( root, 'click', '[data-sakura-action="toggle-profile"]', function ( event ) {
+			var card = admin.closest( event.target, '[data-sakura-action="toggle-profile"]' );
+			if ( ! card || card.disabled || 'true' === card.getAttribute( 'aria-busy' ) ) {
+				return;
+			}
+
+			var id     = card.getAttribute( 'data-profile-id' ) || '';
+			var intent = card.classList.contains( 'is-active' ) ? 'off' : 'on';
+			if ( ! id ) {
+				return;
+			}
+
+			card.setAttribute( 'aria-busy', 'true' );
+			card.classList.add( 'is-pending' );
+
+			admin.api.ajax( 'sakura_s3_toggle_profile', {
+				_ajax_nonce: nonce,
+				profile_id: id,
+				intent: intent,
+			}, { timeout: 15000 } )
+				.then( function ( data ) {
+					applyState( root, data || {} );
+					admin.ui.toast( 'off' === intent ? ( strings.toggledOff || '' ) : ( strings.toggledOn || '' ), 'ok' );
+				} )
+				.catch( function ( error ) {
+					admin.ui.toast( errorText( error, strings.toggleFailed ), 'bad' );
+				} )
+				.then( function () {
+					card.removeAttribute( 'aria-busy' );
+					card.classList.remove( 'is-pending' );
+				} );
+		} );
+
+		/*
+		 * Repaint everything the payload describes. The status strip keeps its
+		 * tone on the wrapper (status-card--warn and friends), so that one is
+		 * swapped by class; everything else is text plus the two card classes.
+		 */
+		function applyState( scope, data ) {
+			var states = data.profiles || {};
+
+			admin.qsa( '[data-sakura-action="toggle-profile"]', scope ).forEach( function ( card ) {
+				var state = states[ card.getAttribute( 'data-profile-id' ) || '' ];
+				if ( ! state ) {
+					return;
+				}
+
+				card.classList.toggle( 'is-active', !! state.live );
+				card.classList.toggle( 'is-current', !! state.current );
+				card.setAttribute( 'aria-pressed', state.live ? 'true' : 'false' );
+
+				var badge = admin.qs( '.badge', card );
+				if ( badge ) {
+					badge.textContent = state.badge || '';
+					badge.className = 'badge badge--' + ( state.badgeTone || 'neutral' );
+				}
+
+				/*
+				 * The active profile cannot be deleted, so both the disabled state
+				 * and its wording follow the card that just changed.
+				 */
+				var item   = admin.closest( card, '.profile-item' );
+				var remove = item ? admin.qs( '.profile-delete', item ) : null;
+				if ( remove ) {
+					remove.disabled = !! state.current;
+					remove.textContent = state.deleteLabel || remove.textContent;
+					remove.title = state.deleteTitle || '';
+				}
+			} );
+
+			var value = document.getElementById( 'sakura-s3-status-value' );
+			if ( value ) {
+				value.textContent = data.statusValue || '';
+				value.title = data.statusTitle || '';
+
+				var strip = admin.closest( value, '.status-card' );
+				if ( strip ) {
+					strip.classList.remove( 'status-card--ok', 'status-card--warn', 'status-card--bad', 'status-card--neutral' );
+					strip.classList.add( 'status-card--' + ( data.tone || 'neutral' ) );
+				}
+			}
+
+			var sub = document.getElementById( 'sakura-s3-status-sub' );
+			if ( sub ) {
+				sub.textContent = data.statusSub || '';
+			}
+		}
+	}
+	/**
 	 * A save under another provider is a new configuration, not an edit.
 	 *
 	 * The form posts the profile id it is showing, so switching the picker and
@@ -963,6 +1099,7 @@
 		initProbe( root );
 		initProviderHints( root );
 		initProviderProfiles( root );
+		initProfileToggle( root );
 		initProviderSwitchGuard( root );
 		initSpaceTracking( root );
 	} );

@@ -314,10 +314,10 @@ final class Config_Notice {
 			return '';
 		}
 
-		// Only the sync center mounts this dialog. The connection screen holds
-		// the switch itself, so a modal there would cover the control the
-		// operator was about to use.
-		$primary = '<a class="btn btn--primary" data-config-primary href="' . esc_url( Registry::url( 'storage', 'connection' ) ) . '">' . esc_html__( '去启用 S3', 'sakura-imgopt' ) . '</a>';
+		// Only the sync center mounts this dialog. The switch now lives on the
+		// profile cards of the connection screen, and a modal there would cover
+		// the very cards the operator was about to click.
+		$primary = '<a class="btn btn--primary" data-config-primary href="' . esc_url( Registry::url( 'storage', 'connection' ) ) . '">' . esc_html__( '去配置卡片启用', 'sakura-imgopt' ) . '</a>';
 
 		ob_start();
 		self::render_modal(

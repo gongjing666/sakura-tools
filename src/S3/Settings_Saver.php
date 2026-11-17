@@ -191,7 +191,10 @@ final class Settings_Saver {
 			$kept = array();
 		}
 		$options     = array(
-			'enabled'         => isset( $_POST['enabled'] ) ? 'true' : 'false',
+			// The S3 switch lives on the profile cards now, not in this form.
+			// Deriving it from a checkbox that no longer exists would turn storage
+			// off on every ordinary config save.
+			'enabled'         => (string) ( $old['enabled'] ?? 'false' ),
 			'provider'        => $provider,
 			'bucket'          => $bucket_raw,
 			'space'           => $space_raw,
@@ -225,11 +228,6 @@ final class Settings_Saver {
 		}
 
 		$options['upload_path'] = $upload_path;
-
-		$candidate = new Options( $options );
-		if ( 'true' === $options['enabled'] && ! $candidate->is_configured() ) {
-			$this->redirect( array( 'saved' => '0', 'error' => 'config' ) );
-		}
 
 		/** @var array<string,mixed> $stored */
 		$stored = $options;
@@ -275,7 +273,13 @@ final class Settings_Saver {
 			}
 		}
 
-		$active_profile_id = '';
+		// Which configuration the site is using is decided by the cards on the
+		// profile panel (see Profile_Manager::activate()), not by saving the
+		// connection form. A save here only writes the row it was asked to write:
+		// storing a second profile must not silently move the live bucket, and
+		// editing one profile must not steal the position from another.
+		$previous_active   = (string) ( $raw['active_profile_id'] ?? '' );
+		$active_profile_id = isset( $profiles[ $previous_active ] ) ? $previous_active : '';
 		if ( $will_write ) {
 			$profile_name = $this->unique_profile_name( $profiles, $profile_name, $provider, (string) $stored['bucket'], (string) $stored['space'], $profile_id );
 			$profiles[ $profile_id ] = array(
@@ -293,10 +297,35 @@ final class Settings_Saver {
 				'upload_url_path' => (string) $stored['upload_url_path'],
 				'saved_at'        => time(),
 			);
-			$active_profile_id = $profile_id;
-		} elseif ( ! $provider_changed && isset( $profiles[ $profile_id ] ) ) {
-			$active_profile_id = $profile_id;
+			// The very first configuration still becomes the current one, so the
+			// panel has a card to light up; it stays switched off until the
+			// operator clicks it.
+			if ( '' === $active_profile_id ) {
+				$active_profile_id = $profile_id;
+			}
 		}
+		$saved_is_live = $will_write && $profile_id === $active_profile_id;
+
+		// Only a configuration that is actually serving uploads has to be complete;
+		// an unfinished draft is allowed to sit in the list until it is finished.
+		// Switching storage on is what activates a profile now, and that path
+		// (Profile_Manager::activate) refuses an incomplete one on its own.
+		if ( $saved_is_live && 'true' === (string) $stored['enabled'] && ! ( new Options( $stored ) )->is_configured() ) {
+			$this->redirect( array( 'saved' => '0', 'error' => 'config' ) );
+		}
+
+		if ( ! $saved_is_live ) {
+			// Keep the live top-level mirror on the profile that is actually in
+			// use: the same keys drive uploads, the status strip and the media
+			// URL rewriting, so letting a stored-but-unused profile overwrite
+			// them would point the whole site at a bucket nobody selected.
+			foreach ( array( 'provider', 'bucket', 'space', 'region', 'endpoint', 'key', 'secret', 'object_acl', 'upload_path', 'upload_url_path' ) as $field ) {
+				if ( array_key_exists( $field, $old ) ) {
+					$stored[ $field ] = $old[ $field ];
+				}
+			}
+		}
+
 		$stored['profiles']          = $profiles;
 		$stored['active_profile_id'] = $active_profile_id;
 
@@ -306,10 +335,12 @@ final class Settings_Saver {
 			// print that bucket's counts under the new address until the next scan.
 			( new Index_Repository() )->purge_index( $profile_id );
 		}
-		if ( 'true' === $options['enabled'] && '' !== $upload_url ) {
-			Upload_URL::apply( $upload_url );
-		} else {
-			Upload_URL::restore( (string) ( $old['upload_url_path'] ?? $upload_url ) );
+		if ( $saved_is_live ) {
+			if ( 'true' === (string) $stored['enabled'] && '' !== $upload_url ) {
+				Upload_URL::apply( $upload_url );
+			} else {
+				Upload_URL::restore( (string) ( $old['upload_url_path'] ?? $upload_url ) );
+			}
 		}
 
 		$redirect = array( 'saved' => '1' );

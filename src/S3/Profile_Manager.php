@@ -23,14 +23,70 @@ if ( ! defined( 'ABSPATH' ) ) {
 final class Profile_Manager {
 
 	/**
-	 * Activate a provider profile.
+	 * Activate a provider profile without touching the S3 switch.
+	 *
+	 * Kept for callers that only repoint the active profile; the connection
+	 * cards use enable_profile()/disable() so one click expresses both halves
+	 * of the state.
 	 *
 	 * @param string $profile_id Profile ID.
 	 * @return array{success:bool,error:string}
 	 */
 	public function switch_profile( string $profile_id ): array {
+		return $this->activate( $profile_id, null );
+	}
+
+	/**
+	 * Activate a provider profile and switch S3 storage on.
+	 *
+	 * Clicking a saved card is a single operator intent: "use this bucket".
+	 * Splitting that into "switch" plus a separate on/off checkbox is how a
+	 * half-applied state (URL still rewritten, uploads still paused) appears.
+	 *
+	 * @param string $profile_id Profile ID.
+	 * @return array{success:bool,error:string}
+	 */
+	public function enable_profile( string $profile_id ): array {
+		return $this->activate( $profile_id, true );
+	}
+
+	/**
+	 * Switch S3 storage off while keeping the active profile selected.
+	 *
+	 * The profile stays active on purpose: turning the switch back on must not
+	 * require re-picking a bucket, and the card keeps its "current" marker so
+	 * the operator can see which bucket was paused.
+	 *
+	 * @return array{success:bool,error:string}
+	 */
+	public function disable(): array {
+		$raw = get_option( Options::OPTION, array() );
+		if ( ! is_array( $raw ) ) {
+			return $this->failure( 'missing' );
+		}
+
+		$previous_url   = (string) ( $raw['upload_url_path'] ?? '' );
+		$raw['enabled'] = 'false';
+		update_option( Options::OPTION, $raw, false );
+
+		Upload_URL::restore( $previous_url );
+
+		return array(
+			'success' => true,
+			'error'   => '',
+		);
+	}
+
+	/**
+	 * Activate a profile, optionally forcing the S3 switch.
+	 *
+	 * @param string    $profile_id Profile ID.
+	 * @param bool|null $enabled    True to switch on, false to switch off, null to leave alone.
+	 * @return array{success:bool,error:string}
+	 */
+	private function activate( string $profile_id, ?bool $enabled ): array {
 		$profile_id = sanitize_key( $profile_id );
-		$raw      = get_option( Options::OPTION, array() );
+		$raw        = get_option( Options::OPTION, array() );
 		if ( ! is_array( $raw ) ) {
 			return $this->failure( 'missing' );
 		}
@@ -72,6 +128,9 @@ final class Profile_Manager {
 		$raw['provider']          = $provider;
 		$raw['active_profile_id'] = $profile_id;
 		$raw['upload_path']       = $upload_path;
+		if ( null !== $enabled ) {
+			$raw['enabled'] = $enabled ? 'true' : 'false';
+		}
 
 		// The site may already declare its own uploads directory. Keys follow that
 		// value, so a profile compiled against a different prefix cannot be

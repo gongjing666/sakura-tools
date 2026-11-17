@@ -101,6 +101,66 @@ final class ProfileManagerTest extends TestCase {
 		$this->assertSame( 'false', $raw['no_local_saving'] );
 	}
 
+	public function test_enabling_a_profile_turns_storage_on(): void {
+		$key    = Credential_Cipher::encrypt( 'key' );
+		$secret = Credential_Cipher::encrypt( 'secret' );
+		$this->assertNotFalse( $key );
+		$this->assertNotFalse( $secret );
+
+		$GLOBALS['sakura_test_options'][ Options::OPTION ] = array(
+			'enabled'           => 'false',
+			'provider'          => 'cloudflare',
+			'active_profile_id' => '',
+			'profiles'          => array(
+				'prof_aws' => array(
+					'provider'        => 'aws',
+					'bucket'          => 'saved-bucket',
+					'region'          => 'us-west-2',
+					'upload_url_path' => 'https://cdn.example.com/uploads',
+					'key'             => $key,
+					'secret'          => $secret,
+				),
+			),
+		);
+
+		$result = ( new Profile_Manager() )->enable_profile( 'prof_aws' );
+		$raw    = $GLOBALS['sakura_test_options'][ Options::OPTION ];
+
+		$this->assertTrue( $result['success'] );
+		$this->assertSame( 'true', $raw['enabled'] );
+		$this->assertSame( 'prof_aws', $raw['active_profile_id'] );
+		$this->assertSame( 'saved-bucket', $raw['bucket'] );
+	}
+
+	public function test_disabling_keeps_the_active_profile(): void {
+		$key = Credential_Cipher::encrypt( 'key' );
+		$this->assertNotFalse( $key );
+
+		$GLOBALS['sakura_test_options'][ Options::OPTION ] = array(
+			'enabled'           => 'true',
+			'provider'          => 'aws',
+			'bucket'            => 'live-bucket',
+			'active_profile_id' => 'prof_live',
+			'profiles'          => array(
+				'prof_live' => array(
+					'provider' => 'aws',
+					'bucket'   => 'live-bucket',
+					'key'      => $key,
+					'secret'   => $key,
+				),
+			),
+		);
+
+		$result = ( new Profile_Manager() )->disable();
+		$raw    = $GLOBALS['sakura_test_options'][ Options::OPTION ];
+
+		$this->assertTrue( $result['success'] );
+		$this->assertSame( 'false', $raw['enabled'] );
+		// The selected bucket survives a pause so the next click needs no re-pick.
+		$this->assertSame( 'prof_live', $raw['active_profile_id'] );
+		$this->assertSame( 'live-bucket', $raw['bucket'] );
+	}
+
 	public function test_delete_saved_profile(): void {
 		$key = Credential_Cipher::encrypt( 'key' );
 		$this->assertNotFalse( $key );

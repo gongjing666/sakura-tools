@@ -77,7 +77,8 @@ class S3_Storage_Module implements Module {
 		$hooks->add_action( 'wp_ajax_sakura_s3_retry', array( $this, 'retry_failed' ) );
 		$hooks->add_action( 'wp_ajax_sakura_s3_upload_metrics', array( $this, 'upload_metrics' ) );
 		$hooks->add_action( 'wp_ajax_sakura_s3_doge_buckets', array( $this, 'doge_buckets' ) );
-	$hooks->add_action( 'wp_ajax_sakura_s3_probe_connection', array( $this, 'probe_connection' ) );
+		$hooks->add_action( 'wp_ajax_sakura_s3_probe_connection', array( $this, 'probe_connection' ) );
+		$hooks->add_action( 'wp_ajax_sakura_s3_toggle_profile', array( $this, 'toggle_profile' ) );
 		$hooks->add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_assets' ) );
 	}
 
@@ -130,6 +131,57 @@ class S3_Storage_Module implements Module {
 				'switched' => '1',
 			)
 		);
+	}
+
+	/**
+	 * Switch a saved profile on or off from its card.
+	 *
+	 * The card itself is the switch now: clicking the card already in use turns
+	 * S3 storage off, clicking any other card switches to it and turns storage
+	 * on. Keeping the toggle on the card is what makes "which bucket is live"
+	 * and "is it on" a single visible state instead of two controls that can
+	 * disagree.
+	 */
+	public function toggle_profile(): void {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_send_json_error( array( 'message' => __( '权限不足。', 'sakura-imgopt' ) ), 403 );
+		}
+
+		check_ajax_referer( 'sakura_s3_toggle_profile' );
+
+		$profile_id = isset( $_POST['profile_id'] ) ? sanitize_key( wp_unslash( $_POST['profile_id'] ) ) : '';
+		$intent     = isset( $_POST['intent'] ) ? sanitize_key( wp_unslash( $_POST['intent'] ) ) : 'on';
+		$manager    = new Profile_Manager();
+
+		if ( 'off' === $intent ) {
+			$result = $manager->disable();
+		} elseif ( '' === $profile_id ) {
+			wp_send_json_error( array( 'message' => __( '没有选中任何配置。', 'sakura-imgopt' ) ), 400 );
+		} else {
+			$result = $manager->enable_profile( $profile_id );
+		}
+
+		if ( empty( $result['success'] ) ) {
+			wp_send_json_error( array( 'message' => $this->toggle_error_message( (string) ( $result['error'] ?? '' ) ) ), 400 );
+		}
+
+		wp_send_json_success( S3_Storage_Page::state_payload() );
+	}
+
+	/**
+	 * Operator-facing text for a failed card toggle.
+	 *
+	 * @param string $error Error code from Profile_Manager.
+	 */
+	private function toggle_error_message( string $error ): string {
+		if ( 'incomplete' === $error ) {
+			return __( '这份配置不完整或密钥无法读取，补全后再试。', 'sakura-imgopt' );
+		}
+		if ( 'path_conflict' === $error ) {
+			return __( '站点已指定自己的上传目录，这份配置的云端路径与它不一致，无法启用。', 'sakura-imgopt' );
+		}
+
+		return __( '没有找到这份配置，可能已被删除，请刷新页面。', 'sakura-imgopt' );
 	}
 
 	/** Delete a saved profile. */

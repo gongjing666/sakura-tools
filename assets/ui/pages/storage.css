@@ -60,6 +60,11 @@
 	background: var(--g-wash);
 }
 
+.sakura-admin[data-sakura-page="storage-connection"] .profile-card.is-pending {
+	cursor: progress;
+	opacity: .65;
+}
+
 .sakura-admin[data-sakura-page="storage-connection"] .profile-card:focus {
 	outline: 0;
 }
@@ -74,9 +79,44 @@
 	opacity: 1;
 }
 
-.sakura-admin[data-sakura-page="storage-connection"] .profile-card.is-active {
+/*
+ * Two shades carry the whole state: the card that is actually serving uploads
+ * is solid accent with white text, and the card that is merely selected (S3
+ * switched off, or a stopped profile) keeps the soft tint. Both stay clickable
+ * — the first turns S3 off, the second turns it back on.
+ */
+.sakura-admin[data-sakura-page="storage-connection"] .profile-card.is-current {
 	background: var(--g-accent-soft);
 	box-shadow: none;
+}
+
+.sakura-admin[data-sakura-page="storage-connection"] .profile-card.is-current:hover {
+	background: var(--g-accent-soft);
+}
+
+.sakura-admin[data-sakura-page="storage-connection"] .profile-card.is-active,
+.sakura-admin[data-sakura-page="storage-connection"] .profile-card.is-active:hover {
+	background: var(--g-accent);
+	color: var(--g-accent-ink);
+	box-shadow: none;
+}
+
+.sakura-admin[data-sakura-page="storage-connection"] .profile-card.is-active .profile-card__meta {
+	color: rgba(255, 255, 255, .8);
+}
+
+.sakura-admin[data-sakura-page="storage-connection"] .profile-card.is-active .profile-card__warning {
+	color: rgba(255, 255, 255, .92);
+}
+
+.sakura-admin[data-sakura-page="storage-connection"] .profile-card.is-active .badge {
+	border-color: rgba(255, 255, 255, .42);
+	background: rgba(255, 255, 255, .18);
+	color: var(--g-accent-ink);
+}
+
+.sakura-admin[data-sakura-page="storage-connection"] .profile-card.is-active:focus-visible {
+	outline-color: var(--g-accent-ink);
 }
 
 .sakura-admin[data-sakura-page="storage-connection"] .profile-card__top {

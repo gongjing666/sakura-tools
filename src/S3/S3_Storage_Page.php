@@ -61,11 +61,13 @@ final class S3_Storage_Page {
 				'title'   => __( 'S3 存储', 'sakura-imgopt' ),
 				'lede'    => __( '把优化后的图片安全地同步到云存储。支持常见的 S3 兼容服务，并沿用原来的文件路径和图片地址前缀。', 'sakura-imgopt' ),
 				'status'  => array(
-					'label' => __( '当前存储桶', 'sakura-imgopt' ),
-					'value' => $status_value,
-					'title' => $bucket,
-					'sub'   => $status_sub,
-					'tone'  => $status_tone,
+					'label'  => __( '当前存储桶', 'sakura-imgopt' ),
+					'id'     => 'sakura-s3-status-value',
+					'sub_id' => 'sakura-s3-status-sub',
+					'value'  => $status_value,
+					'title'  => $bucket,
+					'sub'    => $status_sub,
+					'tone'   => $status_tone,
 				),
 				'actions' => array(
 					array(
@@ -80,7 +82,7 @@ final class S3_Storage_Page {
 					),
 				),
 			),
-			function () use ( $notice, $credentials_bad, $constants_locked, $saved_profiles, $options, $space, $bucket, $active_id, $active_name, $provider_counts, $upload_path, $upload_path_src, $concurrency, $parallel, $effective ) {
+			function () use ( $notice, $credentials_bad, $constants_locked, $saved_profiles, $options, $active_id, $enabled, $provider_counts, $upload_path, $upload_path_src, $concurrency, $parallel, $effective ) {
 				/*
 				 * A save or a connection test is an event, not a state: it gets the
 				 * shared prompt dialog so the operator cannot miss the result while
@@ -180,6 +182,10 @@ final class S3_Storage_Page {
 					'probeNonce'     => wp_create_nonce( 'sakura_s3_probe' ),
 					'profileLoadedKey' => __( '已载入这份配置。密钥留空表示沿用这份配置已保存的密钥；点「保存连接配置」才会生效。', 'sakura-imgopt' ),
 					'providerSwitchNote' => __( '已更换服务商：这次保存会新建一份配置，原来那份保持不动。想切回原来那份配置，点上方的配置卡片切换即可，不要在这里把服务商改回去再保存。', 'sakura-imgopt' ),
+					'toggleNonce'    => wp_create_nonce( 'sakura_s3_toggle_profile' ),
+					'toggledOn'      => __( '已启用这份配置。', 'sakura-imgopt' ),
+					'toggledOff'     => __( '已关闭 S3 存储。新上传的图片不会再同步到云端，媒体地址也回到站点域名；这份配置仍然保留，再点一次卡片即可重新启用。', 'sakura-imgopt' ),
+					'toggleFailed'   => __( '操作没有完成，请稍后重试。', 'sakura-imgopt' ),
 				);
 				?>
 				<div class="sakura-admin__data" data-sakura-connection-strings="<?php echo esc_attr( wp_json_encode( array( 'strings' => $page_strings, 'hints' => $live_hints, 'profiles' => array_values( $saved_profiles ) ), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_UNESCAPED_UNICODE ) ); ?>" hidden></div>
@@ -192,7 +198,7 @@ final class S3_Storage_Page {
 						'id'          => 'profiles',
 						'kicker'      => 'PROFILES',
 						'title'       => __( '已保存的配置', 'sakura-imgopt' ),
-						'description' => __( '点击已保存的配置就能切换，不用重新填写密钥。同一服务商可保存多个账户：填好新的 Access Key 和 Secret，勾选「另存为新配置」后保存。', 'sakura-imgopt' ),
+						'description' => __( '点一下卡片就启用这份配置：卡片变成深色即表示正在使用。再点一次正在使用的卡片会关闭 S3 存储（卡片变浅，配置仍在）。切换配置不用重新填写密钥。', 'sakura-imgopt' ),
 						'anchor'      => 'sakura-s3-profiles',
 						'class'       => 'card--wide',
 						'actions'     => array(
@@ -205,7 +211,7 @@ final class S3_Storage_Page {
 							),
 						),
 					),
-					function () use ( $saved_profiles ) {
+					function () use ( $saved_profiles, $enabled ) {
 						$visible = array();
 						foreach ( $saved_profiles as $profile_id => $profile ) {
 							if ( ! empty( $profile['saved'] ) ) {
@@ -225,16 +231,20 @@ final class S3_Storage_Page {
 						foreach ( $visible as $profile_id => $profile ) {
 							$is_active = ! empty( $profile['active'] );
 							$complete  = ! empty( $profile['complete'] );
+							// 深色 = 这份配置正在使用（active + 已启用）；浅色 = 只是保存着。
+							$is_live   = $is_active && $enabled;
+							$badge     = __( '已保存', 'sakura-imgopt' );
+							if ( $is_live ) {
+								$badge = __( '使用中', 'sakura-imgopt' );
+							} elseif ( $is_active ) {
+								$badge = __( '已停用', 'sakura-imgopt' );
+							}
 							echo '<div class="profile-item">';
-							echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" class="profile-item__switch">';
-							echo '<input type="hidden" name="action" value="sakura_s3_switch" />';
-							echo '<input type="hidden" name="profile_id" value="' . esc_attr( $profile_id ) . '" />';
-							wp_nonce_field( 'sakura_s3_switch' );
-							echo '<button type="submit" class="profile-card' . ( $is_active ? ' is-active' : '' ) . '"' . ( $is_active ? ' aria-current="true"' : '' );
+							echo '<button type="button" class="profile-card' . ( $is_live ? ' is-active' : '' ) . ( $is_active ? ' is-current' : '' ) . '" data-sakura-action="toggle-profile" data-profile-id="' . esc_attr( $profile_id ) . '"' . ( $is_active ? ' aria-pressed="' . ( $is_live ? 'true' : 'false' ) . '"' : ' aria-pressed="false"' );
 							disabled( ! $complete );
 							echo '>';
 							echo '<span class="profile-card__top"><span class="profile-card__name">' . esc_html( (string) ( $profile['name'] ?? '' ) ) . '</span>';
-							UI::badge( $is_active ? __( '使用中', 'sakura-imgopt' ) : __( '已保存', 'sakura-imgopt' ), $is_active ? 'ok' : 'neutral' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Component escapes internally.
+							UI::badge( $badge, $is_live ? 'ok' : 'neutral' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Component escapes internally.
 							echo '</span>';
 							echo '<span class="profile-card__meta">' . esc_html( (string) ( $profile['label'] ?? '' ) ) . '</span>';
 							// 配置卡上显示空间名或缩写桶名，完整 s3Bucket 放 title。
@@ -246,7 +256,6 @@ final class S3_Storage_Page {
 								echo '<span class="profile-card__warning">' . esc_html__( '配置不完整，补全后可切换', 'sakura-imgopt' ) . '</span>';
 							}
 							echo '</button>';
-							echo '</form>';
 
 							echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" class="profile-item__delete" data-sakura-confirm="' . esc_attr__( '确定删除这个已保存的配置吗？删除后不可恢复，它对应的核对记录、计数与日志也会一起清空，但不会影响当前活动配置。', 'sakura-imgopt' ) . '" data-sakura-confirm-title="' . esc_attr__( '删除已保存的配置', 'sakura-imgopt' ) . '">';
 							echo '<input type="hidden" name="action" value="sakura_s3_delete" />';
@@ -307,7 +316,7 @@ final class S3_Storage_Page {
 						'id'          => 'connection',
 						'kicker'      => 'CONNECTION',
 						'title'       => __( '连接设置', 'sakura-imgopt' ),
-						'description' => __( '配置保存在网站数据库里，密钥会加密保存，页面上不会显示。', 'sakura-imgopt' ),
+						'description' => __( '这里用来新增一份存储配置：默认是空表单，填好后保存即可。要修改已经保存的配置，点上面「这份服务商的已保存配置」里的小卡片，它会把那份的值填进来。密钥会加密保存，页面上不会显示。', 'sakura-imgopt' ),
 						'anchor'      => 'sakura-s3-connection',
 						'wide'        => true,
 						'form'        => array(
@@ -317,12 +326,15 @@ final class S3_Storage_Page {
 							'marker_card' => 'connection',
 							'hidden'      => array(
 								'action'     => 'sakura_s3_save',
-								'profile_id' => $active_id,
+								// Blank on purpose: this form adds a configuration. To edit
+								// one, pick it from the chips under the provider picker,
+								// which fills this field with that profile's id.
+								'profile_id' => '',
 							),
 						),
 						'save'        => __( '保存连接配置', 'sakura-imgopt' ),
 					),
-					function () use ( $options, $space, $bucket, $active_name, $provider_options, $upload_path, $upload_path_src, $path_hint, $field_hints ) {
+					function () use ( $options, $provider_options, $upload_path, $upload_path_src, $path_hint, $field_hints ) {
 						UI::field(
 							array(
 								'type'  => 'hidden',
@@ -332,14 +344,6 @@ final class S3_Storage_Page {
 						); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Component escapes internally.
 
 						echo '<div class="field-list">';
-						$this->check_field(
-							'enabled',
-							__( '启用 S3 存储', 'sakura-imgopt' ),
-							__( '新上传的图片自动同步到云存储，并沿用它原来的文件名和尺寸。', 'sakura-imgopt' ),
-							'true' === (string) $options['enabled'],
-							false,
-							false
-						);
 
 						/*
 						 * The probe button rides next to the provider picker: it tests the
@@ -391,7 +395,7 @@ final class S3_Storage_Page {
 								'id'          => 'sakura-s3-profile-name',
 								'name'        => 'profile_name',
 								'label'       => __( '配置名称', 'sakura-imgopt' ),
-								'value'       => $active_name,
+								'value'       => '',
 								'placeholder' => __( '例如：主站图床、备份桶', 'sakura-imgopt' ),
 								'hint'        => __( '用于区分同一服务商下的多个存储桶；留空会自动按服务商和存储桶命名。', 'sakura-imgopt' ),
 								'full'        => false,
@@ -401,7 +405,7 @@ final class S3_Storage_Page {
 						$this->check_field(
 							'save_as_new',
 							__( '另存为新配置（保留当前配置）', 'sakura-imgopt' ),
-							__( '切换配置不会顺手开启或关闭同步，也不会改动缩略图和「删除本地文件」这类全局设置；文章里已有的图片地址不会被批量替换。', 'sakura-imgopt' ),
+							__( '保存一份新配置不会自动启用它，也不会改动「上传行为」里的设置和文章里已有的图片地址；要启用请点上面配置卡片。', 'sakura-imgopt' ),
 							false,
 							false,
 							false
@@ -428,14 +432,14 @@ final class S3_Storage_Page {
 								'label'   => (string) $field_hints['bucket_label'],
 								'hint'    => (string) $field_hints['bucket'],
 								'full'    => true,
-								'control' => static function () use ( $space, $bucket ) {
+								'control' => static function () {
 									return '<div class="field__row">'
 										// 「获取 SDK 参数」把空间名写进这个隐藏字段，保存时随配置一起存下来，
 										// 之后状态卡、配置卡和选择器就用它代替 40 位的 s3Bucket。
-										// 这里必须用解析后的 $space：老配置只在自己的记录里存了空间名，
-										// 留空会让用户下一次保存把它冲掉。
-										. '<input type="hidden" id="sakura-s3-space" name="space" value="' . esc_attr( $space ) . '" />'
-										. '<input type="text" class="field__grow" id="sakura-s3-bucket" name="bucket" value="' . esc_attr( $bucket ) . '" autocomplete="off" />'
+										// 表单默认留空：它是新增配置用的；要改一份已有配置，点上面「这份
+										// 服务商的已保存配置」里的小卡片，脚本会把那份的值填进来。
+										. '<input type="hidden" id="sakura-s3-space" name="space" value="" />'
+										. '<input type="text" class="field__grow" id="sakura-s3-bucket" name="bucket" value="" autocomplete="off" />'
 										. '<button type="button" class="btn btn--ghost btn--small" data-sakura-doge-resolve hidden>' . esc_html__( '获取 SDK 参数', 'sakura-imgopt' ) . '</button>'
 										. '</div>';
 								},
@@ -448,7 +452,7 @@ final class S3_Storage_Page {
 								'id'          => 'sakura-s3-region',
 								'name'        => 'region',
 								'label'       => __( '地域', 'sakura-imgopt' ),
-								'value'       => (string) $options['region'],
+								'value'       => '',
 								'placeholder' => 'us-east-1',
 								'hint'        => (string) $field_hints['region'],
 							)
@@ -460,7 +464,7 @@ final class S3_Storage_Page {
 								'id'          => 'sakura-s3-endpoint',
 								'name'        => 'endpoint',
 								'label'       => __( '服务地址', 'sakura-imgopt' ),
-								'value'       => (string) $options['endpoint'],
+								'value'       => '',
 								'placeholder' => (string) $field_hints['placeholder'],
 								'hint'        => (string) $field_hints['endpoint'],
 								'full'        => false,
@@ -519,7 +523,7 @@ final class S3_Storage_Page {
 								'id'          => 'sakura-s3-url',
 								'name'        => 'upload_url_path',
 								'label'       => __( '图片地址前缀', 'sakura-imgopt' ),
-								'value'       => (string) $options['upload_url_path'],
+								'value'       => '',
 								'placeholder' => 'https://cdn.example.com/wp-content/uploads',
 								'hint'        => __( '保存后会写入 WordPress 的图片地址设置。不会自动替换文章里已经写好的旧地址。', 'sakura-imgopt' ),
 								'full'        => true,
@@ -668,6 +672,65 @@ final class S3_Storage_Page {
 					return '<label class="check check--stacked"><input type="checkbox" name="' . esc_attr( $name ) . '" value="1"' . ( $checked ? ' checked' : '' ) . ' /><span class="check__box" aria-hidden="true"></span><span class="check__text"><strong class="check__title">' . esc_html( $text ) . '</strong><span class="check__hint' . ( $danger ? ' is-danger' : '' ) . '">' . esc_html( $hint ) . '</span></span></label>';
 				},
 			)
+		);
+	}
+
+	/**
+	 * Runtime state the profile cards need after a one-click toggle.
+	 *
+	 * The page never reloads on a toggle, so the card, the status strip and the
+	 * banner all have to be repainted from one payload. Returning it here keeps
+	 * the AJAX handler from re-deriving the same strings the renderer already
+	 * owns.
+	 *
+	 * @return array<string,mixed>
+	 */
+	public static function state_payload(): array {
+		$options        = new Options();
+		$active_id      = $options->active_profile_id();
+		$active_profile = '' !== $active_id ? $options->profile( $active_id ) : array();
+		$bucket         = (string) $options->get( 'bucket', '' );
+		$provider       = (string) $options->get( 'provider', '' );
+		$provider_label = (string) ( Providers::all()[ $provider ] ?? 'S3' );
+		$enabled        = $options->is_enabled();
+		$configured     = $options->is_configured();
+
+		$profiles = array();
+		foreach ( $options->saved_profiles() as $profile_id => $profile ) {
+			if ( empty( $profile['saved'] ) ) {
+				continue;
+			}
+			$is_active = ! empty( $profile['active'] );
+			$is_live   = $is_active && $enabled;
+			$badge     = __( '已保存', 'sakura-imgopt' );
+			if ( $is_live ) {
+				$badge = __( '使用中', 'sakura-imgopt' );
+			} elseif ( $is_active ) {
+				$badge = __( '已停用', 'sakura-imgopt' );
+			}
+			$profiles[ (string) $profile_id ] = array(
+				'live'        => $is_live,
+				'current'     => $is_active,
+				'badge'       => $badge,
+				'badgeTone'   => $is_live ? 'ok' : 'neutral',
+				'deleteLabel' => $is_active ? __( '使用中不可删除', 'sakura-imgopt' ) : __( '删除此配置', 'sakura-imgopt' ),
+				'deleteTitle' => $is_active ? __( '使用中的配置不能删除，请先切换到其他配置', 'sakura-imgopt' ) : __( '删除此配置', 'sakura-imgopt' ),
+			);
+		}
+
+		return array(
+			'enabled'       => $enabled,
+			'configured'    => $configured,
+			'activeId'      => $active_id,
+			'tone'          => $configured ? ( $enabled ? 'ok' : 'warn' ) : 'bad',
+			'statusValue'   => '' !== $bucket
+				? Bucket_Label::display( $bucket, $options->space(), $provider )
+				: __( '未配置', 'sakura-imgopt' ),
+			'statusTitle'   => $bucket,
+			'statusSub'     => $provider_label . ' · ' . ( $enabled ? __( '已启用', 'sakura-imgopt' ) : __( '已停用', 'sakura-imgopt' ) ),
+			'providerLabel' => $provider_label,
+			'activeName'    => (string) ( $active_profile['name'] ?? '' ),
+			'profiles'      => $profiles,
 		);
 	}
 

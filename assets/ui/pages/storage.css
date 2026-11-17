@@ -148,25 +148,64 @@
 }
 
 /*
- * The two card actions share one row and size to their own label, so the
- * delete button no longer stretches across the whole card and the test
- * button sits beside it instead of pushing it down.
+ * The two card actions split one row evenly. Sized to their own label they
+ * hugged the left edge and left a gap on the right, and being quiet text
+ * buttons they read as a caption rather than controls. Both now carry a
+ * visible border and fill half the row each, with centred labels.
  */
 .sakura-admin[data-sakura-page="storage-connection"] .profile-item__actions {
-	display: flex;
-	flex-wrap: wrap;
-	align-items: center;
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
 	gap: var(--g-space-2);
 }
 
+.sakura-admin[data-sakura-page="storage-connection"] .profile-item__delete {
+	display: flex;
+	min-width: 0;
+	margin: 0;
+}
+
+.sakura-admin[data-sakura-page="storage-connection"] .profile-probe,
 .sakura-admin[data-sakura-page="storage-connection"] .profile-delete {
-	flex: 0 1 auto;
-	justify-content: flex-start;
+	width: 100%;
+	padding: 0 8px;
+}
+
+/* The probe stays neutral: it is the safe, repeatable action. */
+.sakura-admin[data-sakura-page="storage-connection"] .profile-probe {
+	border-color: var(--g-line-strong);
+	background: var(--g-card);
+	color: var(--g-ink-soft);
+}
+
+.sakura-admin[data-sakura-page="storage-connection"] .profile-probe:hover:not(:disabled) {
+	border-color: var(--g-accent);
+	background: var(--g-accent-soft);
+	color: var(--g-accent);
+}
+
+/* Delete reads as destructive at rest, not only once the pointer is on it. */
+.sakura-admin[data-sakura-page="storage-connection"] .profile-delete {
+	border-color: var(--g-bad-line);
+	background: var(--g-bad-bg);
 	color: var(--g-bad);
 }
 
-.sakura-admin[data-sakura-page="storage-connection"] .profile-probe {
-	flex: 0 1 auto;
+.sakura-admin[data-sakura-page="storage-connection"] .profile-delete:hover:not(:disabled) {
+	border-color: var(--g-bad);
+	background: var(--g-bad);
+	color: var(--g-accent-ink);
+}
+
+/* The profile in use cannot be deleted: drop the red entirely, so the card that
+ * is serving uploads does not advertise two live destructive controls. */
+.sakura-admin[data-sakura-page="storage-connection"] .profile-delete:disabled {
+	border-color: var(--g-line);
+	background: var(--g-wash);
+	color: var(--g-muted);
+	/* Not faded further: .55 opacity on already-muted text made the reason
+	 * ("使用中不可删除") look like a rendering artefact instead of an answer. */
+	opacity: 1;
 }
 
 /* Checkbox rows with a bold title and a hint line. */

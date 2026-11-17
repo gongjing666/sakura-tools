@@ -282,15 +282,6 @@
 	}
 }
 
-/* One column: provider on top, its saved configs underneath. Side by side at
- * phone width each half would be under 160px and the chips would ellipsis away
- * the part that tells them apart. */
-@media (max-width: 1100px) {
-	.sakura-admin[data-sakura-page^="storage-"] .s3-provider-row {
-		grid-template-columns: minmax(0, 1fr);
-	}
-}
-
 /*
  * Provider picker and this provider's saved configs share one row.
  *
@@ -330,6 +321,27 @@
 
 .sakura-admin[data-sakura-page^="storage-"] .s3-provider-row.is-empty {
 	grid-template-columns: minmax(0, 1fr);
+}
+
+/*
+ * One column: provider on top, its saved configs underneath. Side by side below
+ * 1100px each half is under 160px, and the picker's field__row would still
+ * reserve its 220px flex basis — the select then hangs out of its own cell and
+ * the row reads as broken. Stacked, the picker keeps its full width and the
+ * chips get a line of their own.
+ *
+ * This has to come after the base grid-template-columns rule: a media query
+ * earlier in the file loses to it at equal specificity.
+ */
+@media (max-width: 1100px) {
+	.sakura-admin[data-sakura-page^="storage-"] .s3-provider-row {
+		grid-template-columns: minmax(0, 1fr);
+	}
+
+	.sakura-admin[data-sakura-page^="storage-"] .s3-provider-row__pick .field__row .field__grow {
+		flex: 1 1 auto;
+		max-width: none;
+	}
 }
 
 .sakura-admin[data-sakura-page^="storage-"] .profile-chips__list {

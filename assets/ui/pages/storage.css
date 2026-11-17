@@ -203,9 +203,11 @@
 	border-color: var(--g-line);
 	background: var(--g-wash);
 	color: var(--g-muted);
-	/* Not faded further: .55 opacity on already-muted text made the reason
-	 * ("使用中不可删除") look like a rendering artefact instead of an answer. */
-	opacity: 1;
+	/* The label here is the answer to "why can't I delete this?", so it has to
+	 * stay readable instead of fading into the row. The zibll theme ships a
+	 * global `[disabled] { opacity: .6 !important }` in admin-main.min.css, hence
+	 * the important: without it the muted text drops to about 2.6:1. */
+	opacity: 1 !important;
 }
 
 /* Checkbox rows with a bold title and a hint line. */

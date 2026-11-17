@@ -774,6 +774,7 @@ final class S3_Storage_Page {
 			}
 
 			$errors = array(
+				'bucket'        => __( '还没有填存储桶名称。这个表单是用来新增一份配置的，想修改已保存的配置，请点上面的配置小卡片。', 'sakura-imgopt' ),
 				'endpoint'      => __( '「服务地址」必须是有效的 http:// 或 https:// 地址。', 'sakura-imgopt' ),
 				'url'           => __( '「图片地址前缀」必须是有效的 http:// 或 https:// 地址。', 'sakura-imgopt' ),
 				'path'          => __( '「云端路径前缀」不能包含「..」这类上级目录写法。', 'sakura-imgopt' ),

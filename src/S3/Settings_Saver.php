@@ -161,6 +161,13 @@ final class Settings_Saver {
 			$bucket_raw,
 			$editing
 		);
+		// The connection form starts empty on purpose (it is the "add a
+		// configuration" form), so an accidental submit must not mint a profile
+		// that has credentials but no bucket: it would sit on the panel as a
+		// broken card nobody can enable.
+		if ( '' === $bucket_raw ) {
+			$this->redirect( array( 'saved' => '0', 'error' => 'bucket' ) );
+		}
 		$endpoint_raw     = isset( $_POST['endpoint'] ) ? trim( wp_unslash( $_POST['endpoint'] ) ) : '';
 		$endpoint         = '' === $endpoint_raw ? '' : esc_url_raw( $endpoint_raw, array( 'http', 'https' ) );
 		if ( '' !== $endpoint_raw && '' === $endpoint ) {

@@ -196,7 +196,6 @@ final class Uninstaller {
 			'sakura_imgopt_sync_full_at',
 			'sakura_imgopt_sync_metrics',
 			'sakura_imgopt_thumb_cache_flush',
-			'sakura_imgopt_thumb_probe',
 			'sakura_imgopt_thumb_stats',
 			'sufm_space_reconcile_last',
 			'sufm_sync_state',
@@ -328,6 +327,7 @@ final class Uninstaller {
 				'sakura_imgopt_backup_usage',
 				Upgrade_Guard::ERROR_TRANSIENT,
 				'sakura_imgopt_thumb_probe_reset',
+				'sakura_imgopt_thumb_switch_notice',
 				'sufm_embed_page',
 			)
 			as $transient

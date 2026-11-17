@@ -13,7 +13,6 @@ use Sakura\ImageOptimizer\Support\Hook_Loader;
 use Sakura\ImageOptimizer\Thumbnail\Admin_Thumbnails;
 use Sakura\ImageOptimizer\Thumbnail\Context;
 use Sakura\ImageOptimizer\Thumbnail\Decorator;
-use Sakura\ImageOptimizer\Thumbnail\Probe;
 use Sakura\ImageOptimizer\Thumbnail\Settings;
 use Sakura\ImageOptimizer\Thumbnail\Stats;
 use Sakura\ImageOptimizer\Thumbnail\Theme_Bridge;
@@ -56,7 +55,6 @@ class Thumbnail_Optimizer_Module implements Module {
 
 		$hooks->add_action( 'admin_init', array( $this, 'register_settings' ) );
 		$hooks->add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_admin_assets' ) );
-		$hooks->add_action( 'admin_post_sakura_thumb_probe', array( $this, 'handle_probe' ) );
 		$hooks->add_action( 'update_option_s3_options', array( $this, 'on_s3_options_changed' ), 10, 2 );
 		$hooks->add_action( 'admin_notices', array( $this, 'render_conflict_notice' ) );
 
@@ -259,6 +257,12 @@ class Thumbnail_Optimizer_Module implements Module {
 	 * Register the option.
 	 */
 	public function register_settings(): void {
+		// 1.28.2 retired the capability probe. Drop its leftover option so a site
+		// that upgrades does not keep a stale verdict nobody reads any more.
+		if ( false !== get_option( 'sakura_imgopt_thumb_probe', false ) ) {
+			delete_option( 'sakura_imgopt_thumb_probe' );
+		}
+
 		register_setting(
 			'sakura_imgopt_oss_group',
 			Settings::OPTION,
@@ -290,11 +294,16 @@ class Thumbnail_Optimizer_Module implements Module {
 	}
 
 	/**
-	 * Invalidate the probe and cached URLs when the off-site target changes.
+	 * Turn the thumbnail rewrite off when the off-site target is replaced.
 	 *
-	 * A probe result and the theme's cached thumbnail URLs both encode the old
-	 * provider/host. Keeping them after a switch would either advertise URLs
-	 * that 404 or leave "probe passed" on screen for a host nobody tested.
+	 * A named style, a media host and a processing template all encode one
+	 * carrier. Keeping the switch on across a switch means the site keeps
+	 * emitting URLs for the bucket that is no longer active, and the only way
+	 * to notice is a 404 in the browser. The rewrite is therefore switched off
+	 * and the user re-decides on its own page, where the new host is visible.
+	 *
+	 * Only identity changes count: rotating a key, changing object ACL or the
+	 * upload concurrency must not silently disable anything.
 	 *
 	 * @param mixed $old          Previous option value.
 	 * @param mixed $new_settings New option value.
@@ -303,21 +312,39 @@ class Thumbnail_Optimizer_Module implements Module {
 		$old          = is_array( $old ) ? $old : array();
 		$new_settings = is_array( $new_settings ) ? $new_settings : array();
 
-		$changed = false;
-		foreach ( array( 'provider', 'upload_url_path', 'endpoint' ) as $key ) {
-			if ( (string) ( $old[ $key ] ?? '' ) !== (string) ( $new_settings[ $key ] ?? '' ) ) {
-				$changed = true;
-				break;
-			}
-		}
-
-		if ( ! $changed ) {
+		if ( ! self::storage_target_changed( $old, $new_settings ) ) {
 			return;
 		}
 
-		delete_option( Settings::PROBE_OPTION );
-		Settings::flush_caches();
-		set_transient( 'sakura_imgopt_thumb_probe_reset', 1, 300 );
+		$raw = get_option( Settings::OPTION, array() );
+		$raw = is_array( $raw ) ? $raw : array();
+
+		if ( empty( $raw['enabled'] ) ) {
+			Settings::reset();
+			Settings::flush_caches();
+			return;
+		}
+
+		$raw['enabled'] = 0;
+		update_option( Settings::OPTION, $raw );
+		Settings::reset();
+		set_transient( 'sakura_imgopt_thumb_switch_notice', 1, 300 );
+	}
+
+	/**
+	 * Whether the two option sets point at different storage.
+	 *
+	 * @param array<string,mixed> $old         Previous option value.
+	 * @param array<string,mixed> $new_settings New option value.
+	 */
+	private static function storage_target_changed( array $old, array $new_settings ): bool {
+		foreach ( array( 'provider', 'bucket', 'space', 'region', 'endpoint', 'upload_path', 'upload_url_path', 'active_profile_id' ) as $key ) {
+			if ( (string) ( $old[ $key ] ?? '' ) !== (string) ( $new_settings[ $key ] ?? '' ) ) {
+				return true;
+			}
+		}
+
+		return false;
 	}
 
 	/**
@@ -338,10 +365,10 @@ class Thumbnail_Optimizer_Module implements Module {
 			return;
 		}
 
-		if ( get_transient( 'sakura_imgopt_thumb_probe_reset' ) ) {
-			delete_transient( 'sakura_imgopt_thumb_probe_reset' );
+		if ( get_transient( 'sakura_imgopt_thumb_switch_notice' ) ) {
+			delete_transient( 'sakura_imgopt_thumb_switch_notice' );
 			echo \Sakura\ImageOptimizer\Admin\UI\Feedback::admin_notice_html( // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Component escapes internally.
-				esc_html__( '存储配置（厂商 / 图片域名 / 端点）已变更，之前的探测结论与缓存的缩略图地址已作废，改写暂时关闭。请重新探测确认后再启用。', 'sakura-imgopt' ),
+				esc_html__( '存储配置（厂商 / 桶 / 端点 / 图片域名）已变更，缩略图地址改写已自动关闭，缓存的缩略图地址也已作废。请到「缩略图优化」确认图片域名后重新开启。', 'sakura-imgopt' ),
 				'info'
 			);
 		}
@@ -365,34 +392,12 @@ class Thumbnail_Optimizer_Module implements Module {
 
 		$options  = Settings::get();
 		$is_zibll = $this->is_zibll_theme();
-		$status   = Settings::probe_status();
 		$mode     = Settings::effective_mode();
 		$stats    = Stats::summary();
 		$host     = Settings::media_host();
 		$cache_report = Settings::cache_flush_report();
 
 		require __DIR__ . '/views/thumb-settings.php';
-	}
-
-	/**
-	 * Run a probe from the settings page.
-	 */
-	public function handle_probe(): void {
-		if ( ! current_user_can( 'manage_options' ) ) {
-			wp_die( esc_html__( '没有权限。', 'sakura-imgopt' ) );
-		}
-
-		check_admin_referer( 'sakura_thumb_probe' );
-		$status = ( new Probe() )->run( true );
-
-		wp_safe_redirect(
-			\Sakura\ImageOptimizer\Admin\Registry::url(
-				'image',
-				'thumb',
-				array( 'sakura_probe' => $status->is_ok() ? 'ok' : 'fail' )
-			)
-		);
-		exit;
 	}
 }
 

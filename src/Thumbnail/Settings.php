@@ -21,7 +21,6 @@ defined( 'ABSPATH' ) || exit;
 final class Settings {
 
 	public const OPTION       = 'sakura_imgopt_oss_thumb';
-	public const PROBE_OPTION = 'sakura_imgopt_thumb_probe';
 	public const STATS_OPTION = 'sakura_imgopt_thumb_stats';
 	public const FLUSH_OPTION = 'sakura_imgopt_thumb_cache_flush';
 	public const SCHEMA       = 2;
@@ -845,48 +844,25 @@ final class Settings {
 	}
 
 	/**
-	 * Stored probe result.
-	 */
-	public static function probe_status(): Provider_Status {
-		$raw = get_option( self::PROBE_OPTION, array() );
-
-		return is_array( $raw ) ? Provider_Status::from_array( $raw ) : new Provider_Status();
-	}
-
-	/**
-	 * Persist a probe result.
-	 *
-	 * @param Provider_Status $status Status.
-	 */
-	public static function store_probe( Provider_Status $status ): void {
-		update_option( self::PROBE_OPTION, $status->to_array() );
-	}
-
-	/**
 	 * Effective provider mode after degradation.
 	 */
 	public static function effective_mode(): string {
-		$status = self::probe_status();
-
-		return self::resolve_mode(
-			self::get(),
-			self::provider_id(),
-			self::media_host(),
-			$status->is_ok(),
-			(string) $status->mode
-		);
+		return self::resolve_mode( self::get(), self::provider_id(), self::media_host() );
 	}
 
 	/**
 	 * Pure mode resolution, so callers can preview a proposed option set.
 	 *
-	 * @param array<string,mixed> $opt        Normalized options.
-	 * @param string              $provider   Saved S3 provider id.
-	 * @param string              $host       Media host (empty when off-site).
-	 * @param bool                $probe_ok   Whether the last probe succeeded.
-	 * @param string              $probe_mode Mode reported by the probe.
+	 * "auto" is a static capability test, not a network test: the provider table
+	 * already says which URL syntax a carrier understands, so asking the bucket
+	 * again at runtime only creates a second source of truth that can disagree
+	 * with the first. See docs/开发规则/07-S3存储生命周期.md.
+	 *
+	 * @param array<string,mixed> $opt      Normalized options.
+	 * @param string              $provider Saved S3 provider id.
+	 * @param string              $host     Media host (empty when off-site).
 	 */
-	public static function resolve_mode( array $opt, string $provider, string $host, bool $probe_ok, string $probe_mode ): string {
+	public static function resolve_mode( array $opt, string $provider, string $host ): string {
 		$config   = (string) ( $opt['provider_mode'] ?? 'auto' );
 		$styles   = isset( $opt['style_map'] ) && is_array( $opt['style_map'] ) ? array_filter( $opt['style_map'] ) : array();
 		$template = isset( $opt['advanced']['custom_provider_template'] ) ? (string) $opt['advanced']['custom_provider_template'] : '';
@@ -914,44 +890,33 @@ final class Settings {
 			return 'native';
 		}
 
-		if ( $probe_ok ) {
-			if ( 'style' === $probe_mode && $native_style && array() !== $styles ) {
-				return 'style';
-			}
-			if ( 'params' === $probe_mode && ( $native_params || $generic ) ) {
-				return 'params';
-			}
-			if ( 'native' === $probe_mode ) {
-				return 'native';
-			}
+		// Capability, not observation: named styles need a carrier that understands
+		// them *and* a style name to use; otherwise fall back to the processing
+		// parameter, which both carriers (and any custom template) can express.
+		if ( $native_style && array() !== $styles ) {
+			return 'style';
 		}
 
-		// No successful probe: do not pretend a mode works.
+		if ( $native_params || $generic ) {
+			return 'params';
+		}
+
 		return 'none';
 	}
 
 	/**
 	 * Interactions that silently break images, reported before or after save.
 	 *
-	 * @param array<string,mixed>|null          $opt   Proposed options (defaults to stored).
-	 * @param array<string,mixed>|null          $s3    Raw s3_options array.
-	 * @param array{ok?:bool,mode?:string}|null $probe Probe override.
+	 * @param array<string,mixed>|null $opt Proposed options (defaults to stored).
+	 * @param array<string,mixed>|null $s3  Raw s3_options array.
 	 * @return array<int,array{code:string,severity:string,message:string}>
 	 */
-	public static function conflicts( ?array $opt = null, ?array $s3 = null, ?array $probe = null ): array {
+	public static function conflicts( ?array $opt = null, ?array $s3 = null ): array {
 		$opt = is_array( $opt ) ? $opt : self::get();
 
 		if ( ! is_array( $s3 ) ) {
 			$raw = get_option( 's3_options', array() );
 			$s3  = is_array( $raw ) ? $raw : array();
-		}
-
-		if ( ! is_array( $probe ) ) {
-			$status = self::probe_status();
-			$probe  = array(
-				'ok'   => $status->is_ok(),
-				'mode' => (string) $status->mode,
-			);
 		}
 
 		$provider = isset( $s3['provider'] ) ? sanitize_key( (string) $s3['provider'] ) : '';
@@ -966,7 +931,7 @@ final class Settings {
 			}
 		}
 
-		$mode    = self::resolve_mode( $opt, $provider, $host, (bool) ( $probe['ok'] ?? false ), (string) ( $probe['mode'] ?? '' ) );
+		$mode    = self::resolve_mode( $opt, $provider, $host );
 		$rewrite = ! empty( $opt['enabled'] ) && in_array( $mode, array( 'style', 'params' ), true );
 		$out     = array();
 

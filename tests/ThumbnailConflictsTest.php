@@ -66,17 +66,6 @@ final class ThumbnailConflictsTest extends TestCase {
 		$this->assertSame( array(), $this->codes( $opt, $this->s3() ) );
 	}
 
-	/** A failed probe in auto mode degrades to "none". */
-	public function test_failed_probe_degrades_to_none(): void {
-		$opt                  = $this->opt();
-		$opt['provider_mode'] = 'auto';
-
-		$this->assertSame(
-			array(),
-			$this->codes( $opt, $this->s3(), array( 'ok' => false, 'mode' => 'style' ) )
-		);
-	}
-
 	/**
 	 * Rewriting configuration used by most cases.
 	 *
@@ -111,17 +100,16 @@ final class ThumbnailConflictsTest extends TestCase {
 	/**
 	 * Conflict codes for one combination.
 	 *
-	 * @param array<string,mixed>              $opt   Options.
-	 * @param array<string,mixed>              $s3    S3 options.
-	 * @param array{ok?:bool,mode?:string}     $probe Probe override.
+	 * @param array<string,mixed> $opt Options.
+	 * @param array<string,mixed> $s3  S3 options.
 	 * @return array<int,string>
 	 */
-	private function codes( array $opt, array $s3, array $probe = array( 'ok' => true, 'mode' => 'style' ) ): array {
+	private function codes( array $opt, array $s3 ): array {
 		return array_map(
 			static function ( array $conflict ): string {
 				return (string) $conflict['code'];
 			},
-			Settings::conflicts( $opt, $s3, $probe )
+			Settings::conflicts( $opt, $s3 )
 		);
 	}
 }

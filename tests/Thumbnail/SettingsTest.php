@@ -8,7 +8,6 @@
 declare( strict_types=1 );
 
 use PHPUnit\Framework\TestCase;
-use Sakura\ImageOptimizer\Thumbnail\Provider_Status;
 use Sakura\ImageOptimizer\Thumbnail\Settings;
 
 /**
@@ -130,7 +129,8 @@ final class SettingsTest extends TestCase {
 		$this->assertSame( 'siomedium', $options['style_map']['medium'] );
 	}
 
-	public function test_effective_mode_uses_ok_probe(): void {
+	/** Auto mode resolves by provider capability, with no network test. */
+	public function test_auto_mode_uses_capability_not_probe(): void {
 		update_option(
 			's3_options',
 			array(
@@ -138,16 +138,35 @@ final class SettingsTest extends TestCase {
 				'upload_url_path' => 'https://bf.example.com/wp-content/uploads',
 			)
 		);
-		update_option( Settings::OPTION, Settings::defaults() );
-		Settings::store_probe(
-			new Provider_Status( Provider_Status::MODE_STYLE, Provider_Status::STATE_OK, 'test' )
-		);
+		$opt                    = Settings::defaults();
+		$opt['provider_mode']   = 'auto';
+		$opt['style_map']       = array( 'thumbnail' => 'siothumb' );
+		update_option( Settings::OPTION, $opt );
 		Settings::reset();
 
 		$this->assertSame( 'style', Settings::effective_mode() );
 	}
 
-	public function test_effective_mode_never_pretends_without_probe(): void {
+	/** Without a carrier that speaks the syntax, auto degrades instead of pretending. */
+	public function test_auto_mode_degrades_when_provider_is_unknown(): void {
+		update_option(
+			's3_options',
+			array(
+				'provider'        => 'aliyun',
+				'upload_url_path' => 'https://bf.example.com/wp-content/uploads',
+			)
+		);
+		$opt                  = Settings::defaults();
+		$opt['provider_mode'] = 'auto';
+		$opt['style_map']     = array( 'thumbnail' => 'siothumb' );
+		update_option( Settings::OPTION, $opt );
+		Settings::reset();
+
+		$this->assertSame( 'none', Settings::effective_mode() );
+	}
+
+	/** Fallback carrier: params work without a style map. */
+	public function test_auto_mode_falls_back_to_params(): void {
 		update_option(
 			's3_options',
 			array(
@@ -155,18 +174,22 @@ final class SettingsTest extends TestCase {
 				'upload_url_path' => 'https://bf.example.com/wp-content/uploads',
 			)
 		);
-		update_option( Settings::OPTION, Settings::defaults() );
+		$opt                  = Settings::defaults();
+		$opt['provider_mode'] = 'auto';
+		$opt['style_map']     = array();
+		update_option( Settings::OPTION, $opt );
 		Settings::reset();
 
-		$this->assertSame( 'none', Settings::effective_mode() );
+		$this->assertSame( 'params', Settings::effective_mode() );
 	}
 
+	/** No media host means nothing to rewrite, whatever the carrier supports. */
 	public function test_effective_mode_requires_host(): void {
 		update_option( 's3_options', array( 'provider' => 'bitiful' ) );
-		update_option( Settings::OPTION, Settings::defaults() );
-		Settings::store_probe(
-			new Provider_Status( Provider_Status::MODE_STYLE, Provider_Status::STATE_OK, 'test' )
-		);
+		$opt                  = Settings::defaults();
+		$opt['provider_mode'] = 'auto';
+		$opt['style_map']     = array( 'thumbnail' => 'siothumb' );
+		update_option( Settings::OPTION, $opt );
 		Settings::reset();
 
 		$this->assertSame( 'none', Settings::effective_mode() );

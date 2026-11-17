@@ -17,43 +17,12 @@ defined( 'ABSPATH' ) || exit;
 final class CLI {
 
 	/**
-	 * Probe the provider and store the result.
-	 *
-	 * ## OPTIONS
-	 *
-	 * [--force]
-	 * : Ignore the one hour cache.
-	 *
-	 * @param array<int,string>    $args       Positional args.
-	 * @param array<string,string> $assoc_args Flags.
-	 */
-	public function probe( array $args, array $assoc_args ): void {
-		$force  = ! empty( $assoc_args['force'] );
-		$status = ( new Probe() )->run( $force );
-
-		\WP_CLI::line( __( '模式：', 'sakura-imgopt' ) . $status->label() );
-		\WP_CLI::line( __( '证据：', 'sakura-imgopt' ) . $status->evidence );
-		if ( '' !== $status->sample_url ) {
-			\WP_CLI::line( __( '样本：', 'sakura-imgopt' ) . $status->sample_url );
-		}
-		\WP_CLI::line( __( '有效模式：', 'sakura-imgopt' ) . Settings::effective_mode() );
-
-		if ( $status->is_ok() ) {
-			\WP_CLI::success( __( '探测完成。', 'sakura-imgopt' ) );
-			return;
-		}
-
-		\WP_CLI::warning( __( '探测未成功，URL 引擎不会改写图片。', 'sakura-imgopt' ) );
-	}
-
-	/**
 	 * Print the current configuration.
 	 */
 	public function status(): void {
-		$opt    = Settings::get();
-		$status = Settings::probe_status();
-		$mode   = Settings::effective_mode();
-		$stats  = Stats::summary();
+		$opt   = Settings::get();
+		$mode  = Settings::effective_mode();
+		$stats = Stats::summary();
 
 		\WP_CLI::line( 'enabled         : ' . ( empty( $opt['enabled'] ) ? 'no' : 'yes' ) );
 		\WP_CLI::line( 'engine          : ' . (string) $opt['engine'] );
@@ -63,12 +32,6 @@ final class CLI {
 		\WP_CLI::line( 'effective mode  : ' . $mode );
 		$cache_backend = Settings::object_cache_backend();
 		\WP_CLI::line( 'object cache    : ' . $cache_backend['label'] . ( $cache_backend['group_flush'] ? ' (group flush)' : ' (no group flush)' ) );
-		\WP_CLI::line( 'probe           : ' . $status->label() );
-		\WP_CLI::line( 'probe evidence  : ' . $status->evidence );
-		if ( $status->checked_at > 0 ) {
-			$checked = function_exists( 'wp_date' ) ? wp_date( 'Y-m-d H:i:s', $status->checked_at ) : gmdate( 'Y-m-d H:i:s', $status->checked_at );
-			\WP_CLI::line( 'probe checked   : ' . $checked );
-		}
 		\WP_CLI::line( 'scopes          : archive=' . (int) $opt['scopes']['archive'] . ' sidebar=' . (int) $opt['scopes']['sidebar'] . ' singular=' . (int) $opt['scopes']['singular'] . ' other=' . (int) $opt['scopes']['other'] );
 		\WP_CLI::line( 'stats           : rewrite=' . $stats['rewrite'] . ' skip=' . $stats['skip'] . ' days=' . $stats['days'] );
 

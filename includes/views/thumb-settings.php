@@ -6,7 +6,6 @@
  *
  * @var array<string,mixed> $options Resolved options.
  * @var bool $is_zibll Theme detection.
- * @var object $status Probe status.
  * @var string $mode Effective provider mode.
  * @var array<string,mixed> $stats Stats summary.
  * @var string $host Media host.
@@ -21,10 +20,9 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 $size_labels = \Sakura\ImageOptimizer\Thumbnail\Size_Catalog::configured_labels( $options['sizes'] );
 $styles      = isset( $options['style_map'] ) && is_array( $options['style_map'] ) ? $options['style_map'] : array();
-$probe_flag  = isset( $_GET['sakura_probe'] ) ? sanitize_key( wp_unslash( $_GET['sakura_probe'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 
 $mode_labels = array(
-	'auto'   => __( '自动（按测试结果切换）', 'sakura-imgopt' ),
+	'auto'   => __( '自动（按云存储能力推断）', 'sakura-imgopt' ),
 	'style'  => __( '命名样式（缤纷云 / 多吉云）', 'sakura-imgopt' ),
 	'params' => __( '宽高参数（?w=&h=）', 'sakura-imgopt' ),
 	'native' => __( 'WordPress 自带尺寸', 'sakura-imgopt' ),
@@ -35,8 +33,6 @@ $engine_labels = array(
 	'html' => __( '整页替换（旧版方式，较慢）', 'sakura-imgopt' ),
 	'off'  => __( '关闭', 'sakura-imgopt' ),
 );
-$probe_tone = $status->is_ok() ? 'ok' : ( 'blocked' === $status->state ? 'bad' : 'warn' );
-$probe_label = $status->is_ok() ? __( '测试通过', 'sakura-imgopt' ) : __( '待测试', 'sakura-imgopt' );
 $mode_short = array(
 	'auto'   => __( '自动', 'sakura-imgopt' ),
 	'style'  => __( '命名样式', 'sakura-imgopt' ),
@@ -44,9 +40,6 @@ $mode_short = array(
 	'native' => __( '自带尺寸', 'sakura-imgopt' ),
 	'none'   => __( '不处理', 'sakura-imgopt' ),
 );
-$checked_text = $status->checked_at > 0
-	? ( function_exists( 'wp_date' ) ? wp_date( 'Y-m-d H:i:s', $status->checked_at ) : gmdate( 'Y-m-d H:i:s', $status->checked_at ) )
-	: __( '尚未测试', 'sakura-imgopt' );
 $cache_time = ! empty( $cache_report['time'] )
 	? ( function_exists( 'wp_date' ) ? wp_date( 'Y-m-d H:i:s', (int) $cache_report['time'] ) : gmdate( 'Y-m-d H:i:s', (int) $cache_report['time'] ) )
 	: __( '尚未清理', 'sakura-imgopt' );
@@ -105,51 +98,17 @@ UI::page(
 		'status'  => array(
 			'label' => __( '缩略图引擎', 'sakura-imgopt' ),
 			'value' => '' === $host ? __( '未找到图片域名', 'sakura-imgopt' ) : $host,
-			'sub'   => ( $mode_short[ $mode ] ?? $mode ) . ' · ' . sprintf( /* translators: %s: last probe time */ __( '最近探测：%s', 'sakura-imgopt' ), $checked_text ),
-			'tone'  => $status->is_ok() ? 'ok' : ( ! empty( $options['enabled'] ) ? 'warn' : 'neutral' ),
-		),
-		'actions' => array(
-			array( 'label' => __( '连接测试', 'sakura-imgopt' ), 'url' => '#sakura-thumb-probe', 'variant' => 'ghost' ),
+			'sub'   => ( $mode_short[ $mode ] ?? $mode ),
+			'tone'  => ! empty( $options['enabled'] ) ? 'ok' : 'neutral',
 		),
 	),
-	static function () use ( $options, $is_zibll, $status, $mode, $mode_short, $stats, $host, $probe_flag, $probe_tone, $probe_label, $mode_labels, $engine_labels, $checked_text, $cache_time, $opcache_label, $cache_backend, $cache_state_label, $cache_groups_text, $cache_note, $size_labels, $styles, $checkbox_control, $form ) {
+	static function () use ( $options, $is_zibll, $mode, $stats, $mode_labels, $engine_labels, $cache_time, $opcache_label, $cache_backend, $cache_state_label, $cache_groups_text, $cache_note, $size_labels, $styles, $checkbox_control, $form ) {
 
-		/*
-		 * A probe is an action result, so it opens the shared prompt. The two
-		 * theme/mode conditions below are states and stay inline: they remain true
-		 * after the dialog is dismissed, and a modal for them would nag on every
-		 * visit.
-		 */
-		if ( 'ok' === $probe_flag ) {
-			UI::modal(
-				array(
-					'id'        => 'sakura-thumb-probe-modal',
-					'return_to' => '#sakura-thumb-probe',
-					'tone'      => 'ok',
-					'size'    => 'compact',
-					'kicker'  => 'THUMBNAIL / PROBE',
-					'title'   => __( '连接测试成功', 'sakura-imgopt' ),
-					'message' => __( '结果已保存，缩略图链接会按当前设置生效。', 'sakura-imgopt' ),
-				)
-			);
-		} elseif ( 'fail' === $probe_flag ) {
-			UI::modal(
-				array(
-					'id'        => 'sakura-thumb-probe-modal',
-					'return_to' => '#sakura-thumb-probe',
-					'tone'      => 'bad',
-					'size'    => 'compact',
-					'kicker'  => 'THUMBNAIL / PROBE',
-					'title'   => __( '连接测试未通过', 'sakura-imgopt' ),
-					'message' => __( '地址改写会保持「不处理」。具体原因见下方的测试结果。', 'sakura-imgopt' ),
-				)
-			);
-		}
 		if ( ! $is_zibll ) {
 			UI::alert( __( '当前主题不是子比（Zibll）主题；命名样式仍可使用，但请自己检查前台效果。', 'sakura-imgopt' ), 'info', __( '主题提示', 'sakura-imgopt' ) );
 		}
 		if ( ! empty( $options['enabled'] ) && 'url' === $options['engine'] && 'none' === $mode ) {
-			UI::alert( __( '已启用地址改写，但当前实际没有生效：请先完成连接测试，或把方式改为「命名样式」/「宽高参数」。', 'sakura-imgopt' ), 'warning' );
+			UI::alert( __( '已启用地址改写，但当前实际没有生效：请把方式改为「命名样式」或「宽高参数」，或补上图片域名。', 'sakura-imgopt' ), 'warning' );
 		}
 		?>
 		<div class="card-grid" data-sakura-layout="thumb" data-sakura-group="main">
@@ -196,7 +155,7 @@ UI::page(
 								'label'   => __( '地址改写方式', 'sakura-imgopt' ),
 								'value'   => $options['provider_mode'],
 								'options' => $mode_labels,
-								'hint'    => __( '自动模式只会使用测试通过的方式，不会假装成功。多吉云用宽高参数时，CDN 加速域名的缓存规则里必须关掉「忽略参数」，否则参数会被丢掉、返回原图。', 'sakura-imgopt' ),
+								'hint'    => __( '自动模式按当前云存储支持的能力推断：厂商支持命名样式且填了样式名就用命名样式，否则用宽高参数，两者都不支持就落「不处理」。多吉云用宽高参数时，CDN 加速域名的缓存规则里必须关掉「忽略参数」，否则参数会被丢掉、返回原图。', 'sakura-imgopt' ),
 							)
 						);
 						UI::field(
@@ -400,40 +359,6 @@ UI::page(
 				}
 			);
 
-			UI::card(
-				array(
-					'id'          => 'probe',
-					'anchor'      => 'sakura-thumb-probe',
-					'kicker'      => 'Capability Probe',
-					'title'       => __( '连接测试', 'sakura-imgopt' ),
-					'description' => __( '用一张真实图片检查云存储是否接受当前的地址写法。', 'sakura-imgopt' ),
-					'form'        => array(
-						'action'  => admin_url( 'admin-post.php' ),
-						'markers' => '',
-						'hidden'  => array(
-							'action'   => 'sakura_thumb_probe',
-							'_wpnonce' => wp_create_nonce( 'sakura_thumb_probe' ),
-						),
-					),
-					'save'        => __( '立即测试', 'sakura-imgopt' ),
-				),
-				static function () use ( $host, $mode, $mode_short, $status, $checked_text, $probe_tone, $probe_label ) {
-					?>
-					<div class="kpis">
-						<div class="kpi">
-							<span class="kpi__label"><?php echo esc_html__( '图片域名', 'sakura-imgopt' ); ?></span>
-							<strong class="kpi__value"><?php echo esc_html( '' === $host ? __( '未解析', 'sakura-imgopt' ) : $host ); ?></strong>
-						</div>
-						<div class="kpi">
-							<span class="kpi__label"><?php echo esc_html__( '当前生效', 'sakura-imgopt' ); ?></span>
-							<strong class="kpi__value"><?php echo esc_html( $mode_short[ $mode ] ?? $mode ); ?> <span class="badge badge--<?php echo esc_attr( $probe_tone ); ?>"><?php echo esc_html( $probe_label ); ?></span></strong>
-						</div>
-					</div>
-					<p class="sakura-thumb-evidence"><?php echo esc_html( '' !== $status->evidence ? $status->evidence : __( '尚未测试。点击下面的按钮，用真实图片检查能否访问、文件大小和宽度是否符合预期。', 'sakura-imgopt' ) ); ?></p>
-					<p class="field__hint"><?php /* translators: %s: last probe time */ echo esc_html( sprintf( __( '最近探测：%s（站点时间）', 'sakura-imgopt' ), $checked_text ) ); ?></p>
-					<?php
-				}
-			);
 
 			UI::card(
 				array(

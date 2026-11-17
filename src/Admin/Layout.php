@@ -116,17 +116,16 @@ final class Layout {
 			),
 		),
 		'thumb' => array(
-			'order' => array( 'switches', 'scopes', 'scenes', 'advanced', 'probe', 'sizes', 'stats', 'rollback', 'cache' ),
+			'order' => array( 'switches', 'scopes', 'scenes', 'advanced', 'sizes', 'stats', 'rollback', 'cache' ),
 			'cards' => array(
 				'switches' => array( 1, 1, 6 ),
 				'scopes' => array( 1, 7, 6 ),
 				'scenes' => array( 2, 1, 6 ),
 				'advanced' => array( 2, 7, 6 ),
-				'probe' => array( 3, 1, 12 ),
-				'sizes' => array( 4, 1, 12 ),
-				'stats' => array( 5, 1, 6 ),
-				'rollback' => array( 5, 7, 6 ),
-				'cache' => array( 6, 1, 12 ),
+				'sizes' => array( 3, 1, 12 ),
+				'stats' => array( 4, 1, 6 ),
+				'rollback' => array( 4, 7, 6 ),
+				'cache' => array( 5, 1, 12 ),
 			),
 		),
 		'backup' => array(

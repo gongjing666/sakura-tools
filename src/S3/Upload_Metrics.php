@@ -47,6 +47,16 @@ final class Upload_Metrics {
 	public const KEEP_DAYS = 14;
 
 	/**
+	 * Option lock that keeps two prune runs from double-counting rows.
+	 */
+	public const PRUNE_LOCK = 'sakura_imgopt_s3_upload_prune';
+
+	/**
+	 * How long the prune lock is honoured before it is treated as stale.
+	 */
+	private const PRUNE_LOCK_TTL = 300;
+
+	/**
 	 * Event table suffix.
 	 */
 	private const TABLE = 'sio_s3_upload_events';
@@ -302,6 +312,85 @@ final class Upload_Metrics {
 		);
 	}
 
+	/**
+	 * Roll expired events into the frozen baseline and delete them.
+	 *
+	 * The event table is append-only: every upload writes one row and nothing
+	 * removes them, so a busy site would grow it forever (about 50 rows a day in
+	 * the first month of production, and much more under heavy uploads).
+	 *
+	 * Ageing a row out cannot simply delete it. The totals on the admin card,
+	 * Prometheus and the CLI are cumulative, so forgetting an old row would make
+	 * them go down over time — the opposite of a counter. Instead the aggregate is
+	 * added into the frozen baseline option that legacy() already reads, and only
+	 * then is the row deleted. Totals therefore stay monotonic while the daily
+	 * read model keeps its KEEP_DAYS window.
+	 *
+	 * The baseline holds totals only: its 'days' map is deliberately left
+	 * untouched, because a pruned day is older than the window anyway and writing
+	 * it back would just be data nobody reads.
+	 *
+	 * @return int Rows removed.
+	 */
+	public function prune(): int {
+		self::maybe_install();
+
+		global $wpdb;
+
+		$table = self::table_name();
+		$cut   = gmdate( 'Y-m-d', time() - self::KEEP_DAYS * DAY_IN_SECONDS );
+
+		// Two workers can be scheduled close together on a slow site; the lock is
+		// what keeps the same rows from being counted into the baseline twice.
+		$now = time();
+		if ( ! add_option( self::PRUNE_LOCK, $now, '', false ) ) {
+			$held = (int) get_option( self::PRUNE_LOCK, 0 );
+			if ( $held > 0 && $held > $now - self::PRUNE_LOCK_TTL ) {
+				return 0;
+			}
+			update_option( self::PRUNE_LOCK, $now, false );
+		}
+
+		$rows = $wpdb->get_results( "SELECT result, COUNT(*) AS n, SUM(CASE WHEN result = 'ok' THEN bytes ELSE 0 END) AS bytes, SUM(duration_ms) AS ms_sum, MAX(duration_ms) AS max_ms FROM {$table} WHERE day < '{$cut}' GROUP BY result" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Fixed table name and generated date, no user input.
+
+		$expired = 0;
+		$totals  = self::empty_day();
+		foreach ( is_array( $rows ) ? $rows : array() as $row ) {
+			$result = (string) ( $row->result ?? '' );
+			if ( ! isset( $totals[ $result ] ) ) {
+				continue;
+			}
+
+			$count    = (int) ( $row->n ?? 0 );
+			$expired += $count;
+			$totals[ $result ] += $count;
+			if ( 'dead' === $result ) {
+				$totals['fail'] += $count;
+			}
+			$totals['attempts'] += $count;
+			$totals['bytes']    += (int) ( $row->bytes ?? 0 );
+			$totals['ms_sum']   += (int) ( $row->ms_sum ?? 0 );
+			$totals['max_ms']    = max( (int) $totals['max_ms'], (int) ( $row->max_ms ?? 0 ) );
+		}
+
+		if ( $expired <= 0 ) {
+			delete_option( self::PRUNE_LOCK );
+			return 0;
+		}
+
+		$legacy = $this->legacy();
+		foreach ( array_keys( $legacy['totals'] ) as $field ) {
+			$legacy['totals'][ $field ] += (int) $totals[ $field ];
+		}
+		$legacy['updated_at'] = max( (int) $legacy['updated_at'], time() );
+		update_option( self::OPTION, $legacy, false );
+
+		$deleted = $wpdb->query( $wpdb->prepare( "DELETE FROM {$table} WHERE day < %s", $cut ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Fixed table name, date passed through prepare().
+
+		delete_option( self::PRUNE_LOCK );
+
+		return is_numeric( $deleted ) ? (int) $deleted : 0;
+	}
 	/**
 	 * Remove all metrics (tests/manual reset).
 	 */

@@ -230,6 +230,21 @@ if ( ! function_exists( 'wp_upload_dir' ) ) {
 	}
 }
 
+if ( ! function_exists( 'wp_get_upload_dir' ) ) {
+	/**
+	 * Cached upload dir shim. Storage::drop_missing_candidates() reads this one
+	 * because it wants the same base URL the rest of core caches.
+	 *
+	 * @return array<string,string>
+	 */
+	function wp_get_upload_dir() {
+		return array(
+			'basedir' => $GLOBALS['sakura_test_upload_dir'] ?? sys_get_temp_dir(),
+			'baseurl' => $GLOBALS['sakura_test_upload_baseurl'] ?? '',
+		);
+	}
+}
+
 if ( ! function_exists( 'wp_check_filetype' ) ) {
 	/**
 	 * Minimal filetype shim.

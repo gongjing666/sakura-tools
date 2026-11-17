@@ -131,6 +131,7 @@ final class Uninstaller {
 		delete_option( 'sakura_imgopt_s3_queue_schema' );
 		delete_option( 'sakura_imgopt_s3_delete_schema' );
 		delete_option( 'sakura_imgopt_s3_upload_schema' );
+		delete_option( 'sakura_imgopt_s3_upload_prune' );
 		delete_option( 'sakura_imgopt_sync_index_enabled' );
 		delete_option( 'sakura_imgopt_sync_recent_ready' );
 		delete_option( 'sakura_imgopt_sync_verify_cursor' );

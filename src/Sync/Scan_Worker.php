@@ -8,6 +8,7 @@
 namespace Sakura\ImageOptimizer\Sync;
 
 use Sakura\ImageOptimizer\Contracts\Module;
+use Sakura\ImageOptimizer\S3\Upload_Metrics;
 use Sakura\ImageOptimizer\Support\Hook_Loader;
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -170,10 +171,14 @@ final class Scan_Worker implements Module {
 	}
 
 	/**
-	 * Delete expired events, dead jobs and old finished scans.
+	 * Delete expired events, dead jobs, old finished scans and upload metrics.
+	 *
+	 * The upload metric rows are aged out by Upload_Metrics::prune(), which first
+	 * folds them into the frozen baseline so the cumulative counters survive.
 	 */
 	public function cleanup(): void {
 		$this->index->cleanup();
+		( new Upload_Metrics() )->prune();
 		self::schedule_maintenance();
 	}
 

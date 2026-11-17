@@ -166,6 +166,12 @@ final class Storage implements Module {
 		if ( '.' === $this->options->upload_path() ) {
 			$hooks->add_filter( 'wp_get_attachment_url', array( $this, 'normalize_root_url' ), 30, 2 );
 		}
+
+		// R12: srcset candidates are built from wp_get_upload_dir()['baseurl'] and
+		// never pass through wp_get_attachment_url, so the URL gate above cannot
+		// reach them. This filter drops the candidates whose objects the active
+		// bucket does not hold instead of rewriting their host.
+		$hooks->add_filter( 'wp_calculate_image_srcset', array( $this, 'filter_srcset' ), 20, 5 );
 	}
 
 	/**
@@ -692,6 +698,133 @@ final class Storage implements Module {
 		}
 
 		return self::map_cdn_to_local( $url, $cdn, self::local_upload_base_url( $this->options ) );
+	}
+
+	/**
+	 * Drop srcset candidates the active bucket does not hold.
+	 *
+	 * `wp_calculate_image_srcset()` builds every candidate from the uploads base
+	 * URL, which follows `upload_url_path` and therefore the CDN. Those candidates
+	 * never reach `wp_get_attachment_url()`, so an attachment whose objects went
+	 * missing — a failed upload, or sub-sizes that `no_thumb` never sends — keeps
+	 * advertising them and every reader gets a 404 (R12, V20b).
+	 *
+	 * The fix is to discard the candidate, not to rewrite its host: a URL that
+	 * disagrees with where the object actually lives breaks again on the next
+	 * bucket change, while a dropped candidate leaves the browser on a URL that
+	 * does resolve. Dropping all candidates makes the caller fall back to a plain
+	 * `src`, which is the attachment URL and already passes the gate above.
+	 *
+	 * @param mixed                        $sources       Candidate sources.
+	 * @param mixed                        $size_array    Requested size.
+	 * @param string                       $image_src     Rendered src attribute.
+	 * @param mixed                        $image_meta    Attachment metadata.
+	 * @param int                          $attachment_id Attachment ID.
+	 * @return array<int|string,array<string,mixed>>
+	 */
+	public function filter_srcset( $sources = array(), $size_array = array(), $image_src = '', $image_meta = array(), $attachment_id = 0 ): array {
+		if ( ! is_array( $sources ) || array() === $sources ) {
+			return array();
+		}
+
+		$id = (int) $attachment_id;
+
+		// No attachment behind the markup (a merged block, a filtered source set):
+		// there is no recorded object list to check the candidates against.
+		if ( $id <= 0 ) {
+			return $sources;
+		}
+
+		// R11: with no_thumb the sub-sizes stay local and are never uploaded, yet
+		// the metadata still lists them, so every one of their candidates points at
+		// an object the bucket does not have. This is the one case that can be
+		// answered without any other lookup.
+		if ( 'true' === (string) $this->options->get( 'no_thumb', 'false' ) ) {
+			return array();
+		}
+
+		$keys = $this->status->objects( $id );
+		if ( ! $keys ) {
+			// Nothing was recorded, so the plugin cannot tell which of these objects
+			// it put in the bucket. Keeping them matches should_keep_local(): an
+			// unknown state keeps the URL it already has.
+			return $sources;
+		}
+
+		$status = (string) $this->status->status( $id );
+		$file   = get_attached_file( $id );
+		$has    = is_string( $file ) && '' !== $file && is_file( $file );
+		$match  = Sync_Status::SYNCED === $status && $has ? $this->confirmed_in_active_bucket( $id ) : null;
+
+		if ( ! self::should_keep_local( $status, $has, $match ) ) {
+			// The bucket is the source of truth for this attachment, so the
+			// candidates are as good as the bucket is; second-guessing them here
+			// would hide a real 404 instead of preventing a pointless one.
+			return $sources;
+		}
+
+		return $this->drop_missing_candidates( $sources, $id );
+	}
+
+	/**
+	 * Drop every candidate that points at this attachment's own objects.
+	 *
+	 * Reached only while the attachment is entitled to a local URL, which means
+	 * the plugin does not trust the bucket to hold this object set: the upload did
+	 * not finish, or it finished against a bucket that is no longer active. In
+	 * that state a candidate URL is a claim nobody verified, and the local file is
+	 * the copy that actually resolves.
+	 *
+	 * So the whole owned set goes, not only the files that happen to be missing on
+	 * disk: local existence says nothing about what the CDN serves. With fewer
+	 * than two candidates left WordPress returns false from
+	 * wp_calculate_image_srcset(), and the caller renders a plain src attribute —
+	 * the attachment URL, which already passed the gate above. Candidates that
+	 * belong to another file are left alone: nothing here knows what the bucket
+	 * holds for them.
+	 *
+	 * @param array<int|string,array<string,mixed>> $sources       Candidate sources.
+	 * @param int                                   $attachment_id Attachment ID.
+	 * @return array<int|string,array<string,mixed>>
+	 */
+	private function drop_missing_candidates( array $sources, int $attachment_id ): array {
+		$owned = array();
+		foreach ( $this->uploader->desired_keys( $attachment_id ) as $key ) {
+			$owned[ ltrim( wp_normalize_path( (string) $key ), '/' ) ] = true;
+		}
+		if ( ! $owned ) {
+			return $sources;
+		}
+
+		$uploads = wp_get_upload_dir();
+		$baseurl = untrailingslashit( (string) ( $uploads['baseurl'] ?? '' ) );
+		if ( '' === $baseurl ) {
+			return $sources;
+		}
+
+		// A candidate URL is relative to the uploads base URL, which already carries
+		// the upload path, while recorded keys carry it too (or not, depending on the
+		// generation that wrote them). key_candidates() is the one place that knows
+		// both spellings, so the comparison goes through it.
+		$path   = (string) $this->options->get( 'upload_path', '' );
+		$prefix = '' === $path || '.' === $path ? '' : untrailingslashit( ltrim( wp_normalize_path( $path ), '/' ) );
+
+		foreach ( $sources as $width => $source ) {
+			$url = is_array( $source ) ? (string) ( $source['url'] ?? '' ) : '';
+			if ( '' === $url || 0 !== strpos( $url, $baseurl . '/' ) ) {
+				continue;
+			}
+
+			$relative = ltrim( wp_normalize_path( substr( $url, strlen( $baseurl ) ) ), '/' );
+			foreach ( self::key_candidates( $relative, $prefix ) as $key ) {
+				if ( isset( $owned[ $key ] ) ) {
+					unset( $sources[ $width ] );
+					break;
+				}
+			}
+		}
+
+		return $sources;
 	}
 
 	/**

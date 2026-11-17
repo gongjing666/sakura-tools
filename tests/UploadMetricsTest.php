@@ -29,10 +29,20 @@ final class UploadMetricsDatabase {
 		return 1;
 	}
 
+	public function prepare( $query, ...$args ) {
+		// wpdb quotes string placeholders; the doubles below match on the quotes.
+		$args = array_map( static fn( $arg ) => is_string( $arg ) ? "'" . $arg . "'" : $arg, $args );
+
+		return vsprintf( (string) $query, $args );
+	}
+
 	public function get_results( $sql ) {
 		$rows = $this->rows;
 		if ( preg_match( "/day >= '([0-9-]+)'/", (string) $sql, $match ) ) {
 			$rows = array_values( array_filter( $rows, static fn( array $row ): bool => (string) $row['day'] >= $match[1] ) );
+		}
+		if ( preg_match( "/day < '([0-9-]+)'/", (string) $sql, $match ) ) {
+			$rows = array_values( array_filter( $rows, static fn( array $row ): bool => (string) $row['day'] < $match[1] ) );
 		}
 
 		if ( str_contains( (string) $sql, 'GROUP BY day, result' ) ) {
@@ -77,9 +87,9 @@ final class UploadMetricsDatabase {
 
 		return (object) array(
 			'created_at'    => (string) $row['created_at'],
-			'error_message' => (string) $row['error_message'],
-			'attachment_id' => (int) $row['attachment_id'],
-			'object_key'    => (string) $row['object_key'],
+			'error_message' => (string) ( $row['error_message'] ?? '' ),
+			'attachment_id' => (int) ( $row['attachment_id'] ?? 0 ),
+			'object_key'    => (string) ( $row['object_key'] ?? '' ),
 		);
 	}
 
@@ -96,8 +106,14 @@ final class UploadMetricsDatabase {
 
 	public function query( $sql ) {
 		if ( str_starts_with( trim( (string) $sql ), 'DELETE FROM' ) ) {
-			$count       = count( $this->rows );
-			$this->rows  = array();
+			if ( preg_match( "/day < '([0-9-]+)'/", (string) $sql, $match ) ) {
+				$keep       = array_values( array_filter( $this->rows, static fn( array $row ): bool => (string) $row['day'] >= $match[1] ) );
+				$count      = count( $this->rows ) - count( $keep );
+				$this->rows = $keep;
+				return $count;
+			}
+			$count      = count( $this->rows );
+			$this->rows = array();
 			return $count;
 		}
 		return false;
@@ -274,5 +290,69 @@ final class UploadMetricsTest extends TestCase {
 		$this->assertCount( 0, $this->db->rows );
 		$this->assertFalse( get_option( Upload_Metrics::OPTION ) );
 		$this->assertSame( Upload_Metrics::VERSION, get_option( Upload_Metrics::SCHEMA_OPTION ) );
+	}
+
+	public function test_prune_rolls_expired_rows_into_the_baseline(): void {
+		$metrics = new Upload_Metrics();
+		$old_day = gmdate( 'Y-m-d', time() - 40 * DAY_IN_SECONDS );
+		$new_day = gmdate( 'Y-m-d' );
+		$this->db->rows = array(
+			array( 'day' => $old_day, 'result' => 'ok', 'bytes' => 500, 'duration_ms' => 100, 'created_at' => $old_day . ' 00:00:00' ),
+			array( 'day' => $old_day, 'result' => 'ok', 'bytes' => 250, 'duration_ms' => 300, 'created_at' => $old_day . ' 01:00:00' ),
+			array( 'day' => $old_day, 'result' => 'dead', 'bytes' => 0, 'duration_ms' => 900, 'created_at' => $old_day . ' 02:00:00' ),
+			array( 'day' => $new_day, 'result' => 'ok', 'bytes' => 10, 'duration_ms' => 5, 'created_at' => $new_day . ' 00:00:00' ),
+		);
+
+		$before  = $metrics->snapshot();
+		$removed = $metrics->prune();
+		$after   = $metrics->snapshot();
+
+		$this->assertSame( 3, $removed, 'Only rows older than the window are deleted.' );
+		$this->assertCount( 1, $this->db->rows );
+		$this->assertSame( $before['totals']['ok'], $after['totals']['ok'], 'Totals must not go down when rows age out.' );
+		$this->assertSame( $before['totals']['attempts'], $after['totals']['attempts'] );
+		$this->assertSame( $before['totals']['bytes'], $after['totals']['bytes'] );
+		$this->assertSame( $before['totals']['dead'], $after['totals']['dead'] );
+		$this->assertSame( 900, $after['totals']['max_ms'] );
+		$this->assertSame( 3, get_option( Upload_Metrics::OPTION )['totals']['attempts'], 'The expired rows are folded into the frozen baseline.' );
+		$this->assertFalse( get_option( Upload_Metrics::PRUNE_LOCK ), 'The prune lock is released.' );
+	}
+
+	public function test_prune_keeps_the_daily_window_clean(): void {
+		$metrics = new Upload_Metrics();
+		$old_day = gmdate( 'Y-m-d', time() - 40 * DAY_IN_SECONDS );
+		$this->db->rows = array(
+			array( 'day' => $old_day, 'result' => 'ok', 'bytes' => 100, 'duration_ms' => 10, 'created_at' => $old_day . ' 00:00:00' ),
+		);
+
+		$metrics->prune();
+		$snapshot = $metrics->snapshot();
+
+		$this->assertArrayNotHasKey( $old_day, $snapshot['days'] ?? array(), 'A pruned day must not reappear in the daily read model.' );
+		$this->assertSame( 0, $snapshot['week']['attempts'] );
+	}
+
+	public function test_prune_does_nothing_when_nothing_expired(): void {
+		$metrics = new Upload_Metrics();
+		$metrics->record_batch( array( array( 'ok' => true, 'ms' => 1, 'bytes' => 2 ) ) );
+
+		$this->assertSame( 0, $metrics->prune() );
+		$this->assertCount( 1, $this->db->rows );
+		$this->assertFalse( get_option( Upload_Metrics::OPTION ), 'The baseline is left alone when there is nothing to fold in.' );
+	}
+
+	public function test_prune_lock_skips_a_second_concurrent_run(): void {
+		$metrics = new Upload_Metrics();
+		$old_day = gmdate( 'Y-m-d', time() - 40 * DAY_IN_SECONDS );
+		$this->db->rows = array(
+			array( 'day' => $old_day, 'result' => 'ok', 'bytes' => 1, 'duration_ms' => 1, 'created_at' => $old_day . ' 00:00:00' ),
+		);
+		$GLOBALS['sakura_test_options'][ Upload_Metrics::PRUNE_LOCK ] = time();
+
+		$this->assertSame( 0, $metrics->prune(), 'A lock held by another worker is honoured.' );
+		$this->assertCount( 1, $this->db->rows );
+
+		$GLOBALS['sakura_test_options'][ Upload_Metrics::PRUNE_LOCK ] = time() - 3600;
+		$this->assertSame( 1, $metrics->prune(), 'A stale lock is stolen.' );
 	}
 }

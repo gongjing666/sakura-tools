@@ -446,6 +446,61 @@ final class Sync_Status {
 	}
 
 	/**
+	 * Attachments whose local copy is gone but whose object is in the bucket.
+	 *
+	 * This is the count R7/R10 put in the confirmation dialog: with
+	 * no_local_saving='true' the plugin deleted the local files after the upload
+	 * was confirmed, so deleting the profile that owns these objects leaves the
+	 * media library pointing at a domain nobody serves. Counted from post meta
+	 * rather than a file check because the bucket is the only remaining copy.
+	 *
+	 * @param string $target_hash Fingerprint of the bucket the profile points at.
+	 * @param int    $limit       Safety cap on scanned rows; the caller only needs
+	 *                            "none" vs "some" for the copy, and an exact count
+	 *                            up to this many.
+	 */
+	public function lost_local_count( string $target_hash = '', int $limit = 500 ): int {
+		$meta_query = array( // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query
+			array(
+				'key'     => self::STATUS_META,
+				'value'   => self::SYNCED,
+				'compare' => '=',
+			),
+		);
+
+		$query = new \WP_Query(
+			array(
+				'post_type'              => 'attachment',
+				'post_status'            => 'inherit',
+				'fields'                 => 'ids',
+				'posts_per_page'         => max( 1, min( 500, $limit ) ),
+				'no_found_rows'          => true,
+				'update_post_meta_cache' => true,
+				'update_post_term_cache' => false,
+				'meta_query'             => $meta_query,
+			)
+		);
+
+		$lost = 0;
+		foreach ( (array) $query->posts as $post_id ) {
+			$attachment_id = (int) $post_id;
+			$target        = (string) get_post_meta( $attachment_id, self::TARGET_META, true );
+			if ( '' !== $target_hash && ! hash_equals( $target_hash, $target ) ) {
+				continue;
+			}
+
+			$file = get_attached_file( $attachment_id );
+			if ( ! is_string( $file ) || '' === $file || is_file( $file ) ) {
+				continue;
+			}
+
+			++$lost;
+		}
+
+		return $lost;
+	}
+
+	/**
 	 * Human label for a status.
 	 *
 	 * @param int $attachment_id Attachment ID.

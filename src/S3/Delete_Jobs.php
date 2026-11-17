@@ -243,6 +243,27 @@ final class Delete_Jobs {
 	}
 
 	/**
+	 * Drop every queued delete for one profile (R8 step 3).
+	 *
+	 * Deleting a configuration has to take its queue with it: the rows name keys
+	 * that only that profile's adapter can reach, so after the profile is gone
+	 * each one would retry forever and end up as a dead row nobody can clear.
+	 *
+	 * @param string $profile_id Profile whose queue is being abandoned.
+	 * @return int Rows removed.
+	 */
+	public function forget_profile( string $profile_id ): int {
+		global $wpdb;
+		if ( '' === $profile_id ) {
+			return 0;
+		}
+
+		$deleted = $wpdb->query( $wpdb->prepare( "DELETE FROM {$this->table} WHERE profile_id = %s", $profile_id ) );
+
+		return is_int( $deleted ) ? $deleted : 0;
+	}
+
+	/**
 	 * Due rows, including a worker that died mid-delete.
 	 *
 	 * @param int $limit         Max rows.

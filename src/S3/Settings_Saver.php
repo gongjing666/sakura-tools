@@ -152,6 +152,49 @@ final class Settings_Saver {
 		return $stored;
 	}
 
+	/**
+	 * Option keys that belong to the profile list, not to the form being saved.
+	 *
+	 * save() rebuilds the option from scratch, so any key it does not know about is
+	 * dropped on every save. That was already true of `retired_targets` (the
+	 * archive Delete_Jobs reads after a target moved); `binding` and
+	 * `behaviour_locked` would be lost the same way, and losing the binding on an
+	 * unrelated credential save means the site silently unlocks itself.
+	 *
+	 * @param array<string,mixed> $stored Option being written, before it is persisted.
+	 * @param array<string,mixed> $raw    Option exactly as stored.
+	 * @return array<string,mixed>
+	 */
+	public static function keep_reserved_keys( array $stored, array $raw ): array {
+		foreach ( array( 'retired_targets', 'binding', 'behaviour_locked' ) as $key ) {
+			if ( array_key_exists( $key, $stored ) ) {
+				continue;
+			}
+			$stored[ $key ] = $raw[ $key ] ?? ( 'binding' === $key ? array() : ( 'retired_targets' === $key ? array() : 'false' ) );
+		}
+
+		return $stored;
+	}
+
+	/**
+	 * Whether the submitted save is trying to reopen the risky switch (R2).
+	 *
+	 * Only a false-to-true transition needs the acknowledgement: keeping the box
+	 * ticked, or unticking it, is not the irreversible part.
+	 *
+	 * @param string $old_value Value stored before this request.
+	 * @param string $new_value Effective value this request would store.
+	 */
+	public static function risk_ack_missing( string $old_value, string $new_value ): bool {
+		if ( 'true' !== $new_value || 'true' === $old_value ) {
+			return false;
+		}
+
+		$ack = isset( $_POST['no_local_saving_ack'] ) ? sanitize_text_field( wp_unslash( $_POST['no_local_saving_ack'] ) ) : '';
+
+		return '1' !== $ack;
+	}
+
 	public function save(): void {
 		if ( ! current_user_can( 'manage_options' ) ) {
 			wp_die( esc_html__( '权限不足。', 'sakura-imgopt' ) );
@@ -247,6 +290,21 @@ final class Settings_Saver {
 			'upload_url_path' => $upload_url,
 			'object_acl'      => self::object_acl_for_save( isset( $_POST['object_acl'] ) ? wp_unslash( $_POST['object_acl'] ) : '', $editing, $old ),
 		);
+
+		// R11 (07-S3存储生命周期): both switches are frozen once one upload was
+		// confirmed. The rendered inputs are disabled while frozen, and a disabled
+		// input posts nothing at all — reading the POST here would read "unchecked"
+		// and quietly turn the risky switch off. Take the value from the freeze
+		// instead, so the option keeps saying what the site is actually doing.
+		if ( $this->options->behaviour_frozen() ) {
+			$behaviour                  = $this->options->behaviour_snapshot();
+			$options['no_thumb']        = $behaviour['no_thumb'];
+			$options['no_local_saving'] = $behaviour['no_local_saving'];
+		} elseif ( self::risk_ack_missing( (string) ( $old['no_local_saving'] ?? 'false' ), (string) $options['no_local_saving'] ) ) {
+			// R2: the dialog is a courtesy, not the guard. The server re-checks the
+			// acknowledgement so a replayed or hand-built request cannot slip past it.
+			$this->redirect( array( 'saved' => '0', 'error' => 'risk_ack' ) );
+		}
 		if ( ! $connection_only ) {
 			$upload_concurrency = self::sanitize_upload_concurrency( isset( $_POST['upload_concurrency'] ) ? wp_unslash( $_POST['upload_concurrency'] ) : 1 );
 			update_option( 'sakura_imgopt_upload_concurrency', $upload_concurrency, false );
@@ -293,6 +351,27 @@ final class Settings_Saver {
 		// its reconciliation rows would delete records for a target that did not
 		// move.
 		$will_write   = '' !== (string) $stored['key'] && '' !== (string) $stored['secret'];
+
+		// R4 (07-S3存储生命周期): a bound site may keep adding and switching
+		// profiles, but the profile holding the binding is no longer editable in the
+		// five fields that decide where objects land. Editing it is the one move
+		// that would leave every already-synced attachment pointing at objects that
+		// are not there, so it is refused instead of confirmed.
+		$binding = $this->options->binding();
+		if (
+			$will_write
+			&& null !== $binding
+			&& (string) ( $binding['profile_id'] ?? '' ) === $profile_id
+			&& ! $this->options->binding_allows( $stored )
+		) {
+			$this->redirect(
+				array(
+					'saved'  => '0',
+					'error'  => 'locked',
+					'fields' => implode( ',', $this->options->changed_identity_fields( $stored ) ),
+				)
+			);
+		}
 		$target_moved = false;
 		if ( $will_write && isset( $profiles[ $profile_id ] ) && is_array( $profiles[ $profile_id ] ) ) {
 			$previous     = $profiles[ $profile_id ];
@@ -364,6 +443,7 @@ final class Settings_Saver {
 
 		$stored['profiles']          = $profiles;
 		$stored['active_profile_id'] = $active_profile_id;
+		$stored = self::keep_reserved_keys( $stored, $raw );
 
 		update_option( Options::OPTION, $stored, false );
 		if ( $target_moved ) {
@@ -396,8 +476,22 @@ final class Settings_Saver {
 		$raw = get_option( Options::OPTION, array() );
 		$raw = is_array( $raw ) ? $raw : array();
 
-		$raw['no_thumb']        = isset( $_POST['no_thumb'] ) ? 'true' : 'false';
-		$raw['no_local_saving'] = isset( $_POST['no_local_saving'] ) ? 'true' : 'false';
+		// Same two guards as save(): the freeze wins over the POST, and reopening
+		// the risky switch has to carry the acknowledgement (R2 / R11).
+		if ( $this->options->behaviour_frozen() ) {
+			$behaviour              = $this->options->behaviour_snapshot();
+			$raw['no_thumb']        = $behaviour['no_thumb'];
+			$raw['no_local_saving'] = $behaviour['no_local_saving'];
+		} else {
+			$no_thumb        = isset( $_POST['no_thumb'] ) ? 'true' : 'false';
+			$no_local_saving = isset( $_POST['no_local_saving'] ) ? 'true' : 'false';
+			if ( self::risk_ack_missing( (string) ( $raw['no_local_saving'] ?? 'false' ), $no_local_saving ) ) {
+				$this->redirect( array( 'saved' => '0', 'error' => 'risk_ack' ) );
+			}
+
+			$raw['no_thumb']        = $no_thumb;
+			$raw['no_local_saving'] = $no_local_saving;
+		}
 
 		update_option( Options::OPTION, $raw, false );
 		update_option(

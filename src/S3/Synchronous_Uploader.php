@@ -352,7 +352,31 @@ final class Synchronous_Uploader {
 		$result['status']  = 'synced';
 		$result['message'] = __( '附件已上传并校验。', 'sakura-imgopt' );
 
-		$delete_local = 'true' === (string) $this->options->get( 'no_local_saving', 'false' );
+		// R3 (07-S3存储生命周期): one confirmed upload binds the site to this
+		// bucket. Written here — after the synced state was read back, before any
+		// local file is deleted — so "bound" always means "an object really landed". A
+		// manual or restore upload never binds: those keep the local copy and are
+		// re-runnable, which is the opposite of the guarantee the lock is for.
+		if ( ! $manual && ! $preserve_local ) {
+			Options::lock_binding(
+				array(
+					'provider'        => (string) $this->options->get( 'provider', '' ),
+					'bucket'          => (string) $this->options->get( 'bucket', '' ),
+					'endpoint'        => (string) $this->options->get( 'endpoint', '' ),
+					'region'          => (string) $this->options->get( 'region', '' ),
+					'upload_path'     => (string) $this->options->get( 'upload_path', '' ),
+					'no_local_saving' => (string) $this->options->get( 'no_local_saving', 'false' ),
+					'no_thumb'        => (string) $this->options->get( 'no_thumb', 'false' ),
+				),
+				(string) $this->options->active_profile_id(),
+				get_current_user_id()
+			);
+		}
+
+		// R11: read the switch through the freeze, not straight from the option, so a
+		// hand-edited database cannot delete local copies the binding said to keep.
+		$behaviour    = $this->options->behaviour_snapshot();
+		$delete_local = 'true' === $behaviour['no_local_saving'];
 		if ( $delete_local && ! $manual && ! $preserve_local && $this->metadata_is_final( $attachment_id, $metadata ) ) {
 			foreach ( $manifest as $key => $file ) {
 				if ( ! File_System::delete( $file['path'] ) ) {

@@ -111,7 +111,222 @@ class Options {
 			'active_profile_id' => '',
 			'profiles'        => array(),
 			'retired_targets' => array(),
+			// Lifecycle state (07-S3存储生命周期 §4): empty until one upload is
+			// confirmed in the bucket. Written by Synchronous_Uploader::finalize().
+			'binding'           => array(),
+			'behaviour_locked'  => 'false',
 		);
+	}
+
+	/**
+	 * Identity fields frozen by a binding (R4).
+	 *
+	 * Deliberately wider than the upload fingerprint: `region` decides where the
+	 * signature sends the object even though it never appears in the object key,
+	 * so changing it is still a bucket change for the operator.
+	 *
+	 * @var string[]
+	 */
+	private const IDENTITY_FIELDS = array( 'provider', 'bucket', 'endpoint', 'region', 'upload_path' );
+
+	/**
+	 * The binding snapshot, or null when this site never completed an upload.
+	 *
+	 * Written once by Synchronous_Uploader::finalize() after the synced state was
+	 * read back, so its presence means "one object really landed in this bucket".
+	 *
+	 * @return array<string,mixed>|null
+	 */
+	public function binding(): ?array {
+		$binding = $this->options['binding'] ?? array();
+		if ( ! is_array( $binding ) || array() === $binding ) {
+			return null;
+		}
+
+		return $binding + array(
+			'provider'        => '',
+			'bucket'          => '',
+			'endpoint'        => '',
+			'region'          => '',
+			'upload_path'     => '',
+			'no_local_saving' => 'false',
+			'no_thumb'        => 'false',
+			'locked_at'       => 0,
+			'locked_by'       => 0,
+		);
+	}
+
+	/**
+	 * Whether the site is in S2/S3 (bound) rather than S1 (never uploaded).
+	 */
+	public function is_bound(): bool {
+		return null !== $this->binding();
+	}
+
+	/**
+	 * Whether a candidate configuration still describes the bound bucket (R4).
+	 *
+	 * Unbound sites allow everything: the freeze only exists to protect the
+	 * objects one confirmed upload already produced.
+	 *
+	 * @param array<string,mixed> $candidate Proposed identity, keyed like the option.
+	 */
+	public function binding_allows( array $candidate ): bool {
+		$binding = $this->binding();
+		if ( null === $binding ) {
+			return true;
+		}
+
+		foreach ( self::IDENTITY_FIELDS as $field ) {
+			if ( self::identity_value( $candidate, $field ) !== self::identity_value( $binding, $field ) ) {
+				return false;
+			}
+		}
+
+		return true;
+	}
+
+	/**
+	 * Which identity field the candidate changes, for the operator-facing notice.
+	 *
+	 * @param array<string,mixed> $candidate Proposed identity.
+	 * @return string[]
+	 */
+	public function changed_identity_fields( array $candidate ): array {
+		$binding = $this->binding();
+		if ( null === $binding ) {
+			return array();
+		}
+
+		$changed = array();
+		foreach ( self::IDENTITY_FIELDS as $field ) {
+			if ( self::identity_value( $candidate, $field ) !== self::identity_value( $binding, $field ) ) {
+				$changed[] = $field;
+			}
+		}
+
+		return $changed;
+	}
+
+	/**
+	 * Whether this site once completed a binding (survives unbinding).
+	 *
+	 * `binding` is cleared when the bound profile is deleted, so the behaviour
+	 * freeze (R11) needs its own marker.
+	 */
+	public function behaviour_locked(): bool {
+		return 'true' === (string) ( $this->options['behaviour_locked'] ?? 'false' );
+	}
+
+	/**
+	 * Whether the two upload-behaviour switches are frozen (R11).
+	 *
+	 * Bound sites freeze through `binding`; unbound sites stay frozen through
+	 * `behaviour_locked` until the profile list is empty, because deleting the
+	 * bound profile would otherwise unlock the switches one click too early.
+	 */
+	public function behaviour_frozen(): bool {
+		return $this->is_bound() || ( $this->behaviour_locked() && array() !== $this->profiles() );
+	}
+
+	/**
+	 * Effective upload behaviour while frozen.
+	 *
+	 * A bound site answers from the snapshot taken at binding time; a site that
+	 * was unbound with profiles left over keeps whatever is stored, so flipping
+	 * `no_local_saving` back through a crafted POST cannot reopen the risk.
+	 *
+	 * @return array{no_thumb:string,no_local_saving:string}
+	 */
+	public function behaviour_snapshot(): array {
+		$binding = $this->binding();
+		if ( null !== $binding ) {
+			return array(
+				'no_thumb'        => 'true' === (string) $binding['no_thumb'] ? 'true' : 'false',
+				'no_local_saving' => 'true' === (string) $binding['no_local_saving'] ? 'true' : 'false',
+			);
+		}
+
+		return array(
+			'no_thumb'        => 'true' === (string) ( $this->options['no_thumb'] ?? 'false' ) ? 'true' : 'false',
+			'no_local_saving' => 'true' === (string) ( $this->options['no_local_saving'] ?? 'false' ) ? 'true' : 'false',
+		);
+	}
+
+	/**
+	 * Record the bucket this site is now bound to (R3).
+	 *
+	 * Called only from Synchronous_Uploader::finalize(), after mark_synced() was
+	 * read back as SYNCED and before any local file is removed. A binding that
+	 * already exists is never rewritten: the first confirmed upload owns the
+	 * identity for the life of the profile row, and a later bucket switch must
+	 * stay visible as one instead of being absorbed into a fresh snapshot.
+	 *
+	 * @param array<string,mixed> $identity provider/bucket/endpoint/region/upload_path plus the switches.
+	 * @param string              $profile_id Profile the upload ran under.
+	 * @param int                 $user_id    Operator who triggered the upload.
+	 */
+	public static function lock_binding( array $identity, string $profile_id, int $user_id ): void {
+		$raw = get_option( self::OPTION, array() );
+		$raw = is_array( $raw ) ? $raw : array();
+
+		$existing = isset( $raw['binding'] ) && is_array( $raw['binding'] ) ? $raw['binding'] : array();
+		if ( array() !== $existing ) {
+			// Already bound. Keep the snapshot, but repair the marker a manual
+			// database edit may have cleared.
+			if ( 'true' !== (string) ( $raw['behaviour_locked'] ?? 'false' ) ) {
+				$raw['behaviour_locked'] = 'true';
+				update_option( self::OPTION, $raw, false );
+			}
+			return;
+		}
+
+		$raw['binding'] = array(
+			'profile_id'      => $profile_id,
+			'provider'        => (string) ( $identity['provider'] ?? '' ),
+			'bucket'          => (string) ( $identity['bucket'] ?? '' ),
+			'endpoint'        => (string) ( $identity['endpoint'] ?? '' ),
+			'region'          => (string) ( $identity['region'] ?? '' ),
+			'upload_path'     => (string) ( $identity['upload_path'] ?? '' ),
+			'no_local_saving' => 'true' === (string) ( $identity['no_local_saving'] ?? 'false' ) ? 'true' : 'false',
+			'no_thumb'        => 'true' === (string) ( $identity['no_thumb'] ?? 'false' ) ? 'true' : 'false',
+			'locked_at'       => time(),
+			'locked_by'       => $user_id,
+		);
+		// R11: the behaviour freeze outlives the binding, so it gets its own flag.
+		$raw['behaviour_locked'] = 'true';
+
+		update_option( self::OPTION, $raw, false );
+	}
+
+	/**
+	 * Forget the binding after the bound profile was deleted (R8 step 5).
+	 *
+	 * `behaviour_locked` survives on purpose: a normal lock may leave other
+	 * profiles behind, and those must not unlock the upload switches by simply
+	 * being the last row left. Only an empty profile list clears it (R11).
+	 */
+	public static function clear_binding(): void {
+		$raw = get_option( self::OPTION, array() );
+		$raw = is_array( $raw ) ? $raw : array();
+
+		$raw['binding'] = array();
+		if ( array() === ( isset( $raw['profiles'] ) && is_array( $raw['profiles'] ) ? $raw['profiles'] : array() ) ) {
+			$raw['behaviour_locked'] = 'false';
+		}
+
+		update_option( self::OPTION, $raw, false );
+	}
+
+	/**
+	 * One identity field as a comparable string.
+	 *
+	 * @param array<string,mixed> $source Option or binding snapshot.
+	 * @param string              $field  Field name.
+	 */
+	private static function identity_value( array $source, string $field ): string {
+		$value = $source[ $field ] ?? '';
+		return is_string( $value ) ? trim( $value ) : '';
 	}
 
 	/**

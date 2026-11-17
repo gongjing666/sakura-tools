@@ -306,4 +306,92 @@ final class SettingsSaverTest extends TestCase {
 		$this->assertSame( 'true', $stored['enabled'] );
 		$this->assertSame( array( 'prof_new' => array() ), $stored['profiles'] );
 	}
+	/**
+	 * The lifecycle keys are not rebuilt by save(): they travel with the option, so
+	 * a credential-only save must not silently unbind the site.
+	 */
+	public function test_reserved_lifecycle_keys_survive_a_rebuild(): void {
+		$binding = array(
+			'profile_id'      => 'prof_live',
+			'provider'        => 'bitiful',
+			'bucket'          => 'nboke',
+			'no_local_saving' => 'true',
+		);
+
+		$stored = Settings_Saver::keep_reserved_keys(
+			array( 'provider' => 'bitiful' ),
+			array(
+				'binding'          => $binding,
+				'behaviour_locked' => 'true',
+				'retired_targets'  => array( 'oldhash' => array( 'profile_id' => 'prof_old' ) ),
+			)
+		);
+
+		$this->assertSame( $binding, $stored['binding'] );
+		$this->assertSame( 'true', $stored['behaviour_locked'] );
+		$this->assertSame( array( 'oldhash' => array( 'profile_id' => 'prof_old' ) ), $stored['retired_targets'] );
+		$this->assertSame( 'bitiful', $stored['provider'] );
+	}
+
+	/**
+	 * A fresh install has none of these keys yet; the defaults must not invent a
+	 * binding, and must not leave null in the option either.
+	 */
+	public function test_reserved_lifecycle_keys_default_to_unbound(): void {
+		$stored = Settings_Saver::keep_reserved_keys( array( 'bucket' => 'nboke' ), array() );
+
+		$this->assertSame( array(), $stored['binding'] );
+		$this->assertSame( 'false', $stored['behaviour_locked'] );
+		$this->assertSame( array(), $stored['retired_targets'] );
+	}
+
+	/**
+	 * A key the caller already set is the caller's business: the helper only fills
+	 * gaps, so it can be composed with the code that clears a binding on delete.
+	 */
+	public function test_reserved_lifecycle_keys_do_not_overwrite_a_deliberate_clear(): void {
+		$stored = Settings_Saver::keep_reserved_keys(
+			array( 'binding' => array(), 'behaviour_locked' => 'false' ),
+			array( 'binding' => array( 'profile_id' => 'prof_live' ), 'behaviour_locked' => 'true' )
+		);
+
+		$this->assertSame( array(), $stored['binding'] );
+		$this->assertSame( 'false', $stored['behaviour_locked'] );
+	}
+
+	/**
+	 * R2: only the false-to-true transition is irreversible, so only that one needs
+	 * the acknowledgement.
+	 */
+	public function test_risk_acknowledgement_is_required_only_when_opening_the_risk(): void {
+		unset( $_POST['no_local_saving_ack'] );
+
+		$this->assertTrue( Settings_Saver::risk_ack_missing( 'false', 'true' ), 'Turning the risk on without ack must be refused.' );
+		$this->assertFalse( Settings_Saver::risk_ack_missing( 'true', 'true' ), 'Already on: saving again is not a new risk.' );
+		$this->assertFalse( Settings_Saver::risk_ack_missing( 'true', 'false' ), 'Turning it off never needs an ack.' );
+		$this->assertFalse( Settings_Saver::risk_ack_missing( 'false', 'false' ) );
+	}
+
+	/**
+	 * The acknowledgement has exactly one accepted value; anything else is a POST
+	 * that was not produced by the dialog.
+	 */
+	public function test_risk_acknowledgement_accepts_only_the_dialog_value(): void {
+		$_POST['no_local_saving_ack'] = '1';
+		$this->assertFalse( Settings_Saver::risk_ack_missing( 'false', 'true' ) );
+
+		$_POST['no_local_saving_ack'] = 'yes';
+		$this->assertTrue( Settings_Saver::risk_ack_missing( 'false', 'true' ) );
+
+		unset( $_POST['no_local_saving_ack'] );
+	}
+
+	/**
+	 * Nothing may leak between tests: this file only stubs the two switches, but a
+	 * leftover ack would make the "refused" case above pass for the wrong reason.
+	 */
+	protected function tearDown(): void {
+		unset( $_POST['no_local_saving_ack'] );
+		parent::tearDown();
+	}
 }

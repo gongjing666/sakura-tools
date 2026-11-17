@@ -108,6 +108,42 @@
 			body.appendChild( text );
 			form.appendChild( body );
 
+			var list = null;
+			if ( Array.isArray( settings.items ) && settings.items.length ) {
+				list = document.createElement( 'ul' );
+				list.className = 'dialog__list';
+				settings.items.forEach( function ( entry ) {
+					var row = document.createElement( 'li' );
+					row.textContent = String( entry || '' );
+					list.appendChild( row );
+				} );
+				form.appendChild( list );
+			}
+
+			/*
+			 * R7 (07-S3存储生命周期): deleting the bound profile after the local
+			 * copies were already removed cannot be undone, so the operator has to
+			 * type the profile name. Client-side only here — the server re-checks
+			 * the same string, because a disabled control or a skipped script must
+			 * never be the thing that protects the attachments.
+			 */
+			var typed = null;
+			if ( settings.requireText ) {
+				var gate = document.createElement( 'div' );
+				gate.className = 'dialog__gate';
+				var gateLabel = document.createElement( 'label' );
+				gateLabel.className = 'dialog__gate-label';
+				gateLabel.textContent = settings.requireLabel || ( '请输入「' + settings.requireText + '」确认' );
+				typed = document.createElement( 'input' );
+				typed.type = 'text';
+				typed.className = 'dialog__gate-input';
+				typed.autocomplete = 'off';
+				typed.spellcheck = false;
+				gateLabel.appendChild( typed );
+				gate.appendChild( gateLabel );
+				form.appendChild( gate );
+			}
+
 			var actions = document.createElement( 'div' );
 			actions.className = 'dialog__actions';
 
@@ -126,6 +162,25 @@
 			accept.addEventListener( 'click', function () {
 				dialog.close( 'confirm' );
 			} );
+
+			if ( typed ) {
+				accept.disabled = true;
+				accept.setAttribute( 'aria-disabled', 'true' );
+				var syncGate = function () {
+					var ok = typed.value.trim() === String( settings.requireText ).trim();
+					accept.disabled = ! ok;
+					accept.setAttribute( 'aria-disabled', ok ? 'false' : 'true' );
+				};
+				typed.addEventListener( 'input', syncGate );
+				// Enter inside a method=dialog form would close it as a confirmation,
+				// which would let the gate be skipped with one keystroke.
+				form.addEventListener( 'submit', function ( event ) {
+					event.preventDefault();
+					if ( ! accept.disabled ) {
+						dialog.close( 'confirm' );
+					}
+				} );
+			}
 
 			actions.appendChild( cancel );
 			actions.appendChild( accept );
@@ -154,7 +209,11 @@
 			}, { once: true } );
 
 			dialog.showModal();
-			accept.focus();
+			if ( typed ) {
+				typed.focus();
+			} else {
+				accept.focus();
+			}
 		} );
 	}
 
@@ -1055,8 +1114,32 @@
 			event.preventDefault();
 			var submitter  = event.target.closest ? event.target.closest( 'button, input[type="submit"], input[type="image"]' ) : null;
 			var message    = link.getAttribute( 'data-sakura-confirm' ) || '';
+
+			/*
+			 * A marked element may carry more than one sentence: a list of
+			 * consequences (R7/R10) and, for the irreversible case, the profile name
+			 * the operator has to type. Both arrive as attributes so the server keeps
+			 * owning the copy. A malformed list degrades to no list rather than
+			 * throwing, because the prompt is the last thing before a destructive
+			 * request and must still open.
+			 */
+			var items = null;
+			var rawItems = link.getAttribute( 'data-sakura-confirm-items' ) || '';
+			if ( rawItems ) {
+				try {
+					var parsed = JSON.parse( rawItems );
+					if ( Array.isArray( parsed ) && parsed.length ) {
+						items = parsed;
+					}
+				} catch ( error ) {
+					items = null;
+				}
+			}
+
 			confirm( message, {
 				title: link.getAttribute( 'data-sakura-confirm-title' ) || '',
+				items: items,
+				requireText: link.getAttribute( 'data-sakura-require-text' ) || '',
 				tone: 'danger',
 				danger: true
 			} ).then( function ( confirmed ) {

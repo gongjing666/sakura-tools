@@ -487,6 +487,22 @@
 	display: none;
 }
 
+/* R11 (07-S3存储生命周期): a frozen checkbox stays readable but stops looking
+   like something the operator can still flip. Muted, not hidden: the value shown
+   is the one the binding fixed, and hiding it would read as "this option is gone". */
+.sakura-admin .check.is-locked {
+	cursor: default;
+	color: var(--g-muted);
+}
+
+.sakura-admin .check.is-locked .check__title {
+	color: var(--g-muted);
+}
+
+.sakura-admin .check.is-locked input[type="checkbox"] {
+	cursor: not-allowed;
+}
+
 .sakura-admin .check-group {
 	display: flex;
 	flex-wrap: wrap;
@@ -1279,6 +1295,55 @@
 	color: var(--g-muted);
 	font-size: 13.5px;
 	line-height: 1.7;
+}
+
+
+/* Risk list and the typed-name gate inside confirm(). */
+.sakura-admin .dialog__list {
+	margin: 10px 0 0;
+	padding: 10px 12px 10px 28px;
+	border: 1px solid var(--g-line);
+	border-radius: var(--g-radius-input, 8px);
+	background: var(--g-surface-sunken, transparent);
+	color: var(--g-muted);
+	font-size: 13px;
+	line-height: 1.65;
+	list-style: disc;
+}
+
+.sakura-admin .dialog__list li + li {
+	margin-top: 4px;
+}
+
+.sakura-admin .dialog__gate {
+	padding: 0 22px 4px;
+}
+
+.sakura-admin .dialog__gate-label {
+	display: block;
+	margin: 0;
+	color: var(--g-muted);
+	font-size: 13px;
+	line-height: 1.6;
+}
+
+.sakura-admin .dialog__gate-input {
+	display: block;
+	width: 100%;
+	max-width: 100%;
+	margin-top: 8px;
+	padding: 8px 10px;
+	border: 1px solid var(--g-line);
+	border-radius: var(--g-radius-input, 8px);
+	background: var(--g-card-surface);
+	color: var(--g-ink);
+	font-family: inherit;
+	font-size: 13.5px;
+}
+
+.sakura-admin .dialog__gate-input:focus-visible {
+	outline: 2px solid var(--g-accent);
+	outline-offset: 1px;
 }
 
 .sakura-admin .dialog__actions {

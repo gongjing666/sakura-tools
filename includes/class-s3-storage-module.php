@@ -181,6 +181,12 @@ class S3_Storage_Module implements Module {
 		if ( 'path_conflict' === $error ) {
 			return __( '站点已指定自己的上传目录，这份配置的云端路径与它不一致，无法启用。', 'sakura-imgopt' );
 		}
+		if ( 'locked' === $error ) {
+			// R10: a high-risk binding deleted the local copies, so the other profiles
+			// point at buckets that never received these attachments. Switching to one
+			// is a guaranteed dead link, and the only exit is the documented teardown.
+			return __( '当前处于高风险锁定：本地副本已删除，只有这份配置对应的存储桶里有这些文件，切到别的配置会变成死链。如需更换存储服务商或存储桶，请先点当前配置卡片关闭 S3 存储，删除其余全部存储配置，再删除当前配置。', 'sakura-imgopt' );
+		}
 
 		return __( '没有找到这份配置，可能已被删除，请刷新页面。', 'sakura-imgopt' );
 	}
@@ -197,15 +203,27 @@ class S3_Storage_Module implements Module {
 		$result  = $manager->delete_profile( $profile_id );
 
 		if ( empty( $result['success'] ) ) {
-			$error = 'active' === ( $result['error'] ?? '' ) ? 'delete_active' : 'delete';
-			$this->redirect( array( 'saved' => '0', 'error' => $error ) );
+			$code = (string) ( $result['error'] ?? '' );
+			$this->redirect(
+				array(
+					'saved' => '0',
+					'error' => in_array( $code, array( 'delete_active', 'delete_bound', 'pending_profiles', 'missing' ), true ) ? $code : 'delete',
+				)
+			);
 		}
 
-		// The sync center reads by profile id, so dropping the profile without
-		// its rows would leave a bucket's counts, scans and event log in the
-		// tables forever with no screen able to show or clear them. The profile
-		// is gone for good here — it was never the active one — so forget it.
+		// R8 steps 2-3 (07-S3存储生命周期): the profile id is the only key the sync
+		// tables and the delete queue are partitioned by, so dropping the profile
+		// without its rows would leave a bucket's counts, scans and event log — and
+		// a queue that retries forever against an adapter that no longer exists —
+		// with no screen able to show or clear them.
 		( new Index_Repository() )->purge_index( $profile_id );
+		( new Delete_Jobs() )->forget_profile( $profile_id );
+
+		// R8 step 7 is deliberately missing: the OpenList mirror mount that would
+		// have to be unmounted here does not exist yet (08-OpenList迁移通道 是规范,
+		// 1.28.2 尚无代码). Once it lands, unmounting belongs here and must stay
+		// best-effort — an unreachable OpenList may not roll back a profile delete.
 
 		$this->redirect(
 			array(

@@ -637,15 +637,46 @@
 				}
 
 				/*
-				 * The active profile cannot be deleted, so both the disabled state
-				 * and its wording follow the card that just changed.
+				 * Whether this card may be deleted depends on what the toggle just
+				 * did: turning S3 off can turn "active" into "the one bound
+				 * profile, deletable with a warning", and turning it back on refuses
+				 * again. Both the button and the prompt it opens follow the state.
 				 */
 				var item   = admin.closest( card, '.profile-item' );
 				var remove = item ? admin.qs( '.profile-delete', item ) : null;
+				var form   = remove ? admin.closest( remove, 'form' ) : null;
 				if ( remove ) {
-					remove.disabled = !! state.current;
+					remove.disabled = !! state.deleteDisabled;
 					remove.textContent = state.deleteLabel || remove.textContent;
 					remove.title = state.deleteTitle || '';
+				}
+
+				/*
+				 * initConfirmations() reads the prompt off the form, so a repaint that
+				 * only touched the button would leave the dialog describing the state
+				 * before the toggle. Refusals drop the attributes entirely: a disabled
+				 * button cannot submit, but nothing should be able to open the prompt.
+				 */
+				if ( form ) {
+					if ( state.deleteDisabled ) {
+						form.removeAttribute( 'data-sakura-confirm' );
+						form.removeAttribute( 'data-sakura-confirm-title' );
+						form.removeAttribute( 'data-sakura-confirm-items' );
+						form.removeAttribute( 'data-sakura-require-text' );
+					} else {
+						form.setAttribute( 'data-sakura-confirm', state.confirmText || '' );
+						form.setAttribute( 'data-sakura-confirm-title', state.confirmTitle || '' );
+						if ( Array.isArray( state.confirmItems ) && state.confirmItems.length ) {
+							form.setAttribute( 'data-sakura-confirm-items', JSON.stringify( state.confirmItems ) );
+						} else {
+							form.removeAttribute( 'data-sakura-confirm-items' );
+						}
+						if ( state.confirmRequire ) {
+							form.setAttribute( 'data-sakura-require-text', state.confirmRequire );
+						} else {
+							form.removeAttribute( 'data-sakura-require-text' );
+						}
+					}
 				}
 			} );
 
@@ -667,6 +698,105 @@
 			}
 		}
 	}
+
+	/**
+	 * R2 (07-S3存储生命周期): confirm the risky switch before it can be saved.
+	 *
+	 * 「上传成功后删除本地文件」 is the one option whose damage only shows up
+	 * months later, so ticking it opens the four-part warning and the box goes
+	 * back to unchecked when the operator cancels. Agreeing flips the hidden
+	 * acknowledgement to 1; the server re-checks it, so skipping this script
+	 * (or hand-building the POST) is answered with error=risk_ack instead of a
+	 * silently destructive save.
+	 *
+	 * The submit guard is not belt-and-braces for its own sake: browsers restore
+	 * checkbox state on back/forward, which can leave the box ticked with the
+	 * acknowledgement reset to 0 and no change event to catch it.
+	 */
+	function initRiskAck( root ) {
+		var form = admin.qs( '#sakura-s3-behaviour-form', root );
+		if ( ! form ) {
+			return;
+		}
+
+		var risky = admin.qs( 'input[name="no_local_saving"]', form );
+		var ack   = admin.qs( 'input[name="no_local_saving_ack"]', form );
+
+		// Frozen: R11 renders both switches disabled and the save takes its value
+		// from the binding snapshot, so there is nothing here to confirm.
+		if ( ! risky || ! ack || risky.disabled ) {
+			return;
+		}
+
+		var asking = false;
+
+		function ask() {
+			if ( asking ) {
+				return Promise.resolve( false );
+			}
+
+			asking = true;
+
+			return admin.ui.confirm( strings.riskAckText || '', {
+				title: strings.riskAckTitle || '',
+				items: Array.isArray( strings.riskAckItems ) ? strings.riskAckItems : [],
+				confirmText: strings.riskAckAccept || '',
+				danger: true,
+				tone: 'danger'
+			} ).then( function ( ok ) {
+				asking = false;
+				return !! ok;
+			}, function () {
+				asking = false;
+				return false;
+			} );
+		}
+
+		function decline() {
+			risky.checked = false;
+			ack.value = '0';
+		}
+
+		admin.on( risky, 'change', function () {
+			if ( ! risky.checked ) {
+				ack.value = '0';
+				return;
+			}
+
+			// Ticked, not yet agreed: the acknowledgement only counts once the
+			// dialog came back affirmative.
+			ack.value = '0';
+			ask().then( function ( ok ) {
+				if ( ! ok ) {
+					decline();
+					return;
+				}
+				ack.value = '1';
+			} );
+		} );
+
+		admin.on( form, 'submit', function ( event ) {
+			if ( ! risky.checked || '1' === ack.value ) {
+				return;
+			}
+
+			event.preventDefault();
+			ask().then( function ( ok ) {
+				if ( ! ok ) {
+					decline();
+					return;
+				}
+
+				ack.value = '1';
+				if ( typeof form.requestSubmit === 'function' ) {
+					form.requestSubmit();
+				} else {
+					form.submit();
+				}
+			} );
+		} );
+	}
+
 	/**
 	 * A save under another provider is a new configuration, not an edit.
 	 *
@@ -1196,6 +1326,7 @@
 		initProbe( root );
 		initProviderHints( root );
 		initProviderProfiles( root );
+		initRiskAck( root );
 		initProfileToggle( root );
 		initProfileProbe( root );
 		initProviderSwitchGuard( root );

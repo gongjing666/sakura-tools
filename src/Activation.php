@@ -58,6 +58,10 @@ final class Activation {
 					'no_local_saving' => 'false',
 					'upload_url_path' => '',
 					'object_acl'      => 'public-read',
+					// Lifecycle state (07-S3存储生命周期 §4). Must stay in sync with
+					// Options::defaults(); a fresh site is "never bound".
+					'binding'          => array(),
+					'behaviour_locked' => 'false',
 				),
 				'',
 				false

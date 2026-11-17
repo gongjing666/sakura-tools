@@ -210,6 +210,27 @@
 	opacity: 1 !important;
 }
 
+/* R11 (07-S3存储生命周期): the freeze notice above the two checkboxes.
+ *
+ * It has to read as a statement of fact, not a warning badge: the switches below
+ * it are disabled and this line is the only place that says why, so it stays in
+ * body text at full contrast. The locked variant gets a left rule in the accent
+ * colour rather than a filled box, because a tinted panel here would compete with
+ * the card's save bar. */
+.sakura-admin[data-sakura-page^="storage-"] .behaviour-lock {
+	margin: 0 0 14px;
+	padding: 0 0 0 12px;
+	border-left: 3px solid var(--g-line);
+	color: var(--g-muted);
+	font-size: 13px;
+	line-height: 1.7;
+}
+
+.sakura-admin[data-sakura-page^="storage-"] .behaviour-lock.is-locked {
+	border-left-color: var(--g-accent);
+	color: var(--g-ink);
+}
+
 /* Checkbox rows with a bold title and a hint line. */
 .sakura-admin[data-sakura-page^="storage-"] .field--check .field__main {
 	gap: 0;

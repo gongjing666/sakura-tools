@@ -114,6 +114,22 @@ final class Profile_Manager {
 			return $this->failure( 'incomplete' );
 		}
 
+		/*
+		 * R10: a high-risk binding (no_local_saving='true') means the attachments
+		 * uploaded under it have no local copy left. Every other profile points at a
+		 * bucket that never received those objects, so switching to one would take
+		 * the media URLs to a domain that answers 404 - the exact dead link R10
+		 * exists to prevent. Normal locks stay switchable: the local copies are still
+		 * there, so the URL falls back to the site's own domain instead of breaking.
+		 *
+		 * Re-activating the bound profile itself is not a switch and stays allowed,
+		 * which is what makes "turn the card off, turn it back on" work.
+		 */
+		$binding = ( new Options( $raw ) )->binding();
+		if ( self::switch_refused_by_binding( $binding, $profile_id ) ) {
+			return $this->failure( 'locked' );
+		}
+
 		$previous_url = (string) ( $raw['upload_url_path'] ?? '' );
 		$upload_path  = trim( str_replace( '\\', '/', (string) ( $profile['upload_path'] ?? Options::DEFAULT_UPLOAD_PATH ) ), '/' );
 		if ( '' === $upload_path ) {
@@ -156,7 +172,18 @@ final class Profile_Manager {
 	}
 
 	/**
-	 * Delete a saved profile. The active profile cannot be deleted.
+	 * Delete a saved profile, applying the R7/R10 decision table.
+	 *
+	 * Deleting the bound profile is the only way to unbind, so this method owns
+	 * the whole exit path (R8): the profile row, its reconciliation rows, its
+	 * delete queue, its retired-target archive, the binding itself and — when the
+	 * profile was the live one — the top-level mirror the URL filters read.
+	 *
+	 * Two states refuse the delete. A profile that is active *and* serving uploads
+	 * is what the site is currently pointing at. A high-risk binding
+	 * (`no_local_saving='true'`) additionally requires the profile list to shrink
+	 * to just the bound profile first, because the other profiles point at buckets
+	 * that never received the attachments whose local copies are already gone.
 	 *
 	 * @param string $profile_id Profile ID.
 	 * @return array{success:bool,error:string}
@@ -172,18 +199,96 @@ final class Profile_Manager {
 		if ( ! isset( $profiles[ $profile_id ] ) ) {
 			return $this->failure( 'missing' );
 		}
-		if ( $profile_id === (string) ( $raw['active_profile_id'] ?? '' ) ) {
-			return $this->failure( 'active' );
+
+		$options = new Options( $raw );
+		$binding = $options->binding();
+		$is_bound_profile = null !== $binding && (string) ( $binding['profile_id'] ?? '' ) === $profile_id;
+		$is_active        = $profile_id === (string) ( $raw['active_profile_id'] ?? '' );
+		$is_live          = $is_active && 'true' === (string) ( $raw['enabled'] ?? 'false' );
+
+		// R7: the profile the site is uploading to stays put. Pausing it is the
+		// documented first step, so the refusal names that step instead of a dead end.
+		if ( $is_live ) {
+			return $this->failure( $is_bound_profile ? 'delete_bound' : 'delete_active' );
+		}
+
+		// R10: a high-risk lock means the local copies are gone, so no other profile
+		// can be a fallback. Clear the list first; only the bound profile may go last.
+		if ( $is_bound_profile && 'true' === (string) ( $binding['no_local_saving'] ?? 'false' ) && count( $profiles ) > 1 ) {
+			return $this->failure( 'pending_profiles' );
 		}
 
 		unset( $profiles[ $profile_id ] );
 		$raw['profiles'] = $profiles;
+
+		// R8 step 4: the archive holds a copy of this profile's identity for the
+		// delete queue; once the queue is gone the copy has no reader left.
+		if ( isset( $raw['retired_targets'] ) && is_array( $raw['retired_targets'] ) ) {
+			unset( $raw['retired_targets'][ $profile_id ] );
+		}
+
+		if ( $is_bound_profile ) {
+			// R8 step 5 / R11: unbinding, and — only when this was the last profile —
+			// releasing the behaviour freeze with it.
+			$raw['binding'] = array();
+			if ( array() === $profiles ) {
+				$raw['behaviour_locked'] = 'false';
+			}
+		}
+
+		$previous_url = (string) ( $raw['upload_url_path'] ?? '' );
+
+		if ( $is_active ) {
+			// R8 step 6: nothing is left to point at, so the mirror is cleared and the
+			// image domain goes back to the site's own. Leaving the old credentials in
+			// the top-level keys would keep a deleted account usable by any code path
+			// that reads the mirror without checking `active_profile_id`.
+			$raw['active_profile_id'] = '';
+			$raw['enabled']           = 'false';
+			foreach ( array( 'bucket', 'space', 'region', 'endpoint', 'key', 'secret' ) as $field ) {
+				$raw[ $field ] = '';
+			}
+		}
+
 		update_option( Options::OPTION, $raw, false );
+
+		if ( $is_active ) {
+			Upload_URL::restore( $previous_url );
+		}
 
 		return array(
 			'success' => true,
 			'error'   => '',
 		);
+	}
+
+	/**
+	 * Whether the R10 binding refuses this activation.
+	 *
+	 * A high-risk binding (no_local_saving='true') means the attachments uploaded
+	 * under it have no local copy left. Every other profile points at a bucket that
+	 * never received those objects, so switching to one would take the media URLs
+	 * to a domain that answers 404 - the exact dead link R10 exists to prevent.
+	 * Normal locks stay switchable: the local copies are still there, so the URL
+	 * falls back to the site's own domain instead of breaking.
+	 *
+	 * Re-activating the bound profile itself is not a switch and stays allowed,
+	 * which is what makes "turn the card off, turn it back on" work.
+	 *
+	 * @param array<string,mixed>|null $binding  Binding snapshot, or null when unbound.
+	 * @param string                   $target_id Profile being switched to.
+	 * @return bool
+	 */
+	public static function switch_refused_by_binding( ?array $binding, string $target_id ): bool {
+		if ( null === $binding ) {
+			return false;
+		}
+
+		if ( 'true' !== (string) ( $binding['no_local_saving'] ?? 'false' ) ) {
+			return false;
+		}
+
+		return (string) ( $binding['profile_id'] ?? '' ) !== $target_id;
 	}
 
 	/**

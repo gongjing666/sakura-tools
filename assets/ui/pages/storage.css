@@ -282,43 +282,95 @@
 	}
 }
 
-/*
- * Saved configs for the picked provider, directly under the 服务商 row.
- * Clicking a chip only loads its values into the form; nothing is activated
- * until 保存连接配置 is pressed, so the chips are deliberately quiet — they are
- * a shortcut for retyping, not a second switcher.
- */
-.sakura-admin[data-sakura-page^="storage-"] .profile-chips {
-	display: grid;
-	/* Sits inside .field-list, whose grid would otherwise clip it to half a row. */
-	grid-column: 1 / -1;
-	gap: var(--g-space-2);
-	margin-top: calc(-1 * var(--g-space-2));
+/* One column: provider on top, its saved configs underneath. Side by side at
+ * phone width each half would be under 160px and the chips would ellipsis away
+ * the part that tells them apart. */
+@media (max-width: 1100px) {
+	.sakura-admin[data-sakura-page^="storage-"] .s3-provider-row {
+		grid-template-columns: minmax(0, 1fr);
+	}
 }
 
-.sakura-admin[data-sakura-page^="storage-"] .profile-chips__label {
-	color: var(--g-muted);
-	font-size: var(--g-fs-meta);
+/*
+ * Provider picker and this provider's saved configs share one row.
+ *
+ * Clicking a chip only loads its values into the form; nothing is activated
+ * until 保存为新配置 is pressed, so the chips are deliberately quiet — they are
+ * a shortcut for retyping, not a second switcher.
+ *
+ * The two halves are grid cells with matching label rows: both labels are
+ * 13px/600 with the same 6px gap under them, so the select and the chips start
+ * on one baseline and the chips' 38px border box lines up with the select's
+ * --g-ctl-h instead of sitting a few pixels lower.
+ *
+ * align-items: start keeps the two cells top-aligned; without it the shorter
+ * half would stretch and the label would drift away from its control.
+ */
+.sakura-admin[data-sakura-page^="storage-"] .s3-provider-row {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+	align-items: start;
+	gap: 18px 26px;
+}
+
+.sakura-admin[data-sakura-page^="storage-"] .s3-provider-row__pick,
+.sakura-admin[data-sakura-page^="storage-"] .s3-provider-row__saved {
+	display: grid;
+	gap: var(--g-space-1);
+	min-width: 0;
+}
+
+/* No saved configs for this provider: the right half is hidden and the picker
+ * takes the full width instead of leaving a hole. storage-connection.js sets
+ * is-empty on the row from the same render() pass that hides the list, so the
+ * width never depends on a CSS selector the markup order could break. */
+.sakura-admin[data-sakura-page^="storage-"] .s3-provider-row__saved[hidden] {
+	display: none;
+}
+
+.sakura-admin[data-sakura-page^="storage-"] .s3-provider-row.is-empty {
+	grid-template-columns: minmax(0, 1fr);
 }
 
 .sakura-admin[data-sakura-page^="storage-"] .profile-chips__list {
 	display: flex;
 	flex-wrap: wrap;
-	gap: var(--g-space-2);
+	gap: var(--g-space-1);
+	min-height: var(--g-ctl-h);
+	align-content: flex-start;
+	align-items: center;
+	/*
+	 * No height cap and no inner scroll, on purpose.
+	 *
+	 * These chips are the only way to load a saved config into the form, so
+	 * hiding half of them behind a scrollbar — next to a picker that is 38px
+	 * tall — would trade the row's tidiness for a control the operator has to
+	 * discover. With eight configs the right half runs three rows and the row
+	 * simply gets taller; the picker stays pinned to the first row because the
+	 * two halves are start-aligned.
+	 */
 }
 
+/*
+ * One line per chip, fixed at the control height. Stacked on two lines the chip
+ * stood taller than the select beside it and the row lost its shared baseline;
+ * side by side, name and bucket sit in the same 38px box as the picker.
+ */
 .sakura-admin[data-sakura-page^="storage-"] .profile-chip {
-	display: flex;
-	flex-direction: column;
-	align-items: flex-start;
-	gap: 1px;
+	display: inline-flex;
+	align-items: center;
+	gap: var(--g-space-1);
+	flex: 0 0 auto;
+	height: var(--g-ctl-h);
 	max-width: 100%;
-	padding: 7px 12px;
+	padding: 0 12px;
 	border: 1px solid var(--g-line-strong);
 	border-radius: var(--g-radius-sm);
 	background: var(--g-card);
 	color: var(--g-ink);
 	font: inherit;
+	line-height: 1;
+	white-space: nowrap;
 	text-align: start;
 	cursor: pointer;
 }
@@ -345,6 +397,10 @@
 .sakura-admin[data-sakura-page^="storage-"] .profile-chip__meta {
 	color: var(--g-muted);
 	font-size: var(--g-fs-meta);
+	/* A long bucket id may shorten, but it must not push the chip past the
+	 * column and turn the single-line row into a scroller on its own. */
+	overflow: hidden;
+	text-overflow: ellipsis;
 }
 
 /* Storage-space picker: one button per 多吉云 space, name over SDK bucket. */

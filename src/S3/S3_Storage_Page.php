@@ -187,7 +187,7 @@ final class S3_Storage_Page {
 					/* translators: %s: round trip in milliseconds. */
 					'probeSlow'      => __( '能用但偏慢，往返耗时 %s 毫秒，上传大图时会明显等待。', 'sakura-imgopt' ),
 					'probeProfilesFailed' => __( '这份配置不完整或密钥无法读取，暂时测不了。', 'sakura-imgopt' ),
-					'profileLoadedKey' => __( '已载入这份配置。密钥留空表示沿用这份配置已保存的密钥；点「保存连接配置」才会生效。', 'sakura-imgopt' ),
+					'profileLoadedKey' => __( '已载入这份配置。密钥留空表示沿用这份配置已保存的密钥；点「保存为新配置」才会生效。', 'sakura-imgopt' ),
 					'providerSwitchNote' => __( '已更换服务商：这次保存会新建一份配置，原来那份保持不动。想切回原来那份配置，点上方的配置卡片切换即可，不要在这里把服务商改回去再保存。', 'sakura-imgopt' ),
 					'toggleNonce'    => wp_create_nonce( 'sakura_s3_toggle_profile' ),
 					'toggledOn'      => __( '已启用这份配置。', 'sakura-imgopt' ),
@@ -229,7 +229,7 @@ final class S3_Storage_Page {
 						if ( array() === $visible ) {
 							UI::empty_state(
 								__( '还没有保存的配置', 'sakura-imgopt' ),
-								__( '填写并保存下面的连接设置后，它会出现在这里。', 'sakura-imgopt' )
+								__( '在下面的「添加存储配置」里填好并保存后，它会出现在这里。', 'sakura-imgopt' )
 							); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Component escapes internally.
 							return;
 						}
@@ -329,9 +329,9 @@ final class S3_Storage_Page {
 				UI::card(
 					array(
 						'id'          => 'connection',
-						'kicker'      => 'CONNECTION',
-						'title'       => __( '连接设置', 'sakura-imgopt' ),
-						'description' => __( '这里用来新增一份存储配置：默认是空表单，填好后保存即可。要修改已经保存的配置，点上面「这份服务商的已保存配置」里的小卡片，它会把那份的值填进来。密钥会加密保存，页面上不会显示。', 'sakura-imgopt' ),
+						'kicker'      => 'NEW PROFILE',
+						'title'       => __( '添加存储配置', 'sakura-imgopt' ),
+						'description' => __( '这张卡片用来新增一份存储配置，默认是空表单。要修改已经保存的配置，点上面「服务商的已保存配置」里的小卡片，它会把那份的值填进来；启用、停用和切换都在「已保存的配置」卡片里点一下完成。密钥会加密保存，页面上不会显示。', 'sakura-imgopt' ),
 						'anchor'      => 'sakura-s3-connection',
 						'wide'        => true,
 						'form'        => array(
@@ -347,7 +347,7 @@ final class S3_Storage_Page {
 								'profile_id' => '',
 							),
 						),
-						'save'        => __( '保存连接配置', 'sakura-imgopt' ),
+						'save'        => __( '保存为新配置', 'sakura-imgopt' ),
 					),
 					function () use ( $options, $provider_options, $upload_path, $upload_path_src, $path_hint, $field_hints ) {
 						UI::field(
@@ -361,18 +361,31 @@ final class S3_Storage_Page {
 						echo '<div class="field-list">';
 
 						/*
-						 * The probe button rides next to the provider picker: it tests the
-						 * values currently typed in the form, before anything is saved, so a
-						 * typo in the endpoint shows up as a real error code instead of a
-						 * profile that has to be deleted again. Building the select by hand is
-						 * what buys the row; the markup mirrors Field_View::select().
+						 * Provider and its saved configs share one row.
+						 *
+						 * The chips used to sit on their own line under the picker, where
+						 * they read as a footnote to the provider instead of the shortcut
+						 * they are. Side by side, the two labels line up and the picker's
+						 * control box is the same height as the chips next to it, so the
+						 * row scans as "pick a provider, jump to one you already saved".
+						 *
+						 * Both halves are rendered here rather than through two fields:
+						 * the field-list grid would otherwise put them in separate cells
+						 * and they could never share a baseline. When the provider has no
+						 * saved configs the right half stays hidden and the row collapses
+						 * to a single column.
+						 *
+						 * The 测试连接 button rides with the select: it tests the values
+						 * currently typed in the form, before anything is saved, so a typo
+						 * in the endpoint shows up as a real error code instead of a
+						 * profile that has to be deleted again. Building the select by hand
+						 * is what buys the row; the markup mirrors Field_View::select().
 						 */
 						UI::field(
 							array(
 								'type'    => 'custom',
 								'id'      => 'sakura-s3-provider',
-								'label'   => __( '服务商', 'sakura-imgopt' ),
-								'full'    => false,
+								'full'    => true,
 								'control' => static function () use ( $options, $provider_options ) {
 									$select = '<select class="field__grow" id="sakura-s3-provider" name="provider" data-sakura-provider-select="1">';
 									foreach ( $provider_options as $provider_value => $provider_label ) {
@@ -380,29 +393,33 @@ final class S3_Storage_Page {
 									}
 									$select .= '</select>';
 
-									return '<div class="field__row">'
+									return '<div class="s3-provider-row" data-sakura-provider-row>'
+										. '<div class="s3-provider-row__pick">'
+										. '<label class="field__label" for="sakura-s3-provider">' . esc_html__( '服务商', 'sakura-imgopt' ) . '</label>'
+										. '<div class="field__row">'
 										. $select
 										. '<button type="button" class="btn btn--ghost" id="sakura-s3-test-connection" title="' . esc_attr__( '用下面表单里当前填写的参数测试一次，不会保存，也不会上传文件。', 'sakura-imgopt' ) . '">' . esc_html__( '测试连接', 'sakura-imgopt' ) . '</button>'
+										. '</div>'
+										. '</div>'
+										/*
+										 * Saved configs for the chosen provider. Clicking one only
+										 * loads its values into this form — it does not activate it,
+										 * does not send a request and does not touch the stored
+										 * option. Nothing changes on the site until the operator
+										 * presses 保存为新配置. The list is rendered empty and filled
+										 * by storage-connection.js from the data node below, so the
+										 * chips follow the provider picker without a page reload.
+										 */
+										. '<div class="s3-provider-row__saved" data-sakura-provider-profiles hidden>'
+										. '<span class="field__label">' . esc_html__( '服务商的已保存配置', 'sakura-imgopt' ) . '</span>'
+										. '<div class="profile-chips__list" data-sakura-provider-profile-list role="list"></div>'
+										. '</div>'
 										. '</div>';
 								},
 							)
 						); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Component escapes internally.
 
 						echo '<p class="card__note s3-field-note">' . esc_html__( '七牛云、百度云、又拍云的 S3 兼容性还在验证，新建配置时暂不列出；已保存的配置仍可照常切换。', 'sakura-imgopt' ) . '</p>';
-
-						/*
-						 * Saved configs for the chosen provider, right under the picker.
-						 * Clicking one only loads its values into this form — it does not
-						 * activate it, does not send a request and does not touch the
-						 * stored option. Nothing changes on the site until the operator
-						 * presses 保存连接配置. The list is rendered empty and filled by
-						 * storage-connection.js from the data node below, so the chips
-						 * follow the provider picker without a page reload.
-						 */
-						echo '<div class="profile-chips" data-sakura-provider-profiles hidden>'
-							. '<span class="profile-chips__label">' . esc_html__( '这份服务商的已保存配置', 'sakura-imgopt' ) . '</span>'
-							. '<div class="profile-chips__list" data-sakura-provider-profile-list role="list"></div>'
-							. '</div>';
 
 						UI::field(
 							array(

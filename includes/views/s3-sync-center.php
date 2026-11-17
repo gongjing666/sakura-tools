@@ -632,7 +632,7 @@ $sakura_sync_cards = static function () use (
 					<div class="button-row health__actions">
 						<button type="button" class="btn btn--small" data-sakura-action="toggle-index" data-sakura-enabled="<?php echo $index_enabled ? '0' : '1'; ?>" data-sakura-nonce="<?php echo esc_attr( $toggle_nonce ); ?>" <?php disabled( $frozen ); ?>><?php echo $index_enabled ? esc_html__( '停用同步记录', 'sakura-imgopt' ) : esc_html__( '启用同步记录', 'sakura-imgopt' ); ?></button>
 						<button type="button" class="btn btn--small" data-sakura-action="test-connection" data-sakura-nonce="<?php echo esc_attr( $test_nonce ); ?>" <?php disabled( $frozen ); ?>><?php esc_html_e( '测试连接', 'sakura-imgopt' ); ?></button>
-						<a class="btn btn--ghost btn--small" href="<?php echo esc_url( $settings_url ); ?>"><?php esc_html_e( '连接设置', 'sakura-imgopt' ); ?></a>
+						<a class="btn btn--ghost btn--small" href="<?php echo esc_url( $settings_url ); ?>"><?php esc_html_e( '管理配置', 'sakura-imgopt' ); ?></a>
 					</div>
 				</div>
 				<?php
@@ -1012,7 +1012,7 @@ $sync_body = ob_get_clean();
 				'attrs'   => array( 'data-sakura-role' => 'export' ),
 			),
 			array(
-				'label'   => __( '连接设置', 'sakura-imgopt' ),
+				'label'   => __( '管理配置', 'sakura-imgopt' ),
 				'url'     => $settings_url,
 				'variant' => 'quiet',
 			),

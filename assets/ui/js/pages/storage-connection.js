@@ -413,13 +413,14 @@
 	 * Loading a chip is deliberately inert: it only fills the fields already on
 	 * screen (and the hidden profile_id, so the save writes to that entry) and
 	 * never posts, never switches the active profile and never touches the
-	 * stored option. The operator still has to press 保存连接配置, which is what
+	 * stored option. The operator still has to press 保存为新配置, which is what
 	 * keeps this from becoming a second, silent switcher next to the
 	 * 已保存的配置 card.
 	 */
 	function initProviderProfiles( root ) {
 		var select = admin.qs( '[data-sakura-provider-select]', root );
 		var wrap   = admin.qs( '[data-sakura-provider-profiles]', root );
+		var row    = admin.qs( '[data-sakura-provider-row]', root );
 		var list   = admin.qs( '[data-sakura-provider-profile-list]', root );
 		var form   = admin.qs( '#sakura-s3-connection-form', root );
 		var profiles = config.profiles || [];
@@ -513,6 +514,9 @@
 			list.textContent = '';
 			if ( ! matches.length ) {
 				wrap.hidden = true;
+				if ( row ) {
+					row.classList.add( 'is-empty' );
+				}
 				return;
 			}
 
@@ -550,6 +554,9 @@
 			} );
 
 			wrap.hidden = false;
+			if ( row ) {
+				row.classList.remove( 'is-empty' );
+			}
 		}
 
 		admin.on( select, 'change', render );

@@ -687,3 +687,16 @@ body.upload-php.sufm-tree-active.folded { --sufm-tree-left: 56px; }
 **已知边界**：宽度断点里改 `grid-template-columns` 的媒体查询必须写在这条规则**之后**——同特异度下后写的赢，写在前面的会被基础规则整体覆盖，表现成「窄屏下选择框溢出自己的单元格」（beta-14 就是这么修的）。
 
 **维护动作**：`.profile-chip` 的尺寸与 `.field__row` 里控件高度耦合（都取 `--g-ctl-h`），改任一处要在 1440 与 390 下同时看标签基线与控件等高。
+## 撤回已发布的版本号时必须同时降低数据库里的版本标记（1.28.2，2026-11-17）
+
+**背景**：这一批发版时先按 MINOR 语义发成了 1.29.0（提交 0504dd3、tag v1.29.0、Release、生产部署俱全），随后开发者拍板应走 PATCH，于是把三处版本号收敛为 1.28.2（提交 20cb55c）并重新发布。代码回退了，但生产数据库里的 `sakura_imgopt_version` 还停在 **1.29.0**。
+
+**决策**：
+
+1. **版本标记不跟着代码走，必须手工降下来**。`Upgrade_Guard::needs_upgrade()`（`src/Upgrade_Guard.php:55-61`）只在 `version_compare( $installed, $current, '<' )` 时返回 true。库里标记 1.29.0、代码 1.28.2 时比较为假，`Activation::run()` 再也不会执行——之后任何一次真正的升级（例如 1.28.3）都会因为「已装版本看起来更高」而跳过建表、补 option、排 cron。
+2. **回滚动作清单里必须包含改标记**：`wp --allow-root option update sakura_imgopt_version <目标版本>`。这条已写进 `docs/开发规则/06-发布流程.md` §9。
+3. **撤回版本号 = 删 Release + 删 tag + 改标记**，三件事一件都不能省。只删 Release 与 tag 只是止住了外部分发，站点内部的升级链是独立断的。
+
+**已知边界**：`needs_upgrade()` 有意把「库里版本更高」当作降级（`upgrade_guard` 的注释里写明 *« A newer stored version is a downgrade and must not be rewritten »*），所以这个守卫**不会**自我纠正。它只在 `$installed` 为空时无条件返回 true，也就是说只有彻底删掉这个 option 才会强制重跑一次升级。
+
+**维护动作**：发布前先确认版本号语义（PATCH / MINOR / MAJOR）再改三处数字——一旦 push 出 Release 就要走完整的撤回流程，代价比发版前多问一句大得多。

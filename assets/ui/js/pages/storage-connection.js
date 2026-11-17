@@ -1087,6 +1087,96 @@
 			request();
 		} );
 	}
+
+	/*
+	 * Test one saved card with its own credentials.
+	 *
+	 * The form probe answers "are the values I typed usable"; this answers "is
+	 * the configuration I saved months ago still alive". It sends only the profile
+	 * id, so the verdict comes from the stored key pair rather than from whatever
+	 * happens to sit in the form, and it never switches the active profile.
+	 */
+	function initProfileProbe( root ) {
+		var modal = admin.qs( '#sakura-s3-probe-modal', root );
+		if ( ! modal ) {
+			return;
+		}
+
+		var icon      = admin.qs( '.sakura-modal__icon', modal );
+		var titleNode = admin.qs( '[data-sakura-modal-focus]', modal );
+		var descNode  = admin.qs( '.sakura-modal__desc, [id$="-desc"]', modal );
+
+		var ICONS = {
+			ok: '<path d="M5 12.5 9.5 17 19 7"/>',
+			bad: '<path d="M7 7l10 10M17 7 7 17"/>',
+			warn: '<path d="M12 4.5 21 19.5H3L12 4.5Z"/><path d="M12 10v4.2"/><path d="M12 17.1v.1"/>'
+		};
+
+		/*
+		 * Round trip above this reads as "works, but uploads will drag". A bucket
+		 * in the same region answers in tens of milliseconds; anything near a
+		 * second is a cross-region or throttled endpoint, which is worth naming
+		 * before the operator finds out through a slow media library.
+		 */
+		var SLOW_MS = 800;
+
+		function paint( tone, heading, message ) {
+			if ( icon ) {
+				icon.className = 'sakura-modal__icon sakura-modal__icon--' + tone;
+				icon.innerHTML = '<svg viewBox="0 0 24 24" width="25" height="25" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">' + ( ICONS[ tone ] || ICONS.warn ) + '</svg>';
+			}
+			if ( titleNode ) {
+				titleNode.textContent = String( heading );
+			}
+			if ( descNode ) {
+				descNode.textContent = String( message );
+				descNode.hidden = '' === String( message );
+			}
+		}
+
+		function show( result, trigger ) {
+			var ok      = !!( result && result.ok );
+			var latency = result && result.latency ? Number( result.latency ) : 0;
+			var tone    = ok ? ( latency >= SLOW_MS ? 'warn' : 'ok' ) : 'bad';
+			var message = ( result && result.message ) || '';
+
+			if ( ok && '' === message ) {
+				message = latency >= SLOW_MS
+					? format( strings.probeSlow || '', latency )
+					: ( latency > 0 ? format( strings.probeFast || '', latency ) : ( strings.probeOk || '' ) );
+			}
+
+			paint( tone, strings.probeProfileTitle || '', message );
+			admin.ui.openModal( modal, trigger );
+		}
+
+		admin.delegate( root, 'click', '[data-sakura-action="probe-profile"]', function ( event, button ) {
+			var id = button.getAttribute( 'data-profile-id' ) || '';
+			if ( '' === id || button.classList.contains( 'is-pending' ) ) {
+				return;
+			}
+
+			button.classList.add( 'is-pending' );
+			admin.ui.busy( button, true );
+
+			admin.api.ajax(
+				'sakura_s3_probe_profile',
+				{
+					_ajax_nonce: strings.probeProfileNonce || '',
+					profile_id: id
+				},
+				{ timeout: 30000 }
+			).then( function ( result ) {
+				show( result, button );
+			} ).catch( function ( error ) {
+				paint( 'bad', strings.probeProfileTitle || '', errorText( error, strings.probeProfilesFailed || '' ) );
+				admin.ui.openModal( modal, button );
+			} ).finally( function () {
+				button.classList.remove( 'is-pending' );
+				admin.ui.busy( button, false );
+			} );
+		} );
+	}
 	admin.ready( function () {
 		var root = admin.root();
 		if ( ! root ) {
@@ -1100,6 +1190,7 @@
 		initProviderHints( root );
 		initProviderProfiles( root );
 		initProfileToggle( root );
+		initProfileProbe( root );
 		initProviderSwitchGuard( root );
 		initSpaceTracking( root );
 	} );

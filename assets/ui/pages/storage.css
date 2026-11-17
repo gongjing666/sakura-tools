@@ -147,10 +147,26 @@
 	font-size: var(--g-fs-meta);
 }
 
+/*
+ * The two card actions share one row and size to their own label, so the
+ * delete button no longer stretches across the whole card and the test
+ * button sits beside it instead of pushing it down.
+ */
+.sakura-admin[data-sakura-page="storage-connection"] .profile-item__actions {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--g-space-2);
+}
+
 .sakura-admin[data-sakura-page="storage-connection"] .profile-delete {
-	width: 100%;
+	flex: 0 1 auto;
 	justify-content: flex-start;
 	color: var(--g-bad);
+}
+
+.sakura-admin[data-sakura-page="storage-connection"] .profile-probe {
+	flex: 0 1 auto;
 }
 
 /* Checkbox rows with a bold title and a hint line. */

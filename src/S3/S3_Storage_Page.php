@@ -180,6 +180,13 @@ final class S3_Storage_Page {
 					'probeTitleOk'   => __( '连接可用', 'sakura-imgopt' ),
 					'probeTitleBad'  => __( '连接不可用', 'sakura-imgopt' ),
 					'probeNonce'     => wp_create_nonce( 'sakura_s3_probe' ),
+					'probeProfileNonce' => wp_create_nonce( 'sakura_s3_probe_profile' ),
+					'probeProfileTitle' => __( '配置连接测试', 'sakura-imgopt' ),
+					/* translators: %s: round trip in milliseconds. */
+					'probeFast'      => __( '响应很快，这份配置可用。往返耗时 %s 毫秒。', 'sakura-imgopt' ),
+					/* translators: %s: round trip in milliseconds. */
+					'probeSlow'      => __( '能用但偏慢，往返耗时 %s 毫秒，上传大图时会明显等待。', 'sakura-imgopt' ),
+					'probeProfilesFailed' => __( '这份配置不完整或密钥无法读取，暂时测不了。', 'sakura-imgopt' ),
 					'profileLoadedKey' => __( '已载入这份配置。密钥留空表示沿用这份配置已保存的密钥；点「保存连接配置」才会生效。', 'sakura-imgopt' ),
 					'providerSwitchNote' => __( '已更换服务商：这次保存会新建一份配置，原来那份保持不动。想切回原来那份配置，点上方的配置卡片切换即可，不要在这里把服务商改回去再保存。', 'sakura-imgopt' ),
 					'toggleNonce'    => wp_create_nonce( 'sakura_s3_toggle_profile' ),
@@ -257,6 +264,13 @@ final class S3_Storage_Page {
 							}
 							echo '</button>';
 
+							/*
+							 * Both actions sit in one row under the card. The probe button is
+							 * a sibling of the delete form, not a submit inside it, so testing
+							 * a configuration can never submit the delete.
+							 */
+							echo '<div class="profile-item__actions">';
+							echo '<button type="button" class="btn btn--quiet btn--small profile-probe" data-sakura-action="probe-profile" data-profile-id="' . esc_attr( $profile_id ) . '" title="' . esc_attr__( '用这份配置自己的密钥测试存储桶是否响应', 'sakura-imgopt' ) . '">' . esc_html__( '连接测试', 'sakura-imgopt' ) . '</button>';
 							echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" class="profile-item__delete" data-sakura-confirm="' . esc_attr__( '确定删除这个已保存的配置吗？删除后不可恢复，它对应的核对记录、计数与日志也会一起清空，但不会影响当前活动配置。', 'sakura-imgopt' ) . '" data-sakura-confirm-title="' . esc_attr__( '删除已保存的配置', 'sakura-imgopt' ) . '">';
 							echo '<input type="hidden" name="action" value="sakura_s3_delete" />';
 							echo '<input type="hidden" name="profile_id" value="' . esc_attr( $profile_id ) . '" />';
@@ -267,6 +281,7 @@ final class S3_Storage_Page {
 							echo esc_html( $is_active ? __( '使用中不可删除', 'sakura-imgopt' ) : __( '删除此配置', 'sakura-imgopt' ) );
 							echo '</button>';
 							echo '</form>';
+							echo '</div>';
 							echo '</div>';
 						}
 						echo '</div>';

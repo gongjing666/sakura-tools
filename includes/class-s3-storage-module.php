@@ -78,6 +78,7 @@ class S3_Storage_Module implements Module {
 		$hooks->add_action( 'wp_ajax_sakura_s3_upload_metrics', array( $this, 'upload_metrics' ) );
 		$hooks->add_action( 'wp_ajax_sakura_s3_doge_buckets', array( $this, 'doge_buckets' ) );
 		$hooks->add_action( 'wp_ajax_sakura_s3_probe_connection', array( $this, 'probe_connection' ) );
+		$hooks->add_action( 'wp_ajax_sakura_s3_probe_profile', array( $this, 'probe_profile' ) );
 		$hooks->add_action( 'wp_ajax_sakura_s3_toggle_profile', array( $this, 'toggle_profile' ) );
 		$hooks->add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_assets' ) );
 	}
@@ -348,6 +349,74 @@ class S3_Storage_Module implements Module {
 				$client,
 				(string) $probe['bucket'],
 				array( (string) $probe['key'], (string) $probe['secret'] )
+			)
+		);
+	}
+
+	/**
+	 * Test one saved profile without switching to it.
+	 *
+	 * The card is a saved configuration, not the live one: testing it through
+	 * the form probe would test whatever happens to be typed there. This reads
+	 * the profile's own stored credentials, builds a client for it and reports
+	 * the verdict, so a saved but unused bucket can be checked for a dead key or
+	 * a bucket that was deleted in the provider console before anything is
+	 * switched over to it.
+	 */
+	public function probe_profile(): void {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_send_json_error( array( 'message' => __( '权限不足。', 'sakura-imgopt' ) ), 403 );
+		}
+
+		check_ajax_referer( 'sakura_s3_probe_profile' );
+
+		$profile_id = isset( $_POST['profile_id'] ) ? sanitize_key( wp_unslash( $_POST['profile_id'] ) ) : '';
+		$snapshot   = $this->options()->profile_options( $profile_id );
+		if ( ! is_array( $snapshot ) ) {
+			wp_send_json_error( array( 'message' => __( '找不到这份配置，它可能已经被删除了。', 'sakura-imgopt' ) ), 404 );
+		}
+
+		/*
+		 * The snapshot carries ciphertext by design (that is what the queue
+		 * worker stores). Committing the Options constructor is what decrypts
+		 * it, and the client factory must never see the raw row: it reads key and
+		 * secret straight off the array it is handed, and a ciphertext pair would
+		 * fail the signature check while looking like a wrong key.
+		 */
+		$candidate = new Options( $snapshot );
+		$resolved  = $candidate->all();
+		$missing   = $candidate->configuration_errors();
+		if ( array() !== $missing ) {
+			wp_send_json_success(
+				array(
+					'ok'      => false,
+					'message' => $this->missing_fields_message( $missing ),
+					'code'    => '',
+					'status'  => 0,
+					'latency' => 0,
+				)
+			);
+		}
+
+		try {
+			$client = Client_Factory::make( $resolved );
+		} catch ( \Throwable $error ) {
+			wp_send_json_success(
+				array(
+					'ok'      => false,
+					'message' => $error->getMessage(),
+					'code'    => '',
+					'status'  => 0,
+					'latency' => 0,
+				)
+			);
+		}
+
+		wp_send_json_success(
+			Connection_Probe::diagnose(
+				$client,
+				(string) $resolved['bucket'],
+				array( (string) $resolved['key'], (string) $resolved['secret'] )
 			)
 		);
 	}

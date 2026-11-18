@@ -882,7 +882,7 @@ final class Index_Repository {
 				if ( $local ) {
 					$mtime          = isset( $row['mtime'] ) && (int) $row['mtime'] > 0 ? (int) $row['mtime'] : 0;
 					$recent         = $mtime > 0 ? gmdate( 'Y-m-d H:i:s', $mtime ) : '1970-01-01 00:00:00';
-					$placeholders[] = '(%s,UNHEX(%s),%s,%s,%s,%s,%d,NULLIF(%s,\'\'),%s,%d,%s,%d)';
+					$placeholders[] = '(%s,UNHEX(%s),%s,%s,%s,%s,%d,NULLIF(%s,\'\'),%s,%d,%s,%d,%s)';
 					array_push(
 						$values,
 						$bucket,
@@ -902,7 +902,7 @@ final class Index_Repository {
 				} else {
 					$modified       = isset( $row['modified'] ) && (int) $row['modified'] > 0 ? (int) $row['modified'] : 0;
 					$recent         = $modified > 0 ? gmdate( 'Y-m-d H:i:s', $modified ) : '1970-01-01 00:00:00';
-					$placeholders[] = '(%s,UNHEX(%s),%s,%s,%d,%s,NULLIF(%s,\'\'),%s,%d,%s,%d)';
+					$placeholders[] = '(%s,UNHEX(%s),%s,%s,%d,%s,NULLIF(%s,\'\'),%s,%d,%s,%d,%s)';
 					array_push(
 						$values,
 						$bucket,
@@ -928,7 +928,7 @@ final class Index_Repository {
 			if ( $local ) {
 				$sql = "INSERT INTO {$this->index}
 					(target_hash,object_key_hash,object_key,kind,local_path,local_dir,local_size,local_mtime,recent_at,scan_id,updated_at,seen_local,profile_id)
-					VALUES " . implode( ',', $placeholders ) . ',%s' . '
+					VALUES " . implode( ',', $placeholders ) . '
 					ON DUPLICATE KEY UPDATE
 						profile_id=VALUES(profile_id),
 						local_md5=IF(local_mtime <=> VALUES(local_mtime) AND local_size <=> VALUES(local_size),local_md5,NULL),
@@ -939,7 +939,7 @@ final class Index_Repository {
 			} else {
 				$sql = "INSERT INTO {$this->index}
 					(target_hash,object_key_hash,object_key,kind,remote_size,etag,remote_mtime,recent_at,scan_id,updated_at,seen_remote,profile_id)
-					VALUES " . implode( ',', $placeholders ) . ',%s' . '
+					VALUES " . implode( ',', $placeholders ) . '
 					ON DUPLICATE KEY UPDATE
 						profile_id=VALUES(profile_id),
 						verify_state=IF(etag <=> VALUES(etag) AND remote_size <=> VALUES(remote_size),verify_state,0),

@@ -19,7 +19,9 @@ declare( strict_types=1 );
 use PHPUnit\Framework\TestCase;
 use Sakura\ImageOptimizer\S3\Bucket_Identity;
 use Sakura\ImageOptimizer\S3\Options;
+use Sakura\ImageOptimizer\Sync\Checksums;
 use Sakura\ImageOptimizer\Sync\Index_Repository;
+use Sakura\ImageOptimizer\Sync\Kind;
 use Sakura\ImageOptimizer\Sync\Schema;
 
 require_once dirname( __DIR__ ) . '/src/Sync/Schema.php';
@@ -38,13 +40,28 @@ final class IndexPurgeDatabase {
 	public array $queries = array();
 
 	public function prepare( $sql, ...$args ): string {
-		return serialize( array( (string) $sql, $args ) );
+		// wpdb::prepare() accepts the placeholder values either spread or as one array.
+		if ( 1 === count( $args ) && is_array( $args[0] ) ) {
+			$args = $args[0];
+		}
+
+		return serialize( array( (string) $sql, array_values( $args ) ) );
 	}
 
 	public function query( $prepared ) {
 		$this->queries[] = unserialize( $prepared );
 
 		return 1;
+	}
+
+	/** Stands in for the driver's own prepare(): one value per placeholder. */
+	public function substitute( string $sql, array $args ): string {
+		foreach ( $args as $arg ) {
+			$value = is_int( $arg ) ? (string) $arg : "'" . (string) $arg . "'";
+			$sql   = (string) preg_replace( '/%[sdf]/', str_replace( '\\', '\\\\', $value ), $sql, 1 );
+		}
+
+		return $sql;
 	}
 
 	/** Statements whose SQL contains the given needle. */
@@ -167,6 +184,49 @@ final class IndexPurgeTest extends TestCase {
 		( new Index_Repository() )->purge_index( self::LIVE, $bucket );
 
 		$this->assertCount( 1, $this->db->matching( 'sio_sync_index' ), 'The captured identity is what gets deleted.' );
+	}
+
+	public function test_a_batch_upload_carries_one_label_per_row(): void {
+		$this->seed( false );
+		$bucket = $this->bucket();
+		$keys   = array(
+			'wp-content/uploads/2026/11/a.webp',
+			'wp-content/uploads/2026/11/b.webp',
+		);
+
+		$inserted = ( new Index_Repository() )->upsert_local(
+			self::LIVE,
+			9,
+			array(
+				array( 'key' => $keys[0], 'path' => '/tmp/a.webp', 'size' => 10, 'mtime' => 1700000000 ),
+				array( 'key' => $keys[1], 'path' => '/tmp/b.webp', 'size' => 20, 'mtime' => 1700000001 ),
+			)
+		);
+
+		$this->assertSame( 2, $inserted, 'A two-row batch inserts two rows.' );
+
+		$inserts = $this->db->matching( 'INSERT INTO' );
+		$this->assertCount( 1, $inserts, 'A batch is one statement.' );
+
+		list( $sql, $args ) = $inserts[0];
+		$this->assertSame( 2, substr_count( $sql, 'UNHEX(%s)' ), 'Two value tuples.' );
+		$this->assertSame( 26, count( $args ), '13 columns per row: target_hash + 11 + profile_id.' );
+
+		/*
+		 * The regression this pins: profile_id is a per-row column, so its
+		 * placeholder belongs inside the tuple. Leaving it outside builds
+		 * "...,10,'now'),('2026-11-18 09:35:06','prof_live'" -- one placeholder
+		 * too few, and MariaDB rejects the whole statement.
+		 */
+		$filled = $this->db->substitute( $sql, $args );
+		$values = substr( $filled, (int) strpos( $filled, 'VALUES ' ) );
+		$values = substr( $values, 0, (int) strpos( $values, 'ON DUPLICATE' ) );
+
+		$this->assertSame( 2, substr_count( $values, ",1,'" . self::LIVE . "')" ), 'Each tuple ends with seen=1 and its own label.' );
+		$this->assertSame( 2, substr_count( $filled, "'" . self::LIVE . "'" ), 'No third label outside the tuples.' );
+		$this->assertSame( 1, substr_count( $values, '),(' ), 'Exactly two tuples, joined once.' );
+		$this->assertSame( 2, substr_count( $values, 'UNHEX(' ), 'One hash per tuple.' );
+		$this->assertStringEndsWith( "')", rtrim( $values ), 'The last tuple closes on its own label.' );
 	}
 
 	public function test_the_index_is_partitioned_by_bucket(): void {

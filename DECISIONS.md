@@ -758,3 +758,20 @@ body.upload-php.sufm-tree-active.folded { --sufm-tree-left: 56px; }
 **已知边界**：`fast-search.php` 走 SHORTINIT、没有 autoloader，只能就地重写同一套哈希（`hash('sha256', implode('|', array('v2', provider, bucket, endpoint, upload_path)))`）。**改 `Bucket_Identity::hash()` 必须同步改这一处**，代码里有注释标注。
 
 **维护动作**：改 A 档字段要同时动 `Bucket_Identity`、`fast-search.php`、`Delete_Jobs::target_hash()`（它是另一套语义，只加注释不合并）与 `tests/IndexPurgeTest.php` / `tests/StorageBucketSwitchTest.php` / `tests/ReconcileGateTest.php`；Schema 迁移的验收见 07 文档 §9 的 V28j / V28k。
+
+## `includes/` 不搬迁：评估结论（2026-11-18，未执行）
+
+**背景**：`includes/` 是 1.3–1.9 的兼容层，14 个类（6,740 行）加 14 个视图（6,249 行），共 12,989 行，仍在生产承重。文档长期把它当历史遗留，于是反复出现「为什么不搬到 `src/`」。这次按代码实测评估了一遍（对照 `src/` 179 文件 61,187 行；生产 PHP 共 210 文件 74,641 行）。
+
+**决策**：不搬。若将来搬，只做「同 FQCN、仅换文件路径」（方案 A），一次搬完 14 个类；不重排子命名空间（方案 C）。
+
+1. **外部耦合为零**。生产站 themes / mu-plugins / 其他插件里 grep `Sakura\ImageOptimizer` 与旧类名均无命中，同 FQCN 迁移不会破坏站点侧扩展代码——这是「风险不高」的主要依据。
+2. **只搬类解决不了问题**。`includes/` 目录仍会留着 14 个视图与 `SAKURA_TOOLS_INC`；要彻底清场得连视图一起搬，而 8 处 src 侧按路径 `include`（`src/S3/Sync_Center_Module.php:369`、`src/S3/Url_Rewrite_Panel.php:102`、`src/S3/Cost_Panel.php:79`、`src/UserFiles/Frontend/Tab.php:164`、`src/UserFiles/Admin/Space_Page.php:225`、`src/UserFiles/Admin/Page.php:389`、`src/UserFiles/Space_Panel.php:265`、`src/UserFiles/Editor/Picker.php:44`）、`System_Settings_Module.php:101`、视图嵌套（`editor-picker-app.php` → `userfiles-tab.php`）与 4 个测试断言都得跟着动，失败面从「类加载」扩到「每个页签的渲染」。
+3. **真风险集中在四处**：(a) autoloader 无 classmap，文件位置就是类契约；(b) `__DIR__` 相对视图路径 3 处（`class-image-optimizer-module.php:955` / `:1002` / `:1094`、`class-media-library-module.php:486`、`class-thumbnail-optimizer-module.php:404`）；(c) `tests/bootstrap.php` 手工 require 且不加载 autoloader，765 tests 全绿也证明不了映射；(d) PSR-4 大小写（`GD_Handler.php`、`S3_Doge_Cloud.php`）与 `bin/build-plugin-zip.sh:156` 的必需文件断言。
+4. **不做方案 C**。`Backup` 类与 `Sakura\ImageOptimizer\Backup` 命名空间、`Stats` 类与 `src/Stats/` 现已同名共存，子命名空间化必须给这两个高频类改名，牵动约 65 行 src 引用与约 75 行 tests 引用，换来的只是目录观感。
+5. **成本主要在文档与生成物**。`07-S3存储生命周期.md` 39 处 `includes/` 引用（含 20+ 个带行号的 `class-*.php:N`）；代码结构文档 239 处，且生成器 `docs/tools/build-code-structure.mjs:90-91` 与 `:222` 硬编码了模块标签与配色；另有 `docs/graph-preview/` 两个文件与 README / readme.txt / 本文件。代码改动半天能完，文档与验证还要一天。
+6. **失败怎么暴露决定验收方式**。`Thumbnail_Manager` / `Image_Processor` / `Thumbnail_Optimizer_Module` 在 `Plugin::build_modules()` 的 always 分支，错则整站 500；`Image_Optimizer_Module` / `Media_Library_Module` / `S3_Storage_Module` 仅后台加载；`Backup` 走每日清理 cron 与恢复服务；`S3_CLI` 只在 WP_CLI 由 `src/Plugin.php:104` 加载，可能潜伏一天。所以「后台 4 个模块逐页签 + 触发一次 cron + 跑一次 WP-CLI + 前台开一个页面」是必须的。
+
+**已知边界**：迁移不修任何现存缺陷——`includes/` 是活代码，1.28.x 仍在改 `S3_Storage_Module` / `S3_Doge_Cloud` / `Thumbnail_Optimizer_Module`；`.agents/worktrees/` 下还有 6 个副本，搬迁必须避开在途分支，否则冲突会落在 rename 上。
+
+**维护动作**：短期守卫是「`includes/` 下不新增文件、不新增类」（CI 或 pre-commit 检查），新代码一律 `src/`；若决定执行方案 A，做法与验收按本条目第 2–6 点办，并同步更新 `01-架构与装配.md` §1、`00-索引.md` 铁律 1、`AGENTS.md` 骨架与 `bin/build-plugin-zip.sh`。

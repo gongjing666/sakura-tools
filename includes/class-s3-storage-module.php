@@ -498,6 +498,20 @@ class S3_Storage_Module implements Module {
 			wp_send_json_error( array( 'message' => __( 'S3 未启用或配置不完整，已拒绝重试。', 'sakura-imgopt' ) ), 400 );
 		}
 
+		// R18: the failure list belongs to the previous bucket, so retrying it
+		// while the reconcile gate is up would push objects into a bucket nobody
+		// has scanned yet (or re-delete from it). The sync center disables this
+		// button; a stale tab still holds a valid nonce, so refuse here too.
+		if ( is_array( $this->options()->reconcile_pending() ) ) {
+			wp_send_json_error(
+				array(
+					'message' => __( '存储目标刚切换，索引还是上一个桶的。请先到同步中心点「开始完整核对」重建索引。', 'sakura-imgopt' ),
+					'code'    => 'sio_reconcile_required',
+				),
+				409
+			);
+		}
+
 		$id            = isset( $_POST['attachment_id'] ) ? absint( wp_unslash( $_POST['attachment_id'] ) ) : 0;
 		$deletes       = new Delete_Jobs();
 		$status        = $this->status();

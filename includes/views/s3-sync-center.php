@@ -89,8 +89,10 @@ $frozen           = $is_configured && ! $storage_enabled;
 // R18: the storage target moved (another bucket / endpoint / path) since the
 // last finished reconciliation, so every number below still belongs to the
 // previous bucket. Keep the page readable, but stop everything that would act
-// on a target whose index has not been rebuilt yet. The single exception is
-// the reconcile button itself: it is the exit from this state.
+// on those stale numbers: refresh, resume, retry, and every upload, download
+// or delete. A scan is the exit from this state, and the local-only controls
+// (sync-index toggle, connection test, adopt, ignore rules) touch no indexed
+// row, so they stay live — the notice below lists exactly what is stopped.
 $reconcile_gate   = isset( $reconcile_gate ) && is_array( $reconcile_gate ) ? $reconcile_gate : array();
 $reconcile_gated  = ! $frozen && $is_configured && $storage_enabled && array() !== $reconcile_gate;
 $locked           = $frozen || $reconcile_gated;
@@ -332,7 +334,7 @@ ob_start();
 <?php if ( ! $index_enabled ) : ?>
 	<?php \Sakura\ImageOptimizer\Admin\UI::alert( $legacy_message, 'warn', __( '兼容模式', 'sakura-imgopt' ) ); ?>
 	<div class="button-row">
-		<button type="button" class="btn btn--small" data-sakura-action="toggle-index" data-sakura-enabled="1" data-sakura-nonce="<?php echo esc_attr( $toggle_nonce ); ?>" <?php disabled( $locked ); ?>><?php esc_html_e( '启用同步记录', 'sakura-imgopt' ); ?></button>
+		<button type="button" class="btn btn--small" data-sakura-action="toggle-index" data-sakura-enabled="1" data-sakura-nonce="<?php echo esc_attr( $toggle_nonce ); ?>" <?php disabled( $frozen ); ?>><?php esc_html_e( '启用同步记录', 'sakura-imgopt' ); ?></button>
 	</div>
 <?php endif; ?>
 
@@ -490,7 +492,7 @@ $sakura_sync_cards = static function () use (
 				'title'         => __( '忽略规则', 'sakura-imgopt' ),
 				'description'   => __( '核对与迁移会跳过这些路径。插件默认忽略自己的备份目录与缓存目录，这里追加你自己的规则：每行一条，相对于 uploads 根目录，可以写目录（如 2024/05），也可以写单个文件（如 .htaccess）。', 'sakura-imgopt' ),
 				'save'          => __( '保存规则', 'sakura-imgopt' ),
-				'save_disabled' => $locked,
+				'save_disabled' => $frozen,
 				'form'          => array(
 					'id'      => 'sakura-s3-ignored-form',
 					'action'  => admin_url( 'admin-post.php' ),
@@ -630,7 +632,7 @@ $sakura_sync_cards = static function () use (
 				'kicker' => __( 'Connection', 'sakura-imgopt' ),
 				'title'  => __( '连接与队列健康', 'sakura-imgopt' ),
 			),
-			static function () use ( $health_text, $health_warn, $provider_label, $bucket, $bucket_display, $endpoint, $media_label, $scan_label, $local_files, $cloud_objects, $jobs, $queue_waiting, $queue_dead, $metric_pages, $metric_batches, $metric_batch_ms, $metric_429, $metric_5xx, $cron_next, $index_enabled, $toggle_nonce, $test_nonce, $settings_url, $frozen, $locked ): void {
+			static function () use ( $health_text, $health_warn, $provider_label, $bucket, $bucket_display, $endpoint, $media_label, $scan_label, $local_files, $cloud_objects, $jobs, $queue_waiting, $queue_dead, $metric_pages, $metric_batches, $metric_batch_ms, $metric_429, $metric_5xx, $cron_next, $index_enabled, $toggle_nonce, $test_nonce, $settings_url, $frozen ): void {
 				?>
 				<div class="health">
 					<div class="health__status<?php echo $health_warn ? ' is-warn' : ''; ?>">
@@ -650,7 +652,7 @@ $sakura_sync_cards = static function () use (
 						<div class="health__row"><dt><?php esc_html_e( '凭据', 'sakura-imgopt' ); ?></dt><dd><?php esc_html_e( '已加密', 'sakura-imgopt' ); ?> · <?php esc_html_e( '未展示', 'sakura-imgopt' ); ?></dd></div>
 					</dl>
 					<div class="button-row health__actions">
-						<button type="button" class="btn btn--small" data-sakura-action="toggle-index" data-sakura-enabled="<?php echo $index_enabled ? '0' : '1'; ?>" data-sakura-nonce="<?php echo esc_attr( $toggle_nonce ); ?>" <?php disabled( $locked ); ?>><?php echo $index_enabled ? esc_html__( '停用同步记录', 'sakura-imgopt' ) : esc_html__( '启用同步记录', 'sakura-imgopt' ); ?></button>
+						<button type="button" class="btn btn--small" data-sakura-action="toggle-index" data-sakura-enabled="<?php echo $index_enabled ? '0' : '1'; ?>" data-sakura-nonce="<?php echo esc_attr( $toggle_nonce ); ?>" <?php disabled( $frozen ); ?>><?php echo $index_enabled ? esc_html__( '停用同步记录', 'sakura-imgopt' ) : esc_html__( '启用同步记录', 'sakura-imgopt' ); ?></button>
 						<button type="button" class="btn btn--small" data-sakura-action="test-connection" data-sakura-nonce="<?php echo esc_attr( $test_nonce ); ?>" <?php disabled( $frozen ); ?>><?php esc_html_e( '测试连接', 'sakura-imgopt' ); ?></button>
 						<a class="btn btn--ghost btn--small" href="<?php echo esc_url( $settings_url ); ?>"><?php esc_html_e( '管理配置', 'sakura-imgopt' ); ?></a>
 					</div>
@@ -749,7 +751,7 @@ $sakura_sync_cards = static function () use (
 						'variant' => 'ghost',
 						'id'      => 'sakura-sync-adopt',
 						'attrs'   => array( 'data-sakura-action' => 'adopt' ),
-						'disabled' => $locked || 0 === (int) $missing_media,
+						'disabled' => $frozen || 0 === (int) $missing_media,
 					),
 				),
 			),

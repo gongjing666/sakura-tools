@@ -361,13 +361,17 @@
 		return button;
 	}
 
-	// A scan is the way out of the gate, so it stays clickable while gated.
-	// Only a stopped storage disables it.
+	// The gate only stops what would act on the previous bucket's numbers:
+	// refreshing differences, resuming or retrying, and every upload, download
+	// or delete. A scan is the way out of the gate; the sync-index toggle,
+	// the connection test and stopping a running scan touch no indexed row.
+	var GATE_ALLOWED = { scan: 1, cancel: 1, adopt: 1, 'toggle-index': 1, 'test-connection': 1 };
+
 	function isBlocked( action ) {
 		if ( isFrozen() ) {
 			return true;
 		}
-		return isReconcileGated() && 'scan' !== action;
+		return isReconcileGated() && ! Object.prototype.hasOwnProperty.call( GATE_ALLOWED, action );
 	}
 
 	function initTools() {

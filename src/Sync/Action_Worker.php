@@ -238,7 +238,7 @@ final class Action_Worker implements Module {
 			if ( '' !== $job_target && ! Synchronous_Uploader::target_matches( $job_target, $resolved['options'], $profile_id ) ) {
 				return;
 			}
-			$status->mark_synced( $attachment_id, $resolved_target );
+			$status->mark_synced( $attachment_id, $resolved_target, $profile_id );
 		}
 	}
 }

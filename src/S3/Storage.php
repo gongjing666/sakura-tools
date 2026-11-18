@@ -12,9 +12,7 @@ namespace Sakura\ImageOptimizer\S3;
 use Sakura\ImageOptimizer\Contracts\Module;
 use Sakura\ImageOptimizer\Support\Hook_Loader;
 use Sakura\ImageOptimizer\Sync\Action_Worker;
-use Sakura\ImageOptimizer\Sync\Feature;
 use Sakura\ImageOptimizer\Sync\Index_Repository;
-use Sakura\ImageOptimizer\Sync\Schema;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -87,14 +85,15 @@ final class Storage implements Module {
 	private Delete_Jobs $deletes;
 
 	/**
-	 * Per-request answers from the sync index about the active bucket.
+	 * The one place that answers "is this object in the active bucket".
 	 *
-	 * A confirmed attachment has its fingerprint rewritten, so only a miss can
-	 * repeat: caching it keeps one attachment at one lookup per request.
+	 * R19.4: the URL gate used to keep its own per-request map and its own SQL
+	 * loop, which made it a fourth opinion about the same question. It now asks
+	 * the shared service, which caches the answer itself.
 	 *
-	 * @var array<int,bool>
+	 * @var Bucket_Confirmation
 	 */
-	private array $index_confirmed = array();
+	private Bucket_Confirmation $confirmation;
 
 	/**
 	 * Constructor.
@@ -109,6 +108,7 @@ final class Storage implements Module {
 		$this->status   = $status ?? new Sync_Status();
 		$this->uploader = new Synchronous_Uploader( $this->options, $this->adapter, $this->status );
 		$this->deletes  = new Delete_Jobs();
+		$this->confirmation = new Bucket_Confirmation( $this->options, $this->status );
 	}
 
 	/**
@@ -247,6 +247,10 @@ final class Storage implements Module {
 		$this->deletes->enqueue( $attachment_id, $keys, 0, $profile_id, $target_hash );
 
 		$this->status->clear( $attachment_id );
+		// The objects are about to leave the bucket, so every cached "it is
+		// there" answer for these keys is now a lie. Deleting is rare;
+		// retiring the whole group costs one set().
+		Bucket_Confirmation::flush();
 		Delete_Worker::kick();
 	}
 
@@ -835,94 +839,23 @@ final class Storage implements Module {
 	 * unconfirmed and sends its URL back to the local host. The sync index knows
 	 * better: when a scan saw every recorded key in the active bucket with
 	 * matching sizes, the objects are there and the attachment can stay on the
-	 * CDN. The fingerprint is then rewritten once, so later requests answer from
-	 * post meta alone.
+	 * CDN.
+	 *
+	 * R19.4: the question is answered by Bucket_Confirmation, not here - this
+	 * method used to run its own SQL loop, which made a fourth definition of
+	 * "same bucket" in the codebase.
+	 *
+	 * R19.5: answering no longer writes. This runs on wp_get_attachment_url and
+	 * wp_calculate_image_srcset, so rewriting the fingerprint here meant one
+	 * update_post_meta per image per page view; the fingerprint is now rewritten
+	 * when a full scan finishes (Scan_Service::finalize()), which is a backend
+	 * action the administrator asked for.
 	 *
 	 * @param int $attachment_id Attachment ID.
 	 * @return bool True when the current bucket is a valid target.
 	 */
 	private function confirmed_in_active_bucket( int $attachment_id ): bool {
-		$stored = $this->status->target_hash( $attachment_id );
-		if ( Synchronous_Uploader::target_matches( $stored, $this->options ) ) {
-			return true;
-		}
-		if ( ! Feature::enabled() ) {
-			return false;
-		}
-		if ( isset( $this->index_confirmed[ $attachment_id ] ) ) {
-			return $this->index_confirmed[ $attachment_id ];
-		}
-
-		$confirmed = $this->index_confirms( $attachment_id );
-		if ( $confirmed ) {
-			$this->status->retarget( $attachment_id, $this->uploader->target_hash() );
-		}
-
-		$this->index_confirmed[ $attachment_id ] = $confirmed;
-
-		return $confirmed;
-	}
-
-	/**
-	 * Ask the sync index whether every recorded key is in the active bucket.
-	 *
-	 * A row reports the synced state only after a scan saw the object locally
-	 * and in the bucket with the same size, so one agreement per key is enough.
-	 *
-	 * @param int $attachment_id Attachment ID.
-	 * @return bool
-	 */
-	private function index_confirms( int $attachment_id ): bool {
-		$keys    = Restore_Plan::normalize( $this->status->objects( $attachment_id ) );
-		$profile = (string) $this->options->active_profile_id();
-		$path    = (string) $this->options->get( 'upload_path', '' );
-
-		if ( ! $keys || '' === $profile ) {
-			return false;
-		}
-
-		// Without the schema option the index tables were never installed, and
-		// querying them would be a wasted, failing round trip per attachment.
-		if ( Schema::VERSION !== (string) get_option( Schema::OPTION, '' ) ) {
-			return false;
-		}
-
-		$prefix = '' === $path || '.' === $path ? '' : untrailingslashit( ltrim( wp_normalize_path( $path ), '/' ) );
-		$index  = new Index_Repository();
-
-		foreach ( $keys as $key ) {
-			if ( ! $this->index_has_key( $index, $profile, (string) $key, $prefix ) ) {
-				return false;
-			}
-		}
-
-		return true;
-	}
-
-	/**
-	 * Whether the index reports one recorded key as synced in this bucket.
-	 *
-	 * Recorded keys are usually the object key itself, but an install that
-	 * scanned while uploads lived at the site root wrote them relative to the
-	 * uploads directory, and a path rebuilt from disk can be absolute. Every
-	 * form is tried before answering no, so a key written by any generation of
-	 * the plugin still resolves to its row.
-	 *
-	 * @param Index_Repository $index   Repository to query.
-	 * @param string           $profile Active profile.
-	 * @param string           $key     Recorded key or path.
-	 * @param string           $prefix  Normalized upload path, empty at the root.
-	 * @return bool
-	 */
-	private function index_has_key( Index_Repository $index, string $profile, string $key, string $prefix ): bool {
-		foreach ( self::key_candidates( $key, $prefix ) as $candidate ) {
-			$row = $index->find( $profile, $candidate );
-			if ( is_array( $row ) && Sync_Status::SYNCED === (string) ( $row['status'] ?? '' ) ) {
-				return true;
-			}
-		}
-
-		return false;
+		return $this->confirmation->confirms( $attachment_id );
 	}
 
 	/**
@@ -933,22 +866,7 @@ final class Storage implements Module {
 	 * @return array<int,string>
 	 */
 	private static function key_candidates( string $key, string $prefix ): array {
-		$key        = ltrim( wp_normalize_path( trim( $key ) ), '/' );
-		$root       = ltrim( untrailingslashit( wp_normalize_path( ABSPATH ) ), '/' );
-		$candidates = array( $key );
-
-		if ( '' !== $root && 0 === strpos( $key, $root . '/' ) ) {
-			$candidates[] = ltrim( substr( $key, strlen( $root ) ), '/' );
-		}
-
-		foreach ( $candidates as $candidate ) {
-			if ( '' === $prefix || 0 === strpos( $candidate, $prefix . '/' ) ) {
-				continue;
-			}
-			$candidates[] = $prefix . '/' . $candidate;
-		}
-
-		return array_values( array_unique( $candidates ) );
+		return Bucket_Confirmation::key_candidates( $key, $prefix );
 	}
 
 	/**

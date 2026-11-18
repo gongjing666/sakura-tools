@@ -53,6 +53,35 @@ final class ReconcileGateTest extends TestCase {
 		$this->assertSame( '旧桶', $raw['reconcile_pending']['from'] );
 	}
 
+	/**
+	 * A label-only edit is not a move (R19.3).
+	 *
+	 * The space field is the multi-cloud console's name for the bucket, and
+	 * nothing but three label renderers reads it. Sealing the sync center over
+	 * it would charge the admin a full re-scan for a cosmetic change.
+	 */
+	public function test_a_space_only_change_does_not_raise_the_gate(): void {
+		$GLOBALS['sakura_test_options'][ Options::OPTION ]['profiles']['prof_live']['space'] = 'renamed-in-console';
+
+		$result = ( new Profile_Manager() )->switch_profile( 'prof_live' );
+
+		$this->assertTrue( $result['success'] );
+		$this->assertFalse( $result['moved'], 'Editing the console label must not seal the sync center.' );
+		$this->assertSame( array(), $GLOBALS['sakura_test_options'][ Options::OPTION ]['reconcile_pending'] );
+	}
+
+	/**
+	 * The region still counts: it is a different entry point to the bucket.
+	 */
+	public function test_a_region_change_still_raises_the_gate(): void {
+		$GLOBALS['sakura_test_options'][ Options::OPTION ]['profiles']['prof_live']['region'] = 'ap-shanghai';
+
+		$result = ( new Profile_Manager() )->switch_profile( 'prof_live' );
+
+		$this->assertTrue( $result['moved'], 'A new region means the old index numbers were read elsewhere.' );
+		$this->assertArrayHasKey( 'profile_id', $GLOBALS['sakura_test_options'][ Options::OPTION ]['reconcile_pending'] );
+	}
+
 	/** Re-clicking the profile already in use changes nothing. */
 	public function test_reactivating_the_same_target_keeps_the_gate_down(): void {
 		$result = ( new Profile_Manager() )->switch_profile( 'prof_live' );

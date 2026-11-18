@@ -39,6 +39,17 @@ final class Sync_Status {
 	public const FAILURES_META = '_sakura_imgopt_s3_failures';
 
 	/**
+	 * Provenance of the fingerprint above (R19.8).
+	 *
+	 * TARGET_META alone cannot say who confirmed the object set or when: an
+	 * upload writes it, a scan rewrites it, and both used to leave the same
+	 * bare string behind. That is how a row uploaded to one bucket ended up
+	 * labelled with another. The record keeps the actor and the time next to
+	 * the hash, while SYNCED_META keeps meaning "last real upload".
+	 */
+	public const TARGET_INFO_META = '_sakura_imgopt_s3_target_meta';
+
+	/**
 	 * Local size:mtime per uploaded key, used to detect re-optimized files.
 	 */
 	public const VERSIONS_META = '_sakura_imgopt_s3_object_versions';
@@ -66,7 +77,7 @@ final class Sync_Status {
 	 * @param int    $attachment_id Attachment ID.
 	 * @param string $target_hash   Provider/endpoint/bucket/prefix fingerprint.
 	 */
-	public function mark_synced( int $attachment_id, string $target_hash = '' ): void {
+	public function mark_synced( int $attachment_id, string $target_hash = '', string $profile_id = '' ): void {
 		if ( $attachment_id <= 0 ) {
 			return;
 		}
@@ -74,8 +85,10 @@ final class Sync_Status {
 		update_post_meta( $attachment_id, self::SYNCED_META, time() );
 		if ( '' !== $target_hash ) {
 			update_post_meta( $attachment_id, self::TARGET_META, $target_hash );
+			$this->write_target_info( $attachment_id, $target_hash, 'upload', $profile_id );
 		} else {
 			delete_post_meta( $attachment_id, self::TARGET_META );
+			delete_post_meta( $attachment_id, self::TARGET_INFO_META );
 		}
 		delete_post_meta( $attachment_id, self::ERROR_META );
 		delete_post_meta( $attachment_id, self::FAILURES_META );
@@ -92,11 +105,64 @@ final class Sync_Status {
 	 * @param int    $attachment_id Attachment ID.
 	 * @param string $target_hash   Provider/endpoint/bucket/prefix fingerprint.
 	 */
-	public function retarget( int $attachment_id, string $target_hash ): void {
+	public function retarget( int $attachment_id, string $target_hash, string $profile_id = '' ): void {
 		if ( $attachment_id <= 0 || '' === $target_hash ) {
 			return;
 		}
 		update_post_meta( $attachment_id, self::TARGET_META, $target_hash );
+		$this->write_target_info( $attachment_id, $target_hash, 'scan', $profile_id );
+	}
+
+	/**
+	 * Provenance record for the current fingerprint, or array() when absent.
+	 *
+	 * Absent and "recorded before this field existed" both answer array(): the
+	 * empty hash is the marker, so a caller never has to distinguish a missing
+	 * record from a malformed one.
+	 *
+	 * @param int $attachment_id Attachment ID.
+	 * @return array{hash:string,confirmed_at:int,confirmed_by:string,profile_id:string}|array{}
+	 */
+	public function confirmation( int $attachment_id ): array {
+		if ( $attachment_id <= 0 ) {
+			return array();
+		}
+
+		$stored = get_post_meta( $attachment_id, self::TARGET_INFO_META, true );
+		if ( ! is_array( $stored ) || '' === (string) ( $stored['hash'] ?? '' ) ) {
+			return array();
+		}
+
+		return array(
+			'hash'         => (string) $stored['hash'],
+			'confirmed_at' => (int) ( $stored['confirmed_at'] ?? 0 ),
+			'confirmed_by' => (string) ( $stored['confirmed_by'] ?? '' ),
+			'profile_id'   => (string) ( $stored['profile_id'] ?? '' ),
+		);
+	}
+
+	/**
+	 * Write the provenance record that belongs with a fingerprint.
+	 *
+	 * Kept private: the record may never disagree with TARGET_META, so only the
+	 * two writers above may create one.
+	 *
+	 * @param int    $attachment_id Attachment ID.
+	 * @param string $target_hash   Fingerprint just written.
+	 * @param string $by            'upload' or 'scan'.
+	 * @param string $profile_id    Profile row that confirmed it, when known.
+	 */
+	private function write_target_info( int $attachment_id, string $target_hash, string $by, string $profile_id ): void {
+		update_post_meta(
+			$attachment_id,
+			self::TARGET_INFO_META,
+			array(
+				'hash'         => $target_hash,
+				'confirmed_at' => time(),
+				'confirmed_by' => $by,
+				'profile_id'   => $profile_id,
+			)
+		);
 	}
 
 	/**
@@ -383,7 +449,7 @@ final class Sync_Status {
 	 * @param int $attachment_id Attachment ID.
 	 */
 	public function clear( int $attachment_id ): void {
-		foreach ( array( self::STATUS_META, self::ERROR_META, self::OBJECTS_META, self::SYNCED_META, self::JOBS_META, self::FAILURES_META, self::VERSIONS_META, self::TARGET_META ) as $key ) {
+		foreach ( array( self::STATUS_META, self::ERROR_META, self::OBJECTS_META, self::SYNCED_META, self::JOBS_META, self::FAILURES_META, self::VERSIONS_META, self::TARGET_META, self::TARGET_INFO_META ) as $key ) {
 			delete_post_meta( $attachment_id, $key );
 		}
 	}
@@ -454,12 +520,17 @@ final class Sync_Status {
 	 * media library pointing at a domain nobody serves. Counted from post meta
 	 * rather than a file check because the bucket is the only remaining copy.
 	 *
-	 * @param string $target_hash Fingerprint of the bucket the profile points at.
-	 * @param int    $limit       Safety cap on scanned rows; the caller only needs
-	 *                            "none" vs "some" for the copy, and an exact count
-	 *                            up to this many.
+	 * Every form of the fingerprint counts (R19.9). The stored value may be the
+	 * current hash or the legacy form that still names one profile row; comparing
+	 * it to a single hash quietly under-reported the risk, and the dialog then
+	 * offered a destructive delete while claiming nothing would be lost.
+	 *
+	 * @param Options $options Options of the bucket being unbound.
+	 * @param int     $limit   Safety cap on scanned rows; the caller only needs
+	 *                         "none" vs "some" for the copy, and an exact count
+	 *                         up to this many.
 	 */
-	public function lost_local_count( string $target_hash = '', int $limit = 500 ): int {
+	public function lost_local_count( Options $options, int $limit = 500 ): int {
 		$meta_query = array( // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query
 			array(
 				'key'     => self::STATUS_META,
@@ -485,7 +556,7 @@ final class Sync_Status {
 		foreach ( (array) $query->posts as $post_id ) {
 			$attachment_id = (int) $post_id;
 			$target        = (string) get_post_meta( $attachment_id, self::TARGET_META, true );
-			if ( '' !== $target_hash && ! hash_equals( $target_hash, $target ) ) {
+			if ( '' !== $target && ! Synchronous_Uploader::target_matches( $target, $options ) ) {
 				continue;
 			}
 

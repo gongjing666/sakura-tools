@@ -305,11 +305,16 @@ final class Profile_Manager {
 	 * the reconciliation rows are partitioned, so neither leaves the sync center
 	 * describing a different bucket.
 	 *
+	 * The space field is deliberately absent (R19.3). It is the multi-cloud
+	 * console's label for the bucket, not the bucket: nothing reads it but the
+	 * three label renderers. Sealing the sync center on it made an admin re-scan
+	 * the whole bucket for a change that moved no object.
+	 *
 	 * @param array<string,mixed> $before Option fields before the switch.
 	 * @param array<string,mixed> $after  Option fields after the switch.
 	 */
 	private static function target_moved( array $before, array $after ): bool {
-		foreach ( array( 'provider', 'bucket', 'space', 'region', 'endpoint', 'upload_path' ) as $field ) {
+		foreach ( array( 'provider', 'bucket', 'region', 'endpoint', 'upload_path' ) as $field ) {
 			if ( trim( (string) ( $before[ $field ] ?? '' ) ) !== trim( (string) ( $after[ $field ] ?? '' ) ) ) {
 				return true;
 			}

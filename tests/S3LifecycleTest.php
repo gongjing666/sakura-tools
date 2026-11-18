@@ -67,6 +67,44 @@ final class S3LifecycleDatabase {
 		return isset( $this->rows[ $lookup ] ) ? array( 'status' => $this->rows[ $lookup ] ) : null;
 	}
 
+	public function get_results( $prepared, $output = ARRAY_A ) {
+		unset( $output );
+		++$this->queries;
+
+		list( $sql, $args ) = unserialize( $prepared );
+
+		// The batched form is "profile IN (... ) AND object_key_hash IN (...)";
+		// the profile list comes first, the hashes after it.
+		$profiles = array();
+		$hashes   = array();
+		foreach ( $args as $arg ) {
+			$arg = (string) $arg;
+			if ( preg_match( '/^prof_/', $arg ) ) {
+				$profiles[] = $arg;
+				continue;
+			}
+			$hashes[] = $arg;
+		}
+
+		$rows = array();
+		foreach ( $hashes as $hash ) {
+			foreach ( $profiles as $profile ) {
+				$lookup = $profile . '|' . $hash;
+				if ( ! isset( $this->rows[ $lookup ] ) ) {
+					continue;
+				}
+				$rows[] = array(
+					'profile_id'      => $profile,
+					// The real column is binary(32), so the driver hands back raw bytes.
+					'object_key_hash' => (string) hex2bin( $hash ),
+					'status'          => $this->rows[ $lookup ],
+				);
+			}
+		}
+
+		return $rows;
+	}
+
 	public function key( string $profile_id, string $object_key ): string {
 		return $profile_id . '|' . bin2hex( hash( 'sha256', $object_key, true ) );
 	}
@@ -103,6 +141,10 @@ final class S3LifecycleTest extends TestCase {
 
 		$this->db        = new S3LifecycleDatabase();
 		$GLOBALS['wpdb'] = $this->db;
+
+		// The confirmation cache survives between tests; a cached "not in
+		// the bucket" answer would mask the query the next test asserts on.
+		$GLOBALS['sakura_test_cache'] = array();
 
 		if ( ! is_dir( self::UPLOAD_DIR . '/2026/11' ) ) {
 			mkdir( self::UPLOAD_DIR . '/2026/11', 0777, true );

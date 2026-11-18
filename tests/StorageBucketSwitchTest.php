@@ -55,6 +55,42 @@ final class StorageBucketSwitchDatabase {
 		return null;
 	}
 
+	public function get_results( $prepared, $output = ARRAY_A ) {
+		unset( $output );
+		++$this->queries;
+
+		list( , $args ) = unserialize( $prepared );
+
+		$profiles = array();
+		$hashes   = array();
+		foreach ( $args as $arg ) {
+			$arg = (string) $arg;
+			if ( 0 === strpos( $arg, 'prof_' ) ) {
+				$profiles[] = $arg;
+				continue;
+			}
+			$hashes[] = $arg;
+		}
+
+		$rows = array();
+		foreach ( $hashes as $hash ) {
+			foreach ( $profiles as $profile ) {
+				$lookup = $profile . '|' . $hash;
+				if ( ! isset( $this->rows[ $lookup ] ) ) {
+					continue;
+				}
+				$rows[] = array(
+					'profile_id'      => $profile,
+					// The real column is binary(32), so the driver hands back raw bytes.
+					'object_key_hash' => (string) hex2bin( $hash ),
+					'status'          => $this->rows[ $lookup ],
+				);
+			}
+		}
+
+		return $rows;
+	}
+
 	public function key( string $profile_id, string $object_key ): string {
 		return $profile_id . '|' . bin2hex( hash( 'sha256', $object_key, true ) );
 	}
@@ -88,6 +124,10 @@ final class StorageBucketSwitchTest extends TestCase {
 
 		$this->db        = new StorageBucketSwitchDatabase();
 		$GLOBALS['wpdb'] = $this->db;
+
+		// The confirmation cache survives between tests; a cached "not in
+		// the bucket" answer would mask the query the next test asserts on.
+		$GLOBALS['sakura_test_cache'] = array();
 
 		$this->file = (string) tempnam( sys_get_temp_dir(), 'sio-bucket-switch' );
 
@@ -175,18 +215,18 @@ final class StorageBucketSwitchTest extends TestCase {
 		$this->assertSame( $this->cdn_url(), $this->storage()->revert_unsynced_url( $this->cdn_url(), self::ATTACHMENT ) );
 	}
 
-	public function test_index_confirmation_rewrites_the_fingerprint_so_later_requests_skip_the_lookup(): void {
+	public function test_a_render_never_heals_the_fingerprint(): void {
 		$this->seed( Sync_Status::SYNCED, array( self::OBJECT_KEY ) );
 		$this->db->rows[ $this->db->key( 'prof_new', self::OBJECT_KEY ) ] = 'synced';
 		$GLOBALS['sakura_test_post_meta'][ self::ATTACHMENT ][ Sync_Status::SYNCED_META ] = 1700000000;
 
 		$storage = $this->storage();
 		$this->assertSame( $this->cdn_url(), $storage->revert_unsynced_url( $this->cdn_url(), self::ATTACHMENT ) );
-		$this->assertSame(
-			Synchronous_Uploader::target_hash_for( $this->options() ),
-			$this->stored_target(),
-			'The fingerprint must be rewritten so the next request answers from post meta.'
-		);
+
+		// R19.5: the URL path is read-only. Healing belongs to the scan, so a
+		// page view must leave both the fingerprint and the sync time alone --
+		// otherwise every render of a hot article is a database write.
+		$this->assertSame( self::OLD_TARGET, $this->stored_target() );
 		$this->assertSame(
 			1700000000,
 			(int) get_post_meta( self::ATTACHMENT, Sync_Status::SYNCED_META, true ),
@@ -196,7 +236,11 @@ final class StorageBucketSwitchTest extends TestCase {
 		$this->db->rows    = array();
 		$this->db->queries = 0;
 		$this->assertSame( $this->cdn_url(), $storage->revert_unsynced_url( $this->cdn_url(), self::ATTACHMENT ) );
-		$this->assertSame( 0, $this->db->queries, 'A healed attachment must not query the index again.' );
+		$this->assertSame(
+			0,
+			$this->db->queries,
+			'The answer stays cached per bucket identity and key, so a second render asks nothing.'
+		);
 	}
 
 	public function test_bucket_switch_falls_back_to_the_local_url_without_index_evidence(): void {
@@ -247,7 +291,7 @@ final class StorageBucketSwitchTest extends TestCase {
 		$this->assertSame( $this->cdn_url(), $this->storage()->revert_unsynced_url( $this->cdn_url(), self::ATTACHMENT ) );
 	}
 
-	public function test_legacy_attachment_without_a_fingerprint_is_healed_by_the_index(): void {
+	public function test_legacy_attachment_without_a_fingerprint_is_confirmed_by_the_index(): void {
 		$GLOBALS['sakura_test_post_meta'][ self::ATTACHMENT ] = array(
 			Sync_Status::STATUS_META  => Sync_Status::SYNCED,
 			Sync_Status::OBJECTS_META => array( self::OBJECT_KEY ),
@@ -255,9 +299,56 @@ final class StorageBucketSwitchTest extends TestCase {
 		$this->db->rows[ $this->db->key( 'prof_new', self::OBJECT_KEY ) ] = 'synced';
 
 		$this->assertSame( $this->cdn_url(), $this->storage()->revert_unsynced_url( $this->cdn_url(), self::ATTACHMENT ) );
-		$this->assertSame( Synchronous_Uploader::target_hash_for( $this->options() ), $this->stored_target() );
+		$this->assertSame(
+			'',
+			$this->stored_target(),
+			'A render must not invent a fingerprint; the scan writes it.'
+		);
 	}
 
+	/**
+	 * A standby row pointing at the same bucket confirms the objects (R19.7).
+	 *
+	 * The index is partitioned by profile id, so an object confirmed under a
+	 * sibling row of the same bucket used to look absent: the fingerprint named
+	 * another destination, the active row had no index row, and the URL fell
+	 * back to the site domain even though the object was sitting right there.
+	 */
+	public function test_a_sibling_row_for_the_same_bucket_still_confirms(): void {
+		$this->seed( Sync_Status::SYNCED, array( self::OBJECT_KEY ) );
+		$this->db->rows[ $this->db->key( 'prof_standby', self::OBJECT_KEY ) ] = 'synced';
+
+		$options = $this->options();
+		$raw     = $options->all();
+		$standby = $raw['profiles']['prof_new'];
+		$standby['id']   = 'prof_standby';
+		$standby['name'] = 'Standby copy of the same bucket';
+
+		$raw['profiles']['prof_standby'] = $standby;
+
+		$this->assertSame(
+			self::CDN . '/2026/11/a.webp',
+			( new Storage( new Options( $raw ) ) )->revert_unsynced_url( self::CDN . '/2026/11/a.webp', self::ATTACHMENT )
+		);
+	}
+
+	/** A sibling row for a different bucket must not confirm anything. */
+	public function test_a_sibling_row_for_another_bucket_confirms_nothing(): void {
+		$this->seed( Sync_Status::SYNCED, array( self::OBJECT_KEY ) );
+		$this->db->rows[ $this->db->key( 'prof_standby', self::OBJECT_KEY ) ] = 'synced';
+
+		$raw     = $this->options()->all();
+		$standby = $raw['profiles']['prof_new'];
+		$standby['id']     = 'prof_standby';
+		$standby['bucket'] = 'some-other-bucket';
+
+		$raw['profiles']['prof_standby'] = $standby;
+
+		$this->assertSame(
+			self::LOCAL . '/2026/11/a.webp',
+			( new Storage( new Options( $raw ) ) )->revert_unsynced_url( self::CDN . '/2026/11/a.webp', self::ATTACHMENT )
+		);
+	}
 	public function test_pending_attachment_is_not_rescued_by_the_index(): void {
 		$this->seed( Sync_Status::PENDING, array( self::OBJECT_KEY ) );
 		$this->db->rows[ $this->db->key( 'prof_new', self::OBJECT_KEY ) ] = 'synced';

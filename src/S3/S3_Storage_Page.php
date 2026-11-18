@@ -855,7 +855,7 @@ final class S3_Storage_Page {
 			return 0;
 		}
 
-		return ( new Sync_Status() )->lost_local_count( Synchronous_Uploader::target_hash_for( new Options( $profile ) ) );
+		return ( new Sync_Status() )->lost_local_count( new Options( $profile ) );
 	}
 
 	/**

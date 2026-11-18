@@ -56,6 +56,14 @@ final class Index_Repository {
 	private ?bool $recent_ready = null;
 
 	/**
+	 * Keys per statement in find_many().
+	 *
+	 * 200 hashes is about 6.4 KB of hex in the IN list; larger chunks risk the
+	 * packet limit on shared hosting without saving a meaningful round trip.
+	 */
+	private const FIND_MANY_CHUNK = 200;
+
+	/**
 	 * Attempts before a queued action is marked dead.
 	 */
 	public const JOB_MAX_ATTEMPTS = 8;
@@ -1629,6 +1637,95 @@ final class Index_Repository {
 			ARRAY_A
 		);
 		return is_array( $row ) ? $row : null;
+	}
+
+	/**
+	 * Find many rows by key in one round trip.
+	 *
+	 * The URL path asks "is this object in the active bucket" once per object
+	 * and once per stored key, which at six sub-sizes per attachment turns one
+	 * page render into dozens of single-row lookups. Chunking the hashes into
+	 * one IN list answers the whole question with one statement.
+	 *
+	 * A key that maps to more than one row (the index is partitioned by
+	 * profile) keeps the row from the profile that comes first in the list
+	 * given by the caller, so the answer never depends on the order the
+	 * database happened to return.
+	 *
+	 * @param string[] $profiles Profile ids to read, in preference order.
+	 * @param string[] $keys     Object keys.
+	 * @return array<string,array<string,mixed>> Rows keyed by object key.
+	 */
+	public function find_many( array $profiles, array $keys ): array {
+		$profiles = $this->non_empty( $profiles );
+		$keys     = $this->non_empty( $keys );
+
+		if ( ! $profiles || ! $keys ) {
+			return array();
+		}
+
+		global $wpdb;
+
+		$found = array();
+		foreach ( array_chunk( $keys, self::FIND_MANY_CHUNK ) as $chunk ) {
+			$hashes  = array();
+			$by_hash = array();
+			foreach ( $chunk as $key ) {
+				$by_hash[ $this->hash_hex( $key ) ] = $key;
+			}
+			$hashes = array_fill( 0, count( $by_hash ), 'UNHEX(%s)' );
+
+			$placeholders = implode( ',', array_fill( 0, count( $profiles ), '%s' ) );
+			$sql          = "SELECT * FROM {$this->index} WHERE profile_id IN ({$placeholders}) AND object_key_hash IN (" . implode( ',', $hashes ) . ')';
+			$args         = array_merge( $profiles, array_keys( $by_hash ) );
+			$prepared     = $wpdb->prepare( $sql, ...$args ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Placeholders are built above.
+			if ( false === $prepared ) {
+				continue;
+			}
+
+			$rows = $wpdb->get_results( $prepared, ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Prepared above.
+			if ( ! is_array( $rows ) ) {
+				continue;
+			}
+
+			foreach ( $rows as $row ) {
+				if ( ! is_array( $row ) ) {
+					continue;
+				}
+				$hash = strtolower( bin2hex( (string) ( $row['object_key_hash'] ?? '' ) ) );
+				$key  = $by_hash[ $hash ] ?? '';
+				if ( '' === $key ) {
+					continue;
+				}
+				$rank = (int) array_search( (string) ( $row['profile_id'] ?? '' ), $profiles, true );
+				if ( isset( $found[ $key ] ) && (int) $found[ $key ]['__rank'] <= $rank ) {
+					continue;
+				}
+				$row['__rank']  = $rank;
+				$row['__key']   = $key;
+				$found[ $key ]  = $row;
+			}
+		}
+
+		return $found;
+	}
+
+	/**
+	 * Trimmed, de-duplicated, empty-free list of ids or keys.
+	 *
+	 * @param array<int,string> $values Raw values.
+	 * @return array<int,string>
+	 */
+	private function non_empty( array $values ): array {
+		$clean = array();
+		foreach ( $values as $value ) {
+			$value = (string) $value;
+			if ( '' === $value ) {
+				continue;
+			}
+			$clean[ $value ] = true;
+		}
+		return array_keys( $clean );
 	}
 
 	/**

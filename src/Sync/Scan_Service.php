@@ -9,9 +9,13 @@ declare( strict_types=1 );
 
 namespace Sakura\ImageOptimizer\Sync;
 
+use Sakura\ImageOptimizer\S3\Bucket_Confirmation;
+use Sakura\ImageOptimizer\S3\Bucket_Identity;
 use Sakura\ImageOptimizer\S3\Ignored_Paths;
 use Sakura\ImageOptimizer\S3\Options;
+use Sakura\ImageOptimizer\S3\Restore_Plan;
 use Sakura\ImageOptimizer\S3\Storage_Adapter;
+use Sakura\ImageOptimizer\S3\Sync_Status;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -853,6 +857,13 @@ final class Scan_Service {
 		 */
 		if ( $scan && in_array( (string) $scan->mode, array( 'full', 'resume' ), true ) ) {
 			Options::clear_reconcile_pending( $profile );
+			$this->backfill_fingerprints( $profile );
+			/*
+			 * Confirmations were cached against the index as it looked before
+			 * this scan; every one of them may now be wrong, so the whole group
+			 * is retired with a generation bump.
+			 */
+			Bucket_Confirmation::flush();
 		}
 		// Differences are the index rows that are not synced; the row total also
 		// counts the pairs both sides agree on.
@@ -877,6 +888,133 @@ final class Scan_Service {
 			'summary'  => $summary,
 			'message'  => __( '对账完成。', 'sakura-imgopt' ),
 		);
+	}
+
+	/**
+	 * Rewrite fingerprints that the index has just re-confirmed (R19.5).
+	 *
+	 * A finished full scan is the only place allowed to heal a fingerprint. The
+	 * URL path used to do it on every page view, which made a render a write: the
+	 * admin watched the same attachments change owner 126/6 -> 129/3 -> 132/0
+	 * purely by browsing. Here the knowledge comes from a scan that just listed
+	 * both sides, so writing it down costs one pass and cannot be triggered by a
+	 * visitor.
+	 *
+	 * Only attachments already marked synced and present in the index are
+	 * touched; anything else is still an open question for the differences list.
+	 *
+	 * @param string $profile Profile the scan ran for.
+	 */
+	private function backfill_fingerprints( string $profile ): void {
+		// The scan may have run for a saved row that is not the active one. Its
+		// index rows describe that row's bucket, so healing fingerprints with the
+		// active identity would label objects with a bucket nobody listed.
+		$scanned = Bucket_Identity::from_profile( $this->options->profile( $profile ), $this->options );
+		if ( ! Bucket_Identity::from_options( $this->options )->same_as( $scanned ) ) {
+			return;
+		}
+
+		$target = $scanned->hash();
+		$status = new Sync_Status();
+		$prefix = (string) $this->options->get( 'upload_path', '' );
+		$prefix = '' === $prefix || '.' === $prefix ? '' : untrailingslashit( ltrim( wp_normalize_path( $prefix ), '/' ) );
+		$offset = 0;
+
+		do {
+			$batch = get_posts(
+				array(
+					'post_type'              => 'attachment',
+					'post_status'            => 'inherit',
+					'fields'                 => 'ids',
+					'posts_per_page'         => self::BATCH,
+					'offset'                 => $offset,
+					'orderby'                => 'ID',
+					'order'                  => 'ASC',
+					'no_found_rows'          => true,
+					'update_post_meta_cache' => false,
+					'update_post_term_cache' => false,
+					'meta_query'             => array( // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query
+						array(
+							'key'     => Sync_Status::STATUS_META,
+							'value'   => Sync_Status::SYNCED,
+							'compare' => '=',
+						),
+					),
+					'suppress_filters'       => false,
+				)
+			);
+
+			$ids = array_values( array_filter( array_map( 'intval', (array) $batch ) ) );
+			if ( ! $ids ) {
+				return;
+			}
+
+			foreach ( $ids as $attachment_id ) {
+				$current = $status->target_hash( $attachment_id );
+				if ( $current === $target ) {
+					continue;
+				}
+				$keys = Restore_Plan::normalize( $status->objects( $attachment_id ) );
+				if ( ! $keys || ! $this->index_confirms( $profile, $keys, $prefix ) ) {
+					continue;
+				}
+				$status->retarget( $attachment_id, $target, $profile );
+			}
+
+			$offset += self::BATCH;
+		} while ( true );
+	}
+
+	/**
+	 * Whether the index has a synced row for every recorded key.
+	 *
+	 * Read straight from the index instead of asking Bucket_Confirmation: this
+	 * path already knows the bucket it scanned, and the answer must reflect that
+	 * bucket's rows whether or not it is the active one.
+	 *
+	 * "Found" means one of the key's candidate spellings has a synced row, which
+	 * is how the URL path has always answered. Requiring every spelling to have
+	 * a row would make the normal case - a key recorded as an object key and as
+	 * nothing else - unconfirmable, because the upload-path spelling it is
+	 * compared against was never written.
+	 *
+	 * @param string             $profile Profile the scan ran for.
+	 * @param array<int,string>  $keys    Recorded object keys.
+	 * @param string             $prefix  Normalized upload path.
+	 */
+	private function index_confirms( string $profile, array $keys, string $prefix ): bool {
+		$wanted = array();
+		foreach ( $keys as $key ) {
+			$candidates = Bucket_Confirmation::key_candidates( $key, $prefix );
+			if ( ! $candidates ) {
+				return false;
+			}
+			foreach ( $candidates as $candidate ) {
+				$wanted[ $candidate ][] = $key;
+			}
+		}
+		if ( ! $wanted ) {
+			return false;
+		}
+
+		$rows   = $this->index->find_many( array( $profile ), array_keys( $wanted ) );
+		$synced = array();
+		foreach ( $rows as $row ) {
+			if ( ! is_array( $row ) || Sync_Status::SYNCED !== (string) ( $row['status'] ?? '' ) ) {
+				continue;
+			}
+			foreach ( $wanted[ (string) ( $row['__key'] ?? '' ) ] ?? array() as $key ) {
+				$synced[ $key ] = true;
+			}
+		}
+
+		foreach ( $keys as $key ) {
+			if ( ! isset( $synced[ $key ] ) ) {
+				return false;
+			}
+		}
+
+		return true;
 	}
 
 	/**

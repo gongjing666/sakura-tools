@@ -220,10 +220,15 @@ final class Synchronous_Uploader {
 
 		$versions     = $this->versions( $manifest );
 		$target_hash  = $this->target_hash();
-		$stored_target = $this->status->target_hash( $attachment_id );
-		// A row created under a different profile that points at this same bucket
-		// still counts as confirmed; see target_hashes_for().
-		$target_match = self::target_matches( $stored_target, $this->options );
+		// R19.6: "is this object already in this bucket" is answered by the
+		// confirmation service, which falls back to the sync index when the
+		// stored fingerprint names another destination. Asking the fingerprint
+		// alone meant a standby bucket that already held every object was
+		// re-uploaded in full after a failover switch.
+		//
+		// A row created under a different profile that points at this same
+		// bucket still counts; see target_hashes_for().
+		$target_match = ( new Bucket_Confirmation( $this->options, $this->status ) )->confirms( $attachment_id );
 		if ( Sync_Status::SYNCED === $this->status->status( $attachment_id ) && $this->status->versions( $attachment_id ) === $versions && $target_match ) {
 			// The object set is already confirmed. The intermediate pass may
 			// have marked it synced before sub-size generation finished, so the
@@ -339,7 +344,7 @@ final class Synchronous_Uploader {
 			$this->status->set_objects( $attachment_id, $keys );
 		}
 		$this->status->set_versions( $attachment_id, $versions );
-		$this->status->mark_synced( $attachment_id, $target_hash );
+		$this->status->mark_synced( $attachment_id, $target_hash, $this->options->active_profile_id() );
 
 		// Persistence is a side effect too: re-read it instead of trusting the
 		// return value of update_post_meta().
@@ -503,29 +508,21 @@ final class Synchronous_Uploader {
 	 * Stored with every queued manual action so a later settings switch cannot
 	 * redirect that action into a different bucket.
 	 *
-	 * The identity is the destination - provider, bucket, endpoint and object
-	 * prefix - and deliberately not the profile row id. Two saved profiles that
-	 * point at the same bucket are the same target; binding the row id made a
-	 * switch between them look like a bucket change, which reverted every synced
-	 * attachment to the local URL and re-queued uploads that were confirmed.
+	 * The field list lives in Bucket_Identity (R19.2): the destination is
+	 * provider, bucket, endpoint and object prefix, and deliberately not the
+	 * profile row id. Two saved profiles that point at the same bucket are the
+	 * same target; binding the row id made a switch between them look like a
+	 * bucket change, which reverted every synced attachment to the local URL
+	 * and re-queued uploads that were confirmed.
 	 *
-	 * This is deliberately not the same fingerprint as Delete_Jobs::target_hash():
-	 * uploads bind the upload_path as well, while deletes bind the bucket
-	 * identity including the region. The two are never compared with each
-	 * other; changing either algorithm invalidates hashes already stored in
+	 * The output is byte for byte what the previous inline implementation
+	 * produced: changing the algorithm invalidates hashes already stored in
 	 * post meta, sio_sync_jobs and sio_s3_deletes.
 	 *
 	 * @param Options $options Options snapshot.
 	 */
 	public static function target_hash_for( Options $options ): string {
-		$parts = array(
-			'v2',
-			(string) $options->get( 'provider', '' ),
-			(string) $options->get( 'bucket', '' ),
-			(string) $options->get( 'endpoint', '' ),
-			(string) $options->get( 'upload_path', '' ),
-		);
-		return hash( 'sha256', implode( '|', $parts ) );
+		return Bucket_Identity::from_options( $options )->hash();
 	}
 
 	/**
@@ -541,12 +538,7 @@ final class Synchronous_Uploader {
 	 * @return array<int,string>
 	 */
 	public static function target_hashes_for( Options $options, string $profile_id = '' ): array {
-		$base = array(
-			(string) $options->get( 'provider', '' ),
-			(string) $options->get( 'bucket', '' ),
-			(string) $options->get( 'endpoint', '' ),
-			(string) $options->get( 'upload_path', '' ),
-		);
+		$identity = Bucket_Identity::from_options( $options );
 
 		$ids = array_map( 'strval', array_keys( $options->profiles() ) );
 		if ( '' !== $profile_id ) {
@@ -557,12 +549,12 @@ final class Synchronous_Uploader {
 			$ids[] = $active;
 		}
 
-		$hashes = array( hash( 'sha256', implode( '|', array_merge( array( 'v2' ), $base ) ) ) );
+		$hashes = array( $identity->hash() );
 		foreach ( array_unique( $ids ) as $id ) {
 			if ( '' === $id ) {
 				continue;
 			}
-			$hashes[] = hash( 'sha256', implode( '|', array_merge( array( $id ), $base ) ) );
+			$hashes[] = $identity->hash( $id );
 		}
 
 		return array_values( array_unique( $hashes ) );

@@ -353,6 +353,10 @@ final class Sync_Center_Module implements Module {
 		$job_rows = $data['job_rows'];
 		$toggle_nonce = $data['toggle_nonce'];
 		$refresh_nonce = $data['refresh_nonce'];
+		// R18: the view needs the pending gate to explain itself and to keep a
+		// single escape hatch (a full reconcile) open.
+		$reconcile_gate = $this->options->reconcile_pending();
+		$reconcile_gate = is_array( $reconcile_gate ) ? $reconcile_gate : array();
 
 		// WP-Cron only advances on traffic, so a site that sat idle for a month
 		// can land here before the monthly event ever ran. Queueing the same
@@ -400,6 +404,35 @@ final class Sync_Center_Module implements Module {
 	private const QUEUE_THRESHOLD = 52428800;
 
 	/**
+	 * Whether the pending-reconcile gate blocks acting on the current index.
+	 *
+	 * R18: after the storage target moves, every indexed number belongs to the
+	 * previous bucket. The page already disables those controls, but the AJAX
+	 * endpoints must refuse them too — a stale tab would otherwise still upload,
+	 * delete, or rewrite the counts of a bucket nobody has scanned yet.
+	 */
+	private function reconcile_gate_active(): bool {
+		$pending = $this->options->reconcile_pending();
+		return is_array( $pending ) && array() !== $pending;
+	}
+
+	/**
+	 * Refuse an AJAX action while the reconcile gate is up.
+	 */
+	private function guard_reconcile_gate(): void {
+		if ( ! $this->reconcile_gate_active() ) {
+			return;
+		}
+		wp_send_json_error(
+			array(
+				'message' => __( '存储目标刚切换，索引还是上一个桶的。请先点「开始完整核对」重建索引。', 'sakura-imgopt' ),
+				'code'    => 'sio_reconcile_required',
+			),
+			409
+		);
+	}
+
+	/**
 	 * AJAX: start a fresh inventory scan.
 	 */
 	public function ajax_scan(): void {
@@ -408,7 +441,10 @@ final class Sync_Center_Module implements Module {
 		}
 		check_ajax_referer( 'sakura_s3_sync_scan', 'nonce' );
 
-		$scan_id = $this->scanner->start();
+		// The button says "开始完整核对" and a full pass is what rebuilds the
+		// index for the current bucket; the default argument is incremental,
+		// which trusts the previous bucket's rows.
+		$scan_id = $this->scanner->start( '', 'full' );
 		if ( is_wp_error( $scan_id ) ) {
 			wp_send_json_error( array( 'message' => $scan_id->get_error_message(), 'code' => $scan_id->get_error_code() ), 409 );
 		}
@@ -491,6 +527,7 @@ final class Sync_Center_Module implements Module {
 		if ( ! current_user_can( 'manage_options' ) ) {
 			wp_send_json_error( array( 'message' => __( '权限不足。', 'sakura-imgopt' ) ), 403 );
 		}
+		$this->guard_reconcile_gate();
 		$scan_id = $this->scanner->resume();
 		if ( is_wp_error( $scan_id ) ) {
 			wp_send_json_error( array( 'message' => $scan_id->get_error_message(), 'code' => $scan_id->get_error_code() ), 409 );
@@ -523,6 +560,7 @@ final class Sync_Center_Module implements Module {
 		if ( ! Feature::enabled() ) {
 			wp_send_json_error( array( 'message' => __( '索引已停用，无法刷新差异。', 'sakura-imgopt' ) ), 409 );
 		}
+		$this->guard_reconcile_gate();
 		$summary = $this->scanner->refresh();
 		if ( is_wp_error( $summary ) ) {
 			wp_send_json_error( array( 'message' => $summary->get_error_message(), 'code' => $summary->get_error_code() ), 422 );
@@ -760,8 +798,14 @@ final class Sync_Center_Module implements Module {
 		if ( ! Feature::enabled() ) {
 			wp_send_json_error( array( 'message' => __( '持久索引已停用，无法执行行内动作。', 'sakura-imgopt' ) ), 409 );
 		}
-
 		$type    = isset( $_POST['sync_action'] ) ? sanitize_key( wp_unslash( $_POST['sync_action'] ) ) : '';
+		// Adopting media rows only touches the local library, so the gate keeps
+		// it available; uploads, downloads and deletes hit the new bucket with
+		// object keys derived from the old index.
+		if ( 'adopt' !== $type ) {
+			$this->guard_reconcile_gate();
+		}
+
 		$key     = isset( $_POST['object_key'] ) ? (string) wp_unslash( $_POST['object_key'] ) : '';
 		$confirm = isset( $_POST['confirm'] ) ? sanitize_text_field( wp_unslash( $_POST['confirm'] ) ) : '';
 		$keys    = array();

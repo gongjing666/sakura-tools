@@ -576,6 +576,40 @@
 	 * the badge inside it and the status strip come from one round trip and
 	 * cannot disagree with each other.
 	 */
+	/*
+	 * Mount the server-rendered switch dialog and open it. The markup comes
+	 * from PHP so the copy lives with the rest of the storage strings; the
+	 * node has to sit inside .sakura-admin for the modal styles to apply.
+	 *
+	 * Returns false when the dialog is unavailable, so the caller can fall
+	 * back to the toast rather than silently swallowing the confirmation.
+	 */
+	function openSwitchModal( root, markup ) {
+		if ( ! markup || ! admin.ui || 'function' !== typeof admin.ui.openModal ) {
+			return false;
+		}
+
+		var host = root || admin.root();
+		if ( ! host ) {
+			return false;
+		}
+
+		var existing = admin.qs( '#sakura-s3-switch-modal' );
+		if ( existing && existing.parentNode ) {
+			existing.parentNode.removeChild( existing );
+		}
+
+		var holder = document.createElement( 'div' );
+		holder.innerHTML = markup;
+		var modal = holder.firstElementChild;
+		if ( ! modal ) {
+			return false;
+		}
+
+		host.appendChild( modal );
+		admin.ui.openModal( modal, null );
+		return true;
+	}
 	function initProfileToggle( root ) {
 		var nonce = strings.toggleNonce || '';
 
@@ -601,6 +635,18 @@
 			}, { timeout: 15000 } )
 				.then( function ( data ) {
 					applyState( root, data || {} );
+
+					/*
+					 * A switch is not just "on": it moves the site to another
+					 * bucket, which turns the thumbnail rewrite off and leaves the
+					 * sync center describing the previous one. That answer comes
+					 * back as markup so this click can open the shared dialog
+					 * instead of a toast in the corner.
+					 */
+					if ( data && data.switchModal && openSwitchModal( root, data.switchModal ) ) {
+						return;
+					}
+
 					admin.ui.toast( 'off' === intent ? ( strings.toggledOff || '' ) : ( strings.toggledOn || '' ), 'ok' );
 				} )
 				.catch( function ( error ) {

@@ -1542,6 +1542,62 @@
 	max-width: none;
 }
 
+/* Dialog bodies: a short list of consequences, and the host that a switch
+ * notice is asking the operator to confirm. Both live inside .sakura-modal__card,
+ * which already owns its spacing, so these only describe the shape of the
+ * content. The list is a dot list rather than the bordered .dialog__list used
+ * by confirm(): a prompt body has no fieldset around it to sit inside. */
+.sakura-admin .sakura-modal__card .dialog__list {
+	margin: 0;
+	padding: 0;
+	list-style: none;
+	display: grid;
+	gap: var(--g-space-2);
+}
+
+.sakura-admin .sakura-modal__card .dialog__list li {
+	position: relative;
+	padding-left: 18px;
+	color: var(--g-ink);
+	font-size: var(--g-fs-body);
+	line-height: var(--g-lh-body);
+}
+
+.sakura-admin .sakura-modal__card .dialog__list li::before {
+	content: "";
+	position: absolute;
+	left: 2px;
+	top: 0.62em;
+	width: 5px;
+	height: 5px;
+	border-radius: 50%;
+	background: var(--g-accent);
+}
+
+.sakura-admin .sakura-modal__card .switch-host {
+	display: grid;
+	gap: 2px;
+	margin: 0;
+	padding: var(--g-space-3);
+	border: 1px solid var(--g-line);
+	border-radius: var(--g-radius-sm);
+	background: var(--g-paper);
+}
+
+.sakura-admin .sakura-modal__card .switch-host span {
+	color: var(--g-muted);
+	font-size: var(--g-fs-eyebrow);
+	letter-spacing: .06em;
+	text-transform: uppercase;
+}
+
+.sakura-admin .sakura-modal__card .switch-host code {
+	color: var(--g-ink);
+	font-family: var(--g-font-mono);
+	font-size: var(--g-fs-small);
+	word-break: break-all;
+}
+
 .sakura-admin .sakura-modal__actions {
 	display: flex;
 	flex-wrap: wrap;

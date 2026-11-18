@@ -1044,6 +1044,52 @@ final class S3_Storage_Page {
 	}
 
 	/**
+	 * Dialog shown right after a card click moves the site to another bucket.
+	 *
+	 * A switch invalidates three things at once: the thumbnail rewrite is
+	 * turned off, the sync center now describes a bucket nobody has scanned,
+	 * and the media URLs changed. The toast on the card is nowhere near those
+	 * controls, so the same response carries a dialog the client opens.
+	 *
+	 * @param string $from      Previous profile name.
+	 * @param string $to        New profile name.
+	 * @param bool   $frozen    Whether the behaviour switches are frozen.
+	 */
+	public static function switch_modal_html( string $from, string $to, bool $frozen ): string {
+		$items = array();
+
+		$items[] = __( '缩略图地址改写已自动关闭：图片域名变了，缓存的缩略图地址也已作废。到「缩略图优化」核对图片域名后重新开启。', 'sakura-imgopt' );
+		$items[] = __( '同步中心的数据还是上一个桶的：下载、上传、删除与刷新差异已暂停，点「开始完整核对」重建索引后自动恢复。', 'sakura-imgopt' );
+
+		if ( $frozen ) {
+			$items[] = __( '「上传行为」两个开关仍按原来的绑定生效，新的改动要等解绑之后。', 'sakura-imgopt' );
+		}
+
+		$body  = '<ul class="dialog__list">';
+		foreach ( $items as $item ) {
+			$body .= '<li>' . esc_html( $item ) . '</li>';
+		}
+		$body .= '</ul>';
+
+		$to_label = '' !== $to ? $to : __( '新配置', 'sakura-imgopt' );
+		$title    = '' !== $from
+			? sprintf( /* translators: 1: previous profile name, 2: new profile name. */ __( '已从「%1$s」切换到「%2$s」', 'sakura-imgopt' ), $from, $to_label )
+			: sprintf( /* translators: %s: new profile name. */ __( '已切换到「%s」', 'sakura-imgopt' ), $to_label );
+
+		return UI::modal_html(
+			array(
+				'id'        => 'sakura-s3-switch-modal',
+				'return_to' => '#sakura-s3-save-form [data-sakura-action="toggle-profile"]',
+				'tone'      => 'warn',
+				'kicker'    => 'OBJECT STORAGE / SWITCHED',
+				'title'     => $title,
+				'message'   => __( '这次点击换了存储桶，有两处需要你重新确认：', 'sakura-imgopt' ),
+				'body'      => $body,
+				'button'    => __( '知道了，去同步中心核对', 'sakura-imgopt' ),
+			)
+		);
+	}
+	/**
 	 * Read-only redirect notice, mapped from the query string.
 	 *
 	 * @return array{message:string,tone:string}

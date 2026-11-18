@@ -115,6 +115,9 @@ class Options {
 			// confirmed in the bucket. Written by Synchronous_Uploader::finalize().
 			'binding'           => array(),
 			'behaviour_locked'  => 'false',
+			// Reconcile gate (07-S3存储生命周期 R18): set when the storage
+			// target moves, cleared only by a finished full reconciliation.
+			'reconcile_pending' => array(),
 		);
 	}
 
@@ -251,6 +254,62 @@ class Options {
 			'no_thumb'        => 'true' === (string) ( $this->options['no_thumb'] ?? 'false' ) ? 'true' : 'false',
 			'no_local_saving' => 'true' === (string) ( $this->options['no_local_saving'] ?? 'false' ) ? 'true' : 'false',
 		);
+	}
+
+	/**
+	 * The pending reconciliation marker, or null when the page may act normally.
+	 *
+	 * A switch to another bucket leaves the sync center full of numbers that
+	 * describe the previous bucket: the rows, the coverage and the difference
+	 * counts are all keyed by the old profile, so the page keeps printing a
+	 * state nobody verified. Until one full reconciliation finishes against the
+	 * new target, every action that reads or writes objects is gated; running
+	 * that reconciliation is the only way out (R18).
+	 *
+	 * @return array{profile_id:string,at:int,from:string,bucket:string}|null
+	 */
+	public function reconcile_pending(): ?array {
+		$pending = $this->options['reconcile_pending'] ?? array();
+		if ( ! is_array( $pending ) || array() === $pending ) {
+			return null;
+		}
+
+		return $pending + array(
+			'profile_id' => '',
+			'at'         => 0,
+			'from'       => '',
+			'bucket'     => '',
+		);
+	}
+
+	/**
+	 * Release the gate after a reconciliation finished for this profile.
+	 *
+	 * A resume counts as a full run: resume_scan() rewrites mode to 'resume' but
+	 * that pass still walks both sides end to end, so refusing it here would
+	 * leave the page gated after an interrupted scan was finished. An incremental
+	 * scan does not count: it only looks at files newer than the last full scan,
+	 * so it cannot re-establish what the new bucket holds.
+	 *
+	 * @param string $profile_id Profile the finished scan ran against.
+	 */
+	public static function clear_reconcile_pending( string $profile_id ): void {
+		$raw = get_option( self::OPTION, array() );
+		$raw = is_array( $raw ) ? $raw : array();
+
+		$pending = $raw['reconcile_pending'] ?? array();
+		if ( ! is_array( $pending ) || array() === $pending ) {
+			return;
+		}
+
+		$owner = (string) ( $pending['profile_id'] ?? '' );
+		if ( '' !== $owner && '' !== $profile_id && $owner !== $profile_id ) {
+			// A different bucket is already queued for its own verification.
+			return;
+		}
+
+		$raw['reconcile_pending'] = array();
+		update_option( self::OPTION, $raw, false );
 	}
 
 	/**

@@ -1518,3 +1518,32 @@ if ( ! function_exists( 'esc_attr_e' ) ) {
 		echo esc_attr( (string) $text );
 	}
 }
+if ( ! function_exists( 'esc_attr__' ) ) {
+	/**
+	 * Escaped translated-attribute shim (returns, does not echo).
+	 *
+	 * @param string $text   Text.
+	 * @param string $domain Text domain.
+	 * @return string
+	 */
+	function esc_attr__( $text, $domain = '' ) {
+		unset( $domain );
+		return esc_attr( (string) $text );
+	}
+}
+
+if ( ! function_exists( 'wp_kses_post' ) ) {
+	/**
+	 * Post-content sanitizer shim.
+	 *
+	 * The real function runs a large allowed-tags filter; here it is enough
+	 * that the value passes through a sanitizer, so the shim drops the tags
+	 * admin markup never emits and returns everything else unchanged.
+	 *
+	 * @param string $text Input markup.
+	 * @return string
+	 */
+	function wp_kses_post( $text ) {
+		return (string) preg_replace( '#<(script|style)\b[^>]*>.*?</\1>#is', '', (string) $text );
+	}
+}

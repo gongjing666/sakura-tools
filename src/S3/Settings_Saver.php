@@ -166,11 +166,17 @@ final class Settings_Saver {
 	 * @return array<string,mixed>
 	 */
 	public static function keep_reserved_keys( array $stored, array $raw ): array {
-		foreach ( array( 'retired_targets', 'binding', 'behaviour_locked' ) as $key ) {
+		$defaults = array(
+			'retired_targets'   => array(),
+			'binding'           => array(),
+			'behaviour_locked'  => 'false',
+			'reconcile_pending' => array(),
+		);
+		foreach ( $defaults as $key => $fallback ) {
 			if ( array_key_exists( $key, $stored ) ) {
 				continue;
 			}
-			$stored[ $key ] = $raw[ $key ] ?? ( 'binding' === $key ? array() : ( 'retired_targets' === $key ? array() : 'false' ) );
+			$stored[ $key ] = $raw[ $key ] ?? $fallback;
 		}
 
 		return $stored;

@@ -342,11 +342,32 @@
 		return !! node && '1' === node.getAttribute( 'data-frozen' );
 	}
 
+	// R18: the bucket changed and nobody has reconciled against the new one
+	// yet, so the rows below belong to the previous target. It behaves like a
+	// freeze for everything except the reconcile that clears it.
+	function isReconcileGated() {
+		var node = admin.qs( '#sakura-sync-state' );
+		return !! node && '1' === node.getAttribute( 'data-reconcile-gated' );
+	}
+
+	function isLocked() {
+		return isFrozen() || isReconcileGated();
+	}
+
 	function applyFrozen( button ) {
-		if ( button && isFrozen() ) {
+		if ( button && isLocked() ) {
 			button.disabled = true;
 		}
 		return button;
+	}
+
+	// A scan is the way out of the gate, so it stays clickable while gated.
+	// Only a stopped storage disables it.
+	function isBlocked( action ) {
+		if ( isFrozen() ) {
+			return true;
+		}
+		return isReconcileGated() && 'scan' !== action;
 	}
 
 	function initTools() {
@@ -574,7 +595,9 @@
 				// Disabled buttons do not fire clicks, but the scan buttons are also
 				// reachable through the dialogs and the batch bar is rebuilt on every
 				// page load, so refuse here as well instead of trusting the markup.
-				if ( isFrozen() || button.disabled ) {
+				// A scan stays allowed while the reconcile gate is up: it is the way
+				// out of that state.
+				if ( isBlocked( action ) || button.disabled ) {
 					event.preventDefault();
 					return;
 				}
@@ -733,7 +756,7 @@
 				// Only the three actions that touch the bucket follow the busy flag
 				// and the frozen state. "清除选择" is local bookkeeping, so it stays
 				// clickable even while a screen is frozen.
-				var frozen = isFrozen();
+				var frozen = isLocked();
 				[ batchUpload, batchDownload, batchDelete ].forEach( function ( button ) {
 					if ( button ) {
 						button.disabled = disabled || frozen;
@@ -934,7 +957,7 @@
 				if ( 0 !== action.indexOf( 'row-' ) || actionBusy ) {
 					return;
 				}
-				if ( isFrozen() || button.disabled ) {
+				if ( isLocked() || button.disabled ) {
 					event.preventDefault();
 					return;
 				}

@@ -844,6 +844,16 @@ final class Scan_Service {
 		$summary = $this->index->summary( $profile );
 		$this->index->finish_scan( $scan_id, (int) $summary['total'] );
 		$summary = $this->index->summary( $profile );
+
+		/*
+		 * R18: the gate opened by a bucket switch is closed by the one thing that
+		 * rebuilds the whole picture for the new bucket. An incremental scan cannot
+		 * do it - it only looks at files newer than the last full scan - so the gate
+		 * stays put and the admin keeps seeing the reason on the page.
+		 */
+		if ( $scan && in_array( (string) $scan->mode, array( 'full', 'resume' ), true ) ) {
+			Options::clear_reconcile_pending( $profile );
+		}
 		// Differences are the index rows that are not synced; the row total also
 		// counts the pairs both sides agree on.
 		$differences = max( 0, (int) $summary['total'] - (int) ( $summary['counts']['synced'] ?? 0 ) );

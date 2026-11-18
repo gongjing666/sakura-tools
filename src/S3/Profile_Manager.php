@@ -74,6 +74,8 @@ final class Profile_Manager {
 		return array(
 			'success' => true,
 			'error'   => '',
+			'moved'   => false,
+			'from'    => '',
 		);
 	}
 
@@ -131,6 +133,23 @@ final class Profile_Manager {
 		}
 
 		$previous_url = (string) ( $raw['upload_url_path'] ?? '' );
+
+		// R18: remember where the site pointed before this switch. The sync center
+		// rows, coverage and difference counts are keyed by profile, and a profile
+		// is a copy of the one it was created from, so after a switch the page keeps
+		// printing numbers that belong to the bucket nobody is uploading to any more.
+		$previous_target = array(
+			'provider'          => (string) ( $raw['provider'] ?? '' ),
+			'bucket'            => (string) ( $raw['bucket'] ?? '' ),
+			'endpoint'          => (string) ( $raw['endpoint'] ?? '' ),
+			'region'            => (string) ( $raw['region'] ?? '' ),
+			'upload_path'       => (string) ( $raw['upload_path'] ?? '' ),
+			'active_profile_id' => (string) ( $raw['active_profile_id'] ?? '' ),
+		);
+		$previous_name = isset( $profiles[ $previous_target['active_profile_id'] ] ) && is_array( $profiles[ $previous_target['active_profile_id'] ] )
+			? (string) ( $profiles[ $previous_target['active_profile_id'] ]['name'] ?? '' )
+			: '';
+
 		$upload_path  = trim( str_replace( '\\', '/', (string) ( $profile['upload_path'] ?? Options::DEFAULT_UPLOAD_PATH ) ), '/' );
 		if ( '' === $upload_path ) {
 			$upload_path = Options::DEFAULT_UPLOAD_PATH;
@@ -156,6 +175,18 @@ final class Profile_Manager {
 			return $this->failure( 'path_conflict' );
 		}
 
+		// R18: gate the sync center in the same write that repoints the storage, so
+		// no admin request can observe "new bucket, old numbers".
+		$moved = self::target_moved( $previous_target, $raw );
+		if ( $moved ) {
+			$raw['reconcile_pending'] = array(
+				'profile_id' => $profile_id,
+				'at'         => time(),
+				'bucket'     => (string) ( $raw['bucket'] ?? '' ),
+				'from'       => $previous_name,
+			);
+		}
+
 		update_option( Options::OPTION, $raw, false );
 
 		$upload_url = (string) ( $raw['upload_url_path'] ?? '' );
@@ -168,6 +199,10 @@ final class Profile_Manager {
 		return array(
 			'success' => true,
 			'error'   => '',
+			// Callers that report the result to the operator need to know this
+			// click moved the site to another bucket.
+			'moved'   => $moved,
+			'from'    => $previous_name,
 		);
 	}
 
@@ -260,6 +295,27 @@ final class Profile_Manager {
 			'success' => true,
 			'error'   => '',
 		);
+	}
+
+	/**
+	 * Whether this activation changes the bucket the site reads and writes.
+	 *
+	 * Only the fields that decide which objects are addressed count. The image
+	 * domain and the profile id do not: one is display-only and the other is how
+	 * the reconciliation rows are partitioned, so neither leaves the sync center
+	 * describing a different bucket.
+	 *
+	 * @param array<string,mixed> $before Option fields before the switch.
+	 * @param array<string,mixed> $after  Option fields after the switch.
+	 */
+	private static function target_moved( array $before, array $after ): bool {
+		foreach ( array( 'provider', 'bucket', 'space', 'region', 'endpoint', 'upload_path' ) as $field ) {
+			if ( trim( (string) ( $before[ $field ] ?? '' ) ) !== trim( (string) ( $after[ $field ] ?? '' ) ) ) {
+				return true;
+			}
+		}
+
+		return false;
 	}
 
 	/**

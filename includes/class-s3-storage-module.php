@@ -166,7 +166,23 @@ class S3_Storage_Module implements Module {
 			wp_send_json_error( array( 'message' => $this->toggle_error_message( (string) ( $result['error'] ?? '' ) ) ), 400 );
 		}
 
-		wp_send_json_success( S3_Storage_Page::state_payload() );
+		$payload = S3_Storage_Page::state_payload();
+
+		// A switch is the one click that invalidates work the operator already
+		// did: the thumbnail rewrite is turned off and the sync center now shows
+		// a bucket nobody has scanned. The card's toast is far from the controls
+		// that changed, so the same click also answers with the shared dialog;
+		// the client opens it in place of the toast.
+		if ( ! empty( $result['moved'] ) ) {
+			$payload['switchModal'] = S3_Storage_Page::switch_modal_html(
+				(string) ( $result['from'] ?? '' ),
+				(string) ( $payload['activeName'] ?? '' ),
+				! empty( $payload['behaviourFrozen'] )
+			);
+			$payload['switched']    = true;
+		}
+
+		wp_send_json_success( $payload );
 	}
 
 	/**

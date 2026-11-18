@@ -10,6 +10,7 @@
  * @var array<string,mixed> $stats Stats summary.
  * @var string $host Media host.
  * @var array<string,mixed> $cache_report Last cache flush report.
+ * @var bool $switch_notice Whether a bucket switch just turned the rewrite off.
  */
 
 use Sakura\ImageOptimizer\Admin\UI;
@@ -102,13 +103,36 @@ UI::page(
 			'tone'  => ! empty( $options['enabled'] ) ? 'ok' : 'neutral',
 		),
 	),
-	static function () use ( $options, $is_zibll, $mode, $stats, $mode_labels, $engine_labels, $cache_time, $opcache_label, $cache_backend, $cache_state_label, $cache_groups_text, $cache_note, $size_labels, $styles, $checkbox_control, $form ) {
+	static function () use ( $options, $is_zibll, $mode, $stats, $mode_labels, $engine_labels, $cache_time, $opcache_label, $cache_backend, $cache_state_label, $cache_groups_text, $cache_note, $size_labels, $styles, $checkbox_control, $form, $host, $switch_notice ) {
 
 		if ( ! $is_zibll ) {
 			UI::alert( __( '当前主题不是子比（Zibll）主题；命名样式仍可使用，但请自己检查前台效果。', 'sakura-imgopt' ), 'info', __( '主题提示', 'sakura-imgopt' ) );
 		}
 		if ( ! empty( $options['enabled'] ) && 'url' === $options['engine'] && 'none' === $mode ) {
 			UI::alert( __( '已启用地址改写，但当前实际没有生效：请把方式改为「命名样式」或「宽高参数」，或补上图片域名。', 'sakura-imgopt' ), 'warning' );
+		}
+
+		if ( $switch_notice ) {
+			/*
+			 * R16: switching the storage target turns URL rewriting off, because
+			 * the cached thumbnail URLs point at a domain that is no longer the
+			 * media host. That is an event with two decisions attached (confirm the
+			 * host, decide whether to switch back on), so it gets the shared dialog
+			 * rather than a notice strip above a page the operator has to scroll.
+			 */
+			UI::modal(
+				array(
+					'id'      => 'sakura-thumb-switch-modal',
+					'return_to' => '#sakura-s3-go-connection',
+					'tone'    => 'warn',
+					'size'    => 'compact',
+					'kicker'  => 'THUMBNAIL URL ENGINE / SWITCHED',
+					'title'   => __( '存储桶换了，缩略图地址改写已关闭', 'sakura-imgopt' ),
+					'message' => __( '图片域名变了，之前缓存的缩略图地址已经作废。确认下面的域名是新的之后，再重新打开「改写图片地址」。', 'sakura-imgopt' ),
+					'body'    => '<p class="switch-host"><span>' . esc_html__( '当前图片域名', 'sakura-imgopt' ) . '</span><code>' . esc_html( '' !== $host ? $host : __( '未找到图片域名', 'sakura-imgopt' ) ) . '</code></p>',
+					'button'  => __( '我知道了', 'sakura-imgopt' ),
+				)
+			);
 		}
 		?>
 		<div class="card-grid" data-sakura-layout="thumb" data-sakura-group="main">

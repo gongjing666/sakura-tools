@@ -365,13 +365,9 @@ class Thumbnail_Optimizer_Module implements Module {
 			return;
 		}
 
-		if ( get_transient( 'sakura_imgopt_thumb_switch_notice' ) ) {
-			delete_transient( 'sakura_imgopt_thumb_switch_notice' );
-			echo \Sakura\ImageOptimizer\Admin\UI\Feedback::admin_notice_html( // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Component escapes internally.
-				esc_html__( '存储配置（厂商 / 桶 / 端点 / 图片域名）已变更，缩略图地址改写已自动关闭，缓存的缩略图地址也已作废。请到「缩略图优化」确认图片域名后重新开启。', 'sakura-imgopt' ),
-				'info'
-			);
-		}
+		// The switch notice is a dialog on the thumbnail page (render_page()),
+		// not a strip here: it reports an event the operator must act on, and
+		// the dialog is also where the new host is spelled out.
 
 		foreach ( Settings::conflicts() as $conflict ) {
 			$severity = (string) ( $conflict['severity'] ?? 'warning' );
@@ -396,6 +392,14 @@ class Thumbnail_Optimizer_Module implements Module {
 		$stats    = Stats::summary();
 		$host     = Settings::media_host();
 		$cache_report = Settings::cache_flush_report();
+
+		// R16: a switch event, not a standing condition, so it gets the shared
+		// dialog instead of a notice strip that has to be read before it can be
+		// dismissed. Read once, exactly like the notice it replaces.
+		$switch_notice = (bool) get_transient( 'sakura_imgopt_thumb_switch_notice' );
+		if ( $switch_notice ) {
+			delete_transient( 'sakura_imgopt_thumb_switch_notice' );
+		}
 
 		require __DIR__ . '/views/thumb-settings.php';
 	}

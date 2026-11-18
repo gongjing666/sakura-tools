@@ -14,6 +14,7 @@
 declare( strict_types=1 );
 
 use PHPUnit\Framework\TestCase;
+use Sakura\ImageOptimizer\S3\Bucket_Identity;
 use Sakura\ImageOptimizer\S3\Options;
 use Sakura\ImageOptimizer\S3\Profile_Manager;
 use Sakura\ImageOptimizer\S3\S3_Storage_Page;
@@ -73,28 +74,25 @@ final class S3LifecycleDatabase {
 
 		list( $sql, $args ) = unserialize( $prepared );
 
-		// The batched form is "profile IN (... ) AND object_key_hash IN (...)";
-		// the profile list comes first, the hashes after it.
-		$profiles = array();
-		$hashes   = array();
-		foreach ( $args as $arg ) {
-			$arg = (string) $arg;
-			if ( preg_match( '/^prof_/', $arg ) ) {
-				$profiles[] = $arg;
-				continue;
-			}
-			$hashes[] = $arg;
-		}
+		// The batched form is "target_hash IN (...) AND object_key_hash IN (...)";
+		// the bucket identities come first, the hashes after them. Both halves are
+		// 64-hex since Schema 1.9.0, so the split cannot look at the values.
+		$split   = strpos( (string) $sql, 'object_key_hash IN' );
+		$head    = false === $split ? (string) $sql : substr( (string) $sql, 0, $split );
+		$count   = substr_count( $head, '%s' );
+		$buckets = array_slice( $args, 0, $count );
+		$hashes  = array_slice( $args, $count );
 
 		$rows = array();
 		foreach ( $hashes as $hash ) {
-			foreach ( $profiles as $profile ) {
-				$lookup = $profile . '|' . $hash;
+			foreach ( $buckets as $bucket ) {
+				$lookup = $bucket . '|' . $hash;
 				if ( ! isset( $this->rows[ $lookup ] ) ) {
 					continue;
 				}
 				$rows[] = array(
-					'profile_id'      => $profile,
+					'target_hash'     => $bucket,
+					'profile_id'      => 'prof_live',
 					// The real column is binary(32), so the driver hands back raw bytes.
 					'object_key_hash' => (string) hex2bin( $hash ),
 					'status'          => $this->rows[ $lookup ],
@@ -105,8 +103,8 @@ final class S3LifecycleDatabase {
 		return $rows;
 	}
 
-	public function key( string $profile_id, string $object_key ): string {
-		return $profile_id . '|' . bin2hex( hash( 'sha256', $object_key, true ) );
+	public function key( string $bucket_hash, string $object_key ): string {
+		return $bucket_hash . '|' . bin2hex( hash( 'sha256', $object_key, true ) );
 	}
 }
 
@@ -240,6 +238,11 @@ final class S3LifecycleTest extends TestCase {
 
 	private function options( array $extra = array() ): Options {
 		return new Options( $this->stored( $extra ) );
+	}
+
+	/** 64-hex identity of the bucket the default options describe. */
+	private function bucket( array $extra = array() ): string {
+		return Bucket_Identity::from_options( $this->options( $extra ) )->hash();
 	}
 
 	/** Create one local file and return its path. */
@@ -577,8 +580,8 @@ final class S3LifecycleTest extends TestCase {
 	public function test_a_bucket_switch_confirmed_by_the_index_keeps_the_candidates(): void {
 		$this->attachment();
 		$this->seed( Sync_Status::SYNCED, 'fingerprint-of-the-previous-bucket' );
-		$this->db->rows[ $this->db->key( 'prof_live', self::MAIN_KEY ) ] = 'synced';
-		$this->db->rows[ $this->db->key( 'prof_live', self::SIZE_KEY ) ] = 'synced';
+		$this->db->rows[ $this->db->key( $this->bucket(), self::MAIN_KEY ) ] = 'synced';
+		$this->db->rows[ $this->db->key( $this->bucket(), self::SIZE_KEY ) ] = 'synced';
 
 		$this->assertSame( $this->sources(), $this->storage()->filter_srcset( $this->sources(), array(), '', array(), self::ATTACHMENT ) );
 	}
@@ -652,8 +655,8 @@ final class S3LifecycleTest extends TestCase {
 		$this->attachment();
 		$this->seed( Sync_Status::SYNCED, 'fingerprint-of-the-previous-bucket' );
 
-		$this->db->rows[ $this->db->key( 'prof_live', self::MAIN_KEY ) ] = 'synced';
-		$this->db->rows[ $this->db->key( 'prof_live', self::SIZE_KEY ) ] = 'synced';
+		$this->db->rows[ $this->db->key( $this->bucket(), self::MAIN_KEY ) ] = 'synced';
+		$this->db->rows[ $this->db->key( $this->bucket(), self::SIZE_KEY ) ] = 'synced';
 
 		$GLOBALS['sakura_test_options'][ Feature::OPTION ] = '0';
 		$this->assertSame( array(), $this->storage()->filter_srcset( $this->sources(), array(), '', array(), self::ATTACHMENT ) );

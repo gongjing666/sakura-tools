@@ -2,6 +2,7 @@
 namespace Sakura\ImageOptimizer;
 
 use Sakura\ImageOptimizer\Contracts\Module;
+use Sakura\ImageOptimizer\S3\Bucket_Identity;
 use Sakura\ImageOptimizer\S3\Client_Factory;
 use Sakura\ImageOptimizer\S3\Connection_Probe;
 use Sakura\ImageOptimizer\S3\Connection_Tester;
@@ -216,7 +217,12 @@ class S3_Storage_Module implements Module {
 		check_admin_referer( 'sakura_s3_delete_' . $profile_id );
 
 		$manager = new Profile_Manager();
-		$result  = $manager->delete_profile( $profile_id );
+		// Capture the bucket before the row is gone: the index is partitioned by
+		// bucket (R19.7) and a deleted profile can no longer name its own.
+		$repository     = new Index_Repository();
+		$profile_row    = $this->options()->profile( $profile_id );
+		$profile_bucket = array() !== $profile_row ? Bucket_Identity::from_profile( $profile_row, $this->options() )->hash() : '';
+		$result         = $manager->delete_profile( $profile_id );
 
 		if ( empty( $result['success'] ) ) {
 			$code = (string) ( $result['error'] ?? '' );
@@ -228,12 +234,13 @@ class S3_Storage_Module implements Module {
 			);
 		}
 
-		// R8 steps 2-3 (07-S3存储生命周期): the profile id is the only key the sync
-		// tables and the delete queue are partitioned by, so dropping the profile
-		// without its rows would leave a bucket's counts, scans and event log — and
-		// a queue that retries forever against an adapter that no longer exists —
-		// with no screen able to show or clear them.
-		( new Index_Repository() )->purge_index( $profile_id );
+		// R8 steps 2-3 (07-S3存储生命周期): scans, events and the delete queue are
+		// partitioned by the profile id, so dropping the profile without its rows
+		// would leave that history — and a queue that retries forever against an
+		// adapter that no longer exists — with no screen able to show or clear it.
+		// The index rows are partitioned by bucket instead (R19.7) and stay put
+		// while another configuration row still names the same bucket.
+		$repository->purge_index( $profile_id, $profile_bucket );
 		( new Delete_Jobs() )->forget_profile( $profile_id );
 
 		// R8 step 7 is deliberately missing: the OpenList mirror mount that would

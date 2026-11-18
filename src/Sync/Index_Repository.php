@@ -56,6 +56,18 @@ final class Index_Repository {
 	private ?bool $recent_ready = null;
 
 	/**
+	 * Bucket identity resolved for a profile, memoised per instance.
+	 *
+	 * @var array<string,string>
+	 */
+	private array $buckets = array();
+
+	/**
+	 * Settings snapshot used to resolve bucket identities.
+	 */
+	private ?\Sakura\ImageOptimizer\S3\Options $bucket_options = null;
+
+	/**
 	 * Keys per statement in find_many().
 	 *
 	 * 200 hashes is about 6.4 KB of hex in the IN list; larger chunks risk the
@@ -96,6 +108,96 @@ final class Index_Repository {
 	 */
 	public function table_name(): string {
 		return $this->index;
+	}
+
+	/**
+	 * Resolve the bucket a profile points at.
+	 *
+	 * The index is partitioned by bucket, not by configuration row (R19.7), so
+	 * every statement below takes the identity hash of the profile's bucket
+	 * instead of the profile id. Two rows naming the same bucket therefore
+	 * read and write the same rows, and switching to a standby row that
+	 * already describes a filled bucket finds the objects it expects.
+	 *
+	 * @param string $profile_id Profile id.
+	 * @return string 64-hex identity, or '' when it cannot be resolved.
+	 */
+	private function bucket( string $profile_id ): string {
+		$key = '' === $profile_id ? '*active' : $profile_id;
+		if ( isset( $this->buckets[ $key ] ) ) {
+			return $this->buckets[ $key ];
+		}
+
+		if ( null === $this->bucket_options ) {
+			$this->bucket_options = new \Sakura\ImageOptimizer\S3\Options();
+		}
+		$options = $this->bucket_options;
+		$profile = '' === $profile_id ? array() : $options->profile( $profile_id );
+
+		if ( ! $profile ) {
+			// A deleted row cannot name its bucket any more. Falling back to the
+			// live settings is only right for the active row; guessing for any
+			// other id would land in whichever bucket happens to be active.
+			if ( '' !== $profile_id && $profile_id !== $options->active_profile_id() ) {
+				$this->buckets[ $key ] = '';
+				return '';
+			}
+			$hash = \Sakura\ImageOptimizer\S3\Bucket_Identity::from_options( $options )->hash();
+		} else {
+			$hash = \Sakura\ImageOptimizer\S3\Bucket_Identity::from_profile( $profile, $options )->hash();
+		}
+
+		$this->buckets[ $key ] = $hash;
+
+		return $hash;
+	}
+
+	/**
+	 * Identity hash of the bucket a profile names.
+	 *
+	 * A caller that is about to delete the configuration row must capture this
+	 * first: once the row is gone the repository can no longer resolve it, and
+	 * the rows of that bucket would be left behind with nobody able to show or
+	 * clear them.
+	 *
+	 * @param string $profile_id Profile id.
+	 * @return string 64-hex identity, or '' when it cannot be resolved.
+	 */
+	public function bucket_for( string $profile_id ): string {
+		return $this->bucket( $profile_id );
+	}
+
+	/**
+	 * Whether a profile other than the given one still names this bucket.
+	 *
+	 * The index is partitioned by bucket, so two configuration rows can share
+	 * one set of rows. Dropping the rows while another row still describes the
+	 * bucket would delete knowledge that is still in use.
+	 *
+	 * @param string $bucket         64-hex identity.
+	 * @param string $except_profile Profile to ignore.
+	 * @return bool
+	 */
+	public function bucket_shared( string $bucket, string $except_profile = '' ): bool {
+		if ( '' === $bucket ) {
+			return false;
+		}
+
+		// Read the option again: callers ask this straight after writing or
+		// deleting a profile row, so a snapshot taken earlier by bucket() would
+		// answer about the previous list.
+		$options = new \Sakura\ImageOptimizer\S3\Options();
+		foreach ( $options->profiles() as $id => $profile ) {
+			$id = (string) ( is_array( $profile ) && isset( $profile['id'] ) ? $profile['id'] : $id );
+			if ( ! is_array( $profile ) || ( '' !== $except_profile && $id === $except_profile ) ) {
+				continue;
+			}
+			if ( \Sakura\ImageOptimizer\S3\Bucket_Identity::from_profile( $profile, $options )->hash() === $bucket ) {
+				return true;
+			}
+		}
+
+		return false;
 	}
 
 	/**
@@ -505,10 +607,14 @@ final class Index_Repository {
 	 */
 	public function reset_verification( string $profile_id ): int {
 		global $wpdb;
+		$bucket = $this->bucket( $profile_id );
+		if ( '' === $bucket ) {
+			return 0;
+		}
 		$result = $wpdb->query(
 			$wpdb->prepare(
-				"UPDATE {$this->index} SET verify_state = 0 WHERE profile_id = %s AND verify_state <> 0",
-				$profile_id
+				"UPDATE {$this->index} SET verify_state = 0 WHERE target_hash = %s AND verify_state <> 0",
+				$bucket
 			)
 		);
 		return is_int( $result ) ? $result : 0;
@@ -523,8 +629,9 @@ final class Index_Repository {
 	 */
 	public function record_md5( string $profile_id, string $key, string $md5 ): bool {
 		global $wpdb;
-		$md5 = strtolower( trim( $md5 ) );
-		if ( ! preg_match( '/^[0-9a-f]{32}$/', $md5 ) ) {
+		$md5    = strtolower( trim( $md5 ) );
+		$bucket = $this->bucket( $profile_id );
+		if ( ! preg_match( '/^[0-9a-f]{32}$/', $md5 ) || '' === $bucket ) {
 			return false;
 		}
 		$wpdb->query(
@@ -536,11 +643,11 @@ final class Index_Repository {
 						WHEN etag<>'' THEN 2
 						ELSE 0 END,
 					updated_at=%s
-				WHERE profile_id=%s AND object_key_hash=UNHEX(%s)",
+				WHERE target_hash=%s AND object_key_hash=UNHEX(%s)",
 				$md5,
 				$md5,
 				$this->now(),
-				$profile_id,
+				$bucket,
 				$this->hash_hex( $key )
 			)
 		);
@@ -565,16 +672,17 @@ final class Index_Repository {
 	public function record_uploaded( string $profile_id, string $key, string $path, int $size, int $mtime, string $md5 = '', string $etag = '' ): bool {
 		global $wpdb;
 
-		$key = ltrim( trim( $key ), '/' );
-		if ( '' === $profile_id || '' === $key ) {
+		$key    = ltrim( trim( $key ), '/' );
+		$bucket = $this->bucket( $profile_id );
+		if ( '' === $bucket || '' === $key ) {
 			return false;
 		}
 
 		$hash = $this->hash_hex( $key );
 		$old  = $wpdb->get_row(
 			$wpdb->prepare(
-				"SELECT status,local_size,remote_size FROM {$this->index} WHERE profile_id=%s AND object_key_hash=UNHEX(%s)",
-				$profile_id,
+				"SELECT status,local_size,remote_size FROM {$this->index} WHERE target_hash=%s AND object_key_hash=UNHEX(%s)",
+				$bucket,
 				$hash
 			),
 			ARRAY_A
@@ -595,11 +703,11 @@ final class Index_Repository {
 				SET status='synced', error_code=NULL, error_message=NULL, local_md5=NULLIF(%s,''),
 					verify_state=CASE WHEN etag<>'' AND etag=%s THEN 1 ELSE 0 END,
 					updated_at=%s
-				WHERE profile_id=%s AND object_key_hash=UNHEX(%s)",
+				WHERE target_hash=%s AND object_key_hash=UNHEX(%s)",
 				$md5,
 				$etag,
 				$this->now(),
-				$profile_id,
+				$bucket,
 				$hash
 			)
 		);
@@ -632,16 +740,17 @@ final class Index_Repository {
 	public function record_downloaded( string $profile_id, string $key, string $path, int $size, int $mtime ): bool {
 		global $wpdb;
 
-		$key = ltrim( trim( $key ), '/' );
-		if ( '' === $profile_id || '' === $key ) {
+		$key    = ltrim( trim( $key ), '/' );
+		$bucket = $this->bucket( $profile_id );
+		if ( '' === $bucket || '' === $key ) {
 			return false;
 		}
 
 		$hash   = $this->hash_hex( $key );
 		$before = $wpdb->get_row(
 			$wpdb->prepare(
-				"SELECT status FROM {$this->index} WHERE profile_id=%s AND object_key_hash=UNHEX(%s)",
-				$profile_id,
+				"SELECT status FROM {$this->index} WHERE target_hash=%s AND object_key_hash=UNHEX(%s)",
+				$bucket,
 				$hash
 			),
 			ARRAY_A
@@ -664,10 +773,10 @@ final class Index_Repository {
 		$wpdb->query(
 			$wpdb->prepare(
 				"UPDATE {$this->index} SET status=%s,error_code=NULL,error_message=NULL,updated_at=%s
-				WHERE profile_id=%s AND object_key_hash=UNHEX(%s)",
+				WHERE target_hash=%s AND object_key_hash=UNHEX(%s)",
 				$status,
 				$this->now(),
-				$profile_id,
+				$bucket,
 				$hash
 			)
 		);
@@ -694,8 +803,9 @@ final class Index_Repository {
 	 */
 	public function record_verification( string $profile_id, string $key, string $md5, int $state ): bool {
 		global $wpdb;
-		$old = $this->find( $profile_id, $key );
-		if ( null === $old ) {
+		$old    = $this->find( $profile_id, $key );
+		$bucket = $this->bucket( $profile_id );
+		if ( null === $old || '' === $bucket ) {
 			return false;
 		}
 		$md5   = strtolower( trim( $md5 ) );
@@ -705,11 +815,11 @@ final class Index_Repository {
 		$wpdb->query(
 			$wpdb->prepare(
 				"UPDATE {$this->index} SET local_md5=NULLIF(%s,''),verify_state=%d,updated_at=%s
-				WHERE profile_id=%s AND object_key_hash=UNHEX(%s)",
+				WHERE target_hash=%s AND object_key_hash=UNHEX(%s)",
 				preg_match( '/^[0-9a-f]{32}$/', $md5 ) ? $md5 : '',
 				$state,
 				$this->now(),
-				$profile_id,
+				$bucket,
 				$this->hash_hex( $key )
 			)
 		);
@@ -718,10 +828,10 @@ final class Index_Repository {
 			$wpdb->query(
 				$wpdb->prepare(
 					"UPDATE {$this->index} SET status='mismatch',error_code='sio_etag_mismatch',error_message=%s,updated_at=%s
-					WHERE profile_id=%s AND object_key_hash=UNHEX(%s)",
+					WHERE target_hash=%s AND object_key_hash=UNHEX(%s)",
 					__( '内容不一致：ETag 与本地 MD5 不同。', 'sakura-imgopt' ),
 					$this->now(),
-					$profile_id,
+					$bucket,
 					$this->hash_hex( $key )
 				)
 			);
@@ -731,9 +841,9 @@ final class Index_Repository {
 			$wpdb->query(
 				$wpdb->prepare(
 					"UPDATE {$this->index} SET status='synced',error_code=NULL,error_message=NULL,updated_at=%s
-					WHERE profile_id=%s AND object_key_hash=UNHEX(%s)",
+					WHERE target_hash=%s AND object_key_hash=UNHEX(%s)",
 					$this->now(),
-					$profile_id,
+					$bucket,
 					$this->hash_hex( $key )
 				)
 			);
@@ -747,6 +857,11 @@ final class Index_Repository {
 		global $wpdb;
 		$rows = array_values( $rows );
 		if ( ! $rows ) {
+			return 0;
+		}
+
+		$bucket = $this->bucket( $profile_id );
+		if ( '' === $bucket ) {
 			return 0;
 		}
 
@@ -770,7 +885,7 @@ final class Index_Repository {
 					$placeholders[] = '(%s,UNHEX(%s),%s,%s,%s,%s,%d,NULLIF(%s,\'\'),%s,%d,%s,%d)';
 					array_push(
 						$values,
-						$profile_id,
+						$bucket,
 						$this->hash_hex( $key ),
 						$key,
 						$kind,
@@ -781,7 +896,8 @@ final class Index_Repository {
 						$recent,
 						$scan_id,
 						$now,
-						1
+						1,
+						$profile_id
 					);
 				} else {
 					$modified       = isset( $row['modified'] ) && (int) $row['modified'] > 0 ? (int) $row['modified'] : 0;
@@ -789,7 +905,7 @@ final class Index_Repository {
 					$placeholders[] = '(%s,UNHEX(%s),%s,%s,%d,%s,NULLIF(%s,\'\'),%s,%d,%s,%d)';
 					array_push(
 						$values,
-						$profile_id,
+						$bucket,
 						$this->hash_hex( $key ),
 						$key,
 						$kind,
@@ -799,7 +915,8 @@ final class Index_Repository {
 						$recent,
 						$scan_id,
 						$now,
-						1
+						1,
+						$profile_id
 					);
 				}
 			}
@@ -810,9 +927,10 @@ final class Index_Repository {
 
 			if ( $local ) {
 				$sql = "INSERT INTO {$this->index}
-					(profile_id,object_key_hash,object_key,kind,local_path,local_dir,local_size,local_mtime,recent_at,scan_id,updated_at,seen_local)
-					VALUES " . implode( ',', $placeholders ) . '
+					(target_hash,object_key_hash,object_key,kind,local_path,local_dir,local_size,local_mtime,recent_at,scan_id,updated_at,seen_local,profile_id)
+					VALUES " . implode( ',', $placeholders ) . ',%s' . '
 					ON DUPLICATE KEY UPDATE
+						profile_id=VALUES(profile_id),
 						local_md5=IF(local_mtime <=> VALUES(local_mtime) AND local_size <=> VALUES(local_size),local_md5,NULL),
 						verify_state=IF(local_mtime <=> VALUES(local_mtime) AND local_size <=> VALUES(local_size),verify_state,0),
 						kind=VALUES(kind),local_path=VALUES(local_path),local_dir=VALUES(local_dir),local_size=VALUES(local_size),local_mtime=VALUES(local_mtime),
@@ -820,9 +938,10 @@ final class Index_Repository {
 						scan_id=VALUES(scan_id),seen_local=1,updated_at=VALUES(updated_at)';
 			} else {
 				$sql = "INSERT INTO {$this->index}
-					(profile_id,object_key_hash,object_key,kind,remote_size,etag,remote_mtime,recent_at,scan_id,updated_at,seen_remote)
-					VALUES " . implode( ',', $placeholders ) . '
+					(target_hash,object_key_hash,object_key,kind,remote_size,etag,remote_mtime,recent_at,scan_id,updated_at,seen_remote,profile_id)
+					VALUES " . implode( ',', $placeholders ) . ',%s' . '
 					ON DUPLICATE KEY UPDATE
+						profile_id=VALUES(profile_id),
 						verify_state=IF(etag <=> VALUES(etag) AND remote_size <=> VALUES(remote_size),verify_state,0),
 						kind=VALUES(kind),remote_size=VALUES(remote_size),remote_mtime=VALUES(remote_mtime),etag=VALUES(etag),
 						recent_at=GREATEST(COALESCE(local_mtime,\'1970-01-01 00:00:00\'),COALESCE(VALUES(remote_mtime),\'1970-01-01 00:00:00\')),
@@ -850,7 +969,11 @@ final class Index_Repository {
 	 */
 	public function reset_seen( string $profile_id ): void {
 		global $wpdb;
-		$wpdb->query( $wpdb->prepare( "UPDATE {$this->index} SET seen_local=0,seen_remote=0 WHERE profile_id=%s", $profile_id ) );
+		$bucket = $this->bucket( $profile_id );
+		if ( '' === $bucket ) {
+			return;
+		}
+		$wpdb->query( $wpdb->prepare( "UPDATE {$this->index} SET seen_local=0,seen_remote=0 WHERE target_hash=%s", $bucket ) );
 	}
 
 	/**
@@ -865,6 +988,10 @@ final class Index_Repository {
 	 */
 	public function reconcile( string $profile_id, int $scan_id ): void {
 		global $wpdb;
+		$bucket = $this->bucket( $profile_id );
+		if ( '' === $bucket ) {
+			return;
+		}
 		$now = $this->now();
 		$wpdb->query(
 			$wpdb->prepare(
@@ -899,9 +1026,9 @@ final class Index_Repository {
 					WHEN seen_local=1 AND seen_remote=1 THEN NULL
 					ELSE error_message END,
 				updated_at=%s
-				WHERE profile_id=%s AND scan_id=%d",
+				WHERE target_hash=%s AND scan_id=%d",
 				$now,
-				$profile_id,
+				$bucket,
 				$scan_id
 			)
 		);
@@ -935,15 +1062,16 @@ final class Index_Repository {
 				)
 			)
 		);
-		if ( ! $dirs ) {
+		$bucket = $this->bucket( $profile_id );
+		if ( ! $dirs || '' === $bucket ) {
 			return 0;
 		}
 		$now  = $this->now();
 		$rows = 0;
 		foreach ( array_chunk( $dirs, 200 ) as $chunk ) {
 			$in       = implode( ',', array_fill( 0, count( $chunk ), '%s' ) );
-			$sql      = "UPDATE {$this->index} SET scan_id=%d,seen_local=1,updated_at=%s WHERE profile_id=%s AND local_dir IN ({$in})";
-			$values   = array_merge( array( $scan_id, $now, $profile_id ), $chunk );
+			$sql      = "UPDATE {$this->index} SET scan_id=%d,seen_local=1,updated_at=%s WHERE target_hash=%s AND local_dir IN ({$in})";
+			$values   = array_merge( array( $scan_id, $now, $bucket ), $chunk );
 			$prepared = $wpdb->prepare( $sql, $values ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Placeholders are built above.
 			if ( false === $prepared ) {
 				continue;
@@ -955,10 +1083,14 @@ final class Index_Repository {
 
 	public function purge_stale( string $profile_id, int $scan_id ): void {
 		global $wpdb;
+		$bucket = $this->bucket( $profile_id );
+		if ( '' === $bucket ) {
+			return;
+		}
 		$wpdb->query(
 			$wpdb->prepare(
-				"DELETE FROM {$this->index} WHERE profile_id=%s AND scan_id<>%d",
-				$profile_id,
+				"DELETE FROM {$this->index} WHERE target_hash=%s AND scan_id<>%d",
+				$bucket,
 				$scan_id
 			)
 		);
@@ -1032,6 +1164,10 @@ final class Index_Repository {
 	 */
 	public function recalculate( string $profile_id ): void {
 		global $wpdb;
+		$bucket = $this->bucket( $profile_id );
+		if ( '' === $bucket ) {
+			return;
+		}
 		$wpdb->query(
 			$wpdb->prepare(
 				"UPDATE {$this->index}
@@ -1044,12 +1180,12 @@ final class Index_Repository {
 						ELSE 'pending'
 					END,
 					updated_at = %s
-				WHERE profile_id = %s AND status <> 'ignored'",
+				WHERE target_hash = %s AND status <> 'ignored'",
 				$this->now(),
-				$profile_id
+				$bucket
 			)
 		);
-		$wpdb->query( $wpdb->prepare( "UPDATE {$this->index} SET error_code = NULL, error_message = NULL WHERE profile_id = %s AND status <> 'failed'", $profile_id ) );
+		$wpdb->query( $wpdb->prepare( "UPDATE {$this->index} SET error_code = NULL, error_message = NULL WHERE target_hash = %s AND status <> 'failed'", $bucket ) );
 		$this->rebuild_counts( $profile_id );
 	}
 
@@ -1309,15 +1445,19 @@ final class Index_Repository {
 	 */
 	public function rebuild_counts( string $profile_id ): void {
 		global $wpdb;
+		$bucket = $this->bucket( $profile_id );
+		if ( '' === $bucket ) {
+			return;
+		}
 		$now = $this->now();
-		$wpdb->query( $wpdb->prepare( "DELETE FROM {$this->counts} WHERE profile_id=%s", $profile_id ) );
+		$wpdb->query( $wpdb->prepare( "DELETE FROM {$this->counts} WHERE target_hash=%s", $bucket ) );
 		$wpdb->query(
 			$wpdb->prepare(
-				"INSERT INTO {$this->counts} (profile_id,status,item_count,bytes,updated_at)
-				SELECT profile_id,status,COUNT(*),COALESCE(SUM(GREATEST(local_size,remote_size)),0),%s
-				FROM {$this->index} WHERE profile_id=%s GROUP BY profile_id,status",
+				"INSERT INTO {$this->counts} (target_hash,profile_id,status,item_count,bytes,updated_at)
+				SELECT target_hash,MIN(profile_id),status,COUNT(*),COALESCE(SUM(GREATEST(local_size,remote_size)),0),%s
+				FROM {$this->index} WHERE target_hash=%s GROUP BY target_hash,status",
 				$now,
-				$profile_id
+				$bucket
 			)
 		);
 	}
@@ -1339,11 +1479,16 @@ final class Index_Repository {
 			$scan_id = (int) $scan->id;
 		}
 
+		$bucket = $this->bucket( $profile_id );
+		if ( '' === $bucket ) {
+			return array( 'image' => 0, 'video' => 0, 'archive' => 0, 'other' => 0 );
+		}
+
 		$rows = $wpdb->get_results(
 			$wpdb->prepare(
 				"SELECT kind,COUNT(*) AS total FROM {$this->index}
-				WHERE profile_id=%s AND seen_remote=1 GROUP BY kind",
-				$profile_id
+				WHERE target_hash=%s AND seen_remote=1 GROUP BY kind",
+				$bucket
 			),
 			ARRAY_A
 		);
@@ -1374,8 +1519,9 @@ final class Index_Repository {
 	 */
 	public function summary( string $profile_id ): array {
 		global $wpdb;
-		$rows = $wpdb->get_results(
-			$wpdb->prepare( "SELECT status,item_count,bytes FROM {$this->counts} WHERE profile_id=%s", $profile_id ),
+		$bucket = $this->bucket( $profile_id );
+		$rows   = '' === $bucket ? array() : $wpdb->get_results(
+			$wpdb->prepare( "SELECT status,item_count,bytes FROM {$this->counts} WHERE target_hash=%s", $bucket ),
 			ARRAY_A
 		);
 
@@ -1468,8 +1614,17 @@ final class Index_Repository {
 		$search    = Search_Term::normalize( $search );
 		$by_key    = '' !== $search;
 		$by_recent = $days > 0 && $this->recent_ready();
-		$where     = array( 'profile_id=%s' );
-		$args   = array( $profile_id );
+		$bucket    = $this->bucket( $profile_id );
+		if ( '' === $bucket ) {
+			return array(
+				'rows'    => array(),
+				'cursor'  => '',
+				'has_more' => false,
+				'matched' => null,
+			);
+		}
+		$where     = array( 'target_hash=%s' );
+		$args   = array( $bucket );
 
 		if ( 'all' !== $status && in_array( $status, array( 'synced', 'pending', 'failed', 'remote', 'mismatch', 'ignored' ), true ) ) {
 			$where[] = 'status=%s';
@@ -1525,7 +1680,7 @@ final class Index_Repository {
 
 		if ( $by_recent ) {
 			$order = 'recent_at DESC, object_key_hash DESC';
-			$force = ' FORCE INDEX (profile_recent)';
+			$force = ' FORCE INDEX (target_recent)';
 		} else {
 			$order = $by_key ? 'object_key ASC' : 'object_key_hash ASC';
 			$force = '';
@@ -1628,10 +1783,14 @@ final class Index_Repository {
 	 */
 	public function find( string $profile_id, string $key ): ?array {
 		global $wpdb;
+		$bucket = $this->bucket( $profile_id );
+		if ( '' === $bucket ) {
+			return null;
+		}
 		$row = $wpdb->get_row(
 			$wpdb->prepare(
-				"SELECT * FROM {$this->index} WHERE profile_id=%s AND object_key_hash=UNHEX(%s) LIMIT 1",
-				$profile_id,
+				"SELECT * FROM {$this->index} WHERE target_hash=%s AND object_key_hash=UNHEX(%s) LIMIT 1",
+				$bucket,
 				$this->hash_hex( $key )
 			),
 			ARRAY_A
@@ -1648,19 +1807,19 @@ final class Index_Repository {
 	 * one IN list answers the whole question with one statement.
 	 *
 	 * A key that maps to more than one row (the index is partitioned by
-	 * profile) keeps the row from the profile that comes first in the list
+	 * bucket) keeps the row from the bucket that comes first in the list
 	 * given by the caller, so the answer never depends on the order the
 	 * database happened to return.
 	 *
-	 * @param string[] $profiles Profile ids to read, in preference order.
-	 * @param string[] $keys     Object keys.
+	 * @param string[] $buckets Bucket identities to read, in preference order.
+	 * @param string[] $keys    Object keys.
 	 * @return array<string,array<string,mixed>> Rows keyed by object key.
 	 */
-	public function find_many( array $profiles, array $keys ): array {
-		$profiles = $this->non_empty( $profiles );
-		$keys     = $this->non_empty( $keys );
+	public function find_many( array $buckets, array $keys ): array {
+		$buckets = $this->non_empty( $buckets );
+		$keys    = $this->non_empty( $keys );
 
-		if ( ! $profiles || ! $keys ) {
+		if ( ! $buckets || ! $keys ) {
 			return array();
 		}
 
@@ -1675,9 +1834,9 @@ final class Index_Repository {
 			}
 			$hashes = array_fill( 0, count( $by_hash ), 'UNHEX(%s)' );
 
-			$placeholders = implode( ',', array_fill( 0, count( $profiles ), '%s' ) );
-			$sql          = "SELECT * FROM {$this->index} WHERE profile_id IN ({$placeholders}) AND object_key_hash IN (" . implode( ',', $hashes ) . ')';
-			$args         = array_merge( $profiles, array_keys( $by_hash ) );
+			$placeholders = implode( ',', array_fill( 0, count( $buckets ), '%s' ) );
+			$sql          = "SELECT * FROM {$this->index} WHERE target_hash IN ({$placeholders}) AND object_key_hash IN (" . implode( ',', $hashes ) . ')';
+			$args         = array_merge( $buckets, array_keys( $by_hash ) );
 			$prepared     = $wpdb->prepare( $sql, ...$args ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Placeholders are built above.
 			if ( false === $prepared ) {
 				continue;
@@ -1697,7 +1856,7 @@ final class Index_Repository {
 				if ( '' === $key ) {
 					continue;
 				}
-				$rank = (int) array_search( (string) ( $row['profile_id'] ?? '' ), $profiles, true );
+				$rank = (int) array_search( (string) ( $row['target_hash'] ?? '' ), $buckets, true );
 				if ( isset( $found[ $key ] ) && (int) $found[ $key ]['__rank'] <= $rank ) {
 					continue;
 				}
@@ -1737,9 +1896,10 @@ final class Index_Repository {
 	 */
 	public function apply_action( string $profile_id, string $key, string $action ): void {
 		global $wpdb;
-		$hash = hash( 'sha256', $key, true );
-		$row  = $this->find( $profile_id, $key );
-		if ( ! $row ) {
+		$hash   = hash( 'sha256', $key, true );
+		$bucket = $this->bucket( $profile_id );
+		$row    = $this->find( $profile_id, $key );
+		if ( ! $row || '' === $bucket ) {
 			return;
 		}
 
@@ -1747,7 +1907,7 @@ final class Index_Repository {
 		$old_bytes  = max( (int) $row['local_size'], (int) $row['remote_size'] );
 
 		if ( 'delete' === $action ) {
-			$deleted = $wpdb->delete( $this->index, array( 'profile_id' => $profile_id, 'object_key_hash' => $hash ), array( '%s', '%s' ) );
+			$deleted = $wpdb->delete( $this->index, array( 'target_hash' => $bucket, 'object_key_hash' => $hash ), array( '%s', '%s' ) );
 			if ( $deleted ) {
 				$this->adjust_counts( $profile_id, $old_status, -1, -$old_bytes );
 			}
@@ -1771,7 +1931,7 @@ final class Index_Repository {
 			$new_bytes             = max( (int) $row['local_size'], (int) $row['local_size'] );
 		}
 
-		$updated = $wpdb->update( $this->index, $fields, array( 'profile_id' => $profile_id, 'object_key_hash' => $hash ), null, array( '%s', '%s' ) );
+		$updated = $wpdb->update( $this->index, $fields, array( 'target_hash' => $bucket, 'object_key_hash' => $hash ), null, array( '%s', '%s' ) );
 		if ( false === $updated ) {
 			return;
 		}
@@ -1803,7 +1963,8 @@ final class Index_Repository {
 				}
 			)
 		);
-		if ( ! $rows ) {
+		$bucket = $this->bucket( $profile_id );
+		if ( ! $rows || '' === $bucket ) {
 			return;
 		}
 
@@ -1815,8 +1976,8 @@ final class Index_Repository {
 		$existing     = $wpdb->get_results(
 			$wpdb->prepare(
 				"SELECT object_key_hash,status,error_code,local_size,remote_size,seen_local,seen_remote
-				FROM {$this->index} WHERE profile_id=%s AND object_key_hash IN ({$placeholders})", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Placeholders generated from count.
-				array_merge( array( $profile_id ), $hashes )
+				FROM {$this->index} WHERE target_hash=%s AND object_key_hash IN ({$placeholders})", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Placeholders generated from count.
+				array_merge( array( $bucket ), $hashes )
 			),
 			ARRAY_A
 		);
@@ -1850,7 +2011,7 @@ final class Index_Repository {
 						'updated_at'    => $this->now(),
 					),
 					array(
-						'profile_id'      => $profile_id,
+						'target_hash'     => $bucket,
 						'object_key_hash' => $hash,
 					),
 					array( '%s', '%s', '%s', '%s' ),
@@ -1886,7 +2047,8 @@ final class Index_Repository {
 				}
 			)
 		);
-		if ( ! $keys ) {
+		$bucket = $this->bucket( $profile_id );
+		if ( ! $keys || '' === $bucket ) {
 			return;
 		}
 
@@ -1898,8 +2060,8 @@ final class Index_Repository {
 		$rows         = $wpdb->get_results(
 			$wpdb->prepare(
 				"SELECT object_key_hash,status,local_size,remote_size,seen_remote
-				FROM {$this->index} WHERE profile_id=%s AND object_key_hash IN ({$placeholders})", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Placeholders generated from count.
-				array_merge( array( $profile_id ), $hashes )
+				FROM {$this->index} WHERE target_hash=%s AND object_key_hash IN ({$placeholders})", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Placeholders generated from count.
+				array_merge( array( $bucket ), $hashes )
 			),
 			ARRAY_A
 		);
@@ -1918,7 +2080,7 @@ final class Index_Repository {
 				$removed = $wpdb->delete(
 					$this->index,
 					array(
-						'profile_id'      => $profile_id,
+						'target_hash'     => $bucket,
 						'object_key_hash' => $hash,
 					),
 					array( '%s', '%s' )
@@ -1945,7 +2107,7 @@ final class Index_Repository {
 						'updated_at'    => $this->now(),
 					),
 					array(
-						'profile_id'      => $profile_id,
+						'target_hash'     => $bucket,
 						'object_key_hash' => $hash,
 					),
 					array( '%s', '%d', '%s', '%d', '%s', '%s', '%s', '%d', '%s' ),
@@ -1959,7 +2121,7 @@ final class Index_Repository {
 				$deleted = $wpdb->delete(
 					$this->index,
 					array(
-						'profile_id'      => $profile_id,
+						'target_hash'     => $bucket,
 						'object_key_hash' => $hash,
 					),
 					array( '%s', '%s' )
@@ -2021,6 +2183,10 @@ final class Index_Repository {
 		if ( ! in_array( $status, array( 'synced', 'pending', 'failed', 'remote', 'mismatch', 'ignored' ), true ) ) {
 			return;
 		}
+		$bucket = $this->bucket( $profile_id );
+		if ( '' === $bucket ) {
+			return;
+		}
 		$now = $this->now();
 		if ( $items < 0 || $bytes < 0 ) {
 			$wpdb->query(
@@ -2029,11 +2195,11 @@ final class Index_Repository {
 					SET item_count=GREATEST(0,CAST(item_count AS SIGNED) + %d),
 						bytes=GREATEST(0,CAST(bytes AS SIGNED) + %d),
 						updated_at=%s
-					WHERE profile_id=%s AND status=%s",
+					WHERE target_hash=%s AND status=%s",
 					$items,
 					$bytes,
 					$now,
-					$profile_id,
+					$bucket,
 					$status
 				)
 			);
@@ -2041,12 +2207,14 @@ final class Index_Repository {
 		}
 		$wpdb->query(
 			$wpdb->prepare(
-				"INSERT INTO {$this->counts} (profile_id,status,item_count,bytes,updated_at)
-				VALUES (%s,%s,%d,%d,%s)
+				"INSERT INTO {$this->counts} (target_hash,profile_id,status,item_count,bytes,updated_at)
+				VALUES (%s,%s,%s,%d,%d,%s)
 				ON DUPLICATE KEY UPDATE
+					profile_id=VALUES(profile_id),
 					item_count=item_count+VALUES(item_count),
 					bytes=bytes+VALUES(bytes),
 					updated_at=VALUES(updated_at)",
+				$bucket,
 				$profile_id,
 				$status,
 				$items,
@@ -2135,21 +2303,34 @@ final class Index_Repository {
 	}
 
 	/**
-	 * Remove every row this profile owns: the index itself, its counters, its
-	 * queued actions, its scans and its event log.
+	 * Remove every row this profile owns: its queued actions, its scans, its
+	 * event log — and, when nothing else still names the bucket, the index rows
+	 * and counters the profile had confirmed.
 	 *
-	 * The scan row is what the sync center reads for "云端 N 个文件" and the
-	 * event log is what the log card prints, so a purge that skipped them would
-	 * leave a profile showing numbers for a bucket it no longer points at. Both
-	 * callers (CLI `sync purge` and deleting a saved profile) mean "forget this
-	 * target completely".
+	 * The index is partitioned by bucket (R19.7), so the index rows are not the
+	 * profile's private property: a standby configuration row can name the same
+	 * bucket, and deleting them on its behalf would throw away knowledge that is
+	 * still being used. They are dropped only when the bucket goes with the
+	 * profile. The per-profile tables (jobs, scans, events) always follow the
+	 * profile id.
+	 *
+	 * Callers that delete the profile row first must capture the identity with
+	 * bucket_for() beforehand: afterwards the row is gone and the bucket can no
+	 * longer be resolved. Pass it as $bucket.
 	 *
 	 * @param string $profile_id Profile.
+	 * @param string $bucket     Identity captured before the row was removed.
 	 */
-	public function purge_index( string $profile_id ): void {
+	public function purge_index( string $profile_id, string $bucket = '' ): void {
 		global $wpdb;
-		$wpdb->query( $wpdb->prepare( "DELETE FROM {$this->index} WHERE profile_id=%s", $profile_id ) );
-		$wpdb->query( $wpdb->prepare( "DELETE FROM {$this->counts} WHERE profile_id=%s", $profile_id ) );
+		$bucket = '' !== $bucket ? $bucket : $this->bucket( $profile_id );
+		if ( '' !== $bucket && ! $this->bucket_shared( $bucket, $profile_id ) ) {
+			// The rows describe objects in a bucket that no configuration row
+			// names any more; keeping them would print that bucket's counts
+			// under whatever address comes next.
+			$wpdb->query( $wpdb->prepare( "DELETE FROM {$this->index} WHERE target_hash=%s", $bucket ) );
+			$wpdb->query( $wpdb->prepare( "DELETE FROM {$this->counts} WHERE target_hash=%s", $bucket ) );
+		}
 		$wpdb->query( $wpdb->prepare( "DELETE FROM {$this->jobs} WHERE profile_id=%s", $profile_id ) );
 		$wpdb->query( $wpdb->prepare( "DELETE FROM {$this->scans} WHERE profile_id=%s", $profile_id ) );
 		$wpdb->query( $wpdb->prepare( "DELETE FROM {$this->events} WHERE profile_id=%s", $profile_id ) );

@@ -85,6 +85,54 @@ if ( ! is_string( $roles ) || false === strpos( $roles, 'administrator' ) ) {
 $index_table  = $wpdb->prefix . 'sio_sync_index';
 $counts_table = $wpdb->prefix . 'sio_sync_counts';
 
+/*
+ * Bucket identity of the profile the token names.
+ *
+ * The sync index is partitioned by bucket, not by configuration row
+ * (Schema 1.9.0 / R19.7), so the query key is the same sha256 the rest of the
+ * plugin computes - v2|provider|bucket|endpoint|upload_path. This file runs
+ * under SHORTINIT, where the plugin autoloader is not registered, so the
+ * hash is rebuilt here; keep it identical to S3\Bucket_Identity::hash().
+ */
+$sakura_profile = '';
+$sakura_saved   = get_option( 's3_options', array() );
+$sakura_saved   = is_array( $sakura_saved ) ? $sakura_saved : array();
+$sakura_rows    = isset( $sakura_saved['profiles'] ) && is_array( $sakura_saved['profiles'] ) ? $sakura_saved['profiles'] : array();
+$sakura_row     = isset( $sakura_rows[ $profile ] ) && is_array( $sakura_rows[ $profile ] ) ? $sakura_rows[ $profile ] : array();
+
+foreach ( array( 'provider', 'bucket', 'endpoint', 'upload_path' ) as $sakura_field ) {
+	if ( ! empty( $sakura_row[ $sakura_field ] ) && is_string( $sakura_row[ $sakura_field ] ) ) {
+		continue;
+	}
+	$sakura_row[ $sakura_field ] = isset( $sakura_saved[ $sakura_field ] ) ? (string) $sakura_saved[ $sakura_field ] : '';
+}
+
+$bucket_hash = hash(
+	'sha256',
+	implode( '|', array( 'v2', (string) $sakura_row['provider'], (string) $sakura_row['bucket'], (string) $sakura_row['endpoint'], (string) $sakura_row['upload_path'] ) )
+);
+if ( '' === (string) $sakura_row['bucket'] ) {
+	// Without a bucket there is nothing to partition by. Answering an empty
+	// page beats reading target_hash='' rows, which belong to no known bucket.
+	header( 'Content-Type: application/json; charset=utf-8' );
+	header( 'Cache-Control: no-store, private, max-age=0' );
+	header( 'X-Robots-Tag: noindex, nofollow' );
+	echo json_encode( // phpcs:ignore WordPress.WP.AlternativeFunctions.json_encode_json_encode -- No WP bootstrap.
+		array(
+			'success' => true,
+			'data'    => array(
+				'rows'           => array(),
+				'cursor'         => '',
+				'has_more'       => false,
+				'total'          => 0,
+				'filtered_total' => 0,
+			),
+		),
+		JSON_UNESCAPED_UNICODE
+	);
+	exit;
+}
+
 $status = strtolower( (string) ( $_GET['status'] ?? 'all' ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Token-authenticated read-only request.
 $search = trim( (string) ( $_GET['search'] ?? '' ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Token-authenticated read-only request.
 $type   = strtolower( (string) ( $_GET['type'] ?? 'all' ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Token-authenticated read-only request.
@@ -103,8 +151,8 @@ $search    = \Sakura\ImageOptimizer\Sync\Search_Term::normalize( $search );
 $by_key    = '' !== $search;
 $by_recent = $days > 0 && '1' === (string) get_option( 'sakura_imgopt_sync_recent_ready', '' );
 
-$where = array( 'profile_id=%s' );
-$args  = array( $profile );
+$where = array( 'target_hash=%s' );
+$args  = array( $bucket_hash );
 
 if ( 'all' !== $status ) {
 	$where[] = 'status=%s';
@@ -224,7 +272,7 @@ if ( $has_more && $rows ) {
 	}
 }
 
-$total = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(item_count),0) FROM {$counts_table} WHERE profile_id=%s", $profile ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name from prefix.
+$total = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(item_count),0) FROM {$counts_table} WHERE target_hash=%s", $bucket_hash ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name from prefix.
 
 // Rows matching the filters across all pages; only the first page of a filtered
 // list needs it. An unfiltered list knows its total from the counts table.

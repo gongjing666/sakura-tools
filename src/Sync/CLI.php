@@ -66,8 +66,15 @@ final class CLI {
 	 * [--profile=<id>]
 	 * : Profile id to scan. Defaults to the active profile.
 	 *
+	 * [--full]
+	 * : Walk both sides from scratch. This is the mode that clears the
+	 * pending-reconciliation gate (R18) and re-stamps attachment fingerprints
+	 * (R19); without it the command only refreshes what changed.
+	 *
 	 * [--resume]
 	 * : Continue the latest failed or cancelled scan instead of starting over.
+	 * Resuming a full scan also clears the gate, because the resumed walk
+	 * still visits both sides.
 	 *
 	 * [--pages=<n>]
 	 * : Objects listed per tick. Default 50 (50,000 objects).
@@ -81,6 +88,7 @@ final class CLI {
 	 * ## EXAMPLES
 	 *
 	 *     wp sakura-sync scan --pages=100
+	 *     wp sakura-sync scan --full
 	 *     wp sakura-sync scan --resume
 	 *
 	 * @param array<int,string>    $args  Positional args.

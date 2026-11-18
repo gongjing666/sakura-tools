@@ -197,7 +197,7 @@ final class Bucket_Confirmation {
 			}
 		}
 
-		$rows = $this->index()->find_many( $this->profiles(), array_keys( $candidates ) );
+		$rows = $this->index()->find_many( $this->buckets(), array_keys( $candidates ) );
 		foreach ( $rows as $row ) {
 			if ( ! is_array( $row ) ) {
 				continue;
@@ -288,7 +288,7 @@ final class Bucket_Confirmation {
 	 * querying them would be a wasted, failing round trip per attachment.
 	 */
 	private function index_available(): bool {
-		if ( ! $this->profiles() ) {
+		if ( '' === $this->identity() ) {
 			return false;
 		}
 		// The switch that turns the whole sync index off must also turn off
@@ -301,37 +301,18 @@ final class Bucket_Confirmation {
 	}
 
 	/**
-	 * Profiles whose index rows may describe this bucket.
+	 * Buckets whose index rows may answer for this one.
 	 *
-	 * The active row first, then every other saved row that addresses the same
-	 * bucket (R19.7). The index is partitioned by profile id, but a bucket can be
-	 * described by more than one row: a standby row added for a failover, or a
-	 * row re-created with the same parameters after the original was deleted.
-	 * Reading only the active row made those objects look absent - the index
-	 * confirmed them yesterday, yet the URL dropped to the site domain.
-	 *
-	 * Order matters: find_many() keeps the row with the lowest rank, so a
-	 * confirmation recorded under the active row wins over a stale one from a
-	 * sibling.
+	 * The index is partitioned by bucket identity since Schema 1.9.0, so one
+	 * hash is enough. Rows written by an earlier version are not lost by the
+	 * upgrade: the migration stamps them with the same hash this returns.
 	 *
 	 * @return array<int,string>
 	 */
-	private function profiles(): array {
-		$active = (string) $this->options->active_profile_id();
-		$ranked = '' === $active ? array() : array( $active );
+	private function buckets(): array {
+		$identity = $this->identity();
 
-		$identity = Bucket_Identity::from_options( $this->options );
-		foreach ( $this->options->profiles() as $id => $profile ) {
-			$id = (string) $id;
-			if ( '' === $id || in_array( $id, $ranked, true ) || ! is_array( $profile ) ) {
-				continue;
-			}
-			if ( Bucket_Identity::from_profile( $profile, $this->options )->same_as( $identity ) ) {
-				$ranked[] = $id;
-			}
-		}
-
-		return $ranked;
+		return '' === $identity ? array() : array( $identity );
 	}
 
 	/**

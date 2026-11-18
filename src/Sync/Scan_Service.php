@@ -997,7 +997,12 @@ final class Scan_Service {
 			return false;
 		}
 
-		$rows   = $this->index->find_many( array( $profile ), array_keys( $wanted ) );
+		$bucket = Bucket_Identity::from_profile( $this->options->profile( $profile ), $this->options )->hash();
+		if ( '' === $bucket ) {
+			return false;
+		}
+
+		$rows   = $this->index->find_many( array( $bucket ), array_keys( $wanted ) );
 		$synced = array();
 		foreach ( $rows as $row ) {
 			if ( ! is_array( $row ) || Sync_Status::SYNCED !== (string) ( $row['status'] ?? '' ) ) {

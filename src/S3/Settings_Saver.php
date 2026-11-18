@@ -378,11 +378,13 @@ final class Settings_Saver {
 				)
 			);
 		}
-		$target_moved = false;
+		$target_moved    = false;
+		$previous_bucket = '';
 		if ( $will_write && isset( $profiles[ $profile_id ] ) && is_array( $profiles[ $profile_id ] ) ) {
-			$previous     = $profiles[ $profile_id ];
-			$previous_key = Delete_Jobs::target_hash( $previous );
-			$next_key     = Delete_Jobs::target_hash( $stored );
+			$previous        = $profiles[ $profile_id ];
+			$previous_key    = Delete_Jobs::target_hash( $previous );
+			$next_key        = Delete_Jobs::target_hash( $stored );
+			$previous_bucket = Bucket_Identity::from_profile( $previous, $this->options )->hash();
 			if ( '' !== $previous_key && ! hash_equals( $previous_key, $next_key ) ) {
 				$target_moved = true;
 				$retired = isset( $stored['retired_targets'] ) && is_array( $stored['retired_targets'] ) ? $stored['retired_targets'] : array();
@@ -453,9 +455,14 @@ final class Settings_Saver {
 
 		update_option( Options::OPTION, $stored, false );
 		if ( $target_moved ) {
-			// The rows describe objects in the previous bucket; keeping them would
-			// print that bucket's counts under the new address until the next scan.
-			( new Index_Repository() )->purge_index( $profile_id );
+			// Drop the rows of the bucket this profile used to name. The bucket has
+			// to be handed over: the repository resolves buckets from the option it
+			// reads now, which already points at the new address, and the index is
+			// partitioned by bucket (R19.7), so asking it with the profile id would
+			// reach for the new bucket and delete what the next scan is about to
+			// rebuild. Rows another configuration row still names are kept, which
+			// is exactly the standby case this rule exists for.
+			( new Index_Repository() )->purge_index( $profile_id, $previous_bucket );
 		}
 		if ( $saved_is_live ) {
 			if ( 'true' === (string) $stored['enabled'] && '' !== $upload_url ) {

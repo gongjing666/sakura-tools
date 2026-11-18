@@ -8,6 +8,7 @@
 declare( strict_types=1 );
 
 use PHPUnit\Framework\TestCase;
+use Sakura\ImageOptimizer\S3\Bucket_Identity;
 use Sakura\ImageOptimizer\S3\Options;
 use Sakura\ImageOptimizer\S3\Storage;
 use Sakura\ImageOptimizer\S3\Sync_Status;
@@ -30,7 +31,11 @@ final class StorageBucketSwitchDatabase {
 	public string $prefix = 't_';
 
 	/**
-	 * Rows keyed by "profile|object-key-sha256-hex".
+	 * Rows keyed by "bucket-identity|object-key-sha256-hex".
+	 *
+	 * The index is partitioned by bucket identity (Schema 1.9.0 / R19.7), so the
+	 * first half of the key is the 64-hex identity hash of the bucket, not a
+	 * profile id: two configuration rows naming the same bucket share the rows.
 	 *
 	 * @var array<string,string>
 	 */
@@ -59,28 +64,26 @@ final class StorageBucketSwitchDatabase {
 		unset( $output );
 		++$this->queries;
 
-		list( , $args ) = unserialize( $prepared );
+		list( $sql, $args ) = unserialize( $prepared );
 
-		$profiles = array();
-		$hashes   = array();
-		foreach ( $args as $arg ) {
-			$arg = (string) $arg;
-			if ( 0 === strpos( $arg, 'prof_' ) ) {
-				$profiles[] = $arg;
-				continue;
-			}
-			$hashes[] = $arg;
-		}
+		// Both halves of the key are 64-hex, so the argument list cannot be split
+		// by looking at the values: count the placeholders of the first IN list.
+		$split   = strpos( (string) $sql, 'object_key_hash IN' );
+		$head    = false === $split ? (string) $sql : substr( (string) $sql, 0, $split );
+		$count   = substr_count( $head, '%s' );
+		$buckets = array_slice( $args, 0, $count );
+		$hashes  = array_slice( $args, $count );
 
 		$rows = array();
 		foreach ( $hashes as $hash ) {
-			foreach ( $profiles as $profile ) {
-				$lookup = $profile . '|' . $hash;
+			foreach ( $buckets as $bucket ) {
+				$lookup = $bucket . '|' . $hash;
 				if ( ! isset( $this->rows[ $lookup ] ) ) {
 					continue;
 				}
 				$rows[] = array(
-					'profile_id'      => $profile,
+					'target_hash'     => $bucket,
+					'profile_id'      => 'prof_new',
 					// The real column is binary(32), so the driver hands back raw bytes.
 					'object_key_hash' => (string) hex2bin( $hash ),
 					'status'          => $this->rows[ $lookup ],
@@ -91,8 +94,8 @@ final class StorageBucketSwitchDatabase {
 		return $rows;
 	}
 
-	public function key( string $profile_id, string $object_key ): string {
-		return $profile_id . '|' . bin2hex( hash( 'sha256', $object_key, true ) );
+	public function key( string $bucket_hash, string $object_key ): string {
+		return $bucket_hash . '|' . bin2hex( hash( 'sha256', $object_key, true ) );
 	}
 }
 
@@ -188,6 +191,11 @@ final class StorageBucketSwitchTest extends TestCase {
 		return new Storage( $this->options() );
 	}
 
+	/** 64-hex identity of the bucket the options above describe. */
+	private function bucket(): string {
+		return Bucket_Identity::from_options( $this->options() )->hash();
+	}
+
 	private function cdn_url(): string {
 		return self::CDN . '/2026/11/a.webp';
 	}
@@ -210,14 +218,14 @@ final class StorageBucketSwitchTest extends TestCase {
 
 	public function test_bucket_switch_keeps_the_cdn_url_when_the_index_confirms_the_objects(): void {
 		$this->seed( Sync_Status::SYNCED, array( self::OBJECT_KEY ) );
-		$this->db->rows[ $this->db->key( 'prof_new', self::OBJECT_KEY ) ] = 'synced';
+		$this->db->rows[ $this->db->key( $this->bucket(), self::OBJECT_KEY ) ] = 'synced';
 
 		$this->assertSame( $this->cdn_url(), $this->storage()->revert_unsynced_url( $this->cdn_url(), self::ATTACHMENT ) );
 	}
 
 	public function test_a_render_never_heals_the_fingerprint(): void {
 		$this->seed( Sync_Status::SYNCED, array( self::OBJECT_KEY ) );
-		$this->db->rows[ $this->db->key( 'prof_new', self::OBJECT_KEY ) ] = 'synced';
+		$this->db->rows[ $this->db->key( $this->bucket(), self::OBJECT_KEY ) ] = 'synced';
 		$GLOBALS['sakura_test_post_meta'][ self::ATTACHMENT ][ Sync_Status::SYNCED_META ] = 1700000000;
 
 		$storage = $this->storage();
@@ -253,14 +261,14 @@ final class StorageBucketSwitchTest extends TestCase {
 
 	public function test_mismatched_index_rows_do_not_rescue_the_attachment(): void {
 		$this->seed( Sync_Status::SYNCED, array( self::OBJECT_KEY ) );
-		$this->db->rows[ $this->db->key( 'prof_new', self::OBJECT_KEY ) ] = 'mismatch';
+		$this->db->rows[ $this->db->key( $this->bucket(), self::OBJECT_KEY ) ] = 'mismatch';
 
 		$this->assertSame( $this->local_url(), $this->storage()->revert_unsynced_url( $this->cdn_url(), self::ATTACHMENT ) );
 	}
 
 	public function test_disabled_sync_index_leaves_the_attachment_on_the_local_url(): void {
 		$this->seed( Sync_Status::SYNCED, array( self::OBJECT_KEY ) );
-		$this->db->rows[ $this->db->key( 'prof_new', self::OBJECT_KEY ) ] = 'synced';
+		$this->db->rows[ $this->db->key( $this->bucket(), self::OBJECT_KEY ) ] = 'synced';
 		$GLOBALS['sakura_test_options'][ Feature::OPTION ]                = '0';
 
 		$this->assertSame( $this->local_url(), $this->storage()->revert_unsynced_url( $this->cdn_url(), self::ATTACHMENT ) );
@@ -269,7 +277,7 @@ final class StorageBucketSwitchTest extends TestCase {
 
 	public function test_uninstalled_index_is_never_queried(): void {
 		$this->seed( Sync_Status::SYNCED, array( self::OBJECT_KEY ) );
-		$this->db->rows[ $this->db->key( 'prof_new', self::OBJECT_KEY ) ] = 'synced';
+		$this->db->rows[ $this->db->key( $this->bucket(), self::OBJECT_KEY ) ] = 'synced';
 		unset( $GLOBALS['sakura_test_options'][ Schema::OPTION ] );
 
 		$this->assertSame( $this->local_url(), $this->storage()->revert_unsynced_url( $this->cdn_url(), self::ATTACHMENT ) );
@@ -278,7 +286,7 @@ final class StorageBucketSwitchTest extends TestCase {
 
 	public function test_relative_recorded_key_is_matched_through_the_upload_path(): void {
 		$this->seed( Sync_Status::SYNCED, array( '2026/11/a.webp' ) );
-		$this->db->rows[ $this->db->key( 'prof_new', self::OBJECT_KEY ) ] = 'synced';
+		$this->db->rows[ $this->db->key( $this->bucket(), self::OBJECT_KEY ) ] = 'synced';
 
 		$this->assertSame( $this->cdn_url(), $this->storage()->revert_unsynced_url( $this->cdn_url(), self::ATTACHMENT ) );
 	}
@@ -286,7 +294,7 @@ final class StorageBucketSwitchTest extends TestCase {
 	public function test_absolute_recorded_path_is_reduced_to_its_object_key(): void {
 		$absolute = '/' . trim( wp_normalize_path( ABSPATH ), '/' ) . '/' . self::OBJECT_KEY;
 		$this->seed( Sync_Status::SYNCED, array( $absolute ) );
-		$this->db->rows[ $this->db->key( 'prof_new', self::OBJECT_KEY ) ] = 'synced';
+		$this->db->rows[ $this->db->key( $this->bucket(), self::OBJECT_KEY ) ] = 'synced';
 
 		$this->assertSame( $this->cdn_url(), $this->storage()->revert_unsynced_url( $this->cdn_url(), self::ATTACHMENT ) );
 	}
@@ -296,7 +304,7 @@ final class StorageBucketSwitchTest extends TestCase {
 			Sync_Status::STATUS_META  => Sync_Status::SYNCED,
 			Sync_Status::OBJECTS_META => array( self::OBJECT_KEY ),
 		);
-		$this->db->rows[ $this->db->key( 'prof_new', self::OBJECT_KEY ) ] = 'synced';
+		$this->db->rows[ $this->db->key( $this->bucket(), self::OBJECT_KEY ) ] = 'synced';
 
 		$this->assertSame( $this->cdn_url(), $this->storage()->revert_unsynced_url( $this->cdn_url(), self::ATTACHMENT ) );
 		$this->assertSame(
@@ -309,14 +317,15 @@ final class StorageBucketSwitchTest extends TestCase {
 	/**
 	 * A standby row pointing at the same bucket confirms the objects (R19.7).
 	 *
-	 * The index is partitioned by profile id, so an object confirmed under a
-	 * sibling row of the same bucket used to look absent: the fingerprint named
-	 * another destination, the active row had no index row, and the URL fell
-	 * back to the site domain even though the object was sitting right there.
+	 * The index is partitioned by bucket identity, so a row confirmed by one
+	 * configuration row is visible to every other row naming that bucket. Before
+	 * 1.9.0 the rows were keyed by profile id: the fingerprint named another
+	 * destination, the active row had no index row, and the URL fell back to the
+	 * site domain even though the object was sitting right there.
 	 */
 	public function test_a_sibling_row_for_the_same_bucket_still_confirms(): void {
 		$this->seed( Sync_Status::SYNCED, array( self::OBJECT_KEY ) );
-		$this->db->rows[ $this->db->key( 'prof_standby', self::OBJECT_KEY ) ] = 'synced';
+		$this->db->rows[ $this->db->key( $this->bucket(), self::OBJECT_KEY ) ] = 'synced';
 
 		$options = $this->options();
 		$raw     = $options->all();
@@ -335,7 +344,8 @@ final class StorageBucketSwitchTest extends TestCase {
 	/** A sibling row for a different bucket must not confirm anything. */
 	public function test_a_sibling_row_for_another_bucket_confirms_nothing(): void {
 		$this->seed( Sync_Status::SYNCED, array( self::OBJECT_KEY ) );
-		$this->db->rows[ $this->db->key( 'prof_standby', self::OBJECT_KEY ) ] = 'synced';
+		// The row exists, but under some third bucket: it must not be consulted.
+		$this->db->rows[ $this->db->key( str_repeat( 'a', 64 ), self::OBJECT_KEY ) ] = 'synced';
 
 		$raw     = $this->options()->all();
 		$standby = $raw['profiles']['prof_new'];
@@ -351,7 +361,7 @@ final class StorageBucketSwitchTest extends TestCase {
 	}
 	public function test_pending_attachment_is_not_rescued_by_the_index(): void {
 		$this->seed( Sync_Status::PENDING, array( self::OBJECT_KEY ) );
-		$this->db->rows[ $this->db->key( 'prof_new', self::OBJECT_KEY ) ] = 'synced';
+		$this->db->rows[ $this->db->key( $this->bucket(), self::OBJECT_KEY ) ] = 'synced';
 
 		$this->assertSame( $this->local_url(), $this->storage()->revert_unsynced_url( $this->cdn_url(), self::ATTACHMENT ) );
 		$this->assertSame( 0, $this->db->queries );

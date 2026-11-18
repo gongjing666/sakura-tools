@@ -49,6 +49,20 @@ final class Attachment_Adopter {
 	}
 
 	/**
+	 * Identity of the bucket the active row points at.
+	 *
+	 * The index is partitioned by bucket since Schema 1.9.0, so this query has
+	 * to ask for the identity rather than the profile id it used before.
+	 */
+	private function bucket(): string {
+		$options = new \Sakura\ImageOptimizer\S3\Options();
+		if ( '' === $options->active_profile_id() ) {
+			return '';
+		}
+		return \Sakura\ImageOptimizer\S3\Bucket_Identity::from_options( $options )->hash();
+	}
+
+	/**
 	 * Convert an object key to a path relative to the uploads directory.
 	 *
 	 * @param string $key Object key.
@@ -198,8 +212,8 @@ final class Attachment_Adopter {
 	 */
 	public function missing( int $limit = 100 ): array {
 		global $wpdb;
-		$profile = ( new \Sakura\ImageOptimizer\S3\Options() )->active_profile_id();
-		if ( '' === $profile ) {
+		$bucket = $this->bucket();
+		if ( '' === $bucket ) {
 			return array();
 		}
 
@@ -208,14 +222,14 @@ final class Attachment_Adopter {
 			$wpdb->prepare(
 				"SELECT SUBSTRING(i.object_key, %d) FROM {$this->index} i
 				LEFT JOIN {$wpdb->postmeta} pm ON pm.meta_key='_wp_attached_file' AND pm.meta_value=SUBSTRING(i.object_key, %d)
-				WHERE i.profile_id=%s AND i.seen_local=1 AND i.object_key LIKE %s AND pm.post_id IS NULL
+				WHERE i.target_hash=%s AND i.seen_local=1 AND i.object_key LIKE %s AND pm.post_id IS NULL
 				AND i.object_key NOT REGEXP %s
 				AND i.object_key NOT REGEXP %s
 				AND i.object_key NOT REGEXP %s
 				ORDER BY i.object_key ASC LIMIT %d",
 				strlen( self::KEY_PREFIX ) + 1,
 				strlen( self::KEY_PREFIX ) + 1,
-				$profile,
+				$bucket,
 				$like,
 				self::DERIVED_SCALED,
 				self::DERIVED_SIZED,
@@ -234,8 +248,8 @@ final class Attachment_Adopter {
 	 */
 	public function count_missing(): int {
 		global $wpdb;
-		$profile = ( new \Sakura\ImageOptimizer\S3\Options() )->active_profile_id();
-		if ( '' === $profile ) {
+		$bucket = $this->bucket();
+		if ( '' === $bucket ) {
 			return 0;
 		}
 
@@ -244,12 +258,12 @@ final class Attachment_Adopter {
 			$wpdb->prepare(
 				"SELECT COUNT(*) FROM {$this->index} i
 				LEFT JOIN {$wpdb->postmeta} pm ON pm.meta_key='_wp_attached_file' AND pm.meta_value=SUBSTRING(i.object_key, %d)
-				WHERE i.profile_id=%s AND i.seen_local=1 AND i.object_key LIKE %s AND pm.post_id IS NULL
+				WHERE i.target_hash=%s AND i.seen_local=1 AND i.object_key LIKE %s AND pm.post_id IS NULL
 				AND i.object_key NOT REGEXP %s
 				AND i.object_key NOT REGEXP %s
 				AND i.object_key NOT REGEXP %s",
 				strlen( self::KEY_PREFIX ) + 1,
-				$profile,
+				$bucket,
 				$like,
 				self::DERIVED_SCALED,
 				self::DERIVED_SIZED,

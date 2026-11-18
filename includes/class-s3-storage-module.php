@@ -348,6 +348,8 @@ class S3_Storage_Module implements Module {
 
 		try {
 			$client = Client_Factory::make( $probe );
+			// 凭据惰性取：不预检的话，取不到 token 会被下面的探针说成 Endpoint 不通。
+			Client_Factory::preflight( $probe );
 		} catch ( \Throwable $error ) {
 			// The verdict still reaches the operator: a client that never got
 			// built is a failed test, not a broken request.
@@ -418,6 +420,8 @@ class S3_Storage_Module implements Module {
 
 		try {
 			$client = Client_Factory::make( $resolved );
+			// 同上：这份配置可能是惰性凭据的，预检才能把取 token 的失败讲清楚。
+			Client_Factory::preflight( $resolved );
 		} catch ( \Throwable $error ) {
 			wp_send_json_success(
 				array(

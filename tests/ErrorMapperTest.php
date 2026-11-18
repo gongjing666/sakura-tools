@@ -45,6 +45,37 @@ final class ErrorMapperTest extends TestCase {
 	}
 
 	/**
+	 * 临时凭据过期必须与「密钥填错」分开。
+	 *
+	 * 两者的修法完全不同：前者要去查续期链路（接口、时间同步），后者是去改
+	 * Access Key。合成一句话会把人送去改一个没错的配置。
+	 */
+	public function test_expired_token_is_its_own_code(): void {
+		$this->assertSame( 'sakura_s3_token_expired', Error_Mapper::code_for( 'ExpiredToken' ) );
+		$this->assertSame( 'sakura_s3_token_expired', Error_Mapper::code_for( 'InvalidToken' ) );
+
+		$message = Error_Mapper::message_for( 'ExpiredToken', '上传' );
+		$this->assertStringContainsString( '上传', $message );
+		$this->assertStringContainsString( '续期', $message );
+		$this->assertStringNotContainsString( 'Access Key/Secret', $message, '这不是密钥填错' );
+	}
+
+	/**
+	 * 凭据链断了的异常自带原因，不能被压成「远端存储请求失败（unknown）」。
+	 */
+	public function test_credential_error_keeps_its_reason(): void {
+		$error = Error_Mapper::to_wp_error(
+			new \Sakura\ImageOptimizer\S3\S3_Credential_Error( '多吉云接口返回错误（code 403）：AccessKey Format Error。' ),
+			'上传'
+		);
+
+		$this->assertInstanceOf( WP_Error::class, $error );
+		$this->assertSame( 'sakura_s3_token_expired', $error->get_error_code() );
+		$this->assertStringContainsString( 'AccessKey Format Error', $error->get_error_message() );
+		$this->assertStringNotContainsString( 'unknown', $error->get_error_message() );
+	}
+
+	/**
 	 * Messages name the operation and AWS code, without secrets.
 	 */
 	public function test_message_and_wp_error(): void {

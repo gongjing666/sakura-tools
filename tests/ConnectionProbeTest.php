@@ -150,6 +150,25 @@ final class ConnectionProbeTest extends TestCase {
 	}
 
 	/**
+	 * 凭据没取到的时候，「Endpoint 没有响应」是纯粹的误导。
+	 *
+	 * 两个请求根本没发出去，既没有 HTTP 状态也没有错误码——这时候该说的是
+	 * 「多吉云接口怎么了」，而不是让用户去查服务地址和证书。
+	 */
+	public function test_credential_failure_is_not_reported_as_a_dead_endpoint(): void {
+		$reason = '多吉云接口返回错误（code 403）：AccessKey Format Error。请检查 Access Key 和 Secret Key。';
+		$client               = new Probe_Fake_Client();
+		$client->head_failure = new \Sakura\ImageOptimizer\S3\S3_Credential_Error( $reason );
+		$client->list_failure = new \Sakura\ImageOptimizer\S3\S3_Credential_Error( $reason );
+
+		$result = Connection_Probe::diagnose( $client, 'bucket' );
+
+		$this->assertFalse( $result['ok'] );
+		$this->assertStringContainsString( 'AccessKey Format Error', $result['message'] );
+		$this->assertStringNotContainsString( 'Endpoint 没有响应', $result['message'] );
+	}
+
+	/**
 	 * Nothing at all reaching the service is described as unreachable.
 	 */
 	public function test_transport_failure_explains_endpoint(): void {

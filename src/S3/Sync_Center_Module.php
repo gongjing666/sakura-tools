@@ -714,6 +714,8 @@ final class Sync_Center_Module implements Module {
 
 		try {
 			$client = Client_Factory::make( $options );
+			// 凭据惰性取，制造客户端不等于凭据可用；同步中心的测试也要当面验一次。
+			Client_Factory::preflight( $options );
 		} catch ( \Throwable $e ) {
 			Log::write( __( '同步中心连接测试失败：', 'sakura-imgopt' ) . $e->getMessage() );
 			wp_send_json_error( array( 'message' => $e->getMessage() ), 400 );

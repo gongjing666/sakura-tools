@@ -33,6 +33,12 @@ final class Connection_Tester {
 
 		try {
 			$client = Client_Factory::make( $options );
+			/*
+			 * 凭据现在是惰性取的（见 Client_Factory::make()），所以制造客户端本身
+			 * 不代表凭据可用。这里显式预检一次，好让「密钥错了 / 临时凭据取不到」
+			 * 仍然停在连接测试里报出来，而不是混进下面 Endpoint 的诊断。
+			 */
+			Client_Factory::preflight( $options );
 		} catch ( \Throwable $e ) {
 			Log::write( __( '连接测试失败：', 'sakura-imgopt' ) . $e->getMessage() );
 			$this->redirect(

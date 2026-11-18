@@ -649,7 +649,7 @@ body.upload-php.sufm-tree-active.folded { --sufm-tree-left: 56px; }
 **决策**：
 
 1. **只读探测**。`wp_ajax_sakura_s3_probe_profile`（`includes/class-s3-storage-module.php:81`，处理函数 `:366`）只收 `profile_id`，用该配置自己的密钥建客户端跑 `Connection_Probe::diagnose()`（`src/S3/Connection_Probe.php:51`），全程不切配置、不写 option、不触发上传。
-2. **快照是密文，必须先过 `Options`**。`Options::profile_options()` 返回的是库里的原始快照（`key`/`secret` 仍是密文），而 `Client_Factory::make()` 直接从数组读 `key`/`secret` 去签名。因此处理函数先 `new Options( $snapshot )->all()` 解密再交给工厂——否则会把密文当 Access Key 使用。多吉云还依赖这一步在工厂里换临时凭据。
+2. **快照是密文，必须先过 `Options`**。`Options::profile_options()` 返回的是库里的原始快照（`key`/`secret` 仍是密文），而 `Client_Factory::make()` 直接从数组读 `key`/`secret` 去签名。因此处理函数先 `new Options( $snapshot )->all()` 解密再交给工厂——否则会把密文当 Access Key 使用。多吉云不走这一步：工厂把 `credentials` 传成闭包，临时凭据在真正签名时才取（见本文件「临时凭据必须按需续期」条）。
 3. **慢但可用要单独说**。往返超过 800ms 报「能用但偏慢」，避免一次跨地域重试被读成健康；失败与缺字段分别给「找不到这份配置」与 `missing_fields_message()` 的原文。
 4. **按钮是删除表单的兄弟节点，不是 `<button type="submit">`**。放表单里点测试会提交删除。样式上两按钮等分卡片宽度的两列网格（`assets/ui/pages/storage.css:156` 起），都带可见边框与底色，不用 `.btn--quiet`。
 
@@ -700,3 +700,24 @@ body.upload-php.sufm-tree-active.folded { --sufm-tree-left: 56px; }
 **已知边界**：`needs_upgrade()` 有意把「库里版本更高」当作降级（`upgrade_guard` 的注释里写明 *« A newer stored version is a downgrade and must not be rewritten »*），所以这个守卫**不会**自我纠正。它只在 `$installed` 为空时无条件返回 true，也就是说只有彻底删掉这个 option 才会强制重跑一次升级。
 
 **维护动作**：发布前先确认版本号语义（PATCH / MINOR / MAJOR）再改三处数字——一旦 push 出 Release 就要走完整的撤回流程，代价比发版前多问一句大得多。
+
+## 临时凭据必须按需续期，不在构造期取（1.28.2-beta-5，2026-11-18）
+
+**背景**：多吉云只签发两小时有效的 S3 临时凭据（`POST https://api.dogecloud.com/auth/tmp_token.json`，`ttl` 上限 7200 秒，接口 80000 次/天，永久 S3 密钥只对存储量或日流量超过 10TB 的客户开放）。原来的 `Client_Factory::make()` 在构造客户端时取一次 token、塞进静态数组当永久凭据用。传一张图没事，但「全量重建 / 跨桶迁移 / 重试队列」这些真会跑过两小时的批量任务——尤其是 WP-CLI（`includes/class-s3-cli.php:45`）——会在中途突然全部失败。另一个方向的方案是挂 wp-cron 提前续期，但 WP-Cron 只在有请求时触发，命令行与低流量时段都不准，正是「最需要续期的时候不跑」。
+
+**决策**：
+
+1. **把 `credentials` 传成 callable，而不是数组**。`ClientResolver::_apply_credentials()`（`vendor/s3/vendor-prefixed/aws/aws-sdk-php/src/ClientResolver.php:677`）对 callable 原样放行，`Middleware::signer()`（同目录 `Middleware.php:186-190`）每次请求都会调它——这是 SDK 给出的正规挂载点，不需要我们自己起定时器。
+2. **两条硬约束**：闭包必须返回 Promise（`Create::promiseFor()` / `Create::rejectionFor()`），且 `new Credentials( $key, $secret, $token, $expires )` 的第四个参数不能省。`memoize()` 不能用：它的 `REFRESH_WINDOW` 写死 60 秒（`CredentialProvider.php:63`），而我们要在剩余 30 分钟时就换。
+3. **续期判定在 `S3_Doge_Cloud` 内部**：`REFRESH_MARGIN = 1800`（`includes/class-s3-doge-cloud.php:26`），`response()` `:257` 先看缓存剩余有效期，够用就直接返回、不发请求。缓存 TTL 不再像旧代码那样扣 60 秒——那等于把「安全窗口」从缓存里削掉，续期失败时连退路都没有。
+4. **续期失败要能降级，不能一失败就整站传不上去**。旧凭据还没过期 → 静默继续用，只写日志；真的过期了才返回 false，并且错误码是独立的 `sakura_s3_token_expired`，文案指向「续期失败」而不是「检查 Access Key/Secret」。失败后 60 秒内不再打接口（`RETRY_BACKOFF` / `arm_backoff()`），否则一次接口抖动会被每一次签名放大。
+5. **「用户在等结论」的入口要显式预检**：连接测试、配置卡探测、同步中心测试在 `make()` 之后补一次 `Client_Factory::preflight()`。惰性化的代价是构造客户端不再联网，坏密钥不会在那里暴露；不预检的话失败会被推迟到第一次真实请求，并被 `Connection_Probe` 报成「Endpoint 没有响应」。
+
+**已知边界**：
+
+- 预签名 URL 也走同一条凭据链（`S3Client::createPresignedRequest` 会 `getCredentials()->wait()`），所以签出的链接同样受 `REFRESH_MARGIN` 约束；但**链接一旦签出就固定**，签出后凭据过期不会让已发出的链接失效（S3 签名只校验签名时刻的凭据有效性）。
+- 缓存放在 transient；站点用外部对象缓存（生产是 Redis）时它不在 `wp_options` 里，排查时要用对象缓存命令而不是翻表。
+- 退避窗口是进程外的 transient，但判断与写入之间没有加锁——多进程同时发现过期时会各打一次接口。80000 次/天的额度下这个量级不需要精确互斥，`add_option()` 在 WP 里也不是严格互斥的。
+- 目前只有多吉云走这条路。其他厂商若将来也改短效凭据，直接复用同一套：工厂分支 + callable + `$expires` + `S3_Credential_Error` + preflight。
+
+**维护动作**：改 `REFRESH_MARGIN` 要同时看服务商的最小 `ttl` 与任务的最长单次停顿；改 `Credentials` 的构造参数顺序要回看 AWS SDK 的 `CredentialsInterface`，第四个才是 `$expires`；新增入口若会「让用户等一个结论」，记得补 `preflight()`。

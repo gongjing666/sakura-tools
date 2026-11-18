@@ -492,6 +492,7 @@ require_once dirname( __DIR__ ) . '/src/S3/Log.php';
 require_once dirname( __DIR__ ) . '/src/S3/Error_Mapper.php';
 require_once dirname( __DIR__ ) . '/src/S3/Connection_Probe.php';
 require_once dirname( __DIR__ ) . '/src/S3/Object_Store.php';
+require_once dirname( __DIR__ ) . '/src/S3/S3_Credential_Error.php';
 require_once dirname( __DIR__ ) . '/src/S3/Client_Factory.php';
 require_once dirname( __DIR__ ) . '/src/S3/Storage_Adapter.php';
 require_once dirname( __DIR__ ) . '/src/S3/Restore_Plan.php';

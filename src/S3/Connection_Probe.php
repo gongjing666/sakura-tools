@@ -88,6 +88,22 @@ final class Connection_Probe {
 		 * to HEAD for transports that fail before any response (DNS, TLS), where
 		 * the GET never got further than the HEAD did.
 		 */
+		/*
+		 * 凭据根本没取到：两个请求都没有真正发出去，任何 HTTP 状态与错误码
+		 * 都不存在。这时候说「Endpoint 没有响应」会把用户引到错误的排查方向，
+		 * 直接把他该看的原因摆出来。
+		 */
+		$credential = $list instanceof S3_Credential_Error ? $list : ( $head instanceof S3_Credential_Error ? $head : null );
+		if ( null !== $credential ) {
+			return self::result(
+				false,
+				sprintf( /* translators: %s: reason the credentials could not be obtained. */ __( '连接测试失败：%s', 'sakura-imgopt' ), $credential->getMessage() ),
+				'',
+				0,
+				(int) round( ( microtime( true ) - $start ) * 1000 )
+			);
+		}
+
 		$code   = '' !== $list_facts['code'] ? $list_facts['code'] : $head_facts['code'];
 		$status = (int) ( $list_facts['status'] > 0 ? $list_facts['status'] : $head_facts['status'] );
 		$server = '' !== $list_facts['message'] ? $list_facts['message'] : $head_facts['message'];

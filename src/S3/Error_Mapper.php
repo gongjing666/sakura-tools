@@ -27,9 +27,14 @@ final class Error_Mapper {
 				return 'sakura_s3_access_denied';
 			case 'InvalidAccessKeyId':
 			case 'SignatureDoesNotMatch':
+				return 'sakura_s3_auth_failed';
 			case 'ExpiredToken':
 			case 'InvalidToken':
-				return 'sakura_s3_auth_failed';
+				/*
+				 * 与「密钥填错」分开：临时凭据过期是续期失败，不是配置错误。
+				 * 合在一起会让用户去改密钥，而问题其实在接口或时间同步上。
+				 */
+				return 'sakura_s3_token_expired';
 			case 'NoSuchBucket':
 			case 'NoSuchKey':
 				return 'sakura_s3_not_found';
@@ -68,9 +73,11 @@ final class Error_Mapper {
 				break;
 			case 'InvalidAccessKeyId':
 			case 'SignatureDoesNotMatch':
+				$reason = __( '签名无效，请检查 Access Key/Secret', 'sakura-imgopt' );
+				break;
 			case 'ExpiredToken':
 			case 'InvalidToken':
-				$reason = __( '签名或临时凭据无效，请检查 Access Key/Secret', 'sakura-imgopt' );
+				$reason = __( '临时凭据已过期且自动续期失败，请检查服务商接口是否可达、服务器时间是否准确', 'sakura-imgopt' );
 				break;
 			case 'NoSuchBucket':
 				$reason = __( '存储桶不存在，请检查桶名与端点', 'sakura-imgopt' );
@@ -110,6 +117,21 @@ final class Error_Mapper {
 	 * @return \WP_Error
 	 */
 	public static function to_wp_error( \Throwable $error, string $operation ): \WP_Error {
+		/*
+		 * 凭据链的失败自带原因（接口不可达、密钥被吊销、时间偏差…），
+		 * 交给通用映射只会被压成一句「远端存储请求失败（unknown）」。
+		 */
+		if ( $error instanceof S3_Credential_Error ) {
+			return new \WP_Error(
+				'sakura_s3_token_expired',
+				sprintf( /* translators: 1: operation, 2: reason. */ __( '%1$s：%2$s', 'sakura-imgopt' ), $operation, $error->getMessage() ),
+				array(
+					'aws_code'  => '',
+					'operation' => $operation,
+				)
+			);
+		}
+
 		$aws_code = is_callable( array( $error, 'getAwsErrorCode' ) ) ? (string) $error->getAwsErrorCode() : '';
 
 		return new \WP_Error(

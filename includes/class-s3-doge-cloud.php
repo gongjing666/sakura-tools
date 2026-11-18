@@ -14,6 +14,28 @@ if ( ! defined( 'ABSPATH' ) ) {
  * wp-content 下的 JSON 文件，避免 token 以明文文件形式落在 Web 根内。
  */
 class S3_Doge_Cloud {
+	/**
+	 * 提前多久续期（秒）。
+	 *
+	 * 临时凭据两小时一换，拖到最后一刻才续会留下一段很窄的窗口，而一次
+	 * 批量上传或迁移动辄跑几十分钟。提前半小时续，等于把「凭据会不会在
+	 * 任务中途失效」挪出关键路径。
+	 *
+	 * @var int
+	 */
+	const REFRESH_MARGIN = 1800;
+
+	/**
+	 * 续期失败后的静默窗口（秒）。
+	 *
+	 * 惰性刷新意味着每签一次名都可能触发一次续期。接口抖动时若不退避，
+	 * 一次批量上传会把同一个失败请求打上几百遍，还会吃满多吉云每天的调用
+	 * 额度。60 秒内复用上一次的失败结论，刚好盖住一轮重试。
+	 *
+	 * @var int
+	 */
+	const RETRY_BACKOFF = 60;
+
 	private $access_key;
 	private $secret_key;
 
@@ -52,6 +74,15 @@ class S3_Doge_Cloud {
 	}
 
 	/**
+	 * 续期失败的静默标记 key。
+	 *
+	 * @return string
+	 */
+	private function backoff_key() {
+		return 'sakura_imgopt_doge_backoff_' . md5( $this->access_key );
+	}
+
+	/**
 	 * 清理旧版本遗留的磁盘缓存（仅 token 文件，目录与其他哨兵文件保留）。
 	 *
 	 * @return void
@@ -73,26 +104,30 @@ class S3_Doge_Cloud {
 	}
 
 	/**
-	 * 从 transient 读取仍有效的凭据响应。
+	 * 读取缓存里的凭据响应，不管它还新鲜不新鲜。
+	 *
+	 * 旧实现把「只剩一分钟」当成「没有缓存」，这恰恰丢掉了续期失败时唯一
+	 * 的退路：只要那一行还没真正过期，正在跑的批量任务就能靠它跑完。过期
+	 * 与否交给调用方按 ExpiredAt 判断。
 	 *
 	 * @return array|false
 	 */
-	private function get_cached_response() {
+	private function read_cache() {
 		$cached = get_transient( $this->cache_key() );
-		if (
-			is_array( $cached )
-			&& ! empty( $cached['data']['ExpiredAt'] )
-			&& (int) $cached['data']['ExpiredAt'] > time() + 60
-		) {
+		if ( is_array( $cached ) && ! empty( $cached['data']['ExpiredAt'] ) ) {
 			return $cached;
 		}
 		return false;
 	}
 
 	/**
-	 * 缓存凭据响应；TTL 取 ExpiredAt 前 60 秒，避免边界过期。
+	 * 缓存凭据响应。
 	 *
-	 * @param array $response
+	 * TTL 取满 ExpiredAt，写入时不再扣安全窗口：安全窗口是**刷新判定**的事
+	 * （REFRESH_MARGIN），不是缓存存活时间。两处都扣 60 秒的旧写法会让
+	 * 「凭据其实还有效、缓存却已经没了」成为常态，续期失败时无旧值可退。
+	 *
+	 * @param array $response 已解码的响应体。
 	 * @return void
 	 */
 	private function cache_response( $response ) {
@@ -100,7 +135,7 @@ class S3_Doge_Cloud {
 			return;
 		}
 
-		$ttl = (int) $response['data']['ExpiredAt'] - time() - 60;
+		$ttl = (int) $response['data']['ExpiredAt'] - time();
 		if ( $ttl > 0 ) {
 			set_transient( $this->cache_key(), $response, min( $ttl, DAY_IN_SECONDS ) );
 		}
@@ -141,6 +176,37 @@ class S3_Doge_Cloud {
 		return is_array( $decoded ) ? $decoded : false;
 	}
 
+	/**
+	 * 临时凭据，附带过期时间。
+	 *
+	 * 旧的 get_credentials() 只回 data.Credentials，把 ExpiredAt 丢掉了，于是
+	 * 上层没有任何办法知道这组凭据什么时候作废——只能在「够不够用」这个问题上
+	 * 靠猜。这里把 ExpiredAt 一起交给调用方：它要拿这个值填 Credentials::expires，
+	 * 否则 SDK 会把临时凭据当成永久凭据（memoize() 里 expires 为 null 就永不刷新）。
+	 *
+	 * @return array{key:string,secret:string,token:string,expires:int}|false
+	 */
+	public function get_credentials_with_expiry() {
+		$response = $this->response();
+		if ( ! is_array( $response ) || empty( $response['data']['Credentials'] ) ) {
+			return false;
+		}
+
+		$credentials = $response['data']['Credentials'];
+
+		return array(
+			'key'     => (string) ( $credentials['accessKeyId'] ?? '' ),
+			'secret'  => (string) ( $credentials['secretAccessKey'] ?? '' ),
+			'token'   => (string) ( $credentials['sessionToken'] ?? '' ),
+			'expires' => (int) $response['data']['ExpiredAt'],
+		);
+	}
+
+	/**
+	 * 临时凭据本体（不含过期时间）。
+	 *
+	 * @return array<string,string>|false
+	 */
 	public function get_credentials() {
 		$response = $this->response();
 		if ( is_array( $response ) && ! empty( $response['data']['Credentials'] ) ) {
@@ -167,10 +233,24 @@ class S3_Doge_Cloud {
 	}
 
 	/**
-	 * 取一份成功响应：命中缓存就复用，否则重新请求并缓存。
+	 * 取一份成功响应，必要时先续期。
+	 *
+	 * 惰性续期就发生在这里：调用方（签名中间件）每次要凭据都会进来，所以
+	 * 「还剩多久」的判断必须便宜且准确——它跑在上传的关键路径上。
+	 *
+	 * 判定顺序：
+	 *
+	 * 1. 剩得比 REFRESH_MARGIN 多——直接用，不联网。
+	 * 2. 落在提前量里——续期。成功换新的；失败但旧值还没真正过期时继续用旧的，
+	 *    原因只进日志。正在跑的批量任务不该因为一次接口抖动整批失败。
+	 * 3. 旧值也已过期，或根本没有缓存——失败就是失败，last_error 带原因。
+	 *
+	 * 退避标记必须在**这里**检查，不能只放在「没缓存」那一支：批量上传时
+	 * 缓存通常还在（只是进了提前量），如果只看有没有缓存，接口挂掉的那几分钟
+	 * 里每一次签名都会重新打一次接口，把每日额度烧穿。
 	 *
 	 * Access Key / Secret 错误时多吉云也返回 HTTP 200，错误体现在响应体的
-	 * code 字段上，所以这里必须连 code 一起判断，不能只看状态码。
+	 * code 字段上，所以必须连 code 一起判断，不能只看状态码。
 	 *
 	 * @return array|false
 	 */
@@ -178,21 +258,71 @@ class S3_Doge_Cloud {
 		$this->cleanup_legacy_cache();
 		$this->last_error = '';
 
-		$response = $this->get_cached_response();
-		if ( ! $response ) {
-			$response = $this->request_credentials();
-			if ( ! is_array( $response ) ) {
-				$this->last_error = __( '多吉云接口没有返回可解析的响应，请稍后重试。', 'sakura-imgopt' );
-				return false;
-			}
-			if ( 200 !== (int) ( $response['code'] ?? 0 ) ) {
-				$this->last_error = $this->describe_failure( $response );
-				return false;
-			}
-			$this->cache_response( $response );
+		$cached    = $this->read_cache();
+		$remaining = $cached ? (int) $cached['data']['ExpiredAt'] - time() : 0;
+
+		if ( $cached && $remaining > self::REFRESH_MARGIN ) {
+			return $cached;
 		}
 
+		$backoff = get_transient( $this->backoff_key() );
+		if ( is_string( $backoff ) && '' !== $backoff ) {
+			if ( $cached && $remaining > 0 ) {
+				// 退避窗口里，旧凭据还能用：静默继续，别把上一轮的失败再喊一遍。
+				return $cached;
+			}
+			$this->last_error = $backoff;
+			return false;
+		}
+
+		$fresh = $this->fetch();
+		if ( is_array( $fresh ) ) {
+			return $fresh;
+		}
+
+		if ( $cached && $remaining > 0 ) {
+			/*
+			 * 旧的还没过期，续期先失败了。继续用它，把原因交给日志：
+			 * 签名请求会正常完成，用户看不到一句「凭据无效」。
+			 */
+			Log::write( __( '多吉云临时凭据续期失败，继续使用尚未过期的旧凭据：', 'sakura-imgopt' ) . $this->last_error );
+			$this->last_error = '';
+			return $cached;
+		}
+
+		return false;
+	}
+
+	/**
+	 * 真正打一次接口：成功写缓存并清退避标记，失败写退避标记。
+	 *
+	 * @return array|false
+	 */
+	private function fetch() {
+		$response = $this->request_credentials();
+		if ( ! is_array( $response ) ) {
+			$this->last_error = __( '多吉云接口没有返回可解析的响应，请稍后重试。', 'sakura-imgopt' );
+			$this->arm_backoff();
+			return false;
+		}
+		if ( 200 !== (int) ( $response['code'] ?? 0 ) ) {
+			$this->last_error = $this->describe_failure( $response );
+			$this->arm_backoff();
+			return false;
+		}
+
+		$this->cache_response( $response );
+		delete_transient( $this->backoff_key() );
 		return $response;
+	}
+
+	/**
+	 * 记下这次失败，RETRY_BACKOFF 秒内不再重试。
+	 *
+	 * @return void
+	 */
+	private function arm_backoff() {
+		set_transient( $this->backoff_key(), $this->last_error, self::RETRY_BACKOFF );
 	}
 
 	/**

@@ -6,7 +6,7 @@
 
 图片压缩 · 缩略图治理 · S3 对象存储 · 同步索引 · 用户文件空间
 
-[![版本](https://img.shields.io/badge/version-1.28.2-e85d8b?style=flat-square)](https://github.com/gongjing666/sakura-tools/releases/latest)
+[![版本](https://img.shields.io/badge/version-1.28.3-e85d8b?style=flat-square)](https://github.com/gongjing666/sakura-tools/releases/latest)
 [![PHPUnit](https://img.shields.io/badge/PHPUnit-10.5-4c1?style=flat-square)](https://github.com/gongjing666/sakura-tools/actions/workflows/tests.yml)
 [![PHPStan](https://img.shields.io/badge/PHPStan-level%205-4c1?style=flat-square)](https://github.com/gongjing666/sakura-tools/actions/workflows/phpstan.yml)
 ![WordPress](https://img.shields.io/badge/WordPress-6.4%2B-21759b?style=flat-square&logo=wordpress&logoColor=white)
@@ -40,6 +40,7 @@
 
 ## 最近更新
 
+- **1.28.3** — 存储生命周期十九条规则（R1–R19）全部落地并写进 `docs/开发规则/07-S3存储生命周期.md`。第一次成功上传后绑定存储身份（厂商 / 桶 / 端点 / 地域 / 云端路径），之后改任一项即视为换桶，服务端直接拒绝并返回 `error=locked`；高风险锁定（上传后删本地）想换桶只能全部删除后重来。**换桶之后同步中心会封存**，只有跑完一次完整核对才解锁——期间拦下所有「会按旧索引去向桶里写或删」的动作（刷新差异、继续核对、重试失败、批量上传/下载/删除），三个端点同时返回 409。切换当场弹插件弹窗说明三件事，不再只有左下角一行提示、也不用等刷新看顶部红字。顺带修了「开始完整核对」其实一直发增量扫描（自 1.22.8 起就没真正全量过）、渲染附件 URL 时每次写库、对账索引批量写入的占位符错位、`wp sakura-sync scan --full` 被 WP-CLI 拒绝，以及桶身份五套定义各自为政（现在收敛成 `Bucket_Identity` + `Bucket_Confirmation`，索引改按桶分区，Schema 1.9.0 自动迁移）。缩略图能力探测不再联网。
 - **1.28.2** — 存储配置操作规范化。切服务商保存不再覆盖原配置（服务商一变就新建一份，前端把「另存为新配置」勾上并锁定并说明原因）；换桶后已上传附件的 URL 会按同步索引自愈到新域名，切回去也会跟着回来，同步时间不变；腾讯云桶名不再被账号级 APPID 挤成 `sakura-c…4331`，只显示自定义部分；同一存储桶的两份配置不再互相判为换了桶；保存非在用配置不再把活动凭据写成明文；连接表单拒绝空桶名。「启用 S3 存储」从连接设置卡移到已保存的配置卡片上——点非活动卡片即切换并启用，再点当前卡片即关闭但保留配置，走 AJAX 就地重绘；每张卡片新增「连接测试」按钮，不切配置也能验证它是否还活着；卡片底部两个按钮等分两列，静止态就有边框。详见 [readme.txt](readme.txt) 的 changelog。
 - **1.28.1** — 去掉一条已经不再成立的缩略图警告。连接页在 1.28.0 已移除对象 ACL 控件，但旧配置里的 private 仍会触发「访客会收到 403」提示；实际可见性由存储空间策略 / CDN 决定，现在不再显示该警告。只是移除提示，不改上传与已有对象。
 - **1.28.0** — 对象存储多了两个页面。**链接改写**把数据库里旧的附件域名批量换成新域名（比如缤纷云 `bf.nboke.com` → 多吉云 `doge.nboke.com`），默认只扫文章与主题数据，插件自己的表要显式勾选；每行写前留原值，配回滚账本，改写后又被手改的行会被标成冲突并跳过。**费用估算**按存储量、流量、请求、图片处理和命中率，对多吉云、缤纷云、阿里云、腾讯云、七牛、又拍、百度、Cloudflare R2、Backblaze B2 与 MinIO 逐项算月账单，单价是内置公开价，不联网也不读厂商账单。同时把连接设置卡收敛成一张全宽卡：取消基础/高级折叠，移除会误导人的「文件访问权限（对象 ACL）」；多吉云/COS 的批量删除与分片 ETag 补了兼容兜底。PHPCS 的 37 条 warning 一并清零。详见 [readme.txt](readme.txt) 的 changelog。
@@ -102,17 +103,17 @@ flowchart LR
 | 兼容层 | `includes/`、`includes/views/` | 旧实现与后台模板，仍由启动流程加载，不能盲删 |
 
 <details>
-<summary><strong>代码规模与仓库结构（1.28.0）</strong></summary>
+<summary><strong>代码规模与仓库结构（1.28.3）</strong></summary>
 
 | 指标 | 数值 |
 | --- | --- |
-| 生产 PHP | 208 文件 / 71,908 行 |
-| 类与接口 | 191（含 7 个接口） |
-| 注册钩子 | 220 |
+| 生产 PHP | 210 文件 / 74,641 行 |
+| 类与接口 | 193（含 7 个接口） |
+| 注册钩子 | 222 |
 | 自定义表 | 24 |
 | 后台模块 | 4（15 个页签） |
-| 后台 CSS/JS | 43 文件 / 36,069 行（`assets/ui/` 31 文件 / 16,571 行） |
-| 测试 | 94 文件 / 14,014 行；623 tests / 2,940 assertions |
+| 后台 CSS/JS | 42 文件 / 37,037 行（`assets/ui/` 31 文件 / 17,547 行） |
+| 测试 | 101 文件 / 17,438 行；765 tests / 3,251 assertions |
 
 ```text
 sakura-tools/
@@ -270,7 +271,7 @@ git clone https://github.com/gongjing666/sakura-tools.git
 | 文档 | 内容 |
 | --- | --- |
 | [开发规则索引](docs/开发规则/00-索引.md) | **改代码从这里开始**：五分钟上手路径、按任务找文档、十条铁律 |
-| [代码结构文档](docs/sakura-tools-代码结构-1.28.0.md) | 文件树、类职责、依赖矩阵、钩子分布，附类 / 钩子 / 文件三个索引；由 `docs/tools/` 生成 |
+| [代码结构文档](docs/sakura-tools-代码结构-1.28.3.md) | 文件树、类职责、依赖矩阵、钩子分布，附类 / 钩子 / 文件三个索引；由 `docs/tools/` 生成 |
 | [DECISIONS.md](DECISIONS.md) | 关键设计取舍与已知边界，记录「为什么」而不是「现在有什么」 |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | 环境、提交前必跑的命令、提交信息与 PR 要求 |
 
@@ -325,7 +326,7 @@ composer lint:strict
 本地构建（默认当前 HEAD）：
 
 ```bash
-bin/build-plugin-zip.sh --version 1.28.0 --out dist
+bin/build-plugin-zip.sh --version 1.28.3 --out dist
 ```
 
 补建历史版本包：

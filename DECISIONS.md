@@ -721,3 +721,40 @@ body.upload-php.sufm-tree-active.folded { --sufm-tree-left: 56px; }
 - 目前只有多吉云走这条路。其他厂商若将来也改短效凭据，直接复用同一套：工厂分支 + callable + `$expires` + `S3_Credential_Error` + preflight。
 
 **维护动作**：改 `REFRESH_MARGIN` 要同时看服务商的最小 `ttl` 与任务的最长单次停顿；改 `Credentials` 的构造参数顺序要回看 AWS SDK 的 `CredentialsInterface`，第四个才是 `$expires`；新增入口若会「让用户等一个结论」，记得补 `preflight()`。
+## 切桶之后同步中心封存，直到跑完整核对（1.28.2-beta-6 / beta-7，2026-11-18）
+
+**背景**：从多吉云点另一张配置卡片切到缤纷云，页面只给了一条左下角 toast「已启用这份配置。」，同步中心照旧显示上一个桶的 132/132、100.0% 覆盖率、0 待处理——那些数字全是旧桶的结论，而用户看不出这一点。缩略图那边的提醒更晚：要刷新一次页面，才在顶部出现一条 WordPress admin notice。
+
+**决策**：
+
+1. **状态落 option，不落 transient**。`s3_options['reconcile_pending']`（形如 `array( profile_id, at, bucket, from )`）。transient 会过期，页面就会在某个时刻自己假装恢复；封存必须显式解除。`Options::reconcile_pending()`（`src/S3/Options.php:271`）返回 `null` 表示没封存（老站升级也走这条），返回数组表示封存中。
+2. **置位与改指向在同一次 `update_option` 里发生**。`Profile_Manager::activate()`（`src/S3/Profile_Manager.php`）在 `$moved = self::target_moved( $previous_target, $raw )` 为真时把 `reconcile_pending` 一并写进同一个 `$raw`，杜绝「新桶 + 旧数字」的中间窗口。`target_moved()`（`:311`）比对 `provider` / `bucket` / `space` / `region` / `endpoint` / `upload_path`——**后来 beta-8 按 R19.3 去掉了 `space`**，它是纯展示字段，多吉云的「存储空间名称」与真桶名毫无关系。
+3. **解锁只认「两端全量」**：`Scan_Service::finalize()` 里 `if ( $scan && in_array( (string) $scan->mode, array( 'full', 'resume' ), true ) )` → `Options::clear_reconcile_pending( $profile )`。带上 `resume` 是因为 `Index_Repository::resume_scan()` 会把 mode 改写成 `'resume'`，但那一趟仍然两端全量。`clear_reconcile_pending()` 只认闸门自己记录的 profile（owner 不同直接 return）。
+4. **闸门判据只有一条**：*这个动作会不会按索引里的旧数字去向桶里写或删*。禁用：刷新差异、继续核对、重试失败、批量上传/下载/删除、所有行内动作；放行：「开始完整核对」「重新核对（本地+云端）」、立即校准、toggle-index、测试连接、忽略规则保存、补建媒体库记录。前端另有一份 `GATE_ALLOWED`（`assets/ui/js/pages/storage-sync.js`），用 `Object.prototype.hasOwnProperty.call` 判断，避免原型链上的同名键误放行。
+5. **服务端也要拦，不能只靠按钮 disabled**。`sakura_s3_retry` 在 `includes/class-s3-storage-module.php:501-513` 补了 409 + `sio_reconcile_required`：失败清单属于旧桶，而旧标签页手里的 nonce 仍然有效。`ajax_resume` / `ajax_refresh` / `ajax_action` 三处同样拦。
+6. **切桶提醒走插件弹窗，不走 admin notice**。`S3_Storage_Page::switch_modal_html()`（`:1058-1091`）渲染一张 `OBJECT STORAGE / SWITCHED` 卡片，三条列表（缩略图改写已关 / 同步中心数据是上一个桶的 / 上传行为两开关仍按原绑定），走 AJAX 返回体的 `switchModal` 字段就地弹出；缩略图页那边同样从顶部 notice 改成 `#sakura-thumb-switch-modal`，transient 读一次即删，只弹一次。
+
+**顺带修掉的老缺陷**：`Sync_Center_Module::ajax_scan()` 原本 `$scan_id = $this->scanner->start();` 不传 mode，而 `Scan_Service::start( $profile_id = '', $mode = 'incremental' )` 的默认值是增量——**「开始完整核对」按钮从 v1.22.8（55cb935）起一直发的是增量扫描**，不可能重建新桶全貌。现在改成 `start( '', 'full' )`。
+
+**已知边界**：封存只覆盖「同步索引与它的展示」，不阻止上传（上传会自己写 synced 行）。也就是说封存期间新传的文件是可信的，旧数字才是不可信的。这一点由 R19.5 的「渲染不写库」配合：页面上的数字只读索引，不在渲染时偷偷改指纹。
+
+**维护动作**：新增任何「按索引旧数字动作」的 AJAX 入口，都必须同时进 `guard_reconcile_gate()` 与前端 `GATE_ALLOWED`，并补一条服务端 409 用例；改 `target_moved()` 的字段集合要同步 `tests/ReconcileGateTest.php`（15 条，含「space 不封存 / region 仍封存」两条）。
+
+## 桶身份只有一处定义，三档字段不许混用（1.28.2-beta-8 / beta-9，2026-11-18）
+
+**背景**：同一件事——「这是哪个桶」——在仓库里有五套互相矛盾的定义：附件指纹 v2 用 `provider|bucket|endpoint|upload_path`、legacy 别名多一段 profile id、删除队列 `Delete_Jobs::target_hash()` 用 `provider|bucket|endpoint|region`、切桶判定 `target_moved()` 用六项（含 `space`）、绑定判定 `Options::IDENTITY_FIELDS` 用五项（含 `region`、不含 `space`）。表现是三个真实的 bug：`space` 是纯展示字段却被当成换桶（多吉云改个显示名就封存同步中心）；索引按 `profile_id` 分区，同一桶换一份配置行就再也确认不了对象；`lost_local_count()` 用 `hash_equals` 精确比对，legacy 形式存下的指纹在破坏性确认框里被漏掉、弹窗报 0。
+
+**决策**：
+
+1. **字段分三档**（`docs/开发规则/07-S3存储生命周期.md` R19.2）：A 档寻址 `provider|bucket|endpoint|upload_path`（决定对象在哪、URL 长什么样）；B 档可用性 `region|key|secret|object_acl`（能不能连上，不影响寻址）；C 档展示 `space|upload_url_path|name`（只给人看）。**只有 A 档能当桶身份。**
+2. **`Bucket_Identity` 是唯一定义**（`src/S3/Bucket_Identity.php`）。`ADDRESS_FIELDS` / `REACH_FIELDS` / `VERSION = 'v2'`，`from_options()` / `from_profile()` / `hash()` / `fields()` / `same_as()` / `differences()`。`Synchronous_Uploader::target_hash_for()` 与 `target_hashes_for()` 委托它，**输出逐字节不变**（V28 验收：手写旧算法与委托后哈希相同）。
+3. **确认走唯一入口** `Bucket_Confirmation`（`src/S3/Bucket_Confirmation.php`）：`confirms( int )` / `confirms_key( string )` / `confirms_many( array )`，顺序固定「指纹 → 索引批量 → 否定」。结果按 `(桶身份, key)` 进 `wp_cache` 组 `sakura_imgopt_bucket`，`flush()` 用 generation 计数整组退休；`Index_Repository` 惰性构造，只有真要查库时才碰 `$wpdb`。
+4. **索引按桶身份分区**（Schema 1.9.0，beta-9）。`sio_sync_index` 唯一键从 `(profile_id, object_key_hash)` 改成 `(target_hash, object_key_hash)`，`sio_sync_counts` 主键改 `(target_hash, status)`。**桶是分区键，配置行只是标签**：`profile_id` 降级为「最后一次确认它的配置行」，每次 `upsert` 的 `ON DUPLICATE KEY UPDATE` 把它刷成最新写入者。过渡版（beta-8）先让 `find_many()` 接受「所有指向同一桶身份的配置行」集合，beta-9 再收拢成单值。
+5. **渲染期绝不写库**。`Storage::confirmed_in_active_bucket()`（`src/S3/Storage.php:844`）原来命中索引后直接 `status->retarget()` 改 post meta，而这个函数挂在 `wp_get_attachment_url`（`:145`）与 `wp_calculate_image_srcset`（`:174`）上——**每浏览一次文章就写一次库**，生产实测指纹分布随浏览从 126/6 漂到 132/0。现在渲染只读，回填改由 `Scan_Service::finalize()` 的 `backfill_fingerprints()` 做（只在 `full` / `resume` 时进）。
+6. **指纹升级成带出处的确认记录**：`_sakura_imgopt_s3_target` 保持裸字符串（旧代码继续比对），另写 `_sakura_imgopt_s3_target_meta = { hash, confirmed_at, confirmed_by: upload|scan, profile_id }`。只有两个写入者：`mark_synced()`（upload）与 `retarget()`（scan），都由私有 `write_target_info()` 生成。`synced_at` 仍然不刷新——没重传就不该假装刚同步。
+
+**踩过的坑**：`wp_cache_get()` 未命中返回 `false`，与「缓存的否定答案」不可区分——必须按引用取 `$found` 才能分清，否则索引兜底永不触发、7 个用例一起红。`Index_Repository` 的构造函数读 `$wpdb->prefix`，任何「构造即 new」在 CLI/REST 下会 `Attempt to read property "prefix" on null`，必须惰性。
+
+**已知边界**：`fast-search.php` 走 SHORTINIT、没有 autoloader，只能就地重写同一套哈希（`hash('sha256', implode('|', array('v2', provider, bucket, endpoint, upload_path)))`）。**改 `Bucket_Identity::hash()` 必须同步改这一处**，代码里有注释标注。
+
+**维护动作**：改 A 档字段要同时动 `Bucket_Identity`、`fast-search.php`、`Delete_Jobs::target_hash()`（它是另一套语义，只加注释不合并）与 `tests/IndexPurgeTest.php` / `tests/StorageBucketSwitchTest.php` / `tests/ReconcileGateTest.php`；Schema 迁移的验收见 07 文档 §9 的 V28j / V28k。

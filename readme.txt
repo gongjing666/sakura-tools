@@ -4,7 +4,7 @@ Tags: image optimization, webp, avif, imagick, media library
 Requires at least: 6.4
 Tested up to: 7.1.4
 Requires PHP: 8.2
-Stable tag: 1.28.2-beta-10
+Stable tag: 1.28.3
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -80,6 +80,21 @@ Access Key 和 Secret 会加密后存进数据库，页面和源码都不会显�
 
 == Changelog ==
 
+= 1.28.3 =
+
+* 新增：**存储生命周期十九条规则落地（R1–R19）**，并写进 `docs/开发规则/07-S3存储生命周期.md`。第一次成功上传后记录绑定快照（厂商 / 桶 / 端点 / 地域 / 云端路径五项），此后改动任一项即视为换桶，服务端直接拒绝写库并返回 `error=locked`，不再弹窗放行；高风险锁定（上传后删本地）解绑必须全部删除后重来。上传行为两项（上传后删本地、不上传缩略图）在绑定后整卡冻结，改 POST 也不生效。
+* 新增：**切桶之后同步中心封存，跑完一次完整核对才解锁**。切桶与写入封存标记在同一次 `update_option` 内完成，页面不会出现「新桶 + 旧数字」的中间态；封存标记落 option 而不是 transient，过一段时间不会自己变回正常。闸门只拦「会按旧索引去向桶里写或删」的动作（刷新差异、继续核对、重试失败、批量上传/下载/删除），放行只读与「开始完整核对」「立即校准」「测试连接」「忽略规则」「补建媒体库记录」。三个服务端端点同时返回 409 `sio_reconcile_required`，旧标签页也拦得住。
+* 新增：**切桶改用插件弹窗提醒，不再只有左下角一行成功提示**。切换成功后当场弹出三件事：缩略图地址改写已关闭、同步中心的数据仍是上一个桶的、上传行为两个开关仍按原绑定；按钮直达同步中心。原来那条要在刷新后才出现的顶部红字通告已删除。
+* 修复：**「开始完整核对」按钮此前一直发的是增量扫描**。`Sync_Center_Module::ajax_scan()` 自 1.22.8 起调用 `Scan_Service::start()` 时没传 mode，于是走默认增量，永远无法在新桶上重建全貌——这也让 1.28.3 的封存解锁条件不可能满足。现在固定发 `full`。
+* 修复：**缩略图能力探测不再联网**。删掉了「抽样 HEAD 请求验证服务商能不能吃尺寸后缀」的逻辑与它缓存的判定结果，改由 `Provider_Registry` 静态声明能力；缩略图页不再因为外部网络慢而卡住，也不会把一次失败的探测永久当成结论。切换存储目标时缩略图改写总开关自动关闭并给一次性提示。
+* 修复：**从云端下载回本地的附件补写两处状态**。此前只落了文件，附件在同步中心仍是 pending，用户文件空间的已用容量也少算一份；现在下载落库后同时回写附件同步状态与配额账本。
+* 修复：**多吉云的临时凭据按需续期**。多吉云只签发两小时有效的 S3 临时凭据，原来的实现在建客户端时取一次就当永久用，跨两小时的批量任务（全量重建、重试队列、WP-CLI）会在中途集体失败。现在每次请求按需取用与续期。
+* 调整：**桶身份只有一处定义，字段按三档分开**。此前同一件事有五套互相矛盾的「桶身份」定义（附件指纹、旧版指纹、删除队列指纹、切桶判定、绑定判定），字段集合各不相同。现在统一成 `Bucket_Identity`（寻址：厂商 / 桶 / 端点 / 云端路径）与 `Bucket_Confirmation`（唯一的存在性确认入口），`region` 归入可用性字段、`space` 与图片地址前缀只做展示，都不再参与寻址判定——同一桶换一行配置不会误判成换桶，多吉云换个空间名也不会误触发封存。
+* 修复：**对账索引改按存储桶分区，同桶多份配置共享一套索引**。`sio_sync_index` 与 `sio_sync_counts` 的主键与唯一键改为按桶身份（`UNIQUE KEY target_object(target_hash, object_key_hash)`），Schema 升到 1.9.0 并自动迁移：旧行按各自配置回填桶身份、同一桶同一对象的重复行合并、计数表重建。切换配置行不再让云端明明存在的对象被判成「未确认」而把 URL 全量退回站点域名；删掉一份共享同桶其他配置本会保留的索引。
+* 修复：**渲染附件 URL 时不再写数据库**。此前每次命中索引确认都会回写一次附件指纹与同步时间，于是同一批附件的「指纹属于哪个桶」会随浏览不断变化。现在浏览只读，指纹回填只在完整核对结束时做一次；附件指纹本身逐字节不变，无需重传。
+* 修复：**批量写入对账索引的占位符错位**。`Index_Repository::upsert()` 的每个元组有 12 个占位符但列清单有 13 列，配置行标签被拼在 VALUES 列表之外，MariaDB 直接报语法错——任何批量写入（完整核对、上传回写、CLI 扫描）都会失败。已修，并补了一个校验「每行各带自己的标签」的测试。
+* 修复：**`wp sakura-sync scan --full` 不再被 WP-CLI 拒绝**。命令实现里读了 `--full` 但帮助声明里漏了这一项，于是命令行只能发增量、无法触发完整核对。
+* 影响范围：新增 `src/S3/{Bucket_Identity,Bucket_Confirmation,S3_Credential_Error}.php`、`src/UserFiles/Services/Media_Adoption.php` 与 6 个测试文件；删除 `src/Thumbnail/{Probe,Provider_Status}.php`；改动集中在 `src/S3/`（Options、Profile_Manager、Settings_Saver、Storage、Sync_Status、Synchronous_Uploader、S3_Storage_Page、Sync_Center_Module、Client_Factory、Credential_Cipher、Delete_Jobs、Upload_Observer、Error_Mapper、Cost_* 除外）、`src/Sync/`（Schema、Index_Repository、Scan_Service、Action_Worker、Attachment_Adopter、CLI）、`src/Thumbnail/`、`src/UserFiles/Services/`、`includes/`（class-s3-storage-module、class-thumbnail-optimizer-module、views/s3-sync-center、views/thumb-settings）、`fast-search.php` 与 `assets/ui/`。**数据库需要迁移**：`sio_sync_index` 与 `sio_sync_counts` 的键结构改为按桶身份分区，升级后首次请求自动执行（先导出备份），已同步的附件无需重传、指纹逐字节不变；`s3_options` 新增 `reconcile_pending` 与 `binding` 两个键，缺省不影响旧站点。新增钩子 1 条（`wp_calculate_image_srcset`）、删除 1 条（`admin_post_sakura_thumb_probe`），数据表数量不变（24 张）。
 = 1.28.2 =
 
 * 修复：**切换存储服务商时不再覆盖原配置**。连接设置卡隐藏提交的 profile_id 是当前活动配置，服务端只判断「另存为新配置 / id 为空 / id 不存在」三件事，没有厂商判定，于是从多吉云切到腾讯云再保存，原多吉云配置被整条重写成腾讯云。现在服务商一变就强制新建一份配置，前端把「另存为新配置」勾上并禁用，同时在卡片里说明这次保存会新建、原配置保持不动。生产实测：保存后配置 3 份变 4 份，原配置内容零改动。

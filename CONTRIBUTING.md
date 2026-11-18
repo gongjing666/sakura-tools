@@ -24,7 +24,7 @@ composer install
 ## 3. 提交前必须跑的命令
 
 ```bash
-composer test          # PHPUnit，基线 656 tests / 3016 assertions / 6 skipped
+composer test          # PHPUnit，基线 765 tests / 3251 assertions / 6 skipped
 composer phpstan       # PHPStan level 5，必须 [OK] No errors
 composer lint:strict   # PHPCS，必须 0 error
 php -l <改过的每个 PHP 文件>

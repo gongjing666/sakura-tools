@@ -196,8 +196,8 @@ final class Uploader {
 			'size'     => $size,
 		);
 
-		$display = mb_substr( sanitize_file_name( basename( $name ) ), 0, 120 );
-		$title   = '' !== $display ? preg_replace( '/\.[^.]*$/', '', $display ) : __( '文件', 'sakura-imgopt' );
+		$display = self::display_name( $name );
+		$title   = self::title_for( $display );
 
 		// The REST pipeline already validated size, type, quota and throttles.
 		// Flag it so the shared media-library prefilter does not re-check (and
@@ -223,6 +223,19 @@ final class Uploader {
 			);
 
 			if ( is_array( $upload ) && ! isset( $upload['error'] ) ) {
+				// 上传重命名（wp_handle_upload_prefilter → src/Image/Upload_Renamer.php）
+				// 与图片格式转换都发生在 wp_handle_upload() 内部，所以 $name 还是
+				// 重命名之前的原名。台账 display_name 与附件标题一律改取最终落盘
+				// 的文件名，否则前台文件列表显示原始哈希名，而媒体库因为
+				// Upload_Renamer::sync_attachment_title() 回写过 post_title 显示的
+				// 是新名——同一张图在两处名字不一样。
+				$final_display = self::display_name( (string) ( $upload['file'] ?? '' ) );
+
+				if ( '' !== $final_display ) {
+					$display = $final_display;
+					$title   = self::title_for( $display );
+				}
+
 				$attachment_id = wp_insert_attachment(
 					array(
 						'post_mime_type' => (string) ( $upload['type'] ?? $check['type'] ),
@@ -401,6 +414,29 @@ final class Uploader {
 			'url'            => (string) wp_get_attachment_url( $attachment_id ),
 			'folder_id'      => $folder_id,
 		);
+	}
+
+	/**
+	 * 文件名 → 台账显示名。
+	 *
+	 * 参数既可以是 $_FILES 里的原名，也可以是 wp_handle_upload() 返回的绝对
+	 * 路径：两者都先取 basename，再走 sanitize_file_name() 与 120 字截断。
+	 *
+	 * @param string $path_or_name 文件名或绝对路径。
+	 * @return string
+	 */
+	private static function display_name( string $path_or_name ): string {
+		return mb_substr( sanitize_file_name( wp_basename( $path_or_name ) ), 0, 120 );
+	}
+
+	/**
+	 * 台账显示名 → 附件标题（去掉扩展名）。
+	 *
+	 * @param string $display 台账显示名。
+	 * @return string
+	 */
+	private static function title_for( string $display ): string {
+		return '' !== $display ? (string) preg_replace( '/\.[^.]*$/', '', $display ) : __( '文件', 'sakura-imgopt' );
 	}
 
 	/**

@@ -50,6 +50,18 @@ class S3_Doge_Cloud {
 	 */
 	private $last_error = '';
 
+	/**
+	 * 网络层失败的原文（WP_Error 的 message）。
+	 *
+	 * 地址不可用、DNS 被劫持、被 wp_http_validate_url() 判为非法这类失败都
+	 * 发生在发包之前，响应体根本不存在，于是上层只会看到一句「没有返回可
+	 * 解析的响应」。把 WP_Error 的原文留下来，才分得清是签名错、额度停用
+	 * 还是本机代理的 fake-IP 段（198.18.0.0/15）被 WordPress 拦下。
+	 *
+	 * @var string
+	 */
+	private $last_transport_error = '';
+
 	public function __construct( $access_key, $secret_key ) {
 		$this->access_key = (string) $access_key;
 		$this->secret_key = (string) $secret_key;
@@ -142,6 +154,8 @@ class S3_Doge_Cloud {
 	}
 
 	private function request_credentials() {
+		$this->last_transport_error = '';
+
 		$path = '/auth/tmp_token.json';
 		$data = array(
 			'channel' => 'OSS_FULL',
@@ -152,7 +166,15 @@ class S3_Doge_Cloud {
 			return false;
 		}
 		$signature = hash_hmac( 'sha1', $path . "\n" . $body, $this->secret_key );
-		$response  = wp_safe_remote_post(
+		/*
+		 * 用 wp_remote_post 而不是 wp_safe_remote_post：目标是硬编码的厂商
+		 * 接口地址，不来自任何用户输入，SSRF 校验在这里换不来安全，却会让
+		 * 整条凭据链在「域名被解析到 198.18.0.0/15」时整体失效——Clash /
+		 * mihomo 的 fake-IP 模式正是把域名解析到这一段，而 WordPress 的
+		 * wp_http_validate_url() 把它标成 benchmarking 网段，请求在发包之前
+		 * 就被拒成「URL 无效」，用户看到的是「多吉云接口没有返回可解析的响应」。
+		 */
+		$response  = wp_remote_post(
 			'https://api.dogecloud.com' . $path,
 			array(
 				'timeout'     => 30,
@@ -165,7 +187,8 @@ class S3_Doge_Cloud {
 			)
 		);
 		if ( is_wp_error( $response ) ) {
-			Log::write( __( '多吉云临时凭据请求失败：', 'sakura-imgopt' ) . $response->get_error_message() );
+			$this->last_transport_error = (string) $response->get_error_message();
+			Log::write( __( '多吉云临时凭据请求失败：', 'sakura-imgopt' ) . $this->last_transport_error );
 			return false;
 		}
 		if ( (int) wp_remote_retrieve_response_code( $response ) !== 200 ) {
@@ -301,7 +324,13 @@ class S3_Doge_Cloud {
 	private function fetch() {
 		$response = $this->request_credentials();
 		if ( ! is_array( $response ) ) {
-			$this->last_error = __( '多吉云接口没有返回可解析的响应，请稍后重试。', 'sakura-imgopt' );
+			$this->last_error = '' !== $this->last_transport_error
+				? sprintf(
+					/* translators: %s: transport-level error message */
+					__( '多吉云接口请求失败：%s', 'sakura-imgopt' ),
+					$this->last_transport_error
+				)
+				: __( '多吉云接口没有返回可解析的响应，请稍后重试。', 'sakura-imgopt' );
 			$this->arm_backoff();
 			return false;
 		}

@@ -185,6 +185,23 @@ if ( ! function_exists( 'wp_basename' ) ) {
 	}
 }
 
+if ( ! function_exists( 'sanitize_file_name' ) ) {
+	/**
+	 * Minimal sanitize_file_name shim.
+	 *
+	 * WordPress strips everything outside its allowlist and transliterates
+	 * UTF-8 names; the pipeline only relies on that allowlist part, and every
+	 * fixture here is ASCII, so a single character-class pass is faithful
+	 * enough and keeps the shim honest about what it does not cover.
+	 *
+	 * @param string $filename File name.
+	 * @return string
+	 */
+	function sanitize_file_name( $filename ) {
+		return (string) preg_replace( '/[^A-Za-z0-9._-]+/', '-', (string) $filename );
+	}
+}
+
 if ( ! function_exists( 'get_stylesheet' ) ) {
 	/**
 	 * Active stylesheet shim; tests switch themes via $GLOBALS['sakura_test_theme'].

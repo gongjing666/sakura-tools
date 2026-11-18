@@ -4,7 +4,7 @@ Tags: image optimization, webp, avif, imagick, media library
 Requires at least: 6.4
 Tested up to: 7.1.4
 Requires PHP: 8.2
-Stable tag: 1.28.3-beta-1
+Stable tag: 1.28.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -79,6 +79,12 @@ Access Key 和 Secret 会加密后存进数据库，页面和源码都不会显�
 插件目前没有接管这个跳转。等出现「既要防直链、又要保留购买校验」的需求时再研发，方向是在主题之前拦截下载请求，由插件代理输出或签发短时有效的预签名地址；若暂时需要这层保护，请关闭「上传后删除本地文件」，让文件保留在本地。
 
 == Changelog ==
+
+= 1.28.4 =
+
+* 修复：**前台上传的图片在文件空间里显示上传前的原始文件名**。台账 `display_name` 原来在 `wp_handle_upload()` 之前就按 `$_FILES` 里的原名算出来，而上传重命名（`Upload_Renamer` 挂在 `wp_handle_upload_prefilter`）和图片格式转换都发生在 `wp_handle_upload()` 内部，于是同一张图在媒体库显示重命名后的新名（附件标题后来被回写）、在文件空间显示原始哈希名。现在上传成功后按最终落盘文件名重算台账显示名与附件标题，两处一致；上传失败时仍回落到原名，错误提示不受影响。
+* 修复：**多吉云临时凭据请求被 WordPress 的 URL 校验在发包前拒掉**。`S3_Doge_Cloud::request_credentials()` 用的是 `wp_safe_remote_post`，它会先跑 `wp_http_validate_url()`，而该函数把 `198.18.0.0/15` 判为非法（benchmarking 网段）——Clash / mihomo 的 fake-IP 模式恰好把域名解析到这一段，请求于是变成「URL 无效」，界面显示「多吉云接口没有返回可解析的响应，请稍后重试」，上传结果只落在本地、没进存储桶。改用 `wp_remote_post`（目标地址是硬编码的厂商接口，不需要 SSRF 校验），并把 `WP_Error` 的原文带进错误信息，以后同类问题能直接看到真实原因。
+* 影响范围：`src/UserFiles/Services/Uploader.php`（新增 `display_name()` / `title_for()` 两个私有静态方法）、`includes/class-s3-doge-cloud.php`（新增 `$last_transport_error`）、`tests/bootstrap.php`（补 `sanitize_file_name` 桩）与新增的 `tests/UserFilesUploadNameTest.php`。**无表结构、无 option、无钩子变化**，升级不需要迁移；`docs/开发规则/07-S3存储生命周期.md` 的 R17 行号随之重指，并记下这次 fake-IP 事故的成因，避免有人把这行改回 `wp_safe_remote_post`。
 
 = 1.28.3 =
 

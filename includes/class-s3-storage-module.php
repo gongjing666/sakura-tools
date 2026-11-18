@@ -243,10 +243,12 @@ class S3_Storage_Module implements Module {
 		$repository->purge_index( $profile_id, $profile_bucket );
 		( new Delete_Jobs() )->forget_profile( $profile_id );
 
-		// R8 step 7 is deliberately missing: the OpenList mirror mount that would
-		// have to be unmounted here does not exist yet (08-OpenList迁移通道 是规范,
-		// 1.28.2 尚无代码). Once it lands, unmounting belongs here and must stay
-		// best-effort — an unreachable OpenList may not roll back a profile delete.
+		// There is no R8 step 7 on purpose (07-S3存储生命周期 R8 只做 6 步).
+		// Earlier drafts of 08-OpenList迁移通道 planned a resident OpenList mirror
+		// mount per profile that this delete would have to unmount too. That
+		// migration channel is not being built (see 08 §11): moving objects from
+		// one bucket to another stays a manual job, so a profile delete has no
+		// external mount to clean up and must never depend on OpenList.
 
 		$this->redirect(
 			array(

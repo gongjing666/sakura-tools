@@ -1,29 +1,31 @@
-# 08 OpenList 迁移通道
+# 08 OpenList 搬桶手册（插件不做迁移通道）
 
-这一页记录本站点上的 **OpenList** 实例，以及「把已经上传到 A 桶的对象搬到 B 桶」这件事怎么借它完成。**它不是上传路径**——上传永远走 WordPress 媒体库与插件自己的 `Object_Store`；OpenList 只在换桶时当搬运工，平时以**常驻镜像挂载**的形式跟着插件的存储配置走（§4）。
+这一页记录本站点上的 **OpenList** 实例，以及「跨厂商搬桶」这件事**人工**怎么做。**OpenList 不是上传路径，也不在插件里**——上传永远走 WordPress 媒体库与插件自己的 `Object_Store`；插件与 OpenList 之间**没有任何代码耦合**（没有常驻镜像挂载、没有迁移卡、没有凭据落库）。
 
-> 相邻篇：换桶在生命周期里只允许一条路径，见 [07-S3存储生命周期](07-S3存储生命周期.md) §6；新增一家存储厂商见 [02-新增功能](02-新增功能.md) §12；option 的读写与卸载见 [04-数据与存储](04-数据与存储.md)。
+> 相邻篇：换桶在插件里的唯一路径见 [07-S3存储生命周期](07-S3存储生命周期.md) §6；新增一家存储厂商见 [02-新增功能](02-新增功能.md) §12；option 的读写与卸载见 [04-数据与存储](04-数据与存储.md)。
 > 本页的 API 事实分两批取证：**2026-11-17** 用本机实例实测（当时 v4.2.4），**2026-11-18** 按本机 v4.2.9 与上游源码逐条复核（`/api/fs/copy` 的合并语义、任务队列持久化、跨挂载的元数据损失）；插件侧基线 1.28.3。上游改版后以实测为准并顺手修正本页。
 > 本页**不含任何明文密钥**。账号密码走运维侧凭据文件与记忆，不进仓库。
-> **状态：规范已定，代码未实现（截至 1.28.3）。** 页面上的「常驻镜像挂载」「随配置增删同步」「迁移入口仅多配置开放」都还是设计（§4、§7），落地前插件里没有任何 OpenList 相关代码。
+> **状态（2026-11-18 定稿）：插件不实现 OpenList 迁移通道。** 本页是**人工操作手册**，不是待实现的设计；决策与理由见 §11 第一行。能不用 OpenList 就别用——本地有副本时插件原生上传（§7.4）完全够用，且它是本站唯一能验证「搬对了」的路径。
 
-## §0 边界：它是迁移通道，不是存储后端
+## §0 边界：人工工具，不是插件功能
 
 | 问题 | 答案 |
 |---|---|
 | 插件上传附件时是否经过 OpenList？ | **不经过。** 上传仍由 `Object_Store`（`src/S3/Object_Store.php`）直连存储桶。 |
-| 插件是否依赖 OpenList 才能工作？ | **日常不依赖。** OpenList 挂了只影响「换桶迁移」这一个动作，上传、同步中心、缩略图全部照常；**保存存储配置也绝不受它影响**（见 §4.7）。 |
+| 插件是否依赖 OpenList 才能工作？ | **完全不依赖。** 插件里没有任何 OpenList 代码：不存 token、不建挂载、不做迁移卡。OpenList 只是运维手工工具。 |
 | 为什么不自己做桶到桶复制？ | 跨厂商没有服务端复制：`x-cos-copy-source` / OSS 的 `x-oss-copy-source` 只能表达「一个桶 + 一个键」，带不了第二个 endpoint 与第二套凭据。插件内部也没有 `CopyObject` 调用点，只能「下载到磁盘 → 再上传」中转。 |
-| 那 OpenList 凭什么能跨厂商搬？ | 它在**服务端**同时挂载源与目标（自己持有两套凭据），流式读源写目标，站点只发一个 `/api/fs/copy` 然后轮询结果。带宽与内存都不经过 PHP。 |
-| 挂载是临时的还是常驻的？ | **常驻。** 每份插件配置在 OpenList 上有一份长期镜像挂载，随配置增删（§4）。迁移时直接用，不现场建。 |
-| 谁能建、谁能删挂载？ | **只有插件自己**，且只碰 `/sakura-tools/` 命名空间下带自己归属标记的挂载（§4.1）。别人的挂载一律只读。 |
-| 什么情况下能用迁移？ | 分两种：**走 OpenList 通道**（本文 §7）需要**至少两份已保存配置**，只有一份时迁移入口整块置灰（§7.1）；**插件原生上传**（`wp sakura-s3 migrate`）不需要第二份配置，它就是 07 §6 换完配置之后的补传（§7.2 路线 A）。 |
+| 那为什么不接 OpenList 来做？ | **2026-11-18 决定不接**，理由见 §11 第一行：搬完的内容插件验证不了（`verify` 只处理本地有文件的行），预填还会把索引灌成「已同步」，后患比省下的流量贵。搬桶交给专业软件或人工。 |
+| 那 OpenList 在本站还有什么用？ | 手工搬桶（§7.5）、在浏览器里浏览与核对桶内容、排障时验证凭据和路径。这些都不需要插件参与。 |
+| 挂载是临时的还是常驻的？ | **临时。** 人工按 §4 建源、目标两份挂载，搬完删掉。插件不再维护任何常驻挂载。 |
+| 谁能建、谁能删挂载？ | 只有 OpenList **管理员**账号（`role=2`，§2.2）。人工建的挂载自己清理；`/sakura-tools/` 命名空间属于历史设计，已废弃。 |
+| 什么情况下该用 OpenList 搬？ | 只有「本地确实没有副本，也不想要」这一种，且要接受内容不可全量验证、元数据会丢（§7.5）。本地有副本一律走插件原生上传（§7.4）。 |
 
-三条边界规则，写代码前先记住：
+四条边界规则：
 
 1. **上传路径不引入 OpenList。** 引入常驻外部服务会把「传一张图」变成「两个系统都得活着」。
-2. **挂载常驻但可随时重建。** 它只是「怎么读那个桶」的一份缓存描述，真正的数据在桶里，删了挂载什么都不会丢——所以对账失败永远不是紧急事故。
-3. **删挂载不等于删桶。** 插件只会调 `storage/delete?id=` 删**挂载记录**，从不删桶、从不删对象。桶里的东西要清只能去厂商控制台。
+2. **插件不写任何 OpenList 代码。** 不存 token、不建挂载、不做定时对账——少一个外部依赖面，也少一处凭据落库。
+3. **删挂载不等于删桶。** `storage/delete?id=` 只删**挂载记录**，从不删桶、从不删对象。桶里的东西要清只能去厂商控制台。
+4. **搬完必须回插件侧对账。** OpenList 写进去的对象插件不知道；切到目标后必须 `wp sakura-sync scan --full` 重建索引，再 `verify`（有本地副本时才有意义）。
 
 ## §1 本机部署事实
 
@@ -39,7 +41,7 @@
 | 令牌有效期 | `config.json` 的 `token_expires_in = 48`（小时） |
 | 管理员账号 | `3031379629@qq.com`（`x_users` id=1，role=2）。**密码不写在本页**，见运维凭据文件与记忆 |
 | 普通账号 | `nboke`（id=4，role=0，permission=32767），只够做 `/api/fs/*` |
-| 插件占用的命名空间 | `/sakura-tools/`（虚拟路径，不是挂载本身；不要手工往里放别的东西） |
+| 历史命名空间（已废弃） | `/sakura-tools/`（虚拟路径，不是挂载本身）。插件不再占用它，手工搬桶请用 §4.1 的 `/migrate/` 前缀 |
 
 事故排查先看这两处：
 
@@ -88,19 +90,13 @@ Authorization: <token>
 | `/api/admin/driver/*`（驱动清单与字段定义） | ❌ 403 | ✅ 可用 |
 | `/api/task/copy/undone`、`/done` | ✅ 可用 | ✅ 可用 |
 
-**关键结论：搬运本身不需要管理员权限；建、改、删常驻挂载才需要。** 所以插件若要做到「新增配置即自动挂载」，必须持有管理员凭据。
+**关键结论：搬运本身不需要管理员权限，建、改、删挂载才需要。** 人工搬桶时用管理员账号一次性建两份临时挂载，搬完删掉；插件不持有任何 OpenList 凭据。
 
-### §2.3 插件侧凭据怎么存
+### §2.3 插件不存 OpenList 凭据（历史方案已否决）
 
-| 方案 | 结论 |
-|---|---|
-| 存管理员用户名 + 密码 | **采用。** 用与 S3 密钥同一套 `Credential_Cipher`（`src/S3/Credential_Cipher.php`）加密后存进**独立 option** `sakura_imgopt_openlist`，明文不落库、不进日志、不回显到页面；卸载时进 `Uninstaller` 清理清单 |
-| 只存 token | 不采用。48 小时就要人工重新登录，迁移功能会变成「两天可用一次」 |
-| 用普通账号 | 不采用。role=0 建不了挂载，等于自动同步整个做不了 |
+本页只留一句结论，避免后来人再去实现一遍：**插件不存 OpenList 的任何凭据**。历史设计曾打算用 `Credential_Cipher` 把管理员账号加密进独立 option `sakura_imgopt_openlist`（连 token 缓存与 401 重登都规划过），2026-11-18 决定不做迁移通道后，这套东西一并取消——仓库里没有该 option、没有对应类，`Uninstaller` 也不需要清理它。
 
-登录得到的 token 缓存进 transient（键里带 `url + 账号` 的 hash，TTL 取 48 小时与配置值中较小者但每次用前先探活），遇到 401 就重新登录一次再重试，最多一次。
-
-**为什么不复用 `s3_options`**：那份 option 由 `Settings_Saver` 按「一张卡一个 option group 切片」的约定整体重写（`src/Admin/Card_Form.php:112` 的 `guard_options()` 与之配套），混进 OpenList 字段会让「保存一张卡清空另一张」的老问题复发；而且 OpenList 凭据与某一份存储配置无关，它是站点级设置。
+人工操作时的凭据从哪来：OpenList 自己的 `/opt/openlist/data/config.json`（管理员账号，已存在）或运维侧凭据文件。token 48 小时过期（§2.1），长任务中途过期就重新登一次。
 
 ## §3 挂载管理 API
 
@@ -162,7 +158,7 @@ body 是**完整的 Storage 对象**——最稳的写法是 `GET storage/get?id
 | 把 `addition` 改成对象 | `{"code":400,"message":"model.Storage.Addition: ReadString: expects \" or n, but found {, ..."}` |
 | 整对象 + 未改动的字符串 `addition` | `code:200`，且 `addition` 逐字段不变——**可以安全地无操作回写** |
 
-**`mount_path` 可以改**（`/sakura-tools/_n1` → `/sakura-tools/_n1ren` 实测 200），但插件不需要这个能力：路径由 `profile_id` 决定，配置改名不会改路径。
+**`mount_path` 可以改**（`/sakura-tools/_n1` → `/sakura-tools/_n1ren` 实测 200）。手工搬桶时改路径没有意义：改名请重建挂载并在 `remark` 里写清原因，免得后来人认不出这是哪次迁移留下的。
 
 ### §3.4 删挂载
 
@@ -232,119 +228,49 @@ failed get [...]: failed get link: InvalidPresignExpireError: presigned URL requ
 
 补上 `"sign_url_expire": 600`（数字）后同一复制 `state=2`、`total_bytes` 正确、目标侧列出同名同尺寸文件。
 
-**插件侧生成 Doge 挂载时必须显式写入 `sign_url_expire`（建议 600）。**
+**在 OpenList 里建 Doge 挂载时必须显式写入 `sign_url_expire`（建议 600）。**
 
-## §4 常驻镜像挂载（核心）
+## §4 手工建挂载（迁移期间临时用）
 
-插件的每一份**完整**存储配置，在 OpenList 上都有一份**常驻挂载**作为镜像：配置存在，挂载就在；配置新增，挂载跟着出现；配置改了凭据，挂载跟着更新；配置删了，挂载跟着消失。
+插件不再维护常驻镜像挂载。要搬桶时，人工在 OpenList 里建两份临时挂载：源桶一份、目标桶一份，搬完删掉。
 
-这样做的理由只有一个，但很关键：**迁移时不需要现场建挂载**。建挂载要写数据库、要读凭据、失败要回滚、还要处理 UNIQUE 冲突，全是即时错误来源；改成常驻镜像之后，对账是**幂等、可重试、失败不影响插件**的后台动作。
+### §4.1 命名与隔离
 
-### §4.1 命名与归属
-
-| 项 | 规则 |
-|---|---|
-| `mount_path` | `/sakura-tools/<profile_id>`，例如 `/sakura-tools/prof_9463a17e7884` |
-| `remark` | `sakura-tools:` + JSON `{"profile":"prof_xxx","name":"缤纷云 · nboke"}` |
-| **归属判据** | `mount_path` 以 `/sakura-tools/` 开头 **且** `remark` 以 `sakura-tools:` 开头，**两者同时成立**才算自己的 |
-| 越界处理 | 不同时成立的挂载一律视为「别人的」，**只读、不写、永不删除**；需要同一路径时报告冲突由人工处理 |
-
-`remark` 实测能原样往返（含中文与空格）：写进去 `sakura-tools:{"profile": "prof_test1234567890", "name": "缤纷云 · nboke"}`，`storage/list` 拿回来一字不差。所以「插件存的配置名」可以顺带当挂载的显示名。
-
-父路径 `/sakura-tools` **不需要预先存在**：直接在 `/sakura-tools/prof_xxx` 建挂载可以成功，`/sakura-tools` 也会自动能被 `fs/list` 列出子项。反过来说，**把最后一个镜像删掉之后 `fs/list /sakura-tools` 会返回 `{"code":500,"message":"failed get storage: storage not found"}`**——那是正常的，这个虚拟路径不是挂载本身，不要据此判断「挂载还在」。
-
-### §4.2 驱动映射
-
-| 插件 `provider` | OpenList `driver` | `addition` 关键项 | 实测 |
-|---|---|---|---|
-| `bitiful` / `tencent` / `aliyun` / `cloudflare` / `backblaze` | `S3` | 默认字段 | 缤纷云、腾讯云 ✅；其余未测 |
-| `minio` | `S3` | `force_path_style: true` | ✅（仅同机可达） |
-| `dogecloud` | `Doge` | `sign_url_expire: 600` | ✅ |
-
-三条硬规则（都踩过）：
-
-1. `sign_url_expire` 必须是 **JSON 数字**，不是字符串（§3.5）。
-2. `addition` 必须是**单层** `json_encode` 的结果，不要二次编码。
-3. `session_token` 留空、`remove_bucket` 必须 `false`、`list_object_version` 用 `v2`。
-
-### §4.3 对账算法
-
-对账只做三件事：缺的建、变的改、多的删。
-
-```text
-desired = { profile_id → addition }   来自所有 Options::is_configured() 为真的配置
-actual  = { profile_id → {id, addition} }   来自 storage/list 里 remark 以 sakura-tools: 开头的挂载
-
-for id in desired:
-    if id not in actual:      create → 记下新 id
-    elif 字段有变化:           update（整对象，见 §3.3）
-for id in actual - desired:   delete（配置已被删除，见 §3.4 的幂等约定）
-```
-
-四条实现要求：
-
-- **幂等。** 同样的输入跑多少次，OpenList 里的结果都一样；不能出现「跑第二次又多一个挂载」。
-- **比字段，不比字符串。** `addition` 解码后逐字段比对——键顺序、空白都可能不同，整体字符串比较会误判成「变了」，然后每轮都无谓 update。
-- **不完整的配置跳过。** `Options::is_configured()` 为假的配置不落地：半张表建出来的挂载只会永远拖着 500 错误。
-- **探测 ≠ 对账。** 对账只保证「挂载记录存在且字段正确」；凭据到底能不能用，要看一次 `fs/list`（见 §4.5）。
-
-### §4.4 什么时候同步
-
-| 时机 | 动作 | 怎么做到不阻塞 |
+| 项 | 约定 | 为什么 |
 |---|---|---|
-| 新增 / 编辑配置保存成功后 | 同步这一份 | 跳转已发出后在 `shutdown` 里做，单次 HTTP 超时 2 秒，失败只记状态 |
-| 删除配置后 | 删对应挂载 | 同上；**删挂载失败不回滚配置删除**（07 R8 第 7 步） |
-| 打开迁移页 | 全量对账 + 探活 | 页面本来就慢一点，可以直接做 |
-| 点「同步挂载」按钮 | 全量对账 + 探活 | 同上，结果就地渲染 |
+| `mount_path` | `/migrate/src-<桶简称>`、`/migrate/dst-<桶简称>`（例：`/migrate/src-doge`、`/migrate/dst-cos`） | 与既有挂载（`/115`、`/OPenList` 等）区分开，搬完按前缀一眼找全 |
+| `remark` | 写清「谁、什么时候、搬什么」，如 `2026-11-18 多吉云到腾讯云 手工迁移` | `storage/list` 原样返回，事后能判断该不该删 |
+| 命名空间 | **不要用** `/sakura-tools/` | 那是历史设计里留给插件的命名空间，现已废弃；用它会让后来人误以为插件仍在维护 |
+| 生命周期 | 临时：建 → 搬 → 删 | 长期留着的挂载等于把两套桶的凭据一直摆在一个 Web 服务里 |
 
-**不做定时对账**（理由见 §11）。所以「实时同步」的准确含义是：**配置的每一次增删改都会触发对账**，而 OpenList 侧被人手工改坏的情况要等到下次迁移页打开或手工点同步才会被发现。
+### §4.2 用哪个驱动
 
-**存量配置怎么补上**：功能上线前就存在的配置（本站现在是 4 份）不会自己长出挂载。补齐点是「第一次打开迁移页」或「升级后第一次保存任一配置」——两者都走全量对账，一次补齐，不需要另写迁移脚本。第一次跑完要对结果做一次人工确认（`storage/list` 的 total 应该从 2 变成 6）。
+| 桶 | 驱动 | `addition` 关键字段 |
+|---|---|---|
+| 腾讯云 COS | `S3` | `bucket`、`endpoint`、`region`、AK/SK、`force_path_style=false`、`remove_bucket=false`、`list_object_version=v2` |
+| 多吉云 | `Doge` | 必须给 `sign_url_expire`（§3.7）；也可以用 `S3` 驱动配自定义 endpoint，按 §3.6 的实测配置 |
+| 缤纷云 / MinIO | `S3` | 见 §3.6 的四份实测样本 |
 
-### §4.5 配置改密钥：update，不重建
+字段名照 §3.5：`addition` 是**JSON 字符串**，字段名拼错不报错、只会让驱动退化成默认值——这是最常见的「建好了但读不到东西」。
 
-实测：先用错误的 AK/SK 建挂载，`storage/create` 照样返回 `code:200`、`status` 照样是 `work`，错误要等到 `fs/list` 才暴露：
+### §4.3 建挂载的三步验收
 
-```
-failed get objs: failed to list objs: InvalidAccessKeyId: The access key ID you provided
-does not exist in our records. status code: 403, request id: ...
-```
+1. `POST /api/admin/storage/create`（§3.1）→ 拿到 `data.id`。**`code:500` 且 `data.id=0` 时先别急着重试**：重复 `mount_path` 会报错，但记录可能已经落库（§3.6 实测），去 `storage/list` 查一遍。
+2. `POST /api/admin/storage/get?id=` 回读：`addition` 逐字核对，`status` 应为 `work`。
+3. **`status=work` 不代表凭据可用**（§3.6 实测）：必须 `POST /api/fs/list` 真读一次；写权限再用 `fs/mkdir` 或控制台手动建一次验证。读不到就 403 是凭据、桶名或 endpoint 的问题。
 
-用 `storage/update` 把凭据换成正确的，`code:200`，紧接着 `fs/list` 就正常了。
+### §4.4 搬完删挂载
 
-两条结论：
+1. 确认没有未结算的任务：`GET /api/task/copy/undone` 为空（§6.5）。
+2. `POST /api/admin/storage/delete?id=`（§3.4）删源、目标两份。
+3. 回 `storage/list` 确认总数回到迁移前。
+4. 删挂载**不影响桶内对象**；桶里的东西只能去厂商控制台清。
 
-1. **改 `key` / `secret` 只需 update**，不用删挂载重建，也不会中断正在跑的搬运任务。
-2. **`status=work` 不代表凭据可用。** 唯一的健康判据是做一次 `fs/list`。所以对账之后要对每个镜像做一次浅层 `fs/list`（`per_page=1`）当探活，把结果记进状态里给迁移页显示。
+### §4.5 凭据与令牌
 
-### §4.6 配置被删除：孤儿挂载
-
-删配置后要删挂载。如果那一刻 OpenList 不可用，就会留下**孤儿挂载**：
-
-- 它持有的是已经作废的凭据，读不出东西（`fs/list` 会 500）。
-- 它占着 `/sakura-tools/<profile_id>` 这个路径，如果之后有人手工建了一份**同 id** 的配置（正常不会，`new_profile_id()` 是随机的），建挂载会撞 UNIQUE。
-- 它**不构成数据风险**：删挂载不删桶，桶里的对象一直在。
-
-处理方式：下次对账时 `actual - desired` 会自动把它清掉；迁移页顶部把孤儿挂载列出来并提供「清理孤儿挂载」按钮。
-
-### §4.7 失败与降级（硬约束）
-
-> **OpenList 不可用绝不能挡住保存存储配置。**
-
-保存配置是本地动作，OpenList 是外部服务。对账失败时的正确行为是：
-
-1. 保存照常成功、页面照常跳转、结果弹窗照常显示「云存储设置已保存」。
-2. 对账错误写进 option `sakura_imgopt_openlist` 的 `state` 键（`array( 'at' => 时间戳, 'action' => 'create|update|delete|probe', 'profile' => id, 'error' => 原文 )`）。凭据与状态同住一个 option，共用一个 `Uninstaller` 条目。
-3. 迁移页顶部显示「上次同步失败：<原文>」并提供「重试」。
-4. **降级不是消失**：迁移入口可以打开，但「开始迁移」按钮 `disabled`，提示「OpenList 未就绪」。
-
-| 场景 | 插件表现 |
-|---|---|
-| OpenList 连不上 / 502 | 配置照常保存；状态记错误；迁移按钮禁用 |
-| 管理员凭据失效（401） | 重新登录一次；仍 401 则状态记「凭据失效」，迁移按钮禁用 |
-| 建挂载撞 UNIQUE | 用自己的就 update，是别人的就报冲突（§4.1），不删 |
-| 建挂载返回 `code!=200` 但带了 id | 按 §3.1 第 3 条删掉这个半成品，把错误记进状态 |
-| 探活 403 | 挂载在、凭据错；提示「配置里的密钥可能已失效」，不影响迁移以外的一切 |
+- 建挂载要管理员（`role=2`）令牌；令牌 48 小时过期（§2.1），长任务中途过期就重新拿一次再继续。
+- 令牌与 AK/SK **不进仓库、不进插件 option**：走运维侧凭据文件或 OpenList 自己的 `data/config.json`。
+- OpenList 被停掉不影响插件的任何功能，只影响你正在手工做的这次搬迁。
 
 ## §5 `/api/fs/*` 契约
 
@@ -410,7 +336,7 @@ POST /api/fs/copy
 不检查存在性的代价与边界（同一段代码，写实现时必须照做）：
 
 - **`overwrite` 不要当默认值。** 目标桶里被别人写过的同名对象会被静默替换，且换不回来（源桶还在，但目标上的那一版没了）。
-- **`merge` 不会修「同名不同内容」。** 它只按名字判存在，所以「源 81408 B、目标 70000 B」这种冲突带 `merge` 提交后目标仍是旧的。要修只能 `overwrite` 打明确清单，或者用插件重传（§7.4）。
+- **`merge` 不会修「同名不同内容」。** 它只按名字判存在，所以「源 81408 B、目标 70000 B」这种冲突带 `merge` 提交后目标仍是旧的。要修只能 `overwrite` 打明确清单，或者用插件重传（§7.3 第 3 条）。
 - **`skip_existing` 与 `merge` 同时给等于 `skip_existing` 生效**（先命中顶层的存在性判定），不要混用。
 - 每个 `names` 元素是一个独立任务；目录任务会递归派生子任务，所以 `/done` 里会出现一批你没提交过的 id（见 §5.2 末尾的壳任务警告与 §6.5 结算）。
 
@@ -423,12 +349,12 @@ POST /api/fs/copy
 | 丢的东西 | 后果 | 谁能修 |
 |---|---|---|
 | 源对象的 `Content-Type` | 由目标**文件名扩展名**重猜（`pkg/utils/file.go:170` 的 `GetMimeType`，查不到就 `application/octet-stream`） | 只有插件重传（`Object_Store::upload_file` 用 `wp_check_filetype`） |
-| 对象级 ACL（`x-amz-acl`） | `drivers/s3/driver.go:200` 的 `Put` 不带 ACL → 落成桶默认策略；私有桶直接 403 | 桶策略（§7.3 ②）或插件重传 |
+| 对象级 ACL（`x-amz-acl`） | `drivers/s3/driver.go:200` 的 `Put` 不带 ACL → 落成桶默认策略；私有桶直接 403 | 桶策略（§7.2 ②）或插件重传 |
 | `Cache-Control` / `Content-Disposition` / 自定义元数据 | 不写入目标 | 桶级默认或插件重传 |
 | 单一 ETag | 目标 >5 MB 的对象走分片上传，ETag 变成 `"...-N"`，不再是 32 位 MD5 | 无法修；插件 `verify` 会把它标 `unverifiable` |
 | 目录结构本身 | 每个目录多一个 `.openlist` 占位对象 | `fs/remove`（§7.5 C 路线第 7 条） |
 
-→ 这就是 §7.2 把「插件原生上传」排在「OpenList 直搬」前面的技术原因：**搬得动 ≠ 搬得对**。
+→ 这就是 §7.1 把「插件原生上传」排在「OpenList 直搬」前面的技术原因：**搬得动 ≠ 搬得对**。
 
 #### 其余已确认的行为
 
@@ -488,9 +414,13 @@ GET /api/task/copy/done     → {"code":200,"data":[...]}
 
 > **在提交任何复制任务之前，先快照一遍 `/api/task/copy/done` 的 id 集合（记作 `baseline`）。之后只认「done 里新出现、且不在 baseline 里」的 id。**
 
-插件侧还必须自己落盘「本次迁移已提交的文件清单」，因为队列丢了就再也问不出谁搬过。
+人工搬桶时同样必须自己记一份「已提交的文件清单」（一个 txt 或表格即可）：队列丢了就再也问不出谁搬过，只能重新求差。清单写清「源 / 目标 / 批次 / names / 提交时间 / 结果」。
 
-这份清单存进独立 option（例如 `sakura_imgopt_openlist_migrate`，`array( 'source' => id, 'target' => id, 'started_at' => 时间戳, 'keys' => array( ... ), 'done' => array( ... ) )`），并且**必须同时进 `Uninstaller` 的清理清单**——它是站点级状态，不属于任何一份存储配置，删配置时不能把它一起清掉。
+**插件侧不再有任何落盘清单**：
+
+- 历史设计里的 option `sakura_imgopt_openlist_migrate`（含 `source` / `target` / `keys` / `done`）**不实现**，仓库里没有它，`Uninstaller` 也不需要清理；
+- 迁移状态只存在于人工清单与桶里；
+- 插件与 OpenList 之间没有运行时状态，OpenList 挂了、重启了、换机器了，插件都不知道也不受影响。
 
 ### §6.5 结算：什么时候算「搬完了」
 
@@ -514,67 +444,35 @@ GET /api/task/copy/done     → {"code":200,"data":[...]}
 - `/api/task/copy/info?tid=` 只能 `POST`，`undone` / `done` 用 `GET`（§6.3）。
 - OpenList 中途重启过：队列已丢，`undone` 与 `done` 都不能作为进度依据，**以「重新 list 目标、重新求差」为准**。
 
-## §7 迁移方案：先选路线，再定参数
+## §7 搬桶：先选路线，再动手
 
-> 本章是**做法**，不是代码。能把对象放进目标桶的路径有三条：插件原生上传（`wp sakura-s3 migrate`）、同步中心（下载 / 上传 / 删除）、以及本文这套 OpenList 通道（代码未实现）。三条路都能搬，但**只有插件原生上传同时保住 Content-Type、对象 ACL、MD5 回读校验与索引记账**。选错路线不会报错，只会让「迁移成功」变成一句谎话。
+> 本章是**人工操作手册**。能把对象放进目标桶的路径只有三条：插件原生上传（`wp sakura-s3 migrate`，§7.4）、同步中心（下载 / 上传 / 删除，§7.4 的 B 路线）、以及 OpenList 手工直搬（§7.5）。**只有前两条能证明搬对了**：`Object_Store` 上传带 `ContentType`、对象 ACL、单段 `Content-MD5`、默认 HEAD 回读校验（`src/S3/Object_Store.php:74`），`verify` 再用本地 MD5 与远端 ETag 比对（`src/Sync/Verify_Service.php`）。OpenList 抄过去的对象，插件一个都验证不了（§7.5 末尾）。
 
-### §7.1 迁移卡入口（只约束 OpenList 通道）
-
-| 条件 | 不满足时 |
-|---|---|
-| **已保存的完整配置 ≥ 2** | 迁移卡整块 `disabled`，`title` 写「只有一份存储配置时没有可迁移的目标。迁移是把对象从 A 桶搬到 B 桶，至少需要两份配置。」 |
-| OpenList 已接通且管理员凭据可用 | 卡片可见，按钮 `disabled`，提示「OpenList 未就绪」 |
-| 源与目标都 `is_configured()` 为真 | 下拉里把不完整的配置 `disabled` 掉 |
-
-**前端置灰只是提示，服务端必须同样拒绝**：配置数 `< 2` 时迁移动作返回 `error=not_enough_profiles`。把门槛只写在前端等于没写。
-
-**为什么必须 ≥ 2**：迁移的收尾是「删掉源配置 → 切到目标配置」。删掉源配置后才算解绑，绑定期间切过去只会换「用哪份配置」而不会搬任何对象。**如果只有一份配置，删掉它之后没有任何可切换的目标**，站点会退化成 S0 空态——那不是迁移，是自毁入门。
-
-这条门槛只约束「插件代你调 OpenList」的路线（C/D）。**路线 A 不受它约束**：路线 A 走 07 §6 的换桶路径，先删源配置再新增目标配置，全程只有一份配置，也不需要 OpenList。
-
-### §7.2 路线选择：三个问题定优先级
-
-先回答三个问题，它们是选择过程而不是结论：
-
-1. **本地是否持有每个对象的副本？** 站点 `no_local_saving` 为 `false`，且 `wp-content/uploads` 没被清理过。
-2. **能否接受一次「关 S3 → 切配置」的窗口？** 窗口里新上传只落本地、既有媒体 URL 回落站点域名（`Storage::should_keep_local()`，`src/S3/Storage.php:882`），响应式尺寸候选被过滤（`filter_srcset()`，`src/S3/Storage.php:729`）——**页面不会 404，只是降级**。
-3. **目标桶是否需要「元数据也对」？** 指 Content-Type、对象 ACL、能用本地 MD5 校验。需要就排除 OpenList 直搬。
+### §7.1 三条路线与优先级
 
 | 优先级 | 路线 | 数据路径 | 适用 | 代价 / 风险 |
 |---|---|---|---|---|
-| **P0（默认）** | **A 插件原生上传** | 本地 → 目标桶（`Object_Store::upload_file`） | 本地完整、能接受切换窗口 | 需先删源配置（07 §6）；窗口内新上传只落本地；只付目标入流量 |
-| P1 | **B 先补齐本地** | 源桶 → 本地（同步中心下载）→ 再走 A | 本地缺一部分（曾开 `no_local_saving`、或本地被清理） | 多一份源桶出流量与磁盘；下载会走 R13/R14 记账 |
-| P2 | **C OpenList 直搬** | 源桶 → OpenList → 目标桶 | 本地没有副本，也不打算要 | 丢 Content-Type / 对象 ACL / 自定义元数据；>5 MB 变分片 ETag；目标每个目录多一个 `.openlist`；只能靠大小与抽样校验 |
-| P3 | **D OpenList 落到本地** | 源桶 → 本地（Local 挂载） | 目标是本地磁盘，或想先把本地补齐（再走 A） | 与 B 同级，且本地覆盖写非原子、不写插件索引 |
-| **禁止** | **E OpenList 本地 → 目标桶** | 本地 → Local 挂载 → S3 挂载 | 排障、临时验证 | 绕开插件记账与指纹；Content-Type 靠扩展名猜；ACL 丢失；无法用索引对账 |
-| **禁止** | **F 让 OpenList 当上传后端** | — | 永远 | 见 §11 第一条 |
+| **P0（默认）** | **A 插件原生上传** | 本地 → 目标桶 | `no_local_saving='false'`、本地 `uploads` 完整、能接受一次切换窗口 | 按 07 §6 先切配置；窗口内新上传只落本地；只付目标入流量 |
+| P1 | **B 先补齐本地** | 源桶 → 本地（同步中心下载）→ 再走 A | 本地缺一部分 | 多一份源桶出流量与磁盘；下载走 R13/R14 记账，可续跑 |
+| P2（例外） | **C OpenList 手工直搬** | 源桶 → OpenList → 目标桶 | 本地没有副本、也不打算要，且接受元数据降级 | 内容不可全量验证；`Content-Type` 重猜；ACL 丢失；>5 MB 变分片 ETag；每个目录多一个 `.openlist` |
+| **禁止** | **D 用 OpenList 从本地往目标桶传** | 本地 → Local 挂载 → S3 挂载 | 排障、临时验证 | 绕开插件记账与指纹；`Content-Type` 靠扩展名猜；ACL 丢失；无法用索引对账 |
+| **禁止** | **E 让 OpenList 当上传后端** | — | 永远 | 见 §11 |
 
 决策树：
 
 ~~~text
 本地是否有每个对象的副本？
-├─ 有 ──→ 能否接受一次切换窗口？
-│         ├─ 能 ──→ P0（A）。本站默认答案。
-│         └─ 不能（必须在线完成）──→ P2 预填 + P0 补差（§7.5 混合）
+├─ 有 ──→ P0（A）。本站默认答案，OpenList 不参与。
 └─ 没有（或只有一部分）
           ├─ 缺的这部分以后还要从媒体库访问吗？
-          │   ├─ 要 ──→ P1（B）：先把本地补齐，再 P0
-          │   └─ 不要 ──→ P2（C）
-          └─ 目标根本不是 S3 桶（本地磁盘）──→ P3（D）
+          │   ├─ 要 ──→ P1（B）先把本地补齐，再 P0
+          │   └─ 不要 ──→ P2（C）手工直搬，并接受元数据降级
+          └─ 目标根本不是 S3 桶（本地磁盘）──→ 用 OpenList 手工搬，按 §7.5
 ~~~
 
-**P0 为什么是默认**：上传由 `Object_Store` 完成，它设 `ContentType`（`wp_check_filetype`）、带对象 ACL（`object_acl`，默认 `public-read`）、单段带 `Content-MD5`、默认 HEAD 回读校验 ETag＝MD5（`src/S3/Object_Store.php:74`）；失败重试与断点续跑由 `History_Migrator` 的 `sakura_imgopt_s3_migrate_state`（`src/S3/History_Migrator.php:21`）负责；上传成功后附件状态、索引、用户文件空间账本（R13/R14）都由插件自己的代码写回。**P0 的代价只有一个：它需要先把配置切到目标**，而切配置要按 07 §6 删源配置。
+> **别用 OpenList 预填目标桶再让插件跳过上传。** 这条路看着省时间，实际会把索引灌坏：预填的对象在 `scan --full` 之后因「本地有、远端有、大小相同」被判成 `synced`（`src/Sync/Index_Repository.php:999-1007` 的对账 SQL **只比大小**），而 `Bucket_Confirmation` 只认 `synced` 行、`wp sakura-s3 migrate` 据此**永久跳过**这些对象；`verify` 也不会报警——字节确实一样，错的是 `Content-Type` 与 ACL。结果是「索引说干净、对象是错的」，之后插件再没有任何路径会去修。
 
-**P0 什么时候必须放弃**：
-
-- `binding['no_local_saving']='true'`（高风险锁定，07 R10）：本地没有副本，P0 无米下锅 → P1 或 P2。
-- 本地附件被清理、`_wp_attached_file` 指向不存在的文件 → 先 P1。
-- 本地磁盘装不下「源桶全量 + 现有本地」（B/D 需要）→ P2。
-- 只想尽快让桶可用、源桶出流量不心疼、也不需要本地副本 → P2（不下载到本地，最快）。
-
-> 一句话结论：**「本地有附件」时，OpenList 不该参与。** 用户设想的「先 OpenList 下载多吉云到本地再传腾讯云」＝ B＋A 的组合，比 A 多付一份源桶出流量和一份磁盘，换来的只是「本地又存了一份已有副本」；「OpenList 读本地媒体库传腾讯云」＝ E，明确禁止。真正值得用 OpenList 的是「本地没有、也不想要本地副本」的 P2。
-
-### §7.3 全新目标桶怎么设计
+### §7.2 全新目标桶怎么设计
 
 新桶最容易出两类事故：迁移完成后图片 403（权限 / 防盗链），或迁移后 CDN 变慢、计费翻倍（版本 / 生命周期 / 回源）。按六组定，每组都有对应验收（§10）。
 
@@ -605,7 +503,7 @@ GET /api/task/copy/done     → {"code":200,"data":[...]}
 - `upload_path` 不要换前缀（上面已说），也不要用 `.`（根）——那是另一套 URL 归一逻辑（`normalize_root_url()`，`src/S3/Storage.php:968`）。
 - **公网域名保持不变**（本站 `https://bf.nboke.com/wp-content/uploads`）：只切 CDN 回源，`upload_url_path` 不动，正文里的图片地址不用重写，`srcset` 基址跟着 `wp_get_upload_dir()` 走也不用动。
 - 真要换域名，顺序是：改 `upload_url_path` → Url_Rewrite 规则（R12）→ 正文 / 摘要 / 自定义字段批量替换 → CDN 预热 → 抽样验证。这一步与「搬对象」是两件事，能不做就别做。
-- 桶必须空，或只用你这一个前缀：迁移前 `fs/list` 目标前缀确认 `total=0`（§7.5 的「空桶校验」）。与别的站点共用前缀，会让 §7.4 的「同名不同内容」从理论风险变成数据事故。
+- 桶必须空，或只用你这一个前缀：迁移前 `fs/list` 目标前缀确认 `total=0`（§7.5 第 2 步的「空桶校验」）。与别的站点共用前缀，会让 §7.3 的「同名不同内容」从理论风险变成数据事故。
 
 **④ 版本与生命周期**
 
@@ -635,7 +533,7 @@ wp sakura-sync stats                                      # 索引行数（按 s
 
 源桶对象数 / 总字节用 OpenList 递归 `fs/list` 汇总，或迁移后用 `wp sakura-sync scan --full` 的 `summary`；目标桶基线应为 0。
 
-### §7.4 目标桶已有部分相同文件怎么迁
+### §7.3 目标桶已有部分相同文件怎么迁
 
 先立一条判定顺序：**权威顺序是「本地文件 > 源桶 > 目标桶」**。理由：插件判断「已同步」用本地 MD5 与桶 ETag（`Verify_Service`），本地是唯一能算出哈希的基准；本地没有时源桶才是原始；目标桶里的任何版本都只是「上一次尝试的产物」，不能反客为主。
 
@@ -677,7 +575,7 @@ wp sakura-sync stats                                      # 索引行数（按 s
 | 81408 B | 81408 B（内容其实不同） | merge 跳过；scan 判 `synced`（同大小）；**只有 verify 能抓出 `mismatch`** → 同步中心上传 `REPLACE` |
 | 81408 B | 70000 B | 冲突；单独一批 `overwrite=true` 覆盖；scan 后 `synced` |
 
-### §7.5 四条路线的手册
+### §7.4 路线 A/B：插件原生上传（本站默认）
 
 #### A 路线（P0，本站默认）：插件原生上传
 
@@ -702,7 +600,7 @@ wp sakura-sync stats
 |---|---|---|
 | 0 | 备份 DB；`find wp-content/uploads -type f > /root/uploads-before.txt` | 迁移前后能逐个对 file 清单 |
 | 1 | **冻结**：点当前配置卡 → 关闭 S3（`enabled=false`） | 新图只落本地、URL 是站点域名；确认缩略图改写总开关已关（R16） |
-| 2 | **切配置**（07 §6）：删源配置 → 新增腾讯云配置（§7.3）→ 点目标卡、首次上传成功 → `wp sakura-sync scan --full` | 清掉 R18 闸门；`active_profile_id`＝目标；既有媒体回落站点域名（`should_keep_local()`＝true），`srcset` 候选被过滤 |
+| 2 | **切配置**（07 §6）：删源配置 → 新增腾讯云配置（§7.2）→ 点目标卡、首次上传成功 → `wp sakura-sync scan --full` | 清掉 R18 闸门；`active_profile_id`＝目标；既有媒体回落站点域名（`should_keep_local()`＝true），`srcset` 候选被过滤 |
 | 3 | `wp sakura-s3 migrate --batch-size=500 --seconds=30`，跑到 `done` | 断点续跑靠 option `sakura_imgopt_s3_migrate_state`（`cursor` / `target_hash`，换桶自动重置）；失败项入 `failed`，重跑即可，已确认的会 `skipped` |
 | 4 | `wp sakura-sync verify --seconds=60`，再 `wp sakura-sync scan --full` | 无 `mismatch`；`synced`数 = 附件对象数；`unverifiable` 只应出现在 >5 MB 对象上 |
 | 5 | **切 CDN 回源到新桶** | 先 `curl -I` 抽样 ≥10 个对象（原件、子尺寸、`.webp` 各一）确认 `200` 与 `Content-Type`，再切；切完清缓存 |
@@ -722,25 +620,23 @@ wp sakura-sync stats
 
 注意：OpenList 也能做「源挂载 → Local 挂载」，但那会**覆盖**本地同名文件（`drivers/local/driver.go:426` 直接 os.Create 截断写，非原子），而且不写插件记账——补缺请用同步中心，不要用 OpenList。
 
-#### C 路线（P2）：OpenList 源桶 → 目标桶直搬
+### §7.5 路线 C/D：用 OpenList 手工搬
 
-前提：本地没有副本（或不需要），源与目标各有一份插件配置、挂载已在 §4 常驻、探活通过。
+前提：本地确实没有副本（或不需要），愿意接受元数据降级；目标桶已按 §7.2 建好。
 
-1. 按 §7.3 建好目标桶，跑完「空桶校验」。
-2. **求差**（§7.4）：递归 `fs/list` 两侧，得到 `missing / same / conflict / extra` 四类。空桶可以跳过求差，但**必须**先用 `fs/list` 确认 `total=0`（挂错桶时这里才会暴露）。
-3. **建目录**：自顶向下逐层 `fs/mkdir`。`fs/copy` 不会创建 `dst_dir`，缺一个目录就是 500（§5.2）。
-4. **提交**：每批一个目录、`names` ≤ 200；`missing` 用 `merge=true`，`conflict` 单独一批 `overwrite=true`；提交前快照 `/api/task/copy/done` 的 id 集合（§6.4）。
-5. **结算**：轮询 `/api/task/copy/undone` 直到为空；再读 `/done` 里新出现的 id，分类 `succeeded` / `failed` / `canceled`，失败的按 `error` 原文处理（§6.5）。
-6. **收尾**：冻结 → 再求一次差并补搬（冻结后源不再长）→ 删源配置 → 切目标 → `scan --full` → 有本地就再跑 `migrate` 补差 → `verify` → 切 CDN 回源 → 观察 → 删源桶。
-7. **目标桶卫生**（路线 C 独有）：
-   - `.openlist` 占位对象：跨挂载写入会在**目标每个目录**留一个占位对象（`internal/op/fs.go:622` 的 `Put` 先 `MakeDir`；`drivers/s3/driver.go:160` 用空 body 写 `<dir>/.openlist`）。OpenList 的 `fs/list` 会隐藏它（`drivers/s3/util.go:104-110`），但插件的 `list_page` 不过滤点文件，`scan` 会把它当远端对象。收尾时逐目录 `fs/remove` 删掉（`names: [".openlist"]`）。
-   - Content-Type：目标对象的 `Content-Type` 由目标文件名扩展名重猜（`internal/stream/stream.go` → `pkg/utils/file.go:170` 的 `GetMimeType`），源对象头里的值丢失；`.avif` 这类新扩展名在系统 mime 表缺失时会落成 `application/octet-stream`。抽样 `curl -I` 看，不对就按 §7.4 第 3 条用插件重传（只有插件上传能把它改对）。
-   - 对象 ACL：跨挂载 `Put` 不设 ACL，走桶默认（央企/私有桶就是 403）。见 §7.3 ②。
+1. **建两份临时挂载**（§4）：源、目标各一份，命名 `/migrate/src-…`、`/migrate/dst-…`。
+2. **先校验空桶**：`POST /api/fs/list` 目标挂载的 `<upload_path>` 目录 → `total=0`；`POST /api/fs/get` 一个不存在的 key → 报 `object not found`（说明读路径通、不是挂到别的桶）；再写一个 1 字节探针删掉（`fs/put` ＋ `fs/remove`）确认写权限。挂错桶只有这一步能发现。
+3. **求差**（§7.3）：分别递归 `fs/list` 源与目标，得到 `key → size` 两张表，分四类 `S\T` / `S∩T 同大小` / `S∩T 异大小` / `T\S`。
+4. **建目录**：自顶向下逐层 `fs/mkdir`。`fs/copy` 不会创建 `dst_dir`，缺一个目录就是 500（§5.2）。
+5. **分批提交**：每批一个目录、`names` ≤ 200；`missing` 用 `merge=true`（幂等，可续跑），`S∩T 异大小` 单独一批 `overwrite=true`（**只打这张清单**，别整树覆盖）。提交前快照 `/api/task/copy/done` 的 id 集合。
+6. **结算**（§6.5）：轮询 `GET /api/task/copy/undone` 直到为空；再读 `/done` 里新出现的 id，分 `succeeded` / `failed` / `canceled`。失败的按 `error` 原文处理。
+7. **清 `.openlist`**：跨挂载写入会在**目标每个目录**留一个占位对象（`internal/op/fs.go:622` 的 `Put` 先 `MakeDir`；`drivers/s3/driver.go:160` 写 `<dir>/.openlist`）。OpenList 的 `fs/list` 会隐藏它（`drivers/s3/util.go:104-110`），但插件的 `list_page` 不过滤点文件，`scan` 会把它当远端对象，让「远端行数为 0」这个收尾断言永远不成立。逐目录 `fs/remove` 删掉。
+8. **抽样校验**：`curl -I` 抽 ≥10 个对象（原件、子尺寸、`.webp`/`.avif` 各一）看状态码、`Content-Length`、`Content-Type`。`Content-Type` 是按目标文件名扩展名重猜的（`pkg/utils/file.go:170`），`.avif` 这类新扩展名在系统 mime 表缺失时会落成 `application/octet-stream`——这时只能回插件重传修（§7.3 第 3 条）。
+9. **收尾**按 §7.6，然后删两份挂载（§4.4）。
 
-#### D 路线（P3）：OpenList 落到本地（或「预填 ＋ 补差」混合）
+**D 路线（OpenList 落到本地）**：目标是本地磁盘时，或想先把本地补齐再走 A。手工建 Local 挂载（**不要**放在 `/sakura-tools/` 下），把源挂载 `copy` 过去。注意本地驱动 `Put` 是 `os.Create` 直接截断写、非原子，**同名即覆盖**（`drivers/local/driver.go:426`）；而且它不写插件记账，搬完必须 `wp sakura-sync scan --full` 重建索引。要补本地副本，优先用同步中心批量下载（§7.4 的 B 路线）——它拒绝覆盖、可续跑、会写 `synced` 与用户文件空间账本（R13/R14）。
 
-- 目标是本地磁盘，或想先把本地补齐：手工建一个 Local 挂载（**不要**放在 `/sakura-tools/` 命名空间下，那里是插件自己的），把源挂载 `copy` 过去。注意本地驱动：`Put` 非原子、`Copy` 对符号链接按链接复制（`drivers/local/driver.go:339` / `:426`），同名即覆盖。
-- **混合（大站最短窗口）**：先用 C 在线预填目标（插件仍指源，用户无感）→ 冻结 → 补搬差集 → 切配置 → 用 A 把本地新增文件补进目标 → `scan --full` + `verify` → 切 CDN 回源。它把「目标已有对象」这件事交给 OpenList，把「正确性与记账」留给插件。
+> **为什么 C 路线的内容没法验证**：`Verify_Service` 的查询条件里有 `seen_local=1`（`src/Sync/Verify_Service.php:218-220`）——**没有本地文件的行根本进不了校验队列**。C 路线搬完的桶里只有远端对象，`verify` 只能给出 `unverifiable`，能确认的只有大小和人工抽检的那十来个。这正是「交给专业迁移软件」的地方：它们有自己的校验与重试，本站不必再造一遍。
 
 ### §7.6 收尾顺序（所有路线共用）
 
@@ -763,31 +659,6 @@ wp sakura-sync stats
 - ⑥ 有 `mismatch` 就不要切 CDN。
 - ⑦ 抽样失败（403/404/Content-Type 不对）就退回 ⑥，不要靠「等 CDN 缓存过期」。
 
-### §7.7 求差与提交（可实现的伪代码）
-
-~~~php
-// 路线 C：源挂载 → 目标挂载。凭据来自 Options::profile_options()，不要从 option 里读明文。
-$ol  = new OpenList_Client( $state['url'], $token );    // Authorization 不加 Bearer
-$src = $ol->mount_path( $source_id ) . '/' . $prefix;    // /sakura-tools/prof_src/wp-content/uploads
-$dst = $ol->mount_path( $target_id ) . '/' . $prefix;
-$ol->reconcile( $profiles );                             // §4，幂等
-
-$plan = $ol->diff( $src, $dst );   // 递归 list 两侧：[ dir => [ name => 'missing' | 'same' | 'conflict' ] ]
-foreach ( $plan as $dir => $entries ) {
-    $ol->mkdir( $dst . $dir );     // 自顶向下；dst_dir 不存在会 500，见 §5.2
-    $missing  = array_keys( $entries, 'missing', true );
-    $conflict = array_keys( $entries, 'conflict', true );
-    if ( $missing )  { $ol->copy( $src . $dir, $dst . $dir, $missing,  array( 'merge' => true ) ); }
-    if ( $conflict ) { $ol->copy( $src . $dir, $dst . $dir, $conflict, array( 'overwrite' => true ) ); }
-}
-~~~
-
-几条必须写进实现的细节：
-
-- **提交前快照 `baseline`，提交后只认「新出现的 id」**（§6.4 / §6.5）；壳任务的 `state=2` 只代表子任务派发完（§5.2）。
-- 挂载在 §4 常驻好了，迁移代码里**不要**建挂载 / 删挂载。
-- `diff` 必须用 `total` 判完（§5.1 的 `per_page` 语义：不传 `per_page` 返回整目录，但目录很大时单次很慢；分批用 `page`）。
-- 每批只处理一个目录，失败定位便宜；目录任务会递归派生子任务，别把整站一次提交。
 
 ## §8 失败、回滚与断点续跑
 
@@ -796,11 +667,11 @@ foreach ( $plan as $dir => $entries ) {
 | 个别 `state=7` 失败 | C | 记 `error` 原文；重新求差后单独重提，**不要整批重跑** |
 | 大批 `403 file [x] exists` | C | 提交没带 `merge`，或差集没取全（`total` 分页）；带 `merge=true` 重提 |
 | `failed to get dst dir`（500） | C | 目标目录没建：补 `fs/mkdir`（自顶向下）后重提 |
-| OpenList 中途重启 | C | 队列默认不持久化（§6.4），已提交未确认的任务状态不可知；**用「目标 list 重新求差」代替队列**，插件侧也不依赖队列 |
+| OpenList 中途重启 | C | 队列默认不持久化（§6.4），已提交未确认的任务状态不可知；**用「目标 list 重新求差」代替队列**，并以人工清单为准 |
 | Doge 挂载 403 / `ExpiredToken` | C | Doge 驱动的临时凭据约两小时一换，长窗口会撞；用 `storage/update` 换凭据（§3.6）后重提 |
 | 插件侧 `sakura_s3_token_expired` | A / B | R17 自动续期失败：查 `api.dogecloud.com` 出口与退避窗口，重试即可；源桶对象没被删 |
-| `unverifiable` 比例高 | 全部 | >5 MB 分片对象本就不比最终 ETag；抽样 `curl -I` 看大小与 Content-Type |
-| 目标 CDN 403 | C | 桶不是公有读 / 对象 ACL 没继承 / 防盗链（§7.3 ②） |
+| `unverifiable` 比例高 | 全部 | ≥16 MB 的分片对象本就不比最终 ETag；抽样 `curl -I` 看大小与 Content-Type |
+| 目标 CDN 403 | C | 桶不是公有读 / 对象 ACL 没继承 / 防盗链（§7.2 ②） |
 | 目标图片 404 | A / C | CDN 回源还指着旧桶，或对象 key 的 `upload_path` 前缀不一致 |
 | `mismatch` 修不掉 | A | 同步中心批量上传要输 `REPLACE`；先确认本地文件确实是权威版本（本地也可能是坏的） |
 
@@ -829,51 +700,51 @@ foreach ( $plan as $dir => $entries ) {
 3. **高风险锁定下路线 C 的收尾要换写法。** R10 要求删绑定配置时配置表里只剩它，而目标配置本身就是「其余的配置」——所以「搬完 → 切到目标配置」这条思路走不通，真实顺序是「搬完 → 删光全部配置（含目标配置）→ 重新新增目标配置 → 开 S3 → 完整核对」（07 §6 已写明这处例外）。同参数重建的配置不会重传：桶里对象还在，指纹按厂商 / 桶 / endpoint / 路径算，重建后一致。高风险锁定通常伴随 `no_local_saving='true'`（本地无副本）→ 只能走 P1 / P2，不能走 P0。
 4. **R18 闸门必须先开。** 切到目标后 `reconcile_pending` 升起，同步中心封存；只有完整核对（`--full` 或 `--resume` 跑完）才清。所以 A 路线第 2 步之后、C 路线收尾之后，都要先 `wp sakura-sync scan --full`，否则批量修复会 409 `sio_reconcile_required`。
 
-其他相关规则：R13 / R14 只认插件自己的下载写回（OpenList 搬进本地的文件插件不知道，之后必须 `scan` 重建索引）；R16 切桶关缩略图改写；R17 多吉云临时凭据；R19 桶身份：**换桶判定**看五项（`provider / bucket / endpoint / region / upload_path`），**对象指纹**只看四项（不含 `region`），两套清单见 §7.3 ①。
+其他相关规则：R13 / R14 只认插件自己的下载写回（OpenList 搬进本地的文件插件不知道，之后必须 `scan` 重建索引）；R16 切桶关缩略图改写；R17 多吉云临时凭据；R19 桶身份：**换桶判定**看五项（`provider / bucket / endpoint / region / upload_path`），**对象指纹**只看四项（不含 `region`），两套清单见 §7.2 ①。
 
-## §10 验收清单
+## §10 核对表
 
-前六项（✅）是 2026-11-17 在本机 **v4.2.4** 实测的；2026-11-18 升级到 v4.2.9 后未逐条复测，但只涉及端点与字段，结论不受影响，复测有出入以复测为准。**V13 起是 2026-11-18 按 v4.2.9 源码核对补的，标 ⏳ 的尚未实测**——落代码时逐条跑一遍，跑过的改成 ✅。
+V1 到 V6 是 2026-11-17 在本机 v4.2.4 实测、2026-11-18 按 v4.2.9 源码复核的 **OpenList 行为**，人工搬桶时拿来预判。V7 起是**人工操作必须逐条确认**的事项，不涉及插件代码。
 
-- ✅ **V1** 用本站真实两家桶（多吉云 → 缤纷云）搬一个文件：`fs/copy` 返回 `code=200`，轮询 **2.0 s** 后 `state=2`、`total_bytes=81408` 与源一致，目标 `fs/list` 里同名同尺寸。
-- ✅ **V2** 建挂载 / 改挂载（整对象 ＋ 字符串 addition）/ 删挂载三条路径均为 `code:200`，`storage/list` 的 total 回到 2（只剩 `/115` 与 `/OPenList`）。
-- ✅ **V3** 重复 `mount_path` 建挂载返回 `code=500` 且 `data.id=0`，据此判定失败。
-- ✅ **V4** 目标已存在同名文件时 `fs/copy` 立即返回 `code=403 file [...] exists`（不入队、不产生 `state=7` 噪音），插件侧应先求差集再提交，或用 `merge` / `skip_existing` 显式跳过（§5.2）。
-- ✅ **V5** 凭据热改：错误 AK/SK 建的挂载 `status` 仍是 `work`、`fs/list` 报 403；`storage/update` 换成正确凭据后 `fs/list` 立刻 200。**证明 update 可以代替重建。**
-- ✅ **V6** 归属标记往返：`remark` 写 `sakura-tools:{"profile": "...", "name": "缤纷云 · nboke"}`，`storage/list` 原样取回（含中文与空格）。
-- **V7** 新增一份配置后保存，`storage/list` 里立刻多出 `/sakura-tools/<新 id>`，且 `remark` 指向它；重跑一次对账不产生第二个挂载（幂等）。
-- **V8** 删除一份配置后，对应挂载消失；把 OpenList 停掉再删配置，保存照常成功，`sakura_imgopt_openlist` 的 `state` 记录错误，迁移按钮禁用。
-- **V9** 只有一份配置时迁移卡 `disabled`，直接构造迁移请求返回 `error=not_enough_profiles`。
-- **V10** 迁移期间产物不落 PHP 内存：处理大文件时 `memory_get_peak_usage()` 不随文件增大而上涨。
-- **V11** 迁移结束后按 §7.6 第 ③ 步收尾，附件 URL 全部指向新桶域名；同步中心跑一次完整核对后 `seen_remote` 与目标桶对象数一致。
-- **V12** 别人的挂载（例如 `/115`、`/OPenList`）在全量对账中纹丝不动：既不被 update，也不被 delete。
-- ⏳ **V13（空桶校验）** 目标前缀 `total≠0` 时迁移拒绝开始并提示「目标桶不空」；`total=0` 且 `fs/get` 不存在 key 报 `object not found` 时才允许提交第一批。
-- ⏳ **V14（merge 幂等）** 同一批 `names` 带 `merge=true` 连续提交两次：第二次全部跳过、返回 `code=200`、`/done` 新增里没有 `failed`；目标对象数不变。
-- ⏳ **V15（skip_existing 只跳顶层）** 目标已有同名**目录**时，`skip_existing=true` 仍把整个顶层项跳过（不递归合并）；同一场景改成 `merge=true` 才逐层补齐。
-- ⏳ **V16（overwrite 只打清单）** `overwrite=true` 只覆盖清单内的 key：清单外对象的 `last-modified` 与 ETag 不变（用 `fs/get` 前后对比）。
-- ⏳ **V17（缺目录 500）** 不 `mkdir` 直接 `fs/copy` → 500 `failed to get dst dir`；补建目录后成功。
-- ⏳ **V18（跨挂载元数据损失）** 同一个 81408 B 的 `a.webp`：C 路线搬过去，目标 `Content-Type` 按扩展名重猜、对象无独立 ACL；A 路线传同一张，`Content-Type` 与 `object_acl` 都是插件设置的值。两条路各自 `fs/get` 对照。
-- ⏳ **V19（.openlist 占位）** C 路线搬完，目标桶每个目录出现 `.openlist`；`fs/list` 不显示；逐目录 `fs/remove` 后 `fs/list` 与插件 `list_page`（`src/S3/Object_Store.php:542`）都不再出现。
-- ⏳ **V20（>5 MB 分片）** C 路线搬一个 >5 MB 文件：插件 `verify` 标 `unverifiable`；A 路线传同一个（<16 MB 走单段），`verify` 可判 `matched`。
-- ⏳ **V21（路线 A 端到端）** 多吉云 → 腾讯云：`migrate` 输出 `uploaded` ＝ 附件数 − `skipped`（本地完整时 `skipped` 应为 0）；`verify` 无 `mismatch`；`scan --full` 后 `synced` ＝ 目标对象数；CDN 回源切换后抽样 200。
-- ⏳ **V22（部分重叠端到端）** 目标预置「同名同大小」「同名异大小」「目标多出」各 ≥1：走 C＋`merge` 后，异大小保持不动（merge 不修）、多出的不被删；再按 §7.4 的覆盖清单 ＋ 同步中心 `REPLACE` 修好，`verify` 干净。
+- ✅ **V1** `fs/copy` 往返：搬一个文件返回 `code=200`，轮询约 2.0 s 后 `state=2`、`total_bytes` 与源一致，目标 `fs/list` 同名同尺寸。
+- ✅ **V2** 建 / 改 / 删挂载三条路径均为 `code:200`。
+- ✅ **V3** 重复 `mount_path` 建挂载返回 `code=500` 且 `data.id=0`；**也可能已经落库**，先 `storage/list` 再决定是否重试。
+- ✅ **V4** 目标已存在同名文件时 `fs/copy` 立即返回 `code=403 file [...] exists`（不入队、不产生 `state=7` 噪音）；要么先求差，要么显式 `merge` / `skip_existing`。
+- ✅ **V5** 凭据热改：错误 AK/SK 建的挂载 `status` 仍是 `work`、`fs/list` 报 403；`storage/update` 修好后 `fs/list` 立刻 200。**证明 `status=work` 不等于凭据可用。**
+- ✅ **V6** `remark` 写中文与空格，`storage/list` 原样取回（可当迁移标记用）。
+
+人工操作逐条确认：
+
+- **V7** 目标前缀 `fs/list` 的 `total=0`；`fs/get` 不存在的 key 报 `object not found`；探针对象写进去能读能删。
+- **V8** 建挂载后把 `addition` 逐字核对（字段名拼错不报错，只会退化成默认值），`bucket` / `endpoint` / `region` 与厂商控制台一致。
+- **V9** 求差结果里 `S\T` 的数量等于「源桶对象数 − 目标已有对象数」；抽 10 个 key 在两边 `fs/get` 都能取到。
+- **V10** 每批 `names` ≤ 200，且批内只有一种语义（`merge` 或 `overwrite`）。
+- **V11** 每批提交后 `undone` 为空、`done` 新增里没有 `failed`；有 `failed` 就按 `error` 原文处理，不要整批重跑。
+- **V12** 目标目录里没有残留 `.openlist`：`fs/list` 不显示它，但 `fs/get .openlist` 能取到就是没删。
+- **V13** 抽样 `curl -I` ≥10 个对象：状态码 200、`Content-Length` 与源一致、`Content-Type` 与 `wp_check_filetype` 的推断一致（不一致就回插件重传）。
+- **V14** 切到目标配置并 `scan --full` 后：`synced` 行数 = 目标对象数；`remote` 行数为 0（为 0 才能删源桶）。
+- **V15** 有本地副本时 `verify` 跑完 `mismatched=0`；`unverifiable` 只应出现在 ≥16 MB 的分片对象上（`Object_Store` 的单段上限，`src/S3/Object_Store.php:109`）。
+- **V16** CDN 回源切到目标后，抽样访问附件页与 `srcset` 候选，全部 200。
+- **V17** 观察期内 `debug.log` 没有新增 `sakura_s3_*` 报错；同步中心的差异数回零。
+- **V18** 删除临时挂载后 `storage/list` 回到迁移前，桶内对象数量不变（删挂载不删对象）。
+- **V19** 写入期间 OpenList 重启过：以「目标 `fs/list` 重新求差」判断进度，**不要**相信队列（§6.4）。
 
 ## §11 明确不做
 
 | 不做 | 原因 |
 |---|---|
+| **插件内迁移通道**（常驻镜像挂载、随配置增删同步、迁移卡、自动求差与结算） | **2026-11-18 决定移除。** 三条理由：① 插件验证不了搬完的内容——`Verify_Service` 只处理本地有文件的行（`src/Sync/Verify_Service.php:218-220`），而「本地没有副本」正是这条通道唯一的用途；② 预填会把索引灌成「已同步」，`Content-Type` / ACL 永久错且无人修（§7.1 的警告）；③ OpenList 跨挂载复制会丢元数据、留 `.openlist`、>5 MB 变分片 ETag（§5.2）。搬桶交给专业迁移软件或人工，插件只负责把本地副本正确地传进目标桶 |
 | 把 OpenList 当上传后端 | 上传必须留在一个可控、可复现、失败可重试的路径上；引入常驻外部服务会把「传一张图」变成「两个系统都得活着」 |
-| 定时（cron）对账 | 会在没人看着的时候动外部服务的挂载表；改为「配置增删改时同步 ＋ 打开页面时对账 ＋ 手工同步按钮」 |
-| 自动定时迁移 | 迁移是一次性的运维动作，绑进 cron 只会在没人看着的时候动桶 |
-| 删除插件不认识的挂载 | 归属判据之外的东西一律只读（§4.1）；误删别人挂载是不可逆越权 |
-| 依赖 `retry` / `cancel` / `clear` 端点 | 未验证语义，上游也可能随时改 |
-| 在插件里实现 OpenList 的驱动适配层 | 迁移只需要 `S3` 与 `Doge` 两个驱动，够用即可 |
-| 记录迁移历史到新表 | 可观测性靠「目标桶求差 ＋ 任务队列」，够用；真要审计再加（届时须同时进 `Uninstaller`） |
-| 单配置站点开放迁移入口 | 见 §7.1：OpenList 通道没有目标可切；这类站点应先按 07 §6 新增一份配置，或直接走路线 A |
-| 用 OpenList 修对象的 ACL / Content-Type | 修复的正确工具是插件重传（`PUT` 带 `ContentType` / ACL）；在通道里再养一份「修补逻辑」等于第二套存储实现 |
-| 自动清理目标桶的 `.openlist` | 它只在选 C 路线时产生、每个目录一个；一次 `fs/list` ＋ `fs/remove` 脚本足够，做成插件任务还要维护递归与忽略规则 |
-| 逐对象内容比对 | `Verify_Service` 只对 32 位 hex ETag 生效；>5 MB 分片对象没有可比 ETag，深度比对要整对象下载 |
-| 把「目标已有同名文件」当失败 | `merge` 的语义就是跳过；当失败会让断点续跑永远跑不完 |
+| 用 OpenList 修对象的 ACL / Content-Type | 修复的正确工具是插件重传（`PUT` 带 `ContentType` / ACL）；在这里再养一份「修补逻辑」等于第二套存储实现 |
+| 自动清理目标桶的 `.openlist` | 它只在手工走 C 路线时出现、每个目录一个；一次 `fs/list` ＋ `fs/remove` 脚本足够 |
+| 逐对象内容比对 | `Verify_Service` 只对 32 位 hex ETag 生效；≥16 MB 的分片对象没有可比 ETag，深度比对要整对象下载 |
+| 迁移历史写进新表 | 可观测性靠「目标桶求差 ＋ 人工清单」够用；真要审计再加（届时须同时进 `Uninstaller`） |
+| 定时（cron）对账 / 自动迁移 | 会在没人看着的时候动外部服务的挂载表和桶 |
+| 删除插件不认识的挂载 | 手工建的挂载由手工删；插件不再碰任何挂载 |
+| 依赖 `retry` / `cancel` / `clear` 端点 | 语义未验证，上游也可能随时改 |
+| 在插件里实现 OpenList 的驱动适配层 | 手工搬桶只需要 `S3` 与 `Doge` 两个驱动，够用即可 |
+| 单配置站点开放迁移入口 | 已无迁移入口。换桶按 07 §6；只有一份配置的站点先新增一份再换 |
+| 把「目标已有同名文件」当失败 | `merge` 的语义就是跳过；当失败会让续跑永远跑不完 |
 
 ## §12 速查：场景 → 路线
 
@@ -881,8 +752,8 @@ foreach ( $plan as $dir => $entries ) {
 |---|---|---|
 | 多吉云 → 腾讯云，本地有全部附件（本站现状） | P0 / A | 07 §6 切配置 → `wp sakura-s3 migrate --batch-size=500 --seconds=30` → `wp sakura-sync verify --seconds=60` → 切 CDN 回源 |
 | 同上，但本地缺一部分 | P1 / B → A | 同步中心批量下载补本地（拒绝覆盖＝只补缺）→ A |
-| 全新腾讯云桶、本地没附件、只要桶能用 | P2 / C | §7.3 建桶 → 求差 → `mkdir` → `merge` copy → 结算 → 收尾（含 `.openlist` 清理与抽样） |
-| 目标桶已有上一轮搬了一半 | P2 / C 续跑 | `merge=true` 重提 ＋ §7.4 四分类 |
-| 目标桶有同名但内容不同 | 覆盖清单 | `overwrite=true` 只打清单 → `verify` |
-| 大站、要求几乎不停机 | P2 预填 ＋ P0 补差 | 在线 C 预填 → 冻结 → 补差 → 切配置 → A 补差 → 切 CDN |
-| 只想临时看桶里有什么 | — | `curl` 或 OpenList UI；**不要**为此在插件里建配置 |
+| 本地没附件、也不想要 | P2 / C | 临时挂载（§4）→ 空桶校验 → 求差 → `mkdir` → `merge` 分批 → 结算 → 清 `.openlist` → 抽样 → 收尾（§7.6） |
+| 目标桶已有上一轮搬了一半 | P2 / C 续跑 | `merge=true` 重提 ＋ §7.3 的四分类 |
+| 目标桶有同名但内容不同 | 覆盖清单 | `overwrite=true` 只打清单 → 抽样 / `verify` |
+| 只想临时看桶里有什么 | — | OpenList UI 或 `curl`；不要为此在插件里建配置 |
+| 想自动化、还要求可验证 | — | 用市面上的专业迁移工具；插件这条路只有 A/B，且 B 的下载必须走同步中心 |

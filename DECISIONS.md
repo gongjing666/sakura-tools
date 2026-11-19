@@ -775,3 +775,21 @@ body.upload-php.sufm-tree-active.folded { --sufm-tree-left: 56px; }
 **已知边界**：迁移不修任何现存缺陷——`includes/` 是活代码，1.28.x 仍在改 `S3_Storage_Module` / `S3_Doge_Cloud` / `Thumbnail_Optimizer_Module`；`.agents/worktrees/` 下还有 6 个副本，搬迁必须避开在途分支，否则冲突会落在 rename 上。
 
 **维护动作**：短期守卫是「`includes/` 下不新增文件、不新增类」（CI 或 pre-commit 检查），新代码一律 `src/`；若决定执行方案 A，做法与验收按本条目第 2–6 点办，并同步更新 `01-架构与装配.md` §1、`00-索引.md` 铁律 1、`AGENTS.md` 骨架与 `bin/build-plugin-zip.sh`。
+
+
+## 删除与结算：闸门按能力判定，结算收敛为一个结算点（2026-11-19，方案）
+
+**背景**：插件在 `pre_delete_attachment`（`src/UserFiles/Media/Media_Hooks.php:557`）与 `rest_pre_dispatch`（同文件 `:668`）两处否决 WordPress 的删除，但放行条件写死成「文件来源是 `source=media`」，于是「是不是管理员」根本没参与判断：管理员删不掉前台用户上传的附件，而作者删自己的图能否通过取决于来源而不是角色。另一方面而两套结算（`finalize_deleted_attachment()` 与 `Executor::complete_purge()`）靠进程内 `$direct_deletes` 标记避免双扣，任何第三条删除路径都会让台账停在 `active`：文件没了、容量不退、没有审计。
+
+**决策**：
+
+1. **闸门保留，判据换掉**：放行条件从「`source=media`」改为「台账 `active` + 操作者有 `sufm_admin_delete_files` + `delete_post`」。管理员（当前唯一持有该能力的角色）可直接删任何附件，其余角色一律拒绝并引导「提交删除申请」。
+2. 容量结算收敛为唯一函数 `Deletion::settle()`，用 `nb_sufm_files` 行上的条件更新（`lifecycle <> 'purged'` → `purged`，`affected === 1` 为胜者）决出唯一扣减者。
+3. 插件自己的删除入口收敛为一个内核 `Deletion::delete()`（审核队列、同步中心、后台按钮、CLI 全部经它）。
+4. 同步中心的「删除远端」升级为「有附件就整链删」，只有解析不到附件的孤儿对象才保留仅删远端。
+
+**理由**：① 产品规则是「管理员权限最大，其余人只能申请」，这条规则按操作者能力表达才准确，按文件来源表达必然过拦或漏拦；② 「谁能删」是产品策略，「删了怎么记账」是数据完整性，两者要分层——闸门只做准入，记账只在结算点；③ 进程内标记无法覆盖脚本、CLI 与其他插件的删除，行级条件更新才是跨进程互斥，且不需要新增表。
+
+**代价**：插件成为删除的必经通道——作者/编辑（核心层本来能删自己的附件）、第三方插件、不带 `--user` 的 `wp post delete` 都会被拦；每新增一条删除路径都要记得带对身份或走内核。配套：后台给管理员直删入口、CLI 文档写明 `--user`、非管理员提示指向申请流程。
+
+**落点与验收**：`docs/开发规则/09-删除与结算.md`。

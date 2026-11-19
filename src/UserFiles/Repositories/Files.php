@@ -179,6 +179,33 @@ final class Files {
 	}
 
 	/**
+	 * Row by primary key, regardless of owner.
+	 *
+	 * Settling a deletion must not depend on who is acting: the observer runs
+	 * as whichever user pressed delete, and cron runs as nobody.
+	 *
+	 * @param int $file_id Row id.
+	 * @return object|null
+	 */
+	public function get_by_id( int $file_id ): ?object {
+		global $wpdb;
+
+		if ( $file_id <= 0 ) {
+			return null;
+		}
+
+		$table = Schema::table( 'files' );
+		$row   = $wpdb->get_row(
+			$wpdb->prepare(
+				"SELECT * FROM {$table} WHERE id=%d LIMIT 1", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				$file_id
+			)
+		);
+
+		return $row ? $row : null;
+	}
+
+	/**
 	 * Character bigrams of a display name, the units of the search index.
 	 *
 	 * Every adjacent character pair of the name becomes one token. A search
@@ -660,6 +687,70 @@ final class Files {
 		}
 
 		return $ok;
+	}
+
+	/**
+	 * Claim a row for deletion: only the caller that moves active -> deleting
+	 * owns the delete, everything else has to step aside.
+	 *
+	 * The row leaves the front-end listing immediately (that only reads
+	 * `active`), so a user never sees a file that is halfway gone.
+	 *
+	 * @param int $file_id Row id.
+	 * @return bool True when this call won the claim.
+	 */
+	public function claim_deleting( int $file_id ): bool {
+		global $wpdb;
+
+		if ( $file_id <= 0 ) {
+			return false;
+		}
+
+		$table    = Schema::table( 'files' );
+		$affected = $wpdb->query(
+			$wpdb->prepare(
+				"UPDATE {$table} SET lifecycle='deleting', updated_at=%s WHERE id=%d AND lifecycle='active'", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				Time::now(),
+				$file_id
+			)
+		);
+
+		return false !== $affected && 1 === (int) $affected;
+	}
+
+	/**
+	 * Settle a row: the conditional update is the mutex for the whole plugin.
+	 *
+	 * Whoever moves the row out of `active\/`deleting` wins and is the only
+	 * caller allowed to release the charge; everyone else gets false and must
+	 * treat the file as already handled.
+	 *
+	 * @param int $file_id Row id.
+	 * @return bool True when this call moved the row to purged.
+	 */
+	public function settle_purged( int $file_id ): bool {
+		global $wpdb;
+
+		if ( $file_id <= 0 ) {
+			return false;
+		}
+
+		$table    = Schema::table( 'files' );
+		$affected = $wpdb->query(
+			$wpdb->prepare(
+				"UPDATE {$table} SET lifecycle='purged', storage_state='deleted', updated_at=%s WHERE id=%d AND lifecycle<>'purged'", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				Time::now(),
+				$file_id
+			)
+		);
+
+		if ( false === $affected || 0 === (int) $affected ) {
+			return false;
+		}
+
+		$wpdb->delete( Schema::table( 'file_tokens' ), array( 'file_id' => $file_id ), array( '%d' ) );
+
+		return true;
 	}
 
 	/**

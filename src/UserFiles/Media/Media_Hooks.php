@@ -18,6 +18,7 @@ use Nboke\UserFiles\Repositories\Events;
 use Nboke\UserFiles\Repositories\Files;
 use Nboke\UserFiles\Repositories\Folders;
 use Nboke\UserFiles\Repositories\Requests;
+use Nboke\UserFiles\Services\Deletion;
 use Nboke\UserFiles\Services\Media_Adoption;
 use Nboke\UserFiles\Services\Quota;
 use Nboke\UserFiles\Services\Sync_Service;
@@ -99,15 +100,6 @@ final class Media_Hooks {
 	 * @var array<int, object|null>
 	 */
 	private array $request_rows = array();
-
-	/**
-	 * Attachments this request already cleared for a direct media-library
-	 * delete. Only these are reconciled on `deleted_post`; deletions driven by
-	 * the approved-request executor settle their own ledger row.
-	 *
-	 * @var array<int, bool>
-	 */
-	private array $direct_deletes = array();
 
 	private ?Events $events;
 
@@ -575,26 +567,18 @@ final class Media_Hooks {
 			return $delete;
 		}
 
-		// An attachment without a ledger row must not slip past this guard just
-		// because nobody adopted it yet: adopt on sight, then decide normally.
-		$file = $this->adopt_unmanaged( $post_id );
+		// No ledger row means nothing was ever charged: there is no settlement
+		// to lose, so WordPress may delete it without another gate.
+		$file = $this->files->get_by_attachment( $post_id );
 
 		if ( ! $file || 'purged' === (string) $file->lifecycle ) {
 			return $delete;
 		}
 
-		/* Media-library imports belong to the site's own media library: an
-		 * administrator who may delete posts can remove them directly. Files
-		 * uploaded through the user file space stay behind the request flow. */
-		if (
-			Files::SOURCE_MEDIA === (string) $file->source
-			&& 'active' === (string) $file->lifecycle
-			&& (int) $file->pending_request_id <= 0
-			&& current_user_can( Capabilities::DELETE_FILES )
-			&& current_user_can( 'delete_post', $post_id )
-		) {
-			$this->direct_deletes[ $post_id ] = true;
-
+		/* Admission is decided by the actor's capability, never by where the
+		 * file came from. The administrator may remove any file; everyone below
+		 * them has to file a delete request and wait for execution. */
+		if ( self::may_delete_directly( $file, current_user_can( Capabilities::DELETE_FILES ), current_user_can( 'delete_post', $post_id ) ) ) {
 			return $delete;
 		}
 
@@ -606,55 +590,44 @@ final class Media_Hooks {
 	}
 
 	/**
-	 * Settle the ledger after an administrator removed a media-library import.
+	 * `deleted_post` observer: hand every removed attachment to the settlement.
 	 *
-	 * `deleted_post` fires once the attachment row is gone. Deletions run by
-	 * the approved-request executor are skipped here because that executor
-	 * already charges the quota back in its own purge step.
+	 * WordPress fires this for every deletion it performs — media library, REST,
+	 * WP-CLI, another plugin, and the approved-request executor — so there is no
+	 * in-process flag to keep in sync. `Deletion::settle()` decides the winner
+	 * with a conditional update, which makes the observer and a caller that
+	 * settles by itself idempotent together.
 	 *
 	 * @param int          $post_id Attachment ID.
 	 * @param WP_Post|null $post    Deleted post object.
 	 * @return void
 	 */
 	public function finalize_deleted_attachment( $post_id, $post = null ): void {
-		global $wpdb;
+		$this->deletion()->on_attachment_deleted( $post_id, $post );
+	}
 
-		$post_id = (int) $post_id;
-		if ( empty( $this->direct_deletes[ $post_id ] ) ) {
-			return;
-		}
-		unset( $this->direct_deletes[ $post_id ] );
+	/**
+	 * Whether this actor may delete a managed file without the request flow.
+	 *
+	 * One decision, one place: the media-library gate and the REST gate both
+	 * call this, so a capability change cannot leak through the other path.
+	 *
+	 * @param object $file            Ledger row.
+	 * @param bool   $has_delete_cap  Holds `sufm_admin_delete_files`.
+	 * @param bool   $can_delete_post Holds `delete_post` for this attachment.
+	 * @return bool
+	 */
+	public static function may_delete_directly( object $file, bool $has_delete_cap, bool $can_delete_post ): bool {
+		return 'active' === (string) $file->lifecycle && $has_delete_cap && $can_delete_post;
+	}
 
-		if ( ! $post instanceof WP_Post || 'attachment' !== $post->post_type ) {
-			return;
-		}
-
-		$file = $this->files->get_by_attachment( $post_id );
-		if ( ! $file || 'purged' === (string) $file->lifecycle ) {
-			return;
-		}
-
-		$wpdb->delete( Schema::table( 'artifacts' ), array( 'file_id' => (int) $file->id ), array( '%d' ) );
-
-		Db_Transaction::begin();
-		if ( $this->quota && (int) $file->charged_bytes > 0 ) {
-			$this->quota->adjust_used( (int) $file->owner_id, -1 * (int) $file->charged_bytes );
-		}
-		$this->files->set_lifecycle( (int) $file->id, 'purged', 'deleted' );
-		Db_Transaction::commit();
-
-		if ( $this->events ) {
-			$this->events->log(
-				array(
-					'actor_id'    => get_current_user_id(),
-					'owner_id'    => (int) $file->owner_id,
-					'subject_id'  => $post_id,
-					'action'      => 'media_delete',
-					'result'      => 'purged',
-					'safe_detail' => 'direct',
-				)
-			);
-		}
+	/**
+	 * Settlement service, built from what this class already holds.
+	 *
+	 * @return Deletion
+	 */
+	private function deletion(): Deletion {
+		return new Deletion( $this->files, $this->quota, $this->events );
 	}
 
 	/**
@@ -687,7 +660,7 @@ final class Media_Hooks {
 				return $result;
 			}
 
-			if ( $this->is_managed_attachment( $attachment_id ) ) {
+			if ( $this->is_managed_attachment( $attachment_id ) && ! current_user_can( Capabilities::DELETE_FILES ) ) {
 				return $this->managed_error();
 			}
 
@@ -696,7 +669,7 @@ final class Media_Hooks {
 
 		if ( 'POST' === $method && preg_match( '#^/wp/v2/(?:media|attachments)/batch$#', $route ) ) {
 			$ids = $this->batch_attachment_ids( $request );
-			if ( $ids && $this->batch_contains_managed( $ids ) ) {
+			if ( $ids && $this->batch_contains_managed( $ids ) && ! current_user_can( Capabilities::DELETE_FILES ) ) {
 				return $this->managed_error();
 			}
 		}
@@ -1216,7 +1189,7 @@ final class Media_Hooks {
 					/* translators: %d: number of deleted files */
 					'deleteDone' => __( '已删除 %d 个文件。', 'sakura-imgopt' ),
 					/* translators: 1: deleted count, 2: failed count */
-					'deletePartial' => __( '已删除 %d 个文件，%s 个未能删除（可能是用户中心上传的文件）。', 'sakura-imgopt' ), // phpcs:ignore WordPress.WP.I18n.UnorderedPlaceholdersText -- JS replaces %s/%d literally; ordering them would break the UI.
+					'deletePartial' => __( '已删除 %d 个文件，%s 个未能删除（无删除权限，用户上传的文件请提交申请或由管理员删除）。', 'sakura-imgopt' ), // phpcs:ignore WordPress.WP.I18n.UnorderedPlaceholdersText -- JS replaces %s/%d literally; ordering them would break the UI.
 				)
 			)
 		);
@@ -2180,7 +2153,7 @@ final class Media_Hooks {
 	private function managed_error(): WP_Error {
 		return new WP_Error(
 			'sufm_managed',
-			__( '该文件由“用户文件空间”管理，需由用户提交删除申请并经管理员批准执行。', 'sakura-imgopt' ),
+			__( '你没有直接删除该文件的权限。请提交删除申请，等待管理员批准执行；管理员可直接在媒体库删除。', 'sakura-imgopt' ),
 			array( 'status' => 409 )
 		);
 	}

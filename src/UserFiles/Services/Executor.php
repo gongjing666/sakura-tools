@@ -804,11 +804,29 @@ final class Executor {
 
 		// Artifacts, ledger and row close as one unit: deleting the artifact
 		// records before the transaction lost them even when the charge failed.
+		// The lifecycle write is the plugin-wide mutex, so the charge moves only
+		// when this call won it — the deleted_post observer settles the same row
+		// earlier in this very request and would otherwise refund it twice.
 		$artifacts_ok = $wpdb->delete( Schema::table( 'artifacts' ), array( 'file_id' => (int) $file->id ), array( '%d' ) );
-		$charged_ok   = $this->quota->adjust_used( (int) $request->owner_id, -1 * (int) $file->charged_bytes );
-		$lifecycle_ok = $this->files->set_lifecycle( (int) $file->id, 'purged', 'deleted' );
+		$lifecycle_ok = $this->files->settle_purged( (int) $file->id );
+		$charged_ok   = true;
+
+		if ( $lifecycle_ok ) {
+			$charged_ok = $this->quota->adjust_used( (int) $request->owner_id, -1 * (int) $file->charged_bytes );
+		}
 
 		if ( false === $artifacts_ok || ! $charged_ok || ! $lifecycle_ok ) {
+			$current = $this->files->get_by_id( (int) $file->id );
+
+			// Already settled means the observer got here first: the charge is
+			// gone and only the request item is left to close.
+			if ( $current && 'purged' === (string) $current->lifecycle && false !== $artifacts_ok ) {
+				$this->update_item( (int) $item->id, 'done', 'purged' );
+				Db_Transaction::commit();
+
+				return true;
+			}
+
 			Db_Transaction::rollback();
 
 			$this->update_item( (int) $item->id, 'failed', 'ledger' );

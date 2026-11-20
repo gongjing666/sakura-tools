@@ -1,8 +1,6 @@
 ( function () {
 	'use strict';
-	var data = window.sufmFolders, panel = document.getElementById( 'sufm-tree' );
-	if ( ! data || ! panel ) { return; }
-	var strings = data.strings || {};
+	var data = window.sufmFolders, panel = document.getElementById( 'sufm-tree' ), strings = ( data && data.strings ) || {};
 	function t( key ) { return strings[ key ] || key; }
 	function text( tag, cls, value ) { var e = document.createElement( tag ); if ( cls ) { e.className = cls; } if ( value !== undefined ) { e.textContent = value; } return e; }
 	function button( label, run, cls ) { var e = text( 'button', cls || 'button', label ); e.type = 'button'; if ( run ) { e.addEventListener( 'click', run ); } return e; }
@@ -23,8 +21,21 @@
 	}
 	var toast = text( 'div', 'sufm-feedback' ); toast.setAttribute( 'role', 'status' ); toast.setAttribute( 'aria-live', 'polite' ); document.body.appendChild( toast );
 	var toastTimer;
-	function notify( message, error ) { toast.textContent = message; toast.classList.toggle( 'is-error', !! error ); toast.hidden = false; clearTimeout( toastTimer ); toastTimer = setTimeout( function () { toast.hidden = true; }, 6500 ); }
+	function notify( message, error, duration ) { toast.textContent = message; toast.classList.toggle( 'is-error', !! error ); toast.hidden = false; clearTimeout( toastTimer ); toastTimer = setTimeout( function () { toast.hidden = true; }, duration || 6500 ); }
 	toast.hidden = true;
+	/* Bulk actions submit as a plain GET, so their result flags come back in the query string.
+	 * The server-side admin notice would be painted underneath the fixed folder cabinet, so
+	 * show the same message as a toast and drop the flags from the URL. */
+	if ( data && data.notice && data.notice.message ) {
+		/* A bulk action's outcome is worth more reading time than a transient hint. */
+		notify( data.notice.message, !! data.notice.error, 15000 );
+		if ( window.history && window.history.replaceState ) {
+			var flashUrl = new URL( location.href );
+			[ 'sufm_takedown_done', 'sufm_takedown_skipped', 'sufm_takedown_reason_missing', 'sufm_takedown_denied' ].forEach( function ( key ) { flashUrl.searchParams.delete( key ); } );
+			window.history.replaceState( null, '', flashUrl.href );
+		}
+	}
+	if ( ! data || ! panel ) { return; }
 	function ownerId() { return Number( panel.dataset.owner ) || 0; }
 	function folderId() { return panel.dataset.folder || ''; }
 	function ownerById( id ) { return owners.find( function ( o ) { return Number( o.id ) === Number( id ); } ); }
@@ -82,12 +93,13 @@
 	function go( params ) {
 		var u = new URL( location.href ); Object.keys( params ).forEach( function ( k ) { if ( params[ k ] === '' || params[ k ] === null ) { u.searchParams.delete( k ); } else { u.searchParams.set( k, params[ k ] ); } } ); u.searchParams.delete( 'paged' );
 		clearSelection(); history.pushState( {}, '', u ); panel.dataset.owner = u.searchParams.get( 'sufm_owner' ) || '0'; panel.dataset.folder = u.searchParams.get( 'sufm_folder' ) || ''; panel.dataset.unassigned = u.searchParams.get( 'sufm_unassigned' ) || '';
+		syncUploadTarget();
 		// List filter submits must retain the current virtual scope, too.
 		var form = document.getElementById( 'posts-filter' ); if ( form ) { Object.entries( queryValues() ).forEach( function ( pair ) { var input = form.querySelector( '[name="' + pair[ 0 ] + '"]' ); if ( ! input ) { input = document.createElement( 'input' ); input.type = 'hidden'; input.name = pair[ 0 ]; form.appendChild( input ); } input.value = pair[ 1 ]; } ); }
 		render(); closeDrawer(); refreshMedia( true ).catch( function ( e ) { notify( e.message, true ); } );
 	}
 	function navigateOwner( id, folder ) { go( { sufm_owner: id, sufm_folder: folder, sufm_unassigned: '', sufm_folder_mode: folder === '' ? 'all' : '' } ); }
-	window.addEventListener( 'popstate', function () { var u = new URL( location.href ); panel.dataset.owner = u.searchParams.get( 'sufm_owner' ) || '0'; panel.dataset.folder = u.searchParams.get( 'sufm_folder' ) || ''; panel.dataset.unassigned = u.searchParams.get( 'sufm_unassigned' ) || ''; clearSelection(); render(); refreshMedia( true ); } );
+	window.addEventListener( 'popstate', function () { var u = new URL( location.href ); panel.dataset.owner = u.searchParams.get( 'sufm_owner' ) || '0'; panel.dataset.folder = u.searchParams.get( 'sufm_folder' ) || ''; panel.dataset.unassigned = u.searchParams.get( 'sufm_unassigned' ) || ''; clearSelection(); render(); refreshMedia( true ); syncUploadTarget(); } );
 	function icon( kind ) { var svg = document.createElementNS( 'http://www.w3.org/2000/svg', 'svg' ); svg.setAttribute( 'viewBox', '0 0 24 24' ); svg.setAttribute( 'fill', 'none' ); svg.setAttribute( 'stroke', 'currentColor' ); svg.setAttribute( 'stroke-width', '1.6' ); svg.setAttribute( 'aria-hidden', 'true' ); var p = document.createElementNS( svg.namespaceURI, 'path' ); p.setAttribute( 'd', kind === 'owner' ? 'M20 21v-2a7 7 0 0 0-14 0v2M13 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8' : 'M3 7V5a2 2 0 0 1 2-2h5l3 4h6a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z' ); svg.appendChild( p ); return svg; }
 	function closeMenu() { if ( menu ) { menu.remove(); menu = null; } if ( menuReturn ) { menuReturn.classList.remove( 'is-menu-open' ); menuReturn = null; } }
 	function placeMenu( x, y ) { var box = menu.getBoundingClientRect(), left = Math.max( 8, Math.min( x, innerWidth - box.width - 8 ) ), top = y;
@@ -338,6 +350,52 @@
 	// Keep the existing own-user upload destination; new uploads carry the folder
 	// through core's signed multipart request, rather than a second transfer.
 	var uploadFolder = 0, uploadDone = 0, uploadFailed = 0;
+	/**
+	 * Mirror the tree selection into the upload destination picker.
+	 *
+	 * The picker used to start at the root and change only when the operator
+	 * used its own dropdown, so clicking a folder on the left and then dropping
+	 * files into the inline uploader still filed them under root. The tree
+	 * selection is the obvious destination, so keep them in step.
+	 *
+	 * Only the uploading user may choose a folder (the server ignores
+	 * `sufm_folder` for anyone else's tree), so browsing another owner resets
+	 * the destination to root instead of leaking a foreign folder id.
+	 */
+	/**
+	 * Move the tree to the folder picked in the upload target dropdown.
+	 *
+	 * The mirror has to work both ways: clicking a folder moves the picker,
+	 * and picking a folder moves the tree, otherwise the two controls disagree
+	 * about which folder is "current". Only pages that actually render the tree
+	 * are affected; the block editor's media modal has nothing to move.
+	 *
+	 * @param {number} folder Target folder id, 0 for the owner root.
+	 */
+	function navigateUploadTarget( folder ) {
+		if ( ! panel || ! data || ! data.userId ) {
+			return;
+		}
+		var value = Number( folder ) || 0;
+		go( {
+			sufm_owner: Number( data.userId ),
+			sufm_folder: value ? String( value ) : '',
+			sufm_folder_mode: value ? '' : 'all'
+		} );
+	}
+
+	function syncUploadTarget() {
+		var wanted = Number( ownerId() ) === Number( data && data.userId ) ? Number( folderId() ) || 0 : 0;
+		if ( wanted === uploadFolder ) {
+			return;
+		}
+		uploadFolder = wanted;
+		Array.prototype.forEach.call( document.querySelectorAll( '.sufm-modal-folder select' ), function ( select ) {
+			if ( select.querySelector( 'option[value="' + String( wanted ) + '"]' ) ) {
+				select.value = String( wanted );
+			}
+		} );
+	}
 	var uploadPanel = null, uploadList = null, uploadCount = null, uploadRows = {}, uploadTotal = 0, uploadHideTimer = 0;
 	function uploadTitle( key, fallback ) { return strings[ key ] || fallback; }
 	// A server-side rejection still arrives as HTTP 200: the REST/async-upload
@@ -473,7 +531,7 @@
 		if ( ! host || host.querySelector( '.sufm-modal-folder' ) ) { return; }
 		var label = text( 'label', 'sufm-modal-folder', t( 'uploadTarget' ) ); label.appendChild( select ); host.appendChild( label );
 		loadOwner( Number( data.userId ) ).then( function ( owner ) { fillTargets( select, owner ); } ).catch( function ( e ) { notify( e.message, true ); } );
-		select.addEventListener( 'change', function () { uploadFolder = Number( select.value ) || 0; if ( frame && frame.uploader ) { var up = frame.uploader.uploader; bindUpload( up ); if ( up && up.param ) { up.param( { sufm_folder: uploadFolder, sufm_owner: Number( data.userId ) } ); } } } );
+		select.addEventListener( 'change', function () { uploadFolder = Number( select.value ) || 0; if ( frame && frame.uploader ) { var up = frame.uploader.uploader; bindUpload( up ); if ( up && up.param ) { up.param( { sufm_folder: uploadFolder, sufm_owner: Number( data.userId ) } ); } } navigateUploadTarget( uploadFolder ); } );
 	}
 	function uploadPicker() {
 		var frame = mediaFrame(); if ( frame && frame.uploader ) { bindUpload( frame.uploader.uploader ); }
@@ -494,7 +552,7 @@
 				var wrap = text( 'div', 'sufm-inline-folder-bar' ); wrap.appendChild( pill );
 				inline.insertBefore( wrap, inline.firstChild );
 				loadOwner( Number( data.userId ) ).then( function ( owner ) { fillTargets( inlineSelect, owner ); } ).catch( function ( e ) { notify( e.message, true ); } );
-				inlineSelect.addEventListener( 'change', function () { uploadFolder = Number( inlineSelect.value ) || 0; var f = mediaFrame(); if ( f && f.uploader ) { var up = f.uploader.uploader; bindUpload( up ); if ( up && up.param ) { up.param( { sufm_folder: uploadFolder, sufm_owner: Number( data.userId ) } ); } } } );
+				inlineSelect.addEventListener( 'change', function () { uploadFolder = Number( inlineSelect.value ) || 0; var f = mediaFrame(); if ( f && f.uploader ) { var up = f.uploader.uploader; bindUpload( up ); if ( up && up.param ) { up.param( { sufm_folder: uploadFolder, sufm_owner: Number( data.userId ) } ); } } navigateUploadTarget( uploadFolder ); } );
 			}
 		}
 	}
@@ -523,7 +581,46 @@
 			trackDelete( body === '1' );
 		} );
 	}
-	document.body.classList.add( 'sufm-tree-active', 'sufm-tree-open' ); makeToolbar(); load( false ); decorateRows();
+	/* Moderation: the bulk action has to carry a reason, so intercept the form
+	 * submission, collect it, then let the browser post the form as usual
+	 * (form.submit() skips this handler, which keeps the guard re-entrant). */
+	var takedownBypass = false;
+	function takedownForm() { return document.getElementById( 'posts-filter' ); }
+	function takedownAction( form ) {
+		var second = form.querySelector( 'select[name="action2"]' ), first = form.querySelector( 'select[name="action"]' );
+		var value = second && second.value ? second.value : ( first && first.value ? first.value : '' );
+		return String( value || '' );
+	}
+	function askTakedown( form ) {
+		var boxes = form.querySelectorAll( '.wp-list-table input[name="media[]"]:checked' ), count = boxes.length;
+		if ( ! count ) { notify( t( 'needSelection' ), true ); return; }
+		var d = dialog( t( 'takedownTitle' ) ), reasons = strings.takedownReasons || {};
+		d.body.appendChild( text( 'p', 'sufm-transfer-note', t( 'takedownHint' ) ) );
+		d.body.appendChild( text( 'p', 'sufm-target-path', t( 'takedownSummary' ).replace( '%d', count ) ) );
+		var selectLabel = text( 'label', 'sufm-modal-folder', t( 'takedownReason' ) ), select = document.createElement( 'select' );
+		select.setAttribute( 'aria-label', t( 'takedownReason' ) );
+		var blank = text( 'option', '', t( 'takedownReason' ) ); blank.value = ''; blank.disabled = true; blank.selected = true; select.appendChild( blank );
+		Object.keys( reasons ).forEach( function ( key ) { var option = text( 'option', '', reasons[ key ] ); option.value = key; select.appendChild( option ); } );
+		selectLabel.appendChild( select ); d.body.appendChild( selectLabel );
+		var noteLabel = text( 'label', 'sufm-modal-folder', t( 'takedownNote' ) ), note = document.createElement( 'textarea' );
+		note.rows = 3; note.maxLength = 120; noteLabel.appendChild( note ); d.body.appendChild( noteLabel );
+		var confirm = button( t( 'takedownConfirm' ), function () {
+			if ( ! select.value ) { notify( t( 'takedownNeedReason' ), true ); select.focus(); return; }
+			[ [ 'sufm_takedown_reason', select.value ], [ 'sufm_takedown_note', note.value.trim() ] ].forEach( function ( pair ) {
+				var field = document.createElement( 'input' ); field.type = 'hidden'; field.name = pair[ 0 ]; field.value = pair[ 1 ]; form.appendChild( field );
+			} );
+			d.el.close(); takedownBypass = true; form.submit();
+		}, 'button button-primary' );
+		d.footer.appendChild( confirm );
+		select.focus();
+	}
+	document.addEventListener( 'submit', function ( event ) {
+		if ( takedownBypass ) { takedownBypass = false; return; }
+		var form = event.target;
+		if ( ! form || form.id !== 'posts-filter' || 'sufm_takedown' !== takedownAction( form ) ) { return; }
+		event.preventDefault(); askTakedown( form );
+	}, true );
+	document.body.classList.add( 'sufm-tree-active', 'sufm-tree-open' ); makeToolbar(); load( false ); decorateRows(); syncUploadTarget();
 	var queued = false; new MutationObserver( function () { if ( queued ) { return; } queued = true; requestAnimationFrame( function () { queued = false; decorateRows(); uploadPicker(); } ); } ).observe( document.body, { subtree: true, childList: true } );
 	if ( window.jQuery ) { jQuery( document ).ajaxComplete( function ( event, xhr, settings ) { if ( settings && String( settings.data || '' ).includes( 'action=upload-attachment' ) ) { load( false ); } } ); }
 } )();

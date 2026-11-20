@@ -1789,7 +1789,14 @@ body.dark-theme .sufm .sufm-drop {
 	gap: 12px;
 }
 
+.sufm .sufm-dialog-mascot {
+	flex: none;
+	margin-top: 1px;
+	line-height: 0;
+}
+
 .sufm .sufm-dialog-head h2 {
+	flex: 1;
 	margin: 0;
 	min-width: 0;
 	font-size: 16px;
@@ -4603,4 +4610,60 @@ body.dark-theme .sufm #sufm-capacity-dialog .sufm-capacity-row[data-kind="gift"]
 	width: 14px !important;
 	height: 14px !important;
 	border-radius: 3px !important;
+}
+
+/* -------------------------------------------------------------------------
+ * File-type icons
+ *
+ * Bundled SVGs (assets/file-icons/, MIT, see LICENSE beside them) replace the
+ * text chip for every recognisable format. They are real files rather than
+ * sprite symbols because each icon carries its own gradient ids and filters;
+ * inlining several of them in one document makes them borrow each other's
+ * paint. Unknown formats still fall back to the text chip.
+ * ---------------------------------------------------------------------- */
+.sufm .sufm-fileicon {
+	display: block;
+	width: 32px;
+	height: 34px;
+	flex: none;
+	object-fit: contain;
+}
+
+.sufm .sufm-row .sufm-fileicon {
+	width: 28px;
+	height: 32px;
+}
+
+.sufm .sufm-grid-preview > img.sufm-fileicon {
+	width: 58px;
+	height: 64px;
+	object-fit: contain;
+}
+
+.sufm .sufm-preview-doc .sufm-fileicon {
+	width: 58px;
+	height: 64px;
+}
+
+@media (max-width: 640px) {
+	.sufm .sufm-grid-preview > img.sufm-fileicon {
+		width: 44px;
+		height: 50px;
+	}
+}
+
+/*
+ * Row thumbnails are 28×32 at every width. The desktop block above only
+ * re-declares them inside `@media (min-width: 1200px)`, while the mobile list
+ * puts the thumbnail directly under `.sufm-row` — without this base rule an
+ * image row renders at its natural size and swallows the whole card.
+ */
+.sufm .sufm-cell-thumb {
+	display: block;
+	width: 28px;
+	height: 32px;
+	flex: none;
+	border-radius: 6px;
+	object-fit: cover;
+	background: var(--sufm-soft);
 }

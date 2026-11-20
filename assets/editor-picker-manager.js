@@ -180,6 +180,111 @@
 		return { image: 'IMG', video: 'VID', audio: 'AUD', archive: 'ZIP', document: 'DOC' }[ groupFor( mime ) ];
 	}
 
+	/*
+	 * Extensions the panel is willing to strip from a display name. Only these
+	 * are removed: a scanned PDF called "扫描全能王 2026-11-18 18.58" ends in
+	 * ".58", and blindly cutting the last dot would eat its title.
+	 */
+	var KNOWN_EXT = ( '7z aac ai apk avi avif bmp bz2 cjs csv css dll doc docx exe flac flv gif gz heic htm html ico ini jar jpeg jpg js json less log m4a markdown md mjs mov mp3 mp4 mpeg msi odp ods odt ogg otf pdf php png ppt pptx psb psd py rar rtf scss sql svg tar tgz tiff ts tsx ttf txt wav webm webp wmv woff woff2 xls xlsx xml xz zip' ).split( ' ' );
+
+	function extOf( name ) {
+		var match = /\.([A-Za-z0-9]{1,6})$/.exec( String( name || '' ) );
+		return match ? match[ 1 ].toLowerCase() : '';
+	}
+
+	function displayName( name ) {
+		var value = String( name || '' );
+		var ext = extOf( value );
+		if ( ! ext || KNOWN_EXT.indexOf( ext ) < 0 || value.length <= ext.length + 1 ) { return value; }
+		return value.slice( 0, - ( ext.length + 1 ) );
+	}
+
+	var ICON_BY_EXT = {
+		pdf: 'pdf', doc: 'word', docx: 'word', odt: 'word', rtf: 'word',
+		xls: 'excel', xlsx: 'excel', ods: 'excel', csv: 'csv',
+		ppt: 'powerpoint', pptx: 'powerpoint', odp: 'powerpoint',
+		txt: 'text', log: 'text', ini: 'text', md: 'markdown', markdown: 'markdown',
+		zip: 'zip', rar: 'zip', '7z': 'zip', tar: 'zip', gz: 'zip', tgz: 'zip', bz2: 'zip', xz: 'zip',
+		mp3: 'audio', wav: 'audio', flac: 'audio', aac: 'audio', ogg: 'audio', m4a: 'audio',
+		mp4: 'video', mov: 'video', avi: 'video', mkv: 'video', webm: 'video', flv: 'video', wmv: 'video',
+		psd: 'photoshop', psb: 'photoshop', php: 'php', js: 'js', mjs: 'js', cjs: 'js',
+		ts: 'typescript', tsx: 'typescript', css: 'css', scss: 'css', less: 'css',
+		html: 'html', htm: 'html', json: 'json', xml: 'xml', sql: 'sql', py: 'python',
+		apk: 'android', exe: 'binary', msi: 'binary', dll: 'binary', so: 'binary', bin: 'binary'
+	};
+
+	/*
+	 * Names are not reliable, so the detected mime gets the last word: the
+	 * ".58" scanner output above is stored as application/pdf and must show
+	 * the PDF icon.
+	 */
+	var ICON_BY_MIME = {
+		'application/pdf': 'pdf',
+		'application/msword': 'word',
+		'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'word',
+		'application/rtf': 'word',
+		'application/vnd.oasis.opendocument.text': 'word',
+		'application/vnd.ms-excel': 'excel',
+		'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'excel',
+		'application/vnd.oasis.opendocument.spreadsheet': 'excel',
+		'application/vnd.ms-powerpoint': 'powerpoint',
+		'application/vnd.openxmlformats-officedocument.presentationml.presentation': 'powerpoint',
+		'application/vnd.oasis.opendocument.presentation': 'powerpoint',
+		'application/zip': 'zip',
+		'application/x-zip-compressed': 'zip',
+		'application/x-rar-compressed': 'zip',
+		'application/x-7z-compressed': 'zip',
+		'application/gzip': 'zip',
+		'application/x-tar': 'zip',
+		'application/json': 'json',
+		'application/xml': 'xml',
+		'text/xml': 'xml',
+		'text/plain': 'text',
+		'text/markdown': 'markdown',
+		'text/csv': 'csv',
+		'text/html': 'html',
+		'text/css': 'css',
+		'application/javascript': 'js',
+		'text/javascript': 'js',
+		'application/x-httpd-php': 'php',
+		'application/x-php': 'php',
+		'text/x-php': 'php',
+		'application/x-sql': 'sql',
+		'text/x-sql': 'sql',
+		'application/vnd.android.package-archive': 'android'
+	};
+
+	function iconKey( name, mime ) {
+		var byExt = ICON_BY_EXT[ extOf( name ) ];
+		if ( byExt ) { return byExt; }
+
+		var type = String( mime || '' ).toLowerCase();
+		if ( ICON_BY_MIME[ type ] ) { return ICON_BY_MIME[ type ]; }
+		if ( 0 === type.indexOf( 'audio/' ) ) { return 'audio'; }
+		if ( 0 === type.indexOf( 'video/' ) ) { return 'video'; }
+		if ( 0 === type.indexOf( 'image/' ) ) { return 'image'; }
+		if ( 0 === type.indexOf( 'text/' ) ) { return 'text'; }
+
+		return '';
+	}
+
+	function fileIconHtml( name, mime ) {
+		var key = iconKey( name, mime );
+		var icons = ( window.sufmData && window.sufmData.fileIcons ) || {};
+		if ( ! key || ! icons[ key ] ) { return ''; }
+		return '<img class="sufm-fileicon" src="' + escapeHtml( icons[ key ] ) + '" alt="" loading="lazy" decoding="async">';
+	}
+
+	function fileMark( file ) {
+		var group = groupFor( file.mime );
+
+		if ( group === 'image' && file.url ) {
+			return '<img class="sufm-cell-thumb" src="' + escapeHtml( file.url ) + '" alt="" loading="lazy" decoding="async">';
+		}
+
+		return fileIconHtml( file.name, file.mime ) || '<span class="sufm-type" data-group="' + group + '">' + escapeHtml( typeLabel( file.mime, file.name ) ) + '</span>';
+	}
+
 	function folderArt() {
 		// Same path as the media library tree (media-folders.js), so a folder
 		// looks identical on both surfaces and only the palette differs.
@@ -232,6 +337,29 @@
 	 * Modal
 	 * ------------------------------------------------------------------ */
 
+	var MASCOT_SVG = '<svg width="38" height="38" viewBox="0 0 46 46" aria-hidden="true" focusable="false">'
+		+ '<circle cx="23" cy="24" r="17" fill="#ffd9e6"/>'
+		+ '<path d="M9 15c2 2 4 3.2 6.5 3.4C18 11 28 11 30.5 18.4 33 18.2 35 17 37 15c1.4 2.2 1.8 4.6 1.4 7-2.6-.6-4.8-.2-6.6 1.2.7 6.7-4.4 12.4-11.3 12.4S8.9 30.1 9.6 23.4c-1.8-1.4-4-1.8-6.6-1.2-.4-2.4 0-4.8 1.4-7z" fill="#ffb3d1"/>'
+		+ '<circle cx="18.4" cy="24" r="1.9" fill="#3a2333"/><circle cx="27.6" cy="24" r="1.9" fill="#3a2333"/>'
+		+ '<path d="M20.4 28.6c1.7 1.5 3.5 1.5 5.2 0" stroke="#3a2333" stroke-width="1.6" fill="none" stroke-linecap="round"/>'
+		+ '<circle cx="15.2" cy="27.4" r="2.4" fill="#ff8fb8" opacity=".55"/><circle cx="30.8" cy="27.4" r="2.4" fill="#ff8fb8" opacity=".55"/>'
+		+ '</svg>';
+
+	/**
+	 * 弹窗左上角的小鲸鱼（与后台提示框同一个形象），只插一次。
+	 */
+	function ensureMascot() {
+		var head = document.querySelector( '#sufm-picker .sufm-dialog-head' );
+		if ( ! head || head.querySelector( '.sufm-dialog-mascot' ) ) {
+			return;
+		}
+		var span = document.createElement( 'span' );
+		span.className = 'sufm-dialog-mascot';
+		span.setAttribute( 'aria-hidden', 'true' );
+		span.innerHTML = MASCOT_SVG;
+		head.insertBefore( span, head.firstChild );
+	}
+
 	function openModal( options ) {
 		if ( moveClickHandler ) {
 			el.modalBody.removeEventListener( 'click', moveClickHandler );
@@ -242,6 +370,7 @@
 			moveDblHandler = null;
 		}
 		modalConfirm = options.onConfirm || null;
+		ensureMascot();
 		el.modalTitle.textContent = options.title || '';
 		el.modalBody.innerHTML = options.body || '';
 		el.modalConfirm.textContent = options.confirmLabel || '确定';
@@ -554,12 +683,12 @@
 				var group = groupFor( file.mime );
 				var preview = group === 'image'
 					? '<img src="' + escapeHtml( file.url ) + '" alt="" loading="lazy" decoding="async">'
-					: '<span class="sufm-type" data-group="' + group + '">' + escapeHtml( typeLabel( file.mime, file.name ) ) + '</span>';
+					: ( fileIconHtml( file.name, file.mime ) || '<span class="sufm-type" data-group="' + group + '">' + escapeHtml( typeLabel( file.mime, file.name ) ) + '</span>' );
 
 				return '<article class="sufm-file-card' + ( state.selection[ file.id ] ? ' is-selected' : '' ) + '" data-sufm-file="' + Number( file.id ) + '"' + ( file.locked ? '' : ' draggable="true" data-sufm-drag="file"' ) + '>' +
 					'<label class="sufm-grid-check"><input type="checkbox" class="sufm-check" data-sufm-select="' + Number( file.id ) + '"' + ( state.selection[ file.id ] ? ' checked' : '' ) + ( file.locked ? ' disabled' : '' ) + ' aria-label="选择 ' + escapeHtml( file.name ) + '"></label>' +
 					'<div class="sufm-grid-preview">' + preview + '</div>' +
-					'<button type="button" class="sufm-grid-name" data-sufm-open-file="' + Number( file.id ) + '" title="' + escapeHtml( file.name ) + '">' + escapeHtml( file.name ) + '</button>' +
+					'<button type="button" class="sufm-grid-name" data-sufm-open-file="' + Number( file.id ) + '" title="' + escapeHtml( file.name ) + '">' + escapeHtml( displayName( file.name ) ) + '</button>' +
 					'<span class="sufm-grid-sub">' + ( file.locked ? '待审核' : bytes( file.bytes ) ) + ( file.folder ? ' · ' + escapeHtml( file.folder ) : '' ) + '</span>' +
 					'<button type="button" class="sufm-more sufm-grid-more" data-sufm-menu="file" data-id="' + Number( file.id ) + '" aria-label="文件操作" aria-haspopup="menu">' + icon( 'dots' ) + '</button>' +
 					fileMenu( file.id ) +
@@ -575,16 +704,13 @@
 					'<span class="sufm-head-side">操作</span>' +
 				'</div>' + state.folders.map( folderRow ).join( '' ) + state.files.map( function ( file ) {
 					var locked = file.locked;
-					var group = groupFor( file.mime );
-					var thumb = group === 'image'
-						? '<img class="sufm-cell-thumb" src="' + escapeHtml( file.url ) + '" alt="" loading="lazy" decoding="async">'
-						: '<span class="sufm-type" data-group="' + group + '">' + escapeHtml( typeLabel( file.mime, file.name ) ) + '</span>';
+					var thumb = fileMark( file );
 
 					return '<div class="sufm-row' + ( state.selection[ file.id ] ? ' is-selected' : '' ) + '" data-sufm-file="' + Number( file.id ) + '"' + ( locked ? '' : ' draggable="true" data-sufm-drag="file"' ) + '>' +
 						'<span class="sufm-row-check"><input type="checkbox" class="sufm-check" data-sufm-select="' + Number( file.id ) + '"' + ( state.selection[ file.id ] ? ' checked' : '' ) + ( locked ? ' disabled' : '' ) + ' aria-label="选择 ' + escapeHtml( file.name ) + '"></span>' +
 						'<span class="sufm-cell-name">' + thumb +
 							'<span class="sufm-cell-text">' +
-								'<button type="button" class="sufm-row-name" data-sufm-open-file="' + Number( file.id ) + '" title="' + escapeHtml( file.name ) + '">' + escapeHtml( file.name ) + '</button>' +
+								'<button type="button" class="sufm-row-name" data-sufm-open-file="' + Number( file.id ) + '" title="' + escapeHtml( file.name ) + '">' + escapeHtml( displayName( file.name ) ) + '</button>' +
 								( locked ? '<span class="sufm-cell-sub is-warn">待审核，暂不可操作</span>' : '' ) +
 							'</span>' +
 						'</span>' +
@@ -606,9 +732,9 @@
 
 					return '<div class="sufm-row' + ( state.selection[ file.id ] ? ' is-selected' : '' ) + '" data-sufm-file="' + Number( file.id ) + '"' + ( locked ? '' : ' draggable="true" data-sufm-drag="file"' ) + '>' +
 						'<span class="sufm-row-check"><input type="checkbox" class="sufm-check" data-sufm-select="' + Number( file.id ) + '"' + ( state.selection[ file.id ] ? ' checked' : '' ) + ( locked ? ' disabled' : '' ) + ' aria-label="选择 ' + escapeHtml( file.name ) + '"></span>' +
-						'<span class="sufm-type" data-group="' + groupFor( file.mime ) + '">' + escapeHtml( typeLabel( file.mime, file.name ) ) + '</span>' +
+						fileMark( file ) +
 						'<span class="sufm-row-text">' +
-							'<button type="button" class="sufm-row-name" data-sufm-open-file="' + Number( file.id ) + '" title="' + escapeHtml( file.name ) + '">' + escapeHtml( file.name ) + '</button>' +
+							'<button type="button" class="sufm-row-name" data-sufm-open-file="' + Number( file.id ) + '" title="' + escapeHtml( file.name ) + '">' + escapeHtml( displayName( file.name ) ) + '</button>' +
 							'<span class="sufm-row-meta">' + meta + '</span>' +
 						'</span>' +
 						'<span class="sufm-row-side"><button type="button" class="sufm-more" data-sufm-menu="file" data-id="' + Number( file.id ) + '" aria-label="文件操作" aria-haspopup="menu">' + icon( 'dots' ) + '</button>' + fileMenu( file.id ) + '</span>' +
@@ -1185,8 +1311,8 @@
 		openModal( {
 			title: '重命名文件',
 			body: '<label class="sufm-field-label" for="sufm-rename-input">文件名</label>' +
-				'<input class="sufm-field" id="sufm-rename-input" value="' + escapeHtml( file.name ) + '" maxlength="200">' +
-				'<p class="sufm-hint sufm-muted">扩展名会被保留为 ' + escapeHtml( typeLabel( file.mime, file.name ) ) + ' 类型。</p>',
+				'<input class="sufm-field" id="sufm-rename-input" value="' + escapeHtml( displayName( file.name ) ) + '" maxlength="200">' +
+				'<p class="sufm-hint sufm-muted">文件类型由内容识别，显示名不需要带扩展名。</p>',
 			confirmLabel: '保存',
 			onConfirm: function () {
 				var input = document.getElementById( 'sufm-rename-input' );

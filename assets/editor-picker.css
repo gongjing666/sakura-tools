@@ -1788,7 +1788,14 @@ body.dark-theme #sufm-picker .sufm-drop {
 	gap: 12px;
 }
 
+#sufm-picker .sufm-dialog-mascot {
+	flex: none;
+	margin-top: 1px;
+	line-height: 0;
+}
+
 #sufm-picker .sufm-dialog-head h2 {
+	flex: 1;
 	margin: 0;
 	min-width: 0;
 	font-size: 16px;
@@ -5687,4 +5694,45 @@ html.dark-theme #sufm-picker .sufm-files::-webkit-scrollbar-thumb {
 	width: 14px !important;
 	height: 14px !important;
 	border-radius: 3px !important;
+}
+
+/*
+ * File-type icons (assets/file-icons) inside the writing-screen panel. They
+ * share the artwork and the sizing ladder with the user-centre list; the
+ * preview box also holds a full-bleed <img> for photos, so the icon rule has
+ * to out-specify `#sufm-picker .sufm-grid-preview > img`.
+ */
+#sufm-picker .sufm-fileicon {
+	display: block;
+	flex: none;
+	object-fit: contain;
+}
+
+#sufm-picker .sufm-grid-preview > img.sufm-fileicon {
+	width: 44px;
+	height: 50px;
+}
+
+#sufm-picker .sufm-preview-doc .sufm-fileicon {
+	width: 44px;
+	height: 54px;
+}
+
+#sufm-picker .sufm-row .sufm-fileicon,
+#sufm-picker .sufm-row > .sufm-fileicon {
+	width: 28px;
+	height: 32px;
+}
+
+/* The row thumbnail is 28×32 at every width; the desktop media query above
+ * repeats the same numbers, but the mobile list puts it directly under
+ * .sufm-row, so the base rule has to exist outside the query. */
+#sufm-picker .sufm-cell-thumb {
+	display: block;
+	width: 28px;
+	height: 32px;
+	flex: none;
+	border-radius: 6px;
+	object-fit: cover;
+	background: var(--sufm-soft);
 }

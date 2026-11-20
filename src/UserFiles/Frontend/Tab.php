@@ -271,6 +271,58 @@ final class Tab {
 	}
 
 	/**
+	 * File-type icon URLs bundled with the plugin.
+	 *
+	 * One file per icon rather than an inline sprite: the artwork carries SVG
+	 * ids and gradients of its own, and duplicating those ids inside a single
+	 * document makes one icon borrow another's paint. The list is fixed and the
+	 * files ship with the plugin, so the browser caches them after first use.
+	 *
+	 * @return array<string, string> Icon key => URL.
+	 */
+	private function file_icons(): array {
+		$names = array(
+			'pdf',
+			'word',
+			'excel',
+			'powerpoint',
+			'text',
+			'markdown',
+			'zip',
+			'audio',
+			'video',
+			'image',
+			'photoshop',
+			'php',
+			'js',
+			'typescript',
+			'css',
+			'html',
+			'json',
+			'xml',
+			'sql',
+			'python',
+			'csv',
+			'android',
+			'binary',
+		);
+
+		$icons = array();
+
+		foreach ( $names as $name ) {
+			$path = 'assets/file-icons/' . $name . '.svg';
+
+			$icons[ $name ] = add_query_arg(
+				'v',
+				\Nboke\UserFiles\Support\Assets::version( $path ),
+				SAKURA_TOOLS_URL . $path
+			);
+		}
+
+		return $icons;
+	}
+
+	/**
 	 * Read a request key from the query var or the query string.
 	 *
 	 * @param string $key Query key.
@@ -292,11 +344,12 @@ final class Tab {
 	 */
 	public function script_data(): array {
 		return array(
-			'restUrl' => esc_url_raw( rest_url( 'sufm/v1/' ) ),
-			'nonce'   => wp_create_nonce( 'wp_rest' ),
-			'userId'  => get_current_user_id(),
-			'strings' => $this->strings(),
-			'notice'  => $this->notice(),
+			'restUrl'   => esc_url_raw( rest_url( 'sufm/v1/' ) ),
+			'nonce'     => wp_create_nonce( 'wp_rest' ),
+			'userId'    => get_current_user_id(),
+			'fileIcons' => $this->file_icons(),
+			'strings'   => $this->strings(),
+			'notice'    => $this->notice(),
 		);
 	}
 

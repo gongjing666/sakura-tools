@@ -148,16 +148,18 @@ $upload_url     = (string) preg_replace( '#^https?://#', '', untrailingslashit( 
 $cloud_types    = isset( $snapshot['cloud']['types'] ) && is_array( $snapshot['cloud']['types'] ) ? $snapshot['cloud']['types'] : array();
 $mix_total      = array_sum( array_map( 'intval', $cloud_types ) );
 /*
- * One hue, four depths: the ring reads as a single volume split up rather than
- * four unrelated categories, which is what the card is actually saying. Deep
- * to pale, so the largest slice is always the darkest and the eye lands there
- * first. Steps 3-4 are fill-only; legend labels stay on --g-muted.
+ * Four hues, not four depths of one hue (2026-11-20): the ring answers "what is
+ * in the bucket", so the slices have to be told apart at a glance and in a
+ * legend where two adjacent labels may be 0.9% and 0.2%. Pink / sky / sun /
+ * warm grey is the palette the design draft uses for the same card; the video
+ * slice takes the sky slot so the biggest two categories (image, video) never
+ * share a hue.
  */
 $mix_colors     = array(
-	'image'   => 'var(--g-sakura-1)',
-	'video'   => 'var(--g-sakura-2)',
-	'archive' => 'var(--g-sakura-3)',
-	'other'   => 'var(--g-sakura-4)',
+	'image'   => 'var(--g-petal-3)',
+	'video'   => 'var(--g-sky)',
+	'archive' => 'var(--g-sun)',
+	'other'   => '#c9b6c2',
 );
 $mix            = array();
 $mix_stops      = array();
@@ -373,6 +375,36 @@ ob_start();
 	?>
 <?php endif; ?>
 
+<?php
+// The rail restates the three numbers the strip below also carries, because the
+// question this page answers first is "do the three sides agree?", not "how
+// many". Numbers live here (not in the drawing) so they can grow.
+\Sakura\ImageOptimizer\Admin\UI::frontline(
+	array(
+		array(
+			'value' => number_format_i18n( $local_files ),
+			'label' => __( '本地媒体', 'sakura-imgopt' ),
+			'sub'   => Inventory::format_bytes( $local_bytes ),
+			'tone'  => 'sky',
+		),
+		array(
+			'value' => number_format_i18n( $cloud_objects ),
+			'label' => __( '云端文件', 'sakura-imgopt' ),
+			'sub'   => Inventory::format_bytes( $cloud_bytes ),
+			'tone'  => 'petal',
+		),
+		array(
+			'value' => number_format_i18n( $coverage, 1 ) . '%',
+			'label' => __( '已同步', 'sakura-imgopt' ),
+			'sub'   => sprintf( /* translators: %s: number of files. */ __( '%s 个文件三方一致', 'sakura-imgopt' ), number_format_i18n( $synced ) ),
+			'tone'  => 'sun',
+		),
+	),
+	__( '本地 → 云端 → 索引，一条线上的三站', 'sakura-imgopt' ),
+	sprintf( /* translators: %s: last scan time. */ __( '最近核对 %s', 'sakura-imgopt' ), $scan_label )
+);
+?>
+
 <section class="kpis" id="summary" aria-label="<?php esc_attr_e( '同步摘要', 'sakura-imgopt' ); ?>">
 	<article class="kpi">
 		<span class="kpi__label"><?php esc_html_e( '本地媒体', 'sakura-imgopt' ); ?></span>
@@ -386,7 +418,7 @@ ob_start();
 		<span class="kpi__sub"<?php echo '' !== $bucket ? ' title="' . esc_attr( $bucket ) . '"' : ''; ?>><?php echo esc_html( Inventory::format_bytes( $cloud_bytes ) . ' · ' . ( '' !== $bucket_display ? $bucket_display : '—' ) ); ?></span>
 		<span class="kpi__sub"><?php esc_html_e( '按云存储清单统计', 'sakura-imgopt' ); ?></span>
 	</article>
-	<article class="kpi">
+	<article class="kpi<?php echo $coverage >= 99.95 ? ' kpi--synced' : ''; ?>">
 		<span class="kpi__label"><?php esc_html_e( '已同步', 'sakura-imgopt' ); ?></span>
 		<span class="kpi__value"><?php echo esc_html( number_format_i18n( $synced ) ); ?><small><?php esc_html_e( '个文件', 'sakura-imgopt' ); ?></small></span>
 		<span class="kpi__sub"><?php echo esc_html( sprintf( /* translators: %s: coverage. */ __( '%s%% 覆盖率', 'sakura-imgopt' ), number_format_i18n( $coverage, 1 ) ) ); ?></span>
@@ -572,7 +604,7 @@ $sakura_sync_cards = static function () use (
 						</div>
 						<div class="task-summary__percent"><?php echo esc_html( number_format_i18n( $coverage, 1 ) ); ?>%</div>
 					</div>
-					<div class="progress" role="progressbar" aria-valuenow="<?php echo esc_attr( (string) (int) round( $coverage ) ); ?>" aria-valuemin="0" aria-valuemax="100" aria-label="<?php esc_attr_e( '同步覆盖进度', 'sakura-imgopt' ); ?>"><span class="progress__bar" style="width:<?php echo esc_attr( (string) min( 100, max( 0, $coverage ) ) ); ?>%"></span></div>
+					<div class="progress progress--soda" role="progressbar" aria-valuenow="<?php echo esc_attr( (string) (int) round( $coverage ) ); ?>" aria-valuemin="0" aria-valuemax="100" aria-label="<?php esc_attr_e( '同步覆盖进度', 'sakura-imgopt' ); ?>"><span class="progress__bar" style="width:<?php echo esc_attr( (string) min( 100, max( 0, $coverage ) ) ); ?>%"><span class="progress__fizz" aria-hidden="true"></span></span><span class="progress__pop" aria-hidden="true"></span></div>
 					<div class="progress-meta">
 						<span><?php echo wp_kses_post( sprintf( /* translators: 1: synced, 2: total, 3: local files, 4: cloud objects. */ __( '<strong>%1$s</strong> / %2$s 个文件 · 本地 %3$s · 云端 %4$s', 'sakura-imgopt' ), esc_html( number_format_i18n( $synced ) ), esc_html( number_format_i18n( $total ) ), esc_html( number_format_i18n( $local_files ) ), esc_html( number_format_i18n( $cloud_objects ) ) ) ); ?></span>
 						<span><?php echo esc_html( $index_enabled ? __( '同步记录表 · 实时读取', 'sakura-imgopt' ) : __( '兼容模式 · 只读快照', 'sakura-imgopt' ) ); ?></span>
@@ -795,7 +827,7 @@ $sakura_sync_cards = static function () use (
 					<div class="button-row">
 						<button type="button" class="btn btn--quiet btn--small" id="batch-upload" <?php disabled( $locked ); ?>><?php esc_html_e( '批量上传', 'sakura-imgopt' ); ?></button>
 						<button type="button" class="btn btn--quiet btn--small" id="batch-download" <?php disabled( $locked ); ?>><?php esc_html_e( '批量下载', 'sakura-imgopt' ); ?></button>
-						<button type="button" class="btn btn--danger btn--small" id="batch-delete" <?php disabled( $locked ); ?>><?php esc_html_e( '批量删除远端', 'sakura-imgopt' ); ?></button>
+						<button type="button" class="btn btn--danger btn--small" id="batch-delete" <?php disabled( $locked ); ?>><?php esc_html_e( '批量删除', 'sakura-imgopt' ); ?></button>
 						<button type="button" class="btn btn--quiet btn--small" id="batch-clear"><?php esc_html_e( '清除选择', 'sakura-imgopt' ); ?></button>
 					</div>
 				</div>
@@ -856,7 +888,7 @@ $sakura_sync_cards = static function () use (
 								}
 								?>
 								<tr data-group="<?php echo esc_attr( $row_status ); ?>" data-type="<?php echo esc_attr( $row_type ); ?>" data-key="<?php echo esc_attr( $row_key ); ?>" data-mtime="<?php echo esc_attr( (string) $row_mtime ); ?>">
-									<td class="cell-select"><input type="checkbox" class="row-select" value="<?php echo esc_attr( $row_key ); ?>" data-status="<?php echo esc_attr( $row_status ); ?>" data-local="<?php echo $row_has_l ? '1' : '0'; ?>" data-cloud="<?php echo $row_has_c ? '1' : '0'; ?>" aria-label="<?php echo esc_attr( sprintf( /* translators: %s: file name. */ __( '选择 %s', 'sakura-imgopt' ), $row_name ) ); ?>" /></td>
+									<td class="cell-select"><input type="checkbox" class="row-select" value="<?php echo esc_attr( $row_key ); ?>" data-status="<?php echo esc_attr( $row_status ); ?>" data-local="<?php echo $row_has_l ? '1' : '0'; ?>" data-cloud="<?php echo $row_has_c ? '1' : '0'; ?>" data-size="<?php echo esc_attr( Inventory::format_bytes( $row_size ) ); ?>" aria-label="<?php echo esc_attr( sprintf( /* translators: %s: file name. */ __( '选择 %s', 'sakura-imgopt' ), $row_name ) ); ?>" /></td>
 									<td>
 										<div class="file-cell">
 											<span class="file-cell__name"><?php echo esc_html( $row_name ); ?></span>
@@ -881,9 +913,11 @@ $sakura_sync_cards = static function () use (
 												<button type="button" class="link-btn" data-sakura-action="row-upload" data-sakura-key="<?php echo esc_attr( $row_key ); ?>" <?php disabled( $locked ); ?>><?php esc_html_e( '上传', 'sakura-imgopt' ); ?></button>
 											<?php elseif ( 'remote' === $row_status ) : ?>
 												<button type="button" class="link-btn" data-sakura-action="row-download" data-sakura-key="<?php echo esc_attr( $row_key ); ?>" <?php disabled( $locked ); ?>><?php esc_html_e( '下载', 'sakura-imgopt' ); ?></button>
-												<button type="button" class="link-btn link-btn--danger" data-sakura-action="row-delete" data-sakura-key="<?php echo esc_attr( $row_key ); ?>" data-sakura-name="<?php echo esc_attr( $row_name ); ?>" data-sakura-size="<?php echo esc_attr( Inventory::format_bytes( (int) ( $row['cloud_size'] ?? 0 ) ) ); ?>" <?php disabled( $locked ); ?>><?php esc_html_e( '删除远端', 'sakura-imgopt' ); ?></button>
 											<?php elseif ( 'mismatch' === $row_status ) : ?>
 												<button type="button" class="link-btn" data-sakura-action="row-upload" data-sakura-confirm="REPLACE" data-sakura-key="<?php echo esc_attr( $row_key ); ?>" <?php disabled( $locked ); ?>><?php esc_html_e( '重新上传', 'sakura-imgopt' ); ?></button>
+											<?php endif; ?>
+											<?php if ( $row_has_c ) : ?>
+												<button type="button" class="link-btn link-btn--danger" data-sakura-action="row-delete" data-sakura-key="<?php echo esc_attr( $row_key ); ?>" data-sakura-name="<?php echo esc_attr( $row_name ); ?>" data-sakura-size="<?php echo esc_attr( Inventory::format_bytes( (int) ( $row['cloud_size'] ?? 0 ) ) ); ?>" <?php disabled( $locked ); ?>><?php esc_html_e( '删除', 'sakura-imgopt' ); ?></button>
 											<?php endif; ?>
 											<button type="button" class="link-btn" data-sakura-preview="<?php echo esc_attr( (string) wp_json_encode( $row_preview ) ); ?>" data-sakura-name="<?php echo esc_attr( $row_name ); ?>"><?php esc_html_e( '详情', 'sakura-imgopt' ); ?></button>
 										</div>
@@ -985,7 +1019,7 @@ $sakura_sync_cards = static function () use (
 					<li><strong><?php esc_html_e( '仅云端：', 'sakura-imgopt' ); ?></strong><?php esc_html_e( '云端有、本地无；不会自动删除，避免误删 CDN 回源文件。', 'sakura-imgopt' ); ?></li>
 					<li><strong><?php esc_html_e( '内容不一致：', 'sakura-imgopt' ); ?></strong><?php esc_html_e( 'Key 相同但大小或内容（MD5/ETag）不一致，需重新上传或人工核对。', 'sakura-imgopt' ); ?></li>
 					<li><strong><?php esc_html_e( '搜索：', 'sakura-imgopt' ); ?></strong><?php esc_html_e( '按对象 Key 任意位置匹配，只输入文件名也能找到；筛选后的条数与分页按匹配结果计算。', 'sakura-imgopt' ); ?></li>
-					<li><strong><?php esc_html_e( '危险操作：', 'sakura-imgopt' ); ?></strong><?php esc_html_e( '删除云端文件必须二次确认；批量删除会先列出数量与对象。', 'sakura-imgopt' ); ?></li>
+					<li><strong><?php esc_html_e( '危险操作：', 'sakura-imgopt' ); ?></strong><?php esc_html_e( '删除必须二次确认；属于用户文件空间的附件会连同附件记录、本地文件与容量一起删除，其它对象只删云端副本。批量删除会先列出数量与对象。', 'sakura-imgopt' ); ?></li>
 				</ul>
 				<?php
 			}
@@ -1021,12 +1055,30 @@ $sync_body = ob_get_clean();
 		'eyebrow' => 'OBJECT STORAGE / ' . SAKURA_TOOLS_VERSION,
 		'title'   => __( 'S3 同步中心', 'sakura-imgopt' ),
 		'lede'    => __( '把本地媒体库和云存储放在一起对照：看清哪些已同步、哪些只在一端、哪些失败，并能继续迁移。', 'sakura-imgopt' ),
+		/*
+		 * V2 hero（03-后台UI.md §14）：副题写「推进到哪一站」，而不是再复述一遍
+		 * 页签里的词；印章只表示这页属于谁，不表达状态。
+		 */
+		'tagline' => __( '<em>樱前线已经过境</em>：本地、云端、索引三条线停在同一点。', 'sakura-imgopt' ),
+		/*
+		 * 印章只盖「这页属于谁」，不表达状态：设计稿里它是右侧一枚「桜」，
+		 * 与标题同高，所以放在 aside 列、状态卡下方。
+		 */
+		'stamp'   => array(
+			'zh'    => __( '桜', 'sakura-imgopt' ),
+			'en'    => 'SAKURA TOOLS',
+			'place' => 'aside',
+		),
 		'status'  => array(
 			'label' => __( '当前存储桶', 'sakura-imgopt' ),
 			'value' => $bucket_label,
 			'title' => $bucket,
-			'sub'   => $page_status_sub,
+			// 健康时把「谁 + 什么状态」收进延迟胶囊，副行只报异常，避免同一句绿字说两遍。
+			'sub'   => 'ok' === $status_tone ? '' : $page_status_sub,
 			'tone'  => $status_tone,
+			// Live round-trip time pill, refreshed by assets/ui/js/pages/storage-sync.js.
+			'ping'      => true,
+			'ping_name' => $provider_label,
 		),
 		'actions' => array(
 			array(

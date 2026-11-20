@@ -31,7 +31,7 @@ final class Modal {
 	 *
 	 * @param array<string,mixed> $args {
 	 *     @type string $id          Element id. Generated when omitted.
-	 *     @type string $tone        ok, bad, warn, info or neutral. Drives the icon.
+	 *     @type string $tone        Deprecated: accepted for compatibility, no longer changes the artwork.
 	 *     @type string $kicker      Small uppercase line above the title.
 	 *     @type string $title       Heading. Required.
 	 *     @type string $message     Body copy. May contain escaped HTML.
@@ -52,7 +52,6 @@ final class Modal {
 		}
 
 		$id     = isset( $args['id'] ) ? sanitize_key( (string) $args['id'] ) : 'sakura-modal-' . substr( md5( $title ), 0, 8 );
-		$tone   = self::tone( isset( $args['tone'] ) ? (string) $args['tone'] : 'info' );
 		$kicker = isset( $args['kicker'] ) ? (string) $args['kicker'] : '';
 		$text   = isset( $args['message'] ) ? (string) $args['message'] : '';
 		$body   = isset( $args['body'] ) ? (string) $args['body'] : '';
@@ -90,12 +89,17 @@ final class Modal {
 		echo ' tabindex="-1">';
 
 		echo '<button type="button" class="sakura-modal__close" data-sakura-modal-close aria-label="' . esc_attr__( '关闭', 'sakura-imgopt' ) . '">';
-		echo self::icon( 'close' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Static SVG.
+		echo self::close_icon(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Static SVG.
 		echo '</button>';
 
-		echo '<div class="sakura-modal__icon sakura-modal__icon--' . esc_attr( $tone ) . '" aria-hidden="true">';
-		echo self::icon( $tone ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Static SVG.
-		echo '</div>';
+		// 2026-11-20：所有提示框统一成「删除确认」那一副样子——左上角小鲸鱼、
+		// 标题在右、正文跟在标题下。tone 因此不再影响外观（保留参数是为了不
+		// 动十几处调用点，图标与色块那套在 V2 里已经删了）。
+		echo '<div class="sakura-modal__head">';
+		echo '<span class="sakura-modal__mascot" aria-hidden="true">';
+		echo self::mascot(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Static SVG.
+		echo '</span>';
+		echo '<div class="sakura-modal__copy">';
 
 		if ( '' !== $kicker ) {
 			echo '<p class="sakura-modal__kicker">' . esc_html( $kicker ) . '</p>';
@@ -109,6 +113,8 @@ final class Modal {
 			echo '<p id="' . esc_attr( $desc_id ) . '" hidden></p>';
 		}
 
+		echo '</div></div>';
+
 		echo $body; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Caller passes escaped markup.
 
 		echo '<div class="sakura-modal__actions" data-align="end">';
@@ -119,49 +125,29 @@ final class Modal {
 	}
 
 	/**
-	 * Normalise a tone to one of the icon variants.
+	 * The close glyph in the corner.
 	 *
-	 * @param string $tone Raw tone.
-	 * @return string
+	 * @return string SVG markup.
 	 */
-	private static function tone( string $tone ): string {
-		$map = array(
-			'ok'      => 'ok',
-			'success' => 'ok',
-			'bad'     => 'bad',
-			'error'   => 'bad',
-			'warn'    => 'warn',
-			'warning' => 'warn',
-			'info'    => 'info',
-			'neutral' => 'neutral',
-		);
-
-		$tone = sanitize_key( $tone );
-
-		return $map[ $tone ] ?? 'info';
+	private static function close_icon(): string {
+		return '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M6 6l12 12M18 6 6 18"/></svg>';
 	}
 
 	/**
-	 * Icon paths. Stroke-only so they inherit currentColor from the icon chip.
+	 * The little whale from the design draft, shared with the JS confirm dialog.
 	 *
-	 * @param string $name ok, bad, warn, info, neutral or close.
-	 * @return string
+	 * Same paths as `assets/ui/js/ui.js` → `mascotSvg()`; keeping the artwork in
+	 * one shape means the two dialog implementations never drift apart.
+	 *
+	 * @return string SVG markup.
 	 */
-	private static function icon( string $name ): string {
-		$paths = array(
-			'ok'      => '<path d="M5 12.5 9.5 17 19 7"/>',
-			'bad'     => '<path d="M7 7l10 10M17 7 7 17"/>',
-			'warn'    => '<path d="M12 4.5 21 19.5H3L12 4.5Z"/><path d="M12 10v4.2"/><path d="M12 17.1v.1"/>',
-			'info'    => '<circle cx="12" cy="12" r="8.5"/><path d="M12 11v5.4"/><path d="M12 7.9v.1"/>',
-			'neutral' => '<circle cx="12" cy="12" r="8.5"/><path d="M8.4 12h7.2"/>',
-			'close'   => '<path d="M6 6l12 12M18 6 6 18"/>',
-		);
-
-		$path = $paths[ $name ] ?? $paths['info'];
-		// The X in the corner is a 16px control; the status icons sit in a 46px
-		// chip and read better at 25px.
-		$side = 'close' === $name ? 16 : 25;
-
-		return '<svg viewBox="0 0 24 24" width="' . $side . '" height="' . $side . '" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">' . $path . '</svg>';
+	private static function mascot(): string {
+		return '<svg width="46" height="46" viewBox="0 0 46 46" aria-hidden="true" focusable="false">'
+			. '<circle cx="23" cy="24" r="17" fill="#ffd9e6"/>'
+			. '<path d="M9 15c2 2 4 3.2 6.5 3.4C18 11 28 11 30.5 18.4 33 18.2 35 17 37 15c1.4 2.2 1.8 4.6 1.4 7-2.6-.6-4.8-.2-6.6 1.2.7 6.7-4.4 12.4-11.3 12.4S8.9 30.1 9.6 23.4c-1.8-1.4-4-1.8-6.6-1.2-.4-2.4 0-4.8 1.4-7z" fill="#ffb3d1"/>'
+			. '<circle cx="18.4" cy="24" r="1.9" fill="#3a2333"/><circle cx="27.6" cy="24" r="1.9" fill="#3a2333"/>'
+			. '<path d="M20.4 28.6c1.7 1.5 3.5 1.5 5.2 0" stroke="#3a2333" stroke-width="1.6" fill="none" stroke-linecap="round"/>'
+			. '<circle cx="15.2" cy="27.4" r="2.4" fill="#ff8fb8" opacity=".55"/><circle cx="30.8" cy="27.4" r="2.4" fill="#ff8fb8" opacity=".55"/>'
+			. '</svg>';
 	}
 }

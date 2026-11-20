@@ -1134,3 +1134,125 @@
 		white-space: normal;
 	}
 }
+
+/* ============================================================
+ * Capability matrix (files-queue)
+ *
+ * Six narrow checkbox columns plus a role column, sitting beside the execute
+ * card. Cells stay centered so the column headers line up with the boxes; the
+ * role cell stays left-aligned so names of any length scan cleanly.
+ * ============================================================ */
+
+.sakura-admin[data-sakura-page="files-queue"] .caps-matrix {
+	width: 100%;
+	table-layout: fixed;
+}
+
+.sakura-admin[data-sakura-page="files-queue"] .caps-matrix th,
+.sakura-admin[data-sakura-page="files-queue"] .caps-matrix td {
+	text-align: center;
+	vertical-align: middle;
+}
+
+.sakura-admin[data-sakura-page="files-queue"] .caps-matrix thead th:first-child,
+.sakura-admin[data-sakura-page="files-queue"] .caps-matrix tbody th[scope="row"] {
+	width: 34%;
+	text-align: left;
+	white-space: normal;
+}
+
+.sakura-admin[data-sakura-page="files-queue"] .caps-matrix__role-zh {
+	margin-left: 6px;
+	color: var(--g-muted);
+	font-size: 12px;
+	font-weight: 500;
+}
+
+.sakura-admin[data-sakura-page="files-queue"] .caps-matrix__cell {
+	padding-left: 4px;
+	padding-right: 4px;
+}
+
+.sakura-admin[data-sakura-page="files-queue"] .caps-matrix__toggle {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.sakura-admin[data-sakura-page="files-queue"] .caps-matrix__cell.is-limited {
+	opacity: .55;
+}
+
+.sakura-admin[data-sakura-page="files-queue"] .caps-matrix__cell.is-locked {
+	opacity: 1;
+}
+
+.sakura-admin[data-sakura-page="files-queue"] .caps-matrix__drift {
+	margin-left: 2px;
+	color: var(--g-warn);
+	font-size: 12px;
+	line-height: 1;
+}
+
+.sakura-admin[data-sakura-page="files-queue"] .caps-matrix__badge {
+	display: inline-block;
+	margin-left: 6px;
+	padding: 1px 7px;
+	border-radius: 999px;
+	background: var(--g-paper-deep);
+	color: var(--g-muted);
+	font-size: 11px;
+	font-weight: 500;
+	white-space: nowrap;
+}
+
+.sakura-admin[data-sakura-page="files-queue"] .caps-matrix__legend {
+	font-size: 12px;
+	line-height: 1.7;
+}
+
+.sakura-admin[data-sakura-page="files-queue"] .caps-matrix__fixed {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 22px;
+	height: 22px;
+	border-radius: 6px;
+	background: var(--g-paper-deep);
+	color: var(--g-muted);
+}
+
+.sakura-admin[data-sakura-page="files-queue"] .caps-matrix__fixed svg {
+	display: block;
+	width: 13px;
+	height: 13px;
+}
+
+/* The matrix note used to be clipped by the generic 82ch reading measure,
+   which left a visible empty block on the right at 1440/1900. */
+.sakura-admin[data-sakura-page="files-queue"] .caps-matrix__legend + .card__note {
+	max-width: none;
+}
+
+@media (min-width: 1440px) {
+	.sakura-admin[data-sakura-page="files-queue"] .caps-matrix th,
+	.sakura-admin[data-sakura-page="files-queue"] .caps-matrix td {
+		padding-top: 10px;
+		padding-bottom: 10px;
+	}
+}
+
+@media (max-width: 560px) {
+	.sakura-admin[data-sakura-page="files-queue"] .caps-matrix__role-en {
+		display: none;
+	}
+
+	.sakura-admin[data-sakura-page="files-queue"] .caps-matrix__role-zh {
+		margin-left: 0;
+	}
+
+	.sakura-admin[data-sakura-page="files-queue"] .caps-matrix thead th:first-child,
+	.sakura-admin[data-sakura-page="files-queue"] .caps-matrix tbody th[scope="row"] {
+		width: 30%;
+	}
+}

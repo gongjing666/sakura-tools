@@ -116,6 +116,7 @@ final class Sync_Center_Module implements Module {
 		$hooks->add_action( 'wp_ajax_sakura_s3_sync_preview', array( $this, 'ajax_preview' ) );
 		$hooks->add_action( 'wp_ajax_sakura_s3_sync_test', array( $this, 'ajax_test' ) );
 		$hooks->add_action( 'wp_ajax_sakura_s3_sync_action', array( $this, 'ajax_action' ) );
+		$hooks->add_action( 'wp_ajax_sakura_s3_latency', array( $this, 'ajax_latency' ) );
 		$hooks->add_action( 'wp_ajax_sakura_s3_sync_refresh', array( $this, 'ajax_refresh' ) );
 		$hooks->add_action( 'wp_ajax_sakura_s3_sync_toggle_index', array( $this, 'ajax_toggle_index' ) );
 		$hooks->add_action( 'wp_ajax_sakura_s3_config_notice', array( $this, 'ajax_dismiss_config_notice' ) );
@@ -221,6 +222,8 @@ final class Sync_Center_Module implements Module {
 			'retryNonce'   => wp_create_nonce( 'sakura_s3_retry' ),
 			'testNonce'    => wp_create_nonce( 'sakura_s3_sync_test' ),
 			'actionNonce'  => wp_create_nonce( 'sakura_s3_sync_action' ),
+			/* How often the hero pill re-measures the bucket while the page is visible. */
+			'latencyMs'    => 30000,
 			'pageNonce'    => wp_create_nonce( 'sakura_s3_sync_page' ),
 			'previewNonce' => wp_create_nonce( 'sakura_s3_sync_preview' ),
 			'cancelNonce'  => wp_create_nonce( 'sakura_s3_sync_cancel' ),
@@ -229,6 +232,12 @@ final class Sync_Center_Module implements Module {
 			'toggleNonce'  => wp_create_nonce( 'sakura_s3_sync_toggle' ),
 			'strings'      => array(
 				'unknownError'    => __( '操作失败，请稍后重试。', 'sakura-imgopt' ),
+				'latencyOk'       => __( '优秀', 'sakura-imgopt' ),
+				'latencySlow'     => __( '缓慢', 'sakura-imgopt' ),
+				'latencyBad'      => __( '卡顿', 'sakura-imgopt' ),
+				'latencyFail'     => __( '检测失败', 'sakura-imgopt' ),
+				'latencyChecking' => __( '检测中…', 'sakura-imgopt' ),
+				'latencyHint'     => __( '从这台服务器到当前存储桶的往返延迟', 'sakura-imgopt' ),
 				'scanning'        => __( '正在对账…', 'sakura-imgopt' ),
 				'cancelling'      => __( '正在停止对账…', 'sakura-imgopt' ),
 				'cancelled'       => __( '对账已停止，可随时继续。', 'sakura-imgopt' ),
@@ -254,13 +263,22 @@ final class Sync_Center_Module implements Module {
 				'batchEmpty'      => __( '所选对象没有符合该操作的状态。', 'sakura-imgopt' ),
 				/* translators: %d: number of items already on the remote */
 				'batchReplace'    => __( '选中项中有 %d 个云端已存在，继续会覆盖远端文件。确认批量覆盖？', 'sakura-imgopt' ),
-				'batchDeleteTitle' => __( '从云端永久删除这些对象？', 'sakura-imgopt' ),
-				'batchDeleteDesc' => __( '将删除所选的全部云端对象，不可撤销；本地文件不会删除，但使用 CDN 的页面可能出现 404。', 'sakura-imgopt' ),
+				'batchDeleteTitle' => __( '永久删除这些对象？', 'sakura-imgopt' ),
+				'batchDeleteDesc' => __( '将删除所选的全部云端对象，不可撤销。属于用户文件空间的附件会连同附件记录、本地文件与容量一起删除；其它对象只删云端副本，使用 CDN 的页面可能出现 404。', 'sakura-imgopt' ),
+				/* translators: %d: number of selected objects. */
+				'batchDeleteHead' => __( '选中的 %d 个对象会从云端永久删除。', 'sakura-imgopt' ),
+				'batchDeleteNote' => __( '不可撤销。属于用户文件空间的附件会连同附件记录、本地文件与容量一起删除；其它对象只删云端副本，使用 CDN 的页面可能出现 404。', 'sakura-imgopt' ),
+				/* translators: %d: number of objects not listed in the dialog. */
+				'batchDeleteMore' => __( '…另有 %d 个对象', 'sakura-imgopt' ),
 				/* translators: %d: number of objects */
 				'batchDeleteConfirm' => __( '永久删除 %d 个对象', 'sakura-imgopt' ),
-				'deleteTitle'     => __( '删除云端文件', 'sakura-imgopt' ),
-				'deleteDesc'      => __( '将从云端永久删除该对象，不可撤销；本地文件不受影响。', 'sakura-imgopt' ),
+				'deleteTitle'     => __( '删除该对象', 'sakura-imgopt' ),
+				'deleteDesc'      => __( '将从云端永久删除该对象，不可撤销。若它属于用户文件空间的附件，附件记录、本地文件与容量会一并删除；其它对象只删云端副本，本地文件不受影响。', 'sakura-imgopt' ),
 				'deleteConfirm'   => __( '永久删除', 'sakura-imgopt' ),
+				'deleteTitleShort' => __( '永久删除这一个对象？', 'sakura-imgopt' ),
+				/* translators: %s: object name. */
+				'deleteHead'      => __( '云端对象「%s」会被永久删除。', 'sakura-imgopt' ),
+				'deleteNote'      => __( '不可撤销。若它属于用户文件空间的附件，附件记录、本地文件与容量会一并删除；其它对象只删云端副本，本地文件不受影响。', 'sakura-imgopt' ),
 				'replaceTitle'    => __( '覆盖云端文件', 'sakura-imgopt' ),
 				'replaceDesc'     => __( '云端已存在同名文件，继续会上传本地文件并覆盖云端内容。', 'sakura-imgopt' ),
 				'replaceConfirm'  => __( '覆盖并上传', 'sakura-imgopt' ),
@@ -283,7 +301,7 @@ final class Sync_Center_Module implements Module {
 				'upload'   => __( '上传', 'sakura-imgopt' ),
 				'reupload' => __( '重新上传', 'sakura-imgopt' ),
 				'download' => __( '下载', 'sakura-imgopt' ),
-				'delete'   => __( '删除远端', 'sakura-imgopt' ),
+				'delete'   => __( '删除', 'sakura-imgopt' ),
 				'retry'    => __( '重试', 'sakura-imgopt' ),
 				'detail'   => __( '详情', 'sakura-imgopt' ),
 				'noaction' => __( '—', 'sakura-imgopt' ),
@@ -738,6 +756,40 @@ final class Sync_Center_Module implements Module {
 	}
 
 	/**
+	 * Round-trip time from this server to the bucket.
+	 *
+	 * The sync centre turns the number into a coloured dot (<200ms / 200–500ms /
+	 * >500ms). It is a cheap LIST, so the page may poll it while it stays open;
+	 * the interval lives in `storage-sync.js` and pauses on a hidden tab.
+	 *
+	 * @return void
+	 */
+	public function ajax_latency(): void {
+		check_ajax_referer( 'sakura_s3_sync_action', 'nonce' );
+
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_send_json_error( array( 'message' => __( '权限不足。', 'sakura-imgopt' ) ), 403 );
+		}
+
+		if ( ! $this->options->is_enabled() || ! $this->options->is_configured() ) {
+			wp_send_json_error( array( 'message' => __( '对象存储尚未启用。', 'sakura-imgopt' ) ), 400 );
+		}
+
+		$latency = $this->adapter->probe_latency();
+
+		if ( is_wp_error( $latency ) ) {
+			wp_send_json_error( array( 'message' => $latency->get_error_message() ), 502 );
+		}
+
+		wp_send_json_success(
+			array(
+				'ms' => (int) $latency,
+				'at' => time(),
+			)
+		);
+	}
+
+	/**
 	 * Measure object-store connectivity with a HEAD bucket request.
 	 */
 	public function ajax_test(): void {
@@ -1047,8 +1099,12 @@ final class Sync_Center_Module implements Module {
 			if ( 'DELETE' !== $confirm ) {
 				wp_send_json_error( array( 'message' => __( '删除远端对象需要二次确认。', 'sakura-imgopt' ) ), 400 );
 			}
-			$result = $actions->delete( $key );
-			$done   = __( '云端对象已删除。', 'sakura-imgopt' );
+			$attachment_id = (int) $this->adapter->attachment_id_for_key( $key );
+			$scope_full    = $actions->removes_attachment( $attachment_id );
+			$result        = $actions->delete( $key, get_current_user_id() );
+			$done          = $scope_full
+				? __( '云端对象已删除，附件记录、本地文件与容量已一并释放。', 'sakura-imgopt' )
+				: __( '云端对象已删除。', 'sakura-imgopt' );
 		}
 
 		if ( 'delete' === $type ) {

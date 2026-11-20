@@ -46,3 +46,41 @@
 .upload-php .wp-list-table th[class*="column-sufm_"] {
 	white-space: nowrap;
 }
+/* Cloud state is a reading aid, not an action: one badge, no wrapping. */
+.upload-php .wp-list-table .column-sufm_cloud {
+	width: 110px;
+	white-space: nowrap;
+}
+
+.sufm-cloud {
+	display: inline-block;
+	padding: 1px 6px;
+	border-radius: 999px;
+	background: #f0f0f1;
+	color: #50575e;
+	font-size: 12px;
+	line-height: 1.7;
+}
+
+.sufm-cloud--synced {
+	background: #edfaef;
+	color: #1a7f37;
+}
+
+.sufm-cloud--partial,
+.sufm-cloud--pending,
+.sufm-cloud--deleting {
+	background: #fcf9e8;
+	color: #8a6d00;
+}
+
+.sufm-cloud--failed {
+	background: #fcf0f1;
+	color: #b32d2e;
+}
+
+.sufm-cloud--local,
+.sufm-cloud--unknown {
+	background: #f0f0f1;
+	color: #646970;
+}

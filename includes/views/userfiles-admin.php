@@ -9,6 +9,8 @@
  * @var array<string,mixed>  $entry_status Entry provider status.
  */
 
+use Nboke\UserFiles\Admin\Capability_Matrix;
+use Nboke\UserFiles\Capabilities;
 use Nboke\UserFiles\Services\Theme_Limits;
 use Nboke\UserFiles\Settings;
 use Sakura\ImageOptimizer\Admin\UI;
@@ -610,6 +612,94 @@ UI::page(
 						<?php
 					}
 				);
+
+				UI::card(
+					array(
+						'id'          => 'capability-matrix',
+						'kicker'      => 'ACCESS',
+						'title'       => __( '权限矩阵', 'sakura-imgopt' ),
+						'description' => __( '决定谁能直接删除、谁只能提交申请。只改本插件的能力，不动 WordPress 原生的 delete_posts / delete_others_posts。', 'sakura-imgopt' ),
+						'form'        => array(
+							'id'      => 'sufm-caps-form',
+							'action'  => admin_url( 'admin-post.php' ),
+							'markers' => '',
+						),
+						'save'        => __( '保存权限', 'sakura-imgopt' ),
+					),
+					static function () {
+						$sufm_caps_saved = isset( $_GET['sufm_caps'] ) ? sanitize_key( (string) wp_unslash( $_GET['sufm_caps'] ) ) : '';
+						$sufm_cap_map    = Capability_Matrix::caps();
+						$sufm_cap_roles  = Capability_Matrix::roles();
+						?>
+						<input type="hidden" name="action" value="<?php echo esc_attr( Capability_Matrix::ACTION ); ?>" />
+						<input type="hidden" name="redirect_to" value="<?php echo esc_url( \Sakura\ImageOptimizer\Admin\Registry::url( 'files', 'queue' ) ); ?>" />
+						<?php wp_nonce_field( Capability_Matrix::NONCE ); ?>
+						<?php if ( 'saved' === $sufm_caps_saved ) : ?>
+							<?php UI::notice( __( '权限已保存，立即生效；变更已写入审计（cap_change）。', 'sakura-imgopt' ), 'ok' ); ?>
+						<?php elseif ( 'same' === $sufm_caps_saved ) : ?>
+							<?php UI::notice( __( '没有改动，权限保持原样。', 'sakura-imgopt' ), 'info' ); ?>
+						<?php endif; ?>
+						<table class="table table--compact caps-matrix">
+							<thead>
+								<tr>
+									<th scope="col"><?php esc_html_e( '角色', 'sakura-imgopt' ); ?></th>
+									<?php foreach ( $sufm_cap_map as $sufm_cap => $sufm_meta ) : ?>
+										<th scope="col" title="<?php echo esc_attr( $sufm_meta['label'] . '：' . $sufm_meta['hint'] ); ?>"><abbr title="<?php echo esc_attr( $sufm_meta['label'] ); ?>"><?php echo esc_html( $sufm_meta['abbr'] ); ?></abbr></th>
+									<?php endforeach; ?>
+								</tr>
+							</thead>
+							<tbody>
+								<?php foreach ( $sufm_cap_roles as $sufm_role ) : ?>
+									<?php $sufm_limited = Capability_Matrix::limited( $sufm_role ); ?>
+									<tr>
+										<th scope="row">
+											<span class="caps-matrix__role-en"><?php echo esc_html( ucwords( (string) preg_replace( '/[_-]+/', ' ', $sufm_role ) ) ); ?></span>
+											<span class="caps-matrix__role-zh"><?php echo esc_html( Capability_Matrix::role_label( $sufm_role ) ); ?></span>
+											<?php if ( $sufm_limited ) : ?>
+												<span class="caps-matrix__badge" title="<?php echo esc_attr__( '缺少 WordPress 的 delete_others_posts：只能删自己名下的附件。', 'sakura-imgopt' ); ?>"><?php esc_html_e( '仅本人附件', 'sakura-imgopt' ); ?></span>
+											<?php endif; ?>
+										</th>
+										<?php foreach ( $sufm_cap_map as $sufm_cap => $sufm_meta ) : ?>
+											<?php
+											$sufm_locked = Capability_Matrix::locked( $sufm_role, $sufm_cap );
+											$sufm_stored = Capability_Matrix::configured( $sufm_role, $sufm_cap );
+											$sufm_actual = Capability_Matrix::effective( $sufm_role, $sufm_cap );
+											?>
+											<td class="caps-matrix__cell<?php echo $sufm_limited && Capabilities::DELETE_FILES === $sufm_cap ? ' is-limited' : ''; ?><?php echo $sufm_locked ? ' is-locked' : ''; ?>">
+												<?php if ( $sufm_locked ) : ?>
+													<span class="caps-matrix__fixed" title="<?php esc_attr_e( '管理员直删不受此页控制，始终开启。', 'sakura-imgopt' ); ?>" aria-hidden="true"><svg viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path fill="currentColor" d="M8 1.6a3.1 3.1 0 0 0-3.1 3.1V6H4.6A1.6 1.6 0 0 0 3 7.6v5.8A1.6 1.6 0 0 0 4.6 15h6.8a1.6 1.6 0 0 0 1.6-1.6V7.6A1.6 1.6 0 0 0 11.4 6h-.3V4.7A3.1 3.1 0 0 0 8 1.6Zm0 1.5a1.6 1.6 0 0 1 1.6 1.6V6H6.4V4.7A1.6 1.6 0 0 1 8 3.1Zm-.8 4.6h1.6v3.6H7.2V7.7Z"/></svg></span>
+													<input type="hidden" name="sufm_caps[<?php echo esc_attr( $sufm_role ); ?>][<?php echo esc_attr( $sufm_cap ); ?>]" value="1" />
+													<span class="screen-reader-text"><?php echo esc_html( Capability_Matrix::role_label( $sufm_role ) . '：' . $sufm_meta['label'] . __( '（固定开启）', 'sakura-imgopt' ) ); ?></span>
+												<?php else : ?>
+													<label class="caps-matrix__toggle" title="<?php echo esc_attr( $sufm_meta['label'] ); ?>">
+														<input type="checkbox" name="sufm_caps[<?php echo esc_attr( $sufm_role ); ?>][<?php echo esc_attr( $sufm_cap ); ?>]" value="1" <?php checked( $sufm_stored ); ?> />
+														<span class="screen-reader-text"><?php echo esc_html( Capability_Matrix::role_label( $sufm_role ) . '：' . $sufm_meta['label'] ); ?></span>
+													</label>
+												<?php endif; ?>
+												<?php if ( $sufm_stored !== $sufm_actual ) : ?>
+													<span class="caps-matrix__drift" title="<?php echo esc_attr( $sufm_actual ? __( '配置里没有，但实际已生效：可能被其它插件或过滤器授予。', 'sakura-imgopt' ) : __( '配置里有，但实际未生效：可能被其它插件或过滤器拒绝。', 'sakura-imgopt' ) ); ?>">⚠</span>
+												<?php endif; ?>
+											</td>
+										<?php endforeach; ?>
+									</tr>
+								<?php endforeach; ?>
+							</tbody>
+						</table>
+						<p class="field__hint caps-matrix__legend">
+							<?php
+							$sufm_legend = array();
+
+							foreach ( $sufm_cap_map as $sufm_meta ) {
+								$sufm_legend[] = $sufm_meta['abbr'] . ' = ' . $sufm_meta['label'];
+							}
+
+							echo esc_html( implode( ' · ', $sufm_legend ) );
+							?>
+						</p>
+						<p class="card__note"><?php esc_html_e( '「删」仍要同时具备 WordPress 的 delete_post 权限；管理员一栏锁死不可关闭；⚠ 表示实际值与配置值不一致。', 'sakura-imgopt' ); ?></p>
+						<?php
+					}
+				);
 				?>
 			</div>
 			<?php
@@ -706,6 +796,16 @@ UI::page(
 								<span class="screen-reader-text"><?php echo esc_html__( '结果', 'sakura-imgopt' ); ?></span>
 								<select id="sufm-log-result">
 									<option value=""><?php echo esc_html__( '全部结果', 'sakura-imgopt' ); ?></option>
+								</select>
+							</label>
+							<label class="toolbar__field">
+								<span class="screen-reader-text"><?php echo esc_html__( '理由', 'sakura-imgopt' ); ?></span>
+								<select id="sufm-log-reason">
+									<option value=""><?php echo esc_html__( '全部理由', 'sakura-imgopt' ); ?></option>
+									<option value="operator"><?php echo esc_html__( '管理员直删', 'sakura-imgopt' ); ?></option>
+									<option value="moderation"><?php echo esc_html__( '违规下架', 'sakura-imgopt' ); ?></option>
+									<option value="request"><?php echo esc_html__( '用户申请', 'sakura-imgopt' ); ?></option>
+									<option value="cleanup"><?php echo esc_html__( '清理', 'sakura-imgopt' ); ?></option>
 								</select>
 							</label>
 							<button type="button" class="btn btn--small btn--ghost" id="sufm-log-refresh"><?php echo esc_html__( '刷新', 'sakura-imgopt' ); ?></button>

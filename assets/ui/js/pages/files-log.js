@@ -27,6 +27,7 @@
 
 		var searchInput = document.getElementById( 'sufm-log-search' );
 		var resultSelect = document.getElementById( 'sufm-log-result' );
+		var reasonSelect = document.getElementById( 'sufm-log-reason' );
 		var refreshButton = document.getElementById( 'sufm-log-refresh' );
 		var countNode = document.getElementById( 'sufm-log-count' );
 		var filterEmpty = document.getElementById( 'sufm-log-filter-empty' );
@@ -101,13 +102,14 @@
 
 			var query = searchInput ? searchInput.value.trim().toLowerCase() : '';
 			var wanted = resultSelect ? resultSelect.value : '';
+			var reason = reasonSelect ? reasonSelect.value : '';
 			var shown = 0;
 			var items = admin.qsa( '.event-list__item', list );
 
 			items.forEach( function ( item ) {
 				var haystack = ( item.getAttribute( 'data-search' ) || '' ).toLowerCase();
 				var result = item.getAttribute( 'data-result' ) || '';
-				var visible = ( ! query || haystack.indexOf( query ) !== -1 ) && ( ! wanted || result === wanted );
+				var visible = ( ! query || haystack.indexOf( query ) !== -1 ) && ( ! wanted || result === wanted ) && ( ! reason || haystack.indexOf( ':' + reason ) !== -1 );
 				item.hidden = ! visible;
 				if ( visible ) {
 					shown += 1;
@@ -119,7 +121,7 @@
 			}
 
 			if ( countNode ) {
-				countNode.textContent = ( query || wanted )
+				countNode.textContent = ( query || wanted || reason )
 					? fill( strings.filterSummary || '', { shown: shown, total: rows.length } )
 					: shown + ' / ' + rows.length;
 			}
@@ -349,6 +351,10 @@
 
 		if ( resultSelect ) {
 			resultSelect.addEventListener( 'change', applyFilter );
+		}
+
+		if ( reasonSelect ) {
+			reasonSelect.addEventListener( 'change', applyFilter );
 		}
 
 		if ( refreshButton ) {

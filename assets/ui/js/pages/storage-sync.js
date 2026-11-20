@@ -676,7 +676,7 @@
 			var batchCount     = admin.qs( '#batch-count', root );
 			var batchUpload    = admin.qs( '#batch-upload', root );
 			var batchDownload  = admin.qs( '#batch-download', root );
-			var batchDelete    = admin.qs( '#batch-delete', root );
+			var batchDeleteBtn = admin.qs( '#batch-delete', root );
 			var batchClear     = admin.qs( '#batch-clear', root );
 			var batchProgress  = admin.qs( '#batch-progress', root );
 			var progressText   = admin.qs( '#batch-progress-text', root );
@@ -761,7 +761,7 @@
 				// and the frozen state. "清除选择" is local bookkeeping, so it stays
 				// clickable even while a screen is frozen.
 				var frozen = isLocked();
-				[ batchUpload, batchDownload, batchDelete ].forEach( function ( button ) {
+				[ batchUpload, batchDownload, batchDeleteBtn ].forEach( function ( button ) {
 					if ( button ) {
 						button.disabled = disabled || frozen;
 					}
@@ -975,9 +975,11 @@
 					var name = button.getAttribute( 'data-sakura-name' ) || '';
 					var size = button.getAttribute( 'data-sakura-size' ) || '';
 					var detail = name ? name + ( size ? ' · ' + size : '' ) : '';
-					var message = detail ? detail + ' · ' + strings.deleteDesc : strings.deleteDesc;
-					admin.ui.confirm( message, {
-						title: strings.deleteTitle,
+					/* 与批量删除同构：一句结论 + 对象清单 + 粉底说明。 */
+					admin.ui.confirm( name && strings.deleteHead ? format( strings.deleteHead, name ) : strings.deleteDesc, {
+						title: name && strings.deleteTitleShort ? strings.deleteTitleShort : strings.deleteTitle,
+						note: strings.deleteNote || '',
+						items: detail ? [ detail ] : [],
 						confirmText: strings.deleteConfirm,
 						danger: true
 					} ).then( function ( confirmed ) {
@@ -1177,15 +1179,29 @@
 				} );
 			}
 
-			if ( batchDelete ) {
-				admin.on( batchDelete, 'click', function () {
+			if ( batchDeleteBtn ) {
+				admin.on( batchDeleteBtn, 'click', function () {
 					var keys = selectedKeys( 'delete' );
 					if ( ! keys.length ) {
 						toast( strings.batchEmpty, 'warn' );
 						return;
 					}
-					admin.ui.confirm( strings.batchDeleteDesc, {
+					/* 按视觉稿：一句话结论 + 文件清单 + 底部粉底说明，三段分开读。 */
+					var sizeByKey = {};
+					Array.prototype.forEach.call( document.querySelectorAll( '.row-select' ), function ( box ) {
+						sizeByKey[ box.value ] = box.getAttribute( 'data-size' ) || '';
+					} );
+					var listed = keys.slice( 0, 5 ).map( function ( key ) {
+						var size = sizeByKey[ key ] || '';
+						return String( key ).split( '/' ).pop() + ( size ? ' · ' + size : '' );
+					} );
+					if ( keys.length > listed.length && strings.batchDeleteMore ) {
+						listed.push( format( strings.batchDeleteMore, keys.length - listed.length ) );
+					}
+					admin.ui.confirm( format( strings.batchDeleteHead || strings.batchDeleteDesc, keys.length ), {
 						title: strings.batchDeleteTitle,
+						note: strings.batchDeleteNote || '',
+						items: listed,
 						confirmText: format( strings.batchDeleteConfirm, keys.length ),
 						danger: true
 					} ).then( function ( confirmed ) {
@@ -1537,13 +1553,15 @@
 					actions.appendChild( actionButton( 'row-upload', key, '', labels.upload ) );
 				} else if ( 'remote' === status ) {
 					actions.appendChild( actionButton( 'row-download', key, '', labels.download ) );
+				} else if ( 'mismatch' === status ) {
+					actions.appendChild( actionButton( 'row-upload', key, 'REPLACE', labels.reupload || labels.upload ) );
+				}
+				if ( hasCloud ) {
 					var remove = actionButton( 'row-delete', key, '', labels.delete );
 					remove.classList.add( 'link-btn--danger' );
 					remove.setAttribute( 'data-sakura-name', name );
 					remove.setAttribute( 'data-sakura-size', formatSize( cloudSize ) );
 					actions.appendChild( remove );
-				} else if ( 'mismatch' === status ) {
-					actions.appendChild( actionButton( 'row-upload', key, 'REPLACE', labels.reupload || labels.upload ) );
 				}
 				var preview = row.preview || {};
 				if ( ! preview.name ) {
@@ -1803,5 +1821,152 @@
 
 			render();
 		}
+	} );
+
+	/*
+	 * Bucket latency pill.
+	 *
+	 * One signed LIST per probe, so a few requests a minute are cheap. The three
+	 * bands are a product decision: under 200ms is healthy, 200–500ms still
+	 * usable but worth knowing, over 500ms means every page load is waiting on
+	 * the object store. Polling stops while the tab is hidden — a backgrounded
+	 * dashboard should not spend requests on nobody.
+	 */
+	admin.ready( function () {
+		var pill = document.querySelector( '[data-sakura-ping]' );
+		if ( ! pill ) {
+			return;
+		}
+
+		var config   = admin.page && admin.page.data ? admin.page.data : {};
+		var strings  = config.strings || {};
+		var interval = Number( config.latencyMs ) || 30000;
+		var timer    = 0;
+		var busy     = false;
+		var samples  = [];
+
+		/* One slow handshake should not repaint the dot red: judge on the median
+		 * of the last three probes, show the number that produced it. */
+		function median( list ) {
+			var sorted = list.slice().sort( function ( a, b ) {
+				return a - b;
+			} );
+			return sorted[ Math.floor( sorted.length / 2 ) ];
+		}
+
+		function paint( state, ms, text ) {
+			pill.setAttribute( 'data-state', state );
+			var word = pill.querySelector( '.status-card__ping-text' );
+			var value = pill.querySelector( '[data-sakura-ping-ms]' );
+			if ( word ) {
+				word.textContent = text || '';
+			}
+			if ( value ) {
+				value.textContent = ( typeof ms === 'number' && ms >= 0 ) ? ms + ' ms' : '';
+			}
+			pill.setAttribute( 'title', ( strings.latencyHint || '' ) + ( typeof ms === 'number' ? ' · ' + ms + ' ms' : '' ) );
+		}
+
+		function stateFor( ms ) {
+			if ( ms < 200 ) {
+				return 'good';
+			}
+			return ms <= 500 ? 'slow' : 'bad';
+		}
+
+		function words( state ) {
+			if ( state === 'good' ) {
+				return strings.latencyOk || '';
+			}
+			if ( state === 'slow' ) {
+				return strings.latencySlow || '';
+			}
+			return strings.latencyBad || '';
+		}
+
+		function probe() {
+			if ( busy ) {
+				return;
+			}
+			busy = true;
+			admin.api.ajax( 'sakura_s3_latency', { nonce: config.actionNonce || '' }, { timeout: 12000 } ).then( function ( data ) {
+				busy = false;
+				var ms = data && typeof data.ms === 'number' ? data.ms : null;
+				if ( ms === null ) {
+					paint( 'unknown', null, strings.latencyFail || '' );
+					return;
+				}
+				samples.push( ms );
+				if ( samples.length > 3 ) {
+					samples.shift();
+				}
+				var shown = median( samples );
+				paint( stateFor( shown ), shown, words( stateFor( shown ) ) );
+			} ).catch( function () {
+				busy = false;
+				paint( 'unknown', null, strings.latencyFail || '' );
+			} );
+		}
+
+		function start() {
+			stop();
+			probe();
+			timer = window.setInterval( probe, interval );
+		}
+
+		function stop() {
+			if ( timer ) {
+				window.clearInterval( timer );
+				timer = 0;
+			}
+		}
+
+		document.addEventListener( 'visibilitychange', function () {
+			if ( document.hidden ) {
+				stop();
+				return;
+			}
+			start();
+		} );
+
+		start();
+	} );
+	/*
+	 * 汽水气泡：每颗都是真实元素，起点、大小、时长、延迟各不相同。
+	 * 负延迟让它们一上来就处在各自的相位，不会一起从零开始——
+	 * 平铺渐变的版本正是死在「所有气泡同时归零」这一点上。
+	 */
+	admin.ready( function () {
+		var bars = document.querySelectorAll( '.progress--soda' );
+
+		if ( ! bars.length || window.matchMedia( '(prefers-reduced-motion: reduce)' ).matches ) {
+			return;
+		}
+
+		function sprinkle( host, count, sizeMin, sizeMax, durMin, durMax ) {
+			if ( ! host || host.getAttribute( 'data-sakura-fizz' ) ) {
+				return;
+			}
+
+			host.setAttribute( 'data-sakura-fizz', '1' );
+
+			for ( var i = 0; i < count; i++ ) {
+				var bubble = document.createElement( 'i' );
+				var size = sizeMin + Math.random() * ( sizeMax - sizeMin );
+				var duration = durMin + Math.random() * ( durMax - durMin );
+
+				bubble.style.width = size.toFixed( 1 ) + 'px';
+				bubble.style.height = size.toFixed( 1 ) + 'px';
+				bubble.style.left = ( 3 + Math.random() * 92 ).toFixed( 1 ) + '%';
+				bubble.style.animationDuration = duration.toFixed( 2 ) + 's';
+				bubble.style.animationDelay = '-' + ( Math.random() * duration ).toFixed( 2 ) + 's';
+				host.appendChild( bubble );
+			}
+		}
+
+		Array.prototype.forEach.call( bars, function ( bar ) {
+			sprinkle( bar.querySelector( '.progress__fizz' ), 22, 3, 8, 1.8, 3.6 );
+			sprinkle( bar.querySelector( '.progress__pop' ), 7, 4, 6, 2.2, 3.8 );
+		} );
 	} );
 }() );

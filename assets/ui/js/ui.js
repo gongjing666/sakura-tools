@@ -69,6 +69,43 @@
 	}
 
 	/**
+	 * 视觉稿里弹窗左上角那只小鲸鱼（docs/设计稿/s3-sync-center-sakura.html 的
+	 * .modal__mascot）。2026-11-20 起所有确认框都用它，插件里的弹窗因此只有
+	 * 一种样子；调用方传 mascot:false 可以要求纯文字。
+	 */
+	function mascotSvg() {
+		var wrap = document.createElement( 'div' );
+		wrap.className = 'dialog__mascot';
+		wrap.setAttribute( 'aria-hidden', 'true' );
+		wrap.innerHTML = '<svg width="46" height="46" viewBox="0 0 46 46" aria-hidden="true" focusable="false">'
+			+ '<circle cx="23" cy="24" r="17" fill="#ffd9e6"/>'
+			+ '<path d="M9 15c2 2 4 3.2 6.5 3.4C18 11 28 11 30.5 18.4 33 18.2 35 17 37 15c1.4 2.2 1.8 4.6 1.4 7-2.6-.6-4.8-.2-6.6 1.2.7 6.7-4.4 12.4-11.3 12.4S8.9 30.1 9.6 23.4c-1.8-1.4-4-1.8-6.6-1.2-.4-2.4 0-4.8 1.4-7z" fill="#ffb3d1"/>'
+			+ '<circle cx="18.4" cy="24" r="1.9" fill="#3a2333"/><circle cx="27.6" cy="24" r="1.9" fill="#3a2333"/>'
+			+ '<path d="M20.4 28.6c1.7 1.5 3.5 1.5 5.2 0" stroke="#3a2333" stroke-width="1.6" fill="none" stroke-linecap="round"/>'
+			+ '<circle cx="15.2" cy="27.4" r="2.4" fill="#ff8fb8" opacity=".55"/><circle cx="30.8" cy="27.4" r="2.4" fill="#ff8fb8" opacity=".55"/>'
+			+ '</svg>';
+		return wrap;
+	}
+
+	/**
+	 * 清单行首的小纸片图标：图片粉、视频蓝、压缩包琥珀、其它暖灰。
+	 */
+	function fileGlyph( name ) {
+		var ext = ( String( name ).match( /\.([a-z0-9]{1,6})$/i ) || [ '', '' ] )[ 1 ].toLowerCase();
+		var pink = [ 'jpg', 'jpeg', 'png', 'gif', 'webp', 'avif', 'bmp', 'heic', 'svg' ];
+		var sky  = [ 'mp4', 'mov', 'webm', 'mkv', 'avi', 'm4v' ];
+		var sun  = [ 'zip', 'rar', '7z', 'gz', 'tar', 'tgz' ];
+		var fill = '#c9b6c2';
+		if ( pink.indexOf( ext ) >= 0 ) { fill = '#ff8fb8'; } else if ( sky.indexOf( ext ) >= 0 ) { fill = '#9dccff'; } else if ( sun.indexOf( ext ) >= 0 ) { fill = '#ffd08a'; }
+		var wrap = document.createElement( 'span' );
+		wrap.className = 'dialog__glyph';
+		wrap.setAttribute( 'aria-hidden', 'true' );
+		wrap.innerHTML = '<svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" focusable="false">'
+			+ '<path fill="' + fill + '" d="M3 1h6l4 4v10H3z"/><path fill="#fff" d="M9 1v4h4z" opacity=".65"/></svg>';
+		return wrap;
+	}
+
+	/**
 	 * Promise-based confirmation using a native <dialog>. Falls back to
 	 * window.confirm only when the dialog element is unavailable.
 	 */
@@ -97,15 +134,27 @@
 			var body = document.createElement( 'div' );
 			body.className = 'dialog__body';
 
+			/* 要删东西的对话框带头像；纯提示（已保存、连接成功）不加。 */
+			// 2026-11-20：所有确认框都带这只小鲸鱼——开发者要求「插件的所有弹窗
+			// 提示统一成文件核对的删除弹窗」。传 mascot:false 可以只剩文字。
+			if ( settings.mascot !== false ) {
+				dialog.setAttribute( 'data-mascot', '1' );
+				body.appendChild( mascotSvg() );
+			}
+
+			var textWrap = document.createElement( 'div' );
+			textWrap.className = 'dialog__text';
+
 			var title = document.createElement( 'h2' );
 			title.className = 'dialog__title';
 			title.textContent = settings.title || '请确认';
-			body.appendChild( title );
+			textWrap.appendChild( title );
 
 			var text = document.createElement( 'p' );
 			text.className = 'dialog__message';
 			text.textContent = String( message || '' );
-			body.appendChild( text );
+			textWrap.appendChild( text );
+			body.appendChild( textWrap );
 			form.appendChild( body );
 
 			var list = null;
@@ -113,8 +162,21 @@
 				list = document.createElement( 'ul' );
 				list.className = 'dialog__list';
 				settings.items.forEach( function ( entry ) {
-					var row = document.createElement( 'li' );
-					row.textContent = String( entry || '' );
+					var row  = document.createElement( 'li' );
+					var parts = String( entry || '' ).split( ' · ' );
+					/* 「…另有 N 个对象」这类汇总行不带纸片图标。 */
+					if ( parts[ 0 ] && parts[ 0 ].indexOf( '…' ) !== 0 ) {
+						row.appendChild( fileGlyph( parts[ 0 ] ) );
+					}
+					var name = document.createElement( 'span' );
+					name.className = 'dialog__list-name';
+					name.textContent = parts[ 0 ] || '';
+					row.appendChild( name );
+					if ( parts.length > 1 ) {
+						var size = document.createElement( 'em' );
+						size.textContent = parts.slice( 1 ).join( ' · ' );
+						row.appendChild( size );
+					}
 					list.appendChild( row );
 				} );
 				form.appendChild( list );
@@ -152,7 +214,7 @@
 			cancel.className = 'btn btn--ghost';
 			cancel.textContent = settings.cancelText || '取消';
 			cancel.addEventListener( 'click', function () {
-				dialog.close( 'cancel' );
+				closeDialog( dialog, 'cancel' );
 			} );
 
 			var accept = document.createElement( 'button' );
@@ -160,7 +222,7 @@
 			accept.className = settings.danger ? 'btn btn--danger' : 'btn btn--primary';
 			accept.textContent = settings.confirmText || '确认';
 			accept.addEventListener( 'click', function () {
-				dialog.close( 'confirm' );
+				closeDialog( dialog, 'confirm' );
 			} );
 
 			if ( typed ) {
@@ -177,9 +239,18 @@
 				form.addEventListener( 'submit', function ( event ) {
 					event.preventDefault();
 					if ( ! accept.disabled ) {
-						dialog.close( 'confirm' );
+						closeDialog( dialog, 'confirm' );
 					}
 				} );
+			}
+
+			/* 一段「后果说明」，视觉稿里是正文下面那块淡粉便签。正文只留一句
+			 * 结论，细节放这里，读起来不会连成一大段。 */
+			if ( settings.note ) {
+				var note = document.createElement( 'p' );
+				note.className = 'dialog__note';
+				note.textContent = String( settings.note );
+				form.appendChild( note );
 			}
 
 			actions.appendChild( cancel );
@@ -187,6 +258,12 @@
 			form.appendChild( actions );
 			dialog.appendChild( form );
 			host().appendChild( dialog );
+
+			// Esc 也要走同一条出场动画：原生 cancel 会立刻关掉，卡片会「啪」地消失。
+			dialog.addEventListener( 'cancel', function ( event ) {
+				event.preventDefault();
+				closeDialog( dialog, 'cancel' );
+			} );
 
 			dialog.addEventListener( 'close', function () {
 				var confirmed = dialog.returnValue === 'confirm';
@@ -899,7 +976,7 @@
 			}
 			closed = true;
 			if ( dialog.open ) {
-				dialog.close( 'close' );
+				closeDialog( dialog, 'close' );
 			} else {
 				unlockPage();
 				if ( dialog.parentNode ) {
@@ -1249,9 +1326,37 @@
 		var focusOn = admin.qs( '[data-sakura-modal-focus]', modal ) || card;
 		var opener  = trigger || document.activeElement;
 
+		/*
+		 * Lift the prompt out of <main> before opening it.
+		 *
+		 * .sakura-admin__main plays a 180ms entrance that sets a transform, and a
+		 * transformed ancestor becomes the containing block for position: fixed.
+		 * A prompt echoed inside main (every save-result modal is) therefore parked
+		 * itself on main's box instead of the viewport for those 180ms — the scrim
+		 * stopped at the content gutters and the page looked like it had white bands
+		 * on both sides. Moving the node to the page root once, on open, keeps the
+		 * fixed positioning honest and costs nothing after the first time.
+		 */
+		var root = document.querySelector( '.sakura-admin' );
+		if ( root && modal.parentNode !== root && modal.closest( '.sakura-admin__main' ) ) {
+			root.appendChild( modal );
+		}
+
 		modal.removeAttribute( 'hidden' );
 		modal.setAttribute( 'aria-hidden', 'false' );
 		modal.setAttribute( 'data-sakura-modal-open', '1' );
+
+		/*
+		 * 2026-11-20：加了遮罩之后，点遮罩就该关——否则那层模糊只是挡住视线。
+		 * 只认「点在容器本身上」的点击，卡片内部的点击照旧不触发。
+		 */
+		function onBackdrop( event ) {
+			if ( event.target === modal ) {
+				close();
+			}
+		}
+
+		modal.addEventListener( 'click', onBackdrop );
 		/*
 		 * Nothing is locked and nothing is scrolled on open: without a scrim the page
 		 * stays exactly where the operator left it, and a prompt that follows a click
@@ -1284,6 +1389,7 @@
 				return;
 			}
 			modal.removeAttribute( 'data-sakura-modal-open' );
+			modal.removeEventListener( 'click', onBackdrop );
 			document.removeEventListener( 'keydown', onKeydown );
 
 			/*
@@ -1339,6 +1445,39 @@
 		document.addEventListener( 'keydown', onKeydown );
 
 		return { close: close };
+	}
+
+	/**
+	 * Close a <dialog> with its exit animation.
+	 *
+	 * `dialog.close()` is instant, so the card used to vanish between two frames —
+	 * the abruptness people read as "old". Adding `.is-closing` lets CSS play a
+	 * 140ms shrink-and-fade, then the attribute goes away. A timer backs up
+	 * `animationend` because a dialog that is closed from a hidden tab never
+	 * receives one and would stay on screen.
+	 */
+	function closeDialog( dialog, value ) {
+		if ( ! dialog.open ) {
+			return;
+		}
+		if ( window.matchMedia && window.matchMedia( '(prefers-reduced-motion: reduce)' ).matches ) {
+			dialog.close( value );
+			return;
+		}
+		var done = false;
+		var finish = function () {
+			if ( done ) {
+				return;
+			}
+			done = true;
+			dialog.classList.remove( 'is-closing' );
+			if ( dialog.open ) {
+				dialog.close( value );
+			}
+		};
+		dialog.classList.add( 'is-closing' );
+		dialog.addEventListener( 'animationend', finish, { once: true } );
+		window.setTimeout( finish, 220 );
 	}
 
 	/**

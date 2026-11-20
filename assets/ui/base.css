@@ -55,33 +55,12 @@
 	-webkit-font-smoothing: antialiased;
 	text-rendering: optimizeLegibility;
 	background:
-		radial-gradient(1500px 620px at 62% -120px, var(--sakura-mist-strong) 0%, rgba(238, 172, 192, 0) 68%),
-		radial-gradient(1000px 560px at -10% 40px, var(--sakura-mist-soft) 0%, rgba(241, 188, 204, 0) 70%),
-		radial-gradient(900px 600px at 104% 100%, var(--sakura-mist-far) 0%, rgba(244, 198, 212, 0) 76%),
-		linear-gradient(180deg, var(--sakura-canvas-top) 0%, var(--sakura-canvas-mid) 42%, var(--sakura-canvas-bottom) 100%);
+		radial-gradient(1250px 540px at 88% -220px, var(--sakura-mist-strong) 0%, rgba(255, 138, 180, 0) 70%),
+		radial-gradient(980px 460px at -8% 24px, var(--sakura-mist-soft) 0%, rgba(196, 224, 255, 0) 72%),
+		radial-gradient(1400px 700px at 50% 112%, var(--sakura-mist-far) 0%, rgba(255, 180, 208, 0) 76%),
+		linear-gradient(180deg, var(--sakura-canvas-top) 0%, var(--sakura-canvas-mid) 48%, var(--sakura-canvas-bottom) 100%);
 }
 
-/* Petal dust: seven soft elliptical specks tiled over the canvas. Every one of
- * them sits off-centre by a different amount, so the repeat never resolves into
- * a grid — the eye should read drifting motes, not wallpaper. Sizes alternate
- * portrait/landscape for the same reason. */
-.sakura-admin::before {
-	content: "";
-	position: absolute;
-	inset: 0;
-	z-index: -1;
-	pointer-events: none;
-	background-image:
-		radial-gradient(3.4px 2.6px at 12% 18%, var(--sakura-dust), rgba(190, 74, 113, 0)),
-		radial-gradient(2.6px 3.2px at 38% 62%, var(--sakura-dust), rgba(190, 74, 113, 0)),
-		radial-gradient(4.2px 2.8px at 67% 24%, var(--sakura-dust), rgba(190, 74, 113, 0)),
-		radial-gradient(2.8px 3.6px at 86% 74%, var(--sakura-dust), rgba(190, 74, 113, 0)),
-		radial-gradient(3.2px 2.4px at 24% 88%, var(--sakura-dust), rgba(190, 74, 113, 0)),
-		radial-gradient(2.2px 2.6px at 54% 46%, var(--sakura-dust), rgba(190, 74, 113, 0)),
-		radial-gradient(2.6px 2.2px at 7% 54%, var(--sakura-dust), rgba(190, 74, 113, 0));
-	background-size: 330px 300px;
-	background-repeat: repeat;
-}
 
 .sakura-admin *,
 .sakura-admin *::before,
@@ -175,41 +154,50 @@
 	color: #d9c2c8;
 }
 
+/* 模块导航与页面页签都用按钮外观（2026-11-20）：不再做一层胶囊托盘，
+ * 容器只负责排布，按钮自己带边框与背景。 */
 .sakura-admin .sakura-mods {
 	display: flex;
 	align-items: center;
-	gap: 2px;
-	padding: 4px;
-	border: 1px solid rgba(255, 255, 255, .88);
-	border-radius: var(--g-radius-pill);
-	background: rgba(255, 255, 255, .58);
-	box-shadow: var(--g-shadow-soft);
-	backdrop-filter: blur(10px);
+	gap: 8px;
+	padding: 0;
+	border: 0;
+	background: none;
+	box-shadow: none;
+	backdrop-filter: none;
 }
 
 .sakura-admin .sakura-mod {
 	display: inline-flex;
 	align-items: center;
-	height: 30px;
-	padding: 0 13px;
-	border-radius: var(--g-radius-pill);
-	color: var(--g-muted);
+	height: var(--g-btn-h);
+	padding: 0 16px;
+	border: 1px solid var(--g-line-strong);
+	border-radius: var(--g-radius-sm);
+	background: var(--g-card);
+	box-shadow: 0 1px 1px rgba(93, 29, 45, .05);
+	color: var(--g-ink);
 	font-size: 13px;
-	font-weight: 550;
+	font-weight: 600;
 	line-height: 1;
+	white-space: nowrap;
 	text-decoration: none;
-	transition: background var(--g-dur) var(--g-ease), color var(--g-dur) var(--g-ease), box-shadow var(--g-dur) var(--g-ease);
+	transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease, color .16s ease;
 }
 
 .sakura-admin .sakura-mod:hover {
-	background: rgba(255, 255, 255, .82);
+	transform: translateY(-1px);
+	border-color: var(--g-accent);
 	color: var(--g-ink);
+	box-shadow: 0 2px 6px rgba(231, 90, 139, .16);
 }
 
+/* 当前模块 = 主按钮（与「重新核对」同一支渐变）。 */
 .sakura-admin .sakura-mod.is-active {
-	background: var(--g-accent);
-	box-shadow: 0 1px 2px rgba(93, 29, 45, .26), 0 6px 14px -8px var(--g-accent-glow);
+	border-color: #c22f5b;
 	color: var(--g-accent-ink);
+	background: linear-gradient(140deg, #ffa7c6 0%, #f2739f 48%, #e75a8b 100%);
+	box-shadow: 0 2px 4px rgba(231, 90, 139, .22), 0 14px 26px -16px rgba(231, 90, 139, .95), inset 0 1px 0 rgba(255, 255, 255, .38);
 }
 
 .sakura-admin .sakura-mod:focus-visible,
@@ -260,12 +248,23 @@
 .sakura-admin .sakura-tabs {
 	display: flex;
 	align-items: center;
-	gap: 4px;
+	gap: 8px;
 	max-width: var(--g-page-max);
-	margin: 16px auto 0;
-	padding: 0 var(--g-gutter);
-	border-bottom: 1px solid var(--g-line);
+	/* 上 16 = 11 + 5，下 -9 抵掉多出来的内边距：整条占位高度与改动前一致。 */
+	margin: 11px auto -9px;
+	/*
+	 * 横向滚动 + 不被裁切：
+	 *
+	 * 滚动容器会连纵向一起裁切，而页签悬浮是 translateY(-1px)（外带 6px 投影），
+	 * 贴着上下边就会被切掉一圈描边。解法不是放弃滚动，而是把这块裁切区做成
+	 * 内边距——投影落在 padding 里同样算「可见」，所以上 5px（1px 抬升 + 4px
+	 * 向上的投影）、下 9px（2px 偏移 + 6px 模糊）就够，外边距再减回去，
+	 * 版式高度不变。
+	 */
+	padding: 5px var(--g-gutter) 9px;
+	border-bottom: 0;
 	overflow-x: auto;
+	overflow-y: hidden;
 	scrollbar-width: none;
 	/* Soft cut-off at both ends so a horizontally scrolled tab strip does not
 	 * begin with a half glyph when the active tab sits off-screen. */
@@ -277,31 +276,40 @@
 	display: none;
 }
 
+
 .sakura-admin .sakura-tab {
 	position: relative;
 	display: inline-flex;
 	align-items: center;
 	gap: 6px;
 	flex: 0 0 auto;
-	padding: 9px 12px 11px;
-	border-bottom: 2px solid transparent;
-	margin-bottom: -1px;
-	color: var(--g-muted);
-	font-size: 13.5px;
-	font-weight: 550;
-	line-height: 1.2;
+	height: var(--g-btn-h);
+	padding: 0 16px;
+	border: 1px solid var(--g-line-strong);
+	border-radius: var(--g-radius-sm);
+	background: var(--g-card);
+	box-shadow: 0 1px 1px rgba(93, 29, 45, .05);
+	color: var(--g-ink);
+	font-size: 13px;
+	font-weight: 600;
+	line-height: 1;
 	text-decoration: none;
 	white-space: nowrap;
-	transition: color var(--g-dur) var(--g-ease), border-color var(--g-dur) var(--g-ease);
+	transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease, color .16s ease;
 }
 
 .sakura-admin .sakura-tab:hover {
+	transform: translateY(-1px);
+	border-color: var(--g-accent);
 	color: var(--g-ink);
+	box-shadow: 0 2px 6px rgba(231, 90, 139, .16);
 }
 
 .sakura-admin .sakura-tab.is-active {
-	border-bottom-color: var(--g-accent);
-	color: var(--g-ink);
+	border-color: #c22f5b;
+	color: var(--g-accent-ink);
+	background: linear-gradient(140deg, #ffa7c6 0%, #f2739f 48%, #e75a8b 100%);
+	box-shadow: 0 2px 4px rgba(231, 90, 139, .22), 0 14px 26px -16px rgba(231, 90, 139, .95), inset 0 1px 0 rgba(255, 255, 255, .38);
 }
 
 .sakura-admin .sakura-tab.is-disabled {
@@ -465,11 +473,12 @@
 }
 
 .sakura-admin .page-head__aside {
+	/* Column, not row: the status card sits on top and the page seal hangs
+	 * underneath it, both flush right — the stack the design draft draws. */
 	display: flex;
-	align-items: center;
-	gap: 10px;
-	flex-wrap: wrap;
-	justify-content: flex-end;
+	flex-direction: column;
+	align-items: flex-end;
+	gap: 4px;
 }
 
 .sakura-admin .status-card {
@@ -522,6 +531,76 @@
 .sakura-admin .status-card--warn .status-card__sub { color: var(--g-warn); }
 .sakura-admin .status-card--bad .status-card__sub { color: var(--g-bad); }
 
+/* Live latency pill in the bucket card: dot + word + number. */
+.sakura-admin .status-card__ping {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	margin-top: 7px;
+	padding: 3px 9px 3px 8px;
+	border-radius: 999px;
+	background: rgba(255, 255, 255, .74);
+	box-shadow: inset 0 0 0 1px var(--g-line-soft);
+	color: var(--g-muted);
+	font-size: 11.5px;
+	line-height: 1.5;
+	white-space: nowrap;
+}
+
+.sakura-admin .status-card__dot {
+	width: 7px;
+	height: 7px;
+	flex: none;
+	border-radius: 50%;
+	background: var(--g-dot-idle);
+	box-shadow: 0 0 0 3px rgba(201, 166, 180, .18);
+}
+
+.sakura-admin .status-card__ping-name {
+	font-weight: 600;
+}
+
+.sakura-admin .status-card__ping-sep {
+	color: var(--g-faint);
+}
+
+.sakura-admin .status-card__ping-ms {
+	color: var(--g-ink-soft);
+	font-weight: 650;
+	font-variant-numeric: tabular-nums;
+}
+
+.sakura-admin .status-card__ping[data-state="good"] { color: var(--g-ok); }
+.sakura-admin .status-card__ping[data-state="good"] .status-card__dot {
+	background: var(--g-dot-ok);
+	box-shadow: 0 0 0 3px rgba(53, 160, 107, .18);
+}
+
+.sakura-admin .status-card__ping[data-state="slow"] { color: var(--g-warn); }
+.sakura-admin .status-card__ping[data-state="slow"] .status-card__dot {
+	background: var(--g-dot-warn);
+	box-shadow: 0 0 0 3px rgba(224, 161, 27, .18);
+}
+
+.sakura-admin .status-card__ping[data-state="bad"] { color: var(--g-bad); }
+.sakura-admin .status-card__ping[data-state="bad"] .status-card__dot {
+	background: var(--g-dot-bad);
+	box-shadow: 0 0 0 3px rgba(217, 80, 63, .2);
+}
+
+.sakura-admin .status-card__ping[data-state="checking"] .status-card__dot {
+	animation: sufm-ping 1.2s ease-in-out infinite;
+}
+
+@keyframes sufm-ping {
+	0%, 100% { opacity: 1; }
+	50% { opacity: .35; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.sakura-admin .status-card__ping[data-state="checking"] .status-card__dot { animation: none; }
+}
+
 .sakura-admin .page-head__actions {
 	display: flex;
 	flex-wrap: wrap;
@@ -558,9 +637,14 @@
 	.sakura-admin .sakura-mods {
 		order: 3;
 		width: 100%;
+		/* 同页签条：滚动容器里的悬浮抬升靠内边距留出裁切区。 */
+		padding: 5px 0 9px;
+		margin-block: -5px -9px;
 		overflow-x: auto;
+		overflow-y: hidden;
 		scrollbar-width: none;
 	}
+
 
 	.sakura-admin .sakura-mods::-webkit-scrollbar {
 		display: none;
@@ -579,7 +663,7 @@
 	}
 
 	.sakura-admin .page-head__aside {
-		justify-content: flex-start;
+		align-items: flex-start;
 	}
 
 	.sakura-admin .page-head h1 {
@@ -603,7 +687,7 @@
 	}
 
 	.sakura-admin .sakura-tabs {
-		margin-top: 12px;
+		margin-top: 7px;
 	}
 
 	.sakura-admin__main {
@@ -717,4 +801,97 @@
 		left: 0;
 		width: 100%;
 	}
+}
+
+/* ============================================================
+ * V2 · 樱前线（Sakura Front）——storage-sync 试点
+ *
+ * 这一层只做「怎么读」：标题的字重与尺寸、页签的形状、副题与印章。
+ * 颜色一律来自 tokens，页面不许再写裸色值。试点页 = storage-sync；
+ * 其余页面仍用 V1 的页签与标题，等这页验收通过后再逐页铺开（见
+ * docs/开发规则/03-后台UI.md §14.6）。
+ * ============================================================ */
+
+/* Hero：标题下面那句文学化的副题。渐变只上在副题上，主标题保持实色——
+ * 渐变文字在 900 字重的大标题上会一路掉到 3:1 以下。 */
+.sakura-admin .page-head__tag {
+	display: block;
+	margin-top: 6px;
+	color: var(--g-accent);
+	font-size: clamp(19px, 1.7vw, 23px);
+	font-weight: 800;
+	line-height: 1.3;
+}
+
+.sakura-admin .page-head__tag::before {
+	content: "";
+	display: inline-block;
+	width: 20px;
+	height: 1px;
+	margin-right: 10px;
+	vertical-align: 6px;
+	background: currentColor;
+	opacity: .45;
+}
+
+.sakura-admin .page-head__tag em {
+	font-style: normal;
+	color: transparent;
+	background: linear-gradient(96deg, var(--g-petal-3) 0%, var(--g-accent) 48%, #ff9f68 100%);
+	-webkit-background-clip: text;
+	background-clip: text;
+}
+
+/* 印章：页头里的落款，只表达「这页属于谁」，不表达状态。放在文案列的下方
+ * 而不是绝对定位到右上角——右侧是状态卡，绝对定位会压住它，而状态卡承载
+ * 「当前存储桶」这类必须读到的信息。 */
+.sakura-admin .page-head__stamp {
+	/*
+	 * 与设计稿同一枚印章：SVG 里是「虚线外环 + 细内环 + 实心字」，这里只负责
+	 * 尺寸、倾角与投影。颜色走 currentColor，跟着主题换而比例不变。
+	 */
+	display: block;
+	width: 112px;
+	height: 112px;
+	justify-self: end;
+	margin-top: 8px;
+	color: var(--g-petal-3);
+	transform: rotate(7deg);
+	opacity: .92;
+	filter: drop-shadow(0 12px 22px rgba(231, 90, 139, .18));
+	pointer-events: none;
+	overflow: visible;
+}
+
+@media (max-width: 782px) {
+	.sakura-admin .page-head__stamp {
+		display: none;
+	}
+}
+
+/* 试点页：页签从「下划线」换成「花瓣贴纸」。 */
+.sakura-admin[data-sakura-page="storage-sync"] .sakura-tabs {
+	/* 试点页只把整条压低 2px；内边距必须沿用基类的 5/9，否则底部投影会被切。 */
+	margin-top: 12px;
+}
+
+/* 试点页的标题更重一档：V2 的性格靠字重，而不是再加一层装饰。 */
+.sakura-admin[data-sakura-page="storage-sync"] .page-head h1 {
+	max-width: 24ch;
+	font-size: clamp(32px, 3.6vw, 44px);
+	font-weight: 900;
+	letter-spacing: -.022em;
+	line-height: 1.06;
+}
+
+.sakura-admin[data-sakura-page="storage-sync"] .page-head .page-head__lede {
+	max-width: 62ch;
+	margin-top: 10px;
+	font-size: 14px;
+}
+
+/* 试点页的眉标跟随强调色：设计稿里卡片的小标题是樱粉，而不是灰。 */
+.sakura-admin[data-sakura-page="storage-sync"] .card__kicker {
+	color: var(--g-accent);
+	opacity: .9;
 }

@@ -432,7 +432,7 @@ UI::page(
 					'id'          => 'layout',
 					'kicker'      => 'Layout & style',
 					'title'       => __( '布局设置', 'sakura-imgopt' ),
-					'description' => __( '所有插件页面共用页面宽度、背景与卡片样式；保存后刷新页面生效。', 'sakura-imgopt' ),
+					'description' => __( '所有插件页面共用页面宽度与卡片样式；背景由插件统一控制，保存后刷新页面生效。', 'sakura-imgopt' ),
 					'form'        => array(
 						'option_group' => 'sakura_imgopt_basic',
 						'markers'      => 'fields',
@@ -441,9 +441,6 @@ UI::page(
 					'save'        => __( '保存布局设置', 'sakura-imgopt' ),
 				),
 				static function () use ( $gaps, $gaps_option, $gaps_max, $appearance, $appearance_option, $appearance_defaults, $appearance_width_min, $appearance_width_max, $appearance_border_max, $appearance_radius_max ) {
-					/* Fallback shown in the colour swatch when the mist canvas is on;
-					 * it mirrors --sakura-canvas-mid so the swatch previews the real page. */
-					$page_bg_value = '' !== (string) $appearance['page_bg'] ? (string) $appearance['page_bg'] : '#fcf7f8';
 					?>
 					<div class="field-list">
 						<p class="system-field-group"><?php echo esc_html__( '卡片间隔', 'sakura-imgopt' ); ?></p>
@@ -506,41 +503,6 @@ UI::page(
 								'max'   => (int) $appearance_width_max,
 								'step'  => 10,
 								'attrs' => array( 'inputmode' => 'numeric' ),
-							)
-						);
-
-						UI::field(
-							array(
-								'type'    => 'checkbox',
-								'id'      => 'sakura-page-bg-default',
-								'name'    => $appearance_option . '[page_bg_default]',
-								'label'   => __( '页面背景', 'sakura-imgopt' ),
-								'text'    => __( '使用默认樱雾渐变', 'sakura-imgopt' ),
-								'hint'    => __( '勾选时忽略下面的自定义颜色；取消勾选后按所选颜色覆盖。', 'sakura-imgopt' ),
-								'value'   => '1',
-								'checked' => '' === (string) $appearance['page_bg'],
-							)
-						);
-
-						UI::field(
-							array(
-								'type'  => 'color',
-								'id'    => 'sakura-page-bg',
-								'name'  => $appearance_option . '[page_bg]',
-								'label' => __( '自定义页面背景色', 'sakura-imgopt' ),
-								'hint'  => __( '建议选择浅色，深色背景会降低正文对比度。', 'sakura-imgopt' ),
-								'value' => $page_bg_value,
-							)
-						);
-
-						UI::field(
-							array(
-								'type'  => 'color',
-								'id'    => 'sakura-card-bg',
-								'name'  => $appearance_option . '[card_bg]',
-								'label' => __( '卡片背景色', 'sakura-imgopt' ),
-								'hint'  => __( '只影响卡片表面的底色，角落的樱粉泛光会一直保留；输入框与按钮仍保持白色。', 'sakura-imgopt' ),
-								'value' => (string) $appearance['card_bg'],
 							)
 						);
 

@@ -618,22 +618,55 @@
 }
 
 .sakura-admin .btn:active {
-	transform: translateY(1px);
+	transform: translateY(0);
+}
+
+/* 悬浮时整颗按钮抬起 1px、投影加深一点——设计稿的按钮有「被指尖碰到」的手感。
+ * 只抬 1px，同一行的按钮不会互相错位；禁用态与 reduced-motion 下不动。 */
+.sakura-admin .btn {
+	transition: transform .16s ease, box-shadow .16s ease, background-color .16s ease, border-color .16s ease, color .16s ease;
+}
+
+.sakura-admin .btn:hover:not(:disabled) {
+	transform: translateY(-1px);
+}
+
+.sakura-admin .btn--primary:hover:not(:disabled) {
+	transform: translateY(-1px);
+	box-shadow: 0 4px 10px rgba(231, 90, 139, .26), 0 18px 30px -14px rgba(231, 90, 139, 1), inset 0 1px 0 rgba(255, 255, 255, .42);
+}
+
+.sakura-admin .btn:disabled {
+	transform: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.sakura-admin .btn {
+		transition: none;
+	}
+
+	.sakura-admin .btn:hover:not(:disabled) {
+		transform: none;
+	}
 }
 
 /* The one filled control per card earns a shallow vertical gradient and an
  * inner highlight. A flat #9d3452 block on a misty canvas looks like a sticker;
  * 4% of range is enough to make it read as a raised surface. */
 .sakura-admin .btn--primary {
-	border-color: var(--g-accent-line);
-	background: linear-gradient(180deg, #a83b5b 0%, var(--g-accent) 58%, #963149 100%);
-	box-shadow: 0 1px 2px rgba(93, 29, 45, .30), 0 10px 18px -14px var(--g-accent-glow), inset 0 1px 0 rgba(255, 255, 255, .16);
+	border-color: #c22f5b;
+	/* V2: the gradient runs left→right and stays inside the 4.5:1 band. Both
+	 * stops hold white text (#d23a66 = 4.67, #b02a4f = 6.36); the old vertical
+	 * ramp read as lacquer rather than fruit soda. */
+	background: linear-gradient(140deg, #ffa7c6 0%, #f2739f 48%, #e75a8b 100%);
+	box-shadow: 0 2px 4px rgba(231, 90, 139, .22), 0 14px 26px -16px rgba(231, 90, 139, .95), inset 0 1px 0 rgba(255, 255, 255, .38);
+	text-shadow: 0 1px 1px rgba(158, 38, 78, .18);
 	color: var(--g-accent-ink);
 }
 
 .sakura-admin .btn--primary:hover {
-	border-color: var(--g-accent-hover);
-	background: linear-gradient(180deg, #98314f 0%, var(--g-accent-hover) 58%, #7a2740 100%);
+	border-color: #a6284b;
+	background: linear-gradient(140deg, #ff9cbe 0%, #ef6593 48%, #d94f80 100%);
 	color: var(--g-accent-ink);
 }
 
@@ -644,15 +677,16 @@
 }
 
 .sakura-admin .btn--danger {
-	border-color: var(--g-bad);
-	background: var(--g-bad);
-	color: var(--g-accent-ink);
+	border-color: transparent;
+	background: linear-gradient(140deg, #ff7fa8, #d8285c);
+	color: #fff;
+	box-shadow: 0 16px 30px -18px rgba(216, 40, 92, .85);
 }
 
 .sakura-admin .btn--danger:hover {
-	border-color: var(--g-bad-hover);
-	background: var(--g-bad-hover);
-	color: var(--g-accent-ink);
+	border-color: transparent;
+	background: linear-gradient(140deg, #ff6f9d, #c71e50);
+	color: #fff;
 }
 
 .sakura-admin .btn--quiet {
@@ -1135,20 +1169,28 @@
 	gap: 4px;
 }
 
+/* 分页按钮与「重新核对」同一套按钮外观（12px 圆角、1px 边、34px 高），
+ * 不做胶囊：这一族控件在视觉上就是按钮，而不是标签。 */
 .sakura-admin .pagination__link {
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
-	min-width: 30px;
-	height: 30px;
-	padding: 0 8px;
-	border: 1px solid transparent;
-	border-radius: 8px;
-	background: none;
+	min-width: 36px;
+	height: var(--g-btn-h);
+	margin: 0;
+	padding: 0 12px;
+	border: 1px solid var(--g-line-strong);
+	border-radius: var(--g-radius-sm);
+	background: var(--g-card);
+	box-shadow: 0 1px 1px rgba(93, 29, 45, .05);
 	color: var(--g-muted);
-	font: inherit;
+	font-family: var(--g-font);
+	font-size: 13px;
+	font-weight: 600;
+	line-height: 1;
 	text-decoration: none;
 	cursor: pointer;
+	transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease, color .16s ease, background-color .16s ease;
 }
 
 .sakura-admin .pagination__link:disabled {
@@ -1156,16 +1198,19 @@
 	cursor: default;
 }
 
-.sakura-admin .pagination__link:hover {
-	border-color: var(--g-line);
-	background: var(--g-wash);
+.sakura-admin .pagination__link:hover:not(:disabled) {
+	transform: translateY(-1px);
+	border-color: var(--g-accent);
 	color: var(--g-ink);
+	box-shadow: 0 2px 6px rgba(231, 90, 139, .16);
 }
 
+/* 当前页 = 「重新核对」那只主按钮，逐条照搬它的渐变与投影。 */
 .sakura-admin .pagination__link.is-current {
-	border-color: var(--g-accent);
-	background: var(--g-accent);
+	border-color: #c22f5b;
 	color: var(--g-accent-ink);
+	background: linear-gradient(140deg, #ffa7c6 0%, #f2739f 48%, #e75a8b 100%);
+	box-shadow: 0 2px 4px rgba(231, 90, 139, .22), 0 14px 26px -16px rgba(231, 90, 139, .95), inset 0 1px 0 rgba(255, 255, 255, .38);
 }
 
 /* ============================================================
@@ -1258,21 +1303,70 @@
 	to { opacity: 1; transform: translateY(0); }
 }
 
+/* confirm() 的确认框。样式取自视觉稿的 .modal / .modal__card
+ * （docs/设计稿/s3-sync-center-sakura.html）：26px 圆角、右上角樱雾、暖色遮罩 +
+ * 轻微背景虚化。遮罩用 backdrop 而不是额外一层 div，原生 <dialog> 自己就会
+ * 吃掉外部的点击，所以不需要再补关掉逻辑。 */
 .sakura-admin dialog {
-	width: min(440px, calc(100vw - 32px));
+	width: min(540px, calc(100vw - 32px));
 	margin: auto;
 	padding: 0;
-	border: 1px solid var(--g-line);
-	border-radius: var(--g-radius-card);
-	background: var(--g-card-surface);
-	box-shadow: var(--g-shadow-pop);
+	border: 0;
+	border-radius: 26px;
+	background:
+		radial-gradient(420px 220px at 88% -10%, rgba(255, 226, 240, .9), transparent 70%),
+		#fff;
+	box-shadow: 0 40px 80px -40px rgba(74, 43, 58, .55), 0 0 0 1px rgba(243, 219, 230, .9);
 	color: var(--g-ink);
 	font-family: var(--g-font);
 	font-size: 14px;
 }
 
+/*
+ * 遮罩：很薄的一层雾，不是一块灰。
+ *
+ * 2026-11-20 开发者反馈「现代网站不这么说弹窗，遮罩太重、出现和消失都很突然」。
+ * 于是把它压到 rgba(74,43,58,.14) + 3px 模糊——只负责「这里不是正文」，不再
+ * 把整页压黑；进出场交给下面那组关键帧（缩放 + 位移 + 淡入，240/140ms）。
+ */
 .sakura-admin dialog::backdrop {
-	background: var(--g-overlay);
+	background: rgba(74, 43, 58, .14);
+	backdrop-filter: blur(3px) saturate(1.02);
+	animation: sakura-veil-in 180ms var(--g-ease) both;
+}
+
+.sakura-admin dialog[open] {
+	animation: sakura-dialog-in 240ms cubic-bezier(.16, 1, .3, 1) both;
+}
+
+.sakura-admin dialog.is-closing {
+	animation: sakura-dialog-out 140ms cubic-bezier(.4, 0, 1, 1) both;
+}
+
+@keyframes sakura-veil-in {
+	from { opacity: 0; }
+	to   { opacity: 1; }
+}
+
+/* 8px 上浮 + 96% 缩到 100%：卡片「从页面里长出来」而不是「突然贴上」。
+ * 曲线是 expo-out，前 30% 走完大半距离，收尾极慢，读起来是落定不是弹跳。 */
+@keyframes sakura-dialog-in {
+	from { opacity: 0; transform: translateY(8px) scale(.96); }
+	to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* 出场比进场快一半，方向一致（继续往上收），所以不会像被抽走。 */
+@keyframes sakura-dialog-out {
+	from { opacity: 1; transform: translateY(0) scale(1); }
+	to   { opacity: 0; transform: translateY(-4px) scale(.985); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.sakura-admin dialog[open],
+	.sakura-admin dialog.is-closing,
+	.sakura-admin dialog::backdrop {
+		animation: none;
+	}
 }
 
 .sakura-admin .sakura-dialog__form {
@@ -1280,39 +1374,105 @@
 }
 
 .sakura-admin .dialog__body {
-	padding: 22px 22px 8px;
+	padding: 26px 26px 6px;
+}
+
+/* 带吉祥物的对话框：头像在左，标题与说明在右。 */
+.sakura-admin dialog[data-mascot] .dialog__body {
+	display: flex;
+	align-items: flex-start;
+	gap: 14px;
+	padding-right: 34px;
+}
+
+.sakura-admin .dialog__mascot {
+	flex: none;
+	margin-top: 2px;
+	line-height: 0;
+}
+
+.sakura-admin .dialog__text {
+	min-width: 0;
 }
 
 .sakura-admin .dialog__title {
-	margin: 0 0 8px;
-	font-size: 17px;
-	font-weight: 650;
-	line-height: 1.35;
+	margin: 0 0 6px;
+	font-size: 20px;
+	font-weight: 800;
+	letter-spacing: -.01em;
+	line-height: 1.3;
 }
 
 .sakura-admin .dialog__message {
 	margin: 0;
-	color: var(--g-muted);
-	font-size: 13.5px;
+	color: var(--g-ink-soft);
+	font-size: 13px;
 	line-height: 1.7;
 }
 
 
 /* Risk list and the typed-name gate inside confirm(). */
+/* 后果清单按视觉稿的 .filelist 做成一块淡粉便签，虚线分隔。 */
 .sakura-admin .dialog__list {
-	margin: 10px 0 0;
-	padding: 10px 12px 10px 28px;
-	border: 1px solid var(--g-line);
-	border-radius: var(--g-radius-input, 8px);
-	background: var(--g-surface-sunken, transparent);
-	color: var(--g-muted);
+	margin: 16px 26px 0;
+	padding: 10px 14px;
+	border: 0;
+	border-radius: 16px;
+	background: rgba(255, 246, 250, .9);
+	box-shadow: inset 0 0 0 1px rgba(243, 219, 230, .9);
+	color: var(--g-ink-soft);
 	font-size: 13px;
-	line-height: 1.65;
-	list-style: disc;
+	line-height: 1.6;
+	list-style: none;
+}
+
+.sakura-admin .dialog__list li {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	padding: 6px 0;
+	border-bottom: 1px dashed rgba(243, 219, 230, .85);
+}
+
+.sakura-admin .dialog__list li:last-child {
+	border-bottom: 0;
+}
+
+/* 行首的小纸片图标（视觉稿 .filelist__row 的 svg）。 */
+.sakura-admin .dialog__glyph {
+	display: flex;
+	flex: none;
+	line-height: 0;
+}
+
+.sakura-admin .dialog__list-name {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.sakura-admin .dialog__list li em {
+	margin-left: auto;
+	color: var(--g-faint);
+	font-size: 12px;
+	font-style: normal;
+	font-variant-numeric: tabular-nums;
 }
 
 .sakura-admin .dialog__list li + li {
 	margin-top: 4px;
+}
+
+/* 视觉稿的 .warning：正文之下的粉底说明块。 */
+.sakura-admin .dialog__note {
+	margin: 14px 26px 0;
+	padding: 11px 14px;
+	border-radius: 14px;
+	background: rgba(231, 90, 139, .08);
+	box-shadow: inset 0 0 0 1px rgba(231, 90, 139, .18);
+	color: #a33f5f;
+	font-size: 12.5px;
+	line-height: 1.65;
 }
 
 .sakura-admin .dialog__gate {
@@ -1350,8 +1510,8 @@
 	display: flex;
 	align-items: center;
 	justify-content: flex-end;
-	gap: 8px;
-	padding: 16px 22px 20px;
+	gap: 10px;
+	padding: 18px 26px 22px;
 }
 
 /* ============================================================
@@ -1385,6 +1545,18 @@
 	pointer-events: none;
 }
 
+/* 2026-11-20：提示框要和删除确认长得一样，所以补上同一层遮罩（rgba(74,43,58,.38)
+ * + 6px 模糊）。原先是「无遮罩、背后可点」——那是 V1 的取舍；既然要统一成
+ * 删除确认的样子，遮罩就必须在：它也是「先停一下再答」的一部分。 */
+.sakura-admin .sakura-modal[data-sakura-modal-open="1"] {
+	background: rgba(74, 43, 58, .14);
+	backdrop-filter: blur(3px) saturate(1.02);
+	-webkit-backdrop-filter: blur(3px) saturate(1.02);
+	animation: sakura-veil-in 180ms var(--g-ease) both;
+	/* 遮罩出现后就把页面的点击挡住：提示框要先被回答。 */
+	pointer-events: auto;
+}
+
 .sakura-admin .sakura-modal[hidden] {
 	display: none;
 }
@@ -1400,30 +1572,34 @@
  * painted frame and any animation there would be the flash.
  */
 @keyframes sakura-modal-fade-in {
-	from { opacity: 0; }
-	to   { opacity: 1; }
+	from { opacity: 0; transform: translateY(8px) scale(.96); }
+	to   { opacity: 1; transform: translateY(0) scale(1); }
 }
 
 @keyframes sakura-modal-fade-out {
-	from { opacity: 1; }
-	to   { opacity: 0; }
+	from { opacity: 1; transform: translateY(0) scale(1); }
+	to   { opacity: 0; transform: translateY(-4px) scale(.985); }
 }
 
+/* 卡片按视觉稿（docs/设计稿/s3-sync-center-sakura.html 的 .modal__card）：
+ * 26px 圆角、右上角一团樱雾、白底、落得很低的投影。 */
 .sakura-admin .sakura-modal__card {
 	position: relative;
 	pointer-events: auto;
 	width: min(560px, 100%);
 	max-height: calc(100vh - 2 * var(--g-space-4));
 	overflow-y: auto;
-	padding: var(--g-space-5);
-	border-radius: var(--g-radius-lg);
-	background: var(--g-card-surface);
-	box-shadow: var(--g-shadow-pop);
-	animation: sakura-modal-fade-in 140ms var(--g-ease) both;
+	padding: 26px 26px 22px;
+	border-radius: 26px;
+	background:
+		radial-gradient(420px 220px at 88% -10%, rgba(255, 226, 240, .9), transparent 70%),
+		#fff;
+	box-shadow: 0 40px 80px -40px rgba(74, 43, 58, .55), 0 0 0 1px rgba(243, 219, 230, .9);
+	animation: sakura-modal-fade-in 240ms cubic-bezier(.16, 1, .3, 1) both;
 }
 
 .sakura-admin .sakura-modal.is-closing .sakura-modal__card {
-	animation: sakura-modal-fade-out 110ms var(--g-ease) both;
+	animation: sakura-modal-fade-out 140ms cubic-bezier(.4, 0, 1, 1) both;
 }
 
 /* An autoshow prompt is mounted by PHP and opened before the first paint: it
@@ -1448,19 +1624,21 @@
 
 .sakura-admin .sakura-modal__close {
 	position: absolute;
-	top: var(--g-space-2);
-	right: var(--g-space-2);
+	top: 14px;
+	right: 14px;
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
-	width: 32px;
-	height: 32px;
+	width: 34px;
+	height: 34px;
 	padding: 0;
 	border: 0;
-	border-radius: var(--g-radius-xs);
-	background: none;
-	color: var(--g-muted);
-	font-size: 20px;
+	border-radius: 50%;
+	background: rgba(255, 255, 255, .9);
+	box-shadow: inset 0 0 0 1px var(--g-line);
+	color: var(--g-faint);
+	font-size: 17px;
+	line-height: 1;
 	cursor: pointer;
 }
 
@@ -1470,43 +1648,25 @@
 	color: var(--g-ink);
 }
 
-.sakura-admin .sakura-modal__icon {
-	/* Centred over left-aligned copy. An inline-level box ignores auto side
-	 * margins, so this is a block-level flex box with a fixed square size. */
+/* 2026-11-20：提示框统一成「删除确认」那一副样子——小鲸鱼在左，标题与正文
+ * 在右；不再有按 tone 换色的方形图标，那套配色已经删掉（`tone` 参数仍被
+ * 接受，只是不再影响外观）。 */
+.sakura-admin .sakura-modal__head {
 	display: flex;
-	align-items: center;
-	justify-content: center;
-	width: 46px;
-	height: 46px;
-	margin: 0 auto var(--g-space-3);
-	border-radius: var(--g-radius-md);
-	background: var(--g-accent-soft);
-	color: var(--g-ink-soft);
+	align-items: flex-start;
+	gap: 14px;
+	padding-right: 30px;
 }
 
-.sakura-admin .sakura-modal__icon--ok {
-	background: var(--g-ok-bg);
-	color: var(--g-ok);
+.sakura-admin .sakura-modal__mascot {
+	flex: none;
+	margin-top: 2px;
+	line-height: 0;
 }
 
-.sakura-admin .sakura-modal__icon--bad {
-	background: var(--g-bad-bg);
-	color: var(--g-bad);
-}
-
-.sakura-admin .sakura-modal__icon--warn {
-	background: var(--g-warn-bg);
-	color: var(--g-warn);
-}
-
-.sakura-admin .sakura-modal__icon--info {
-	background: var(--g-info-bg);
-	color: var(--g-info);
-}
-
-.sakura-admin .sakura-modal__icon--neutral {
-	background: var(--g-wash);
-	color: var(--g-muted);
+.sakura-admin .sakura-modal__copy {
+	flex: 1;
+	min-width: 0;
 }
 
 .sakura-admin .sakura-modal__kicker {
@@ -1516,16 +1676,16 @@
 	font-weight: 650;
 	letter-spacing: .12em;
 	line-height: 1.4;
-	text-align: center;
+	text-align: left;
 	text-transform: uppercase;
 }
 
 .sakura-admin .sakura-modal__card h2 {
 	margin: var(--g-space-1) 0 var(--g-space-2);
-	font-size: var(--g-fs-h2);
-	/* Centred heading, left-aligned copy: the prompt reads as a title card but
-	 * the paragraph keeps a straight left edge for scanning. */
-	text-align: center;
+	font-size: 20px;
+	font-weight: 800;
+	letter-spacing: -.01em;
+	text-align: left;
 }
 
 .sakura-admin .sakura-modal__kicker + h2 {
@@ -1602,9 +1762,15 @@
 	display: flex;
 	flex-wrap: wrap;
 	align-items: center;
+	justify-content: flex-end;
+	gap: 10px;
+	margin-top: 20px;
+}
+
+/* A prompt that puts something on the left (a "不再提示" checkbox) keeps the
+ * two ends apart; the default is the draft's right-aligned pair of buttons. */
+.sakura-admin .sakura-modal__actions:has(> :first-child:not(.btn)) {
 	justify-content: space-between;
-	gap: var(--g-space-2);
-	margin-top: var(--g-space-4);
 }
 
 /* A prompt with a single acknowledge button puts it on the right where the
@@ -2477,5 +2643,418 @@ html.sakura-media-open {
 	.sakura-admin .sakura-media-dialog__close {
 		animation: none;
 		transition: none;
+	}
+}
+
+/* ============================================================
+ * V2 · 数字票根（storage-sync 试点）
+ *
+ * 五格读数原本是五块各自带圆角的浅底砖；V2 把它们排成一张「票根」：
+ * 一张白卡、一条虚线分隔、数字大一号。理由见 03-后台UI.md §14.4——
+ * 这五个数是同一件事的五个侧面，拆成五张卡会把它们读成五个模块。
+ * ============================================================ */
+
+.sakura-admin[data-sakura-page="storage-sync"] .kpis {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(168px, 1fr));
+	gap: 0;
+	padding: 2px;
+	border: 1px solid rgba(255, 255, 255, .9);
+	border-radius: var(--g-radius-card);
+	/*
+	 * 票根是「一张薄纸」而不是一张卡：底部向内透出一点樱雾，顶边提亮，
+	 * 于是它从画布上浮起来却不抢视线。边框换成半透明白，避免灰线把
+	 * 五个读数切成五个方块。
+	 */
+	background:
+		linear-gradient(180deg, rgba(255, 255, 255, .96) 0%, rgba(255, 249, 252, .92) 58%, rgba(255, 240, 246, .9) 100%);
+	box-shadow: 0 1px 2px rgba(190, 60, 110, .06), 0 18px 34px -30px rgba(190, 60, 110, .38);
+	overflow: hidden;
+}
+
+.sakura-admin[data-sakura-page="storage-sync"] .kpi {
+	position: relative;
+	padding: 17px 20px 16px;
+	border: 0;
+	border-radius: 0;
+	background: none;
+	box-shadow: none;
+}
+
+.sakura-admin[data-sakura-page="storage-sync"] .kpi + .kpi::before {
+	content: "";
+	position: absolute;
+	left: 0;
+	top: 20%;
+	height: 60%;
+	border-left: 1px dashed rgba(238, 122, 166, .55);
+}
+
+.sakura-admin[data-sakura-page="storage-sync"] .kpi__label {
+	color: var(--g-muted);
+	font-size: 11.5px;
+	font-weight: 600;
+	letter-spacing: .04em;
+}
+
+.sakura-admin[data-sakura-page="storage-sync"] .kpi__value {
+	margin-top: 6px;
+	color: var(--g-ink);
+	font-size: 30px;
+	font-weight: 800;
+	letter-spacing: -.025em;
+	font-variant-numeric: tabular-nums;
+	line-height: 1.08;
+}
+
+.sakura-admin[data-sakura-page="storage-sync"] .kpi__value small {
+	margin-left: 2px;
+	color: var(--g-muted);
+	font-size: 12px;
+	font-weight: 600;
+	letter-spacing: 0;
+}
+
+/* 唯一带语义的一格：全部同步时数字转绿，其余读数保持墨色。 */
+.sakura-admin[data-sakura-page="storage-sync"] .kpi--synced .kpi__value {
+	color: var(--g-dot-ok);
+}
+
+.sakura-admin[data-sakura-page="storage-sync"] .kpi--synced .kpi__value small {
+	color: var(--g-ok);
+	opacity: .75;
+}
+
+.sakura-admin[data-sakura-page="storage-sync"] .kpi__sub {
+	margin-top: 5px;
+	color: var(--g-muted);
+	font-size: 12px;
+	line-height: 1.5;
+}
+
+.sakura-admin[data-sakura-page="storage-sync"] .kpi__progress {
+	margin-top: 9px;
+}
+
+.sakura-admin[data-sakura-page="storage-sync"] .kpi__progress .progress {
+	height: 4px;
+	background: var(--g-track);
+}
+
+@media (max-width: 782px) {
+	.sakura-admin[data-sakura-page="storage-sync"] .kpis {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+
+	.sakura-admin[data-sakura-page="storage-sync"] .kpi + .kpi::before {
+		display: none;
+	}
+
+	.sakura-admin[data-sakura-page="storage-sync"] .kpi:nth-child(odd) {
+		border-right: 1px dashed rgba(238, 122, 166, .55);
+	}
+
+	.sakura-admin[data-sakura-page="storage-sync"] .kpi:nth-child(n + 3) {
+		border-top: 1px dashed rgba(238, 122, 166, .55);
+	}
+
+	.sakura-admin[data-sakura-page="storage-sync"] .kpi__value {
+		font-size: 24px;
+	}
+}
+
+/* ============================================================
+ * V2 · 汽水进度条
+ *
+ * 轨道是杯子、条体是汽水、液面是 ::after 的一层薄泡沫；气泡是**真实元素**
+ * （`.progress__fizz i` 在液面里上升、`.progress__pop i` 升出液面后破掉），
+ * 由 storage-sync.js 一次性注入，每颗的起点、大小、时长、延迟都不同。
+ *
+ * 为什么不用平铺径向渐变：平铺图案一帧一帧地平移，图案宽度和动画位移不整除时
+ * 会在循环点出现一次明显的停顿；真实气泡各走各的节奏，永远不会同时归零。
+ * ============================================================ */
+
+/* The KPI tile keeps its own 5px rule from V1 (`.kpi__progress .progress`),
+ * which outranks a single-class rule; the soda bar has to name both. */
+.sakura-admin .kpi__progress .progress.progress--soda,
+.sakura-admin .progress--soda {
+	position: relative;
+	height: 24px;
+	border-radius: var(--g-radius-pill);
+	background: linear-gradient(180deg, #ffeaf4, #ffdcec);
+	box-shadow: inset 0 1px 0 rgba(255, 255, 255, .75), inset 0 -3px 8px rgba(199, 51, 91, .14);
+}
+
+.sakura-admin .progress--soda .progress__bar {
+	position: relative;
+	display: block;
+	overflow: hidden;
+	min-width: 24px;
+	height: 100%;
+	border-radius: var(--g-radius-pill);
+	background:
+		radial-gradient(120% 80% at 20% 0%, rgba(255, 255, 255, .4), transparent 62%),
+		linear-gradient(180deg, #ff9ec6 0%, #ff5f95 52%, #ef3f79 100%);
+	box-shadow: inset 0 2px 0 rgba(255, 255, 255, .55), 0 8px 18px -10px rgba(239, 63, 121, .9);
+	animation: sufm-fizz 2.8s ease-in-out infinite;
+}
+
+/* 液面上的一道光 */
+.sakura-admin .progress--soda .progress__bar::after {
+	content: "";
+	position: absolute;
+	inset: 0 0 auto;
+	height: 46%;
+	border-radius: var(--g-radius-pill) var(--g-radius-pill) 0 0;
+	background: linear-gradient(180deg, rgba(255, 255, 255, .55), rgba(255, 255, 255, 0));
+	pointer-events: none;
+}
+
+/* 液面薄薄一层泡沫 */
+.sakura-admin .progress--soda .progress__bar::before {
+	content: "";
+	position: absolute;
+	z-index: 1;
+	left: 3px;
+	right: 3px;
+	top: 2px;
+	height: 4px;
+	border-radius: var(--g-radius-pill);
+	background: linear-gradient(180deg, rgba(255, 255, 255, .68), rgba(255, 255, 255, .14));
+	filter: blur(.4px);
+	animation: sufm-foam 3.4s ease-in-out infinite;
+	pointer-events: none;
+}
+
+.sakura-admin .progress--soda .progress__fizz,
+.sakura-admin .progress--soda .progress__pop {
+	position: absolute;
+	inset: 0;
+	border-radius: inherit;
+	pointer-events: none;
+}
+
+.sakura-admin .progress--soda .progress__fizz i {
+	position: absolute;
+	bottom: -8px;
+	width: 6px;
+	height: 6px;
+	border-radius: 50%;
+	background: radial-gradient(circle at 32% 30%, #fff 0 46%, rgba(255, 255, 255, .7) 72%, rgba(255, 255, 255, .22) 100%);
+	box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .5);
+	opacity: 0;
+	animation-name: sufm-bubble;
+	animation-timing-function: linear;
+	animation-iteration-count: infinite;
+}
+
+.sakura-admin .progress--soda .progress__pop {
+	z-index: 2;
+	overflow: visible;
+}
+
+.sakura-admin .progress--soda .progress__pop i {
+	position: absolute;
+	top: 3px;
+	width: 5px;
+	height: 5px;
+	border-radius: 50%;
+	background: radial-gradient(circle at 34% 30%, var(--g-paper) 0 40%, rgba(255, 214, 232, .85) 72%, rgba(255, 214, 232, .18) 100%);
+	box-shadow: 0 0 0 1px rgba(255, 255, 255, .7);
+	opacity: 0;
+	animation-name: sufm-pop;
+	animation-timing-function: ease-out;
+	animation-iteration-count: infinite;
+}
+
+@keyframes sufm-bubble {
+	0% {
+		transform: translateY(0) scale(.45);
+		opacity: 0;
+	}
+
+	16% {
+		opacity: .9;
+	}
+
+	78% {
+		opacity: .75;
+	}
+
+	100% {
+		transform: translateY(-30px) scale(1.05);
+		opacity: 0;
+	}
+}
+
+@keyframes sufm-pop {
+	0% {
+		transform: translateY(0) scale(.45);
+		opacity: 0;
+	}
+
+	14% {
+		opacity: .95;
+	}
+
+	70% {
+		opacity: .3;
+	}
+
+	100% {
+		transform: translateY(-22px) scale(1.2);
+		opacity: 0;
+	}
+}
+
+@keyframes sufm-foam {
+	0%, 100% {
+		transform: scaleY(1);
+		opacity: .9;
+	}
+
+	50% {
+		transform: scaleY(1.4);
+		opacity: 1;
+	}
+}
+
+@keyframes sufm-fizz {
+	0%, 100% {
+		box-shadow: inset 0 2px 0 rgba(255, 255, 255, .55), 0 8px 18px -10px rgba(239, 63, 121, .9);
+	}
+
+	50% {
+		box-shadow: inset 0 2px 0 rgba(255, 255, 255, .78), 0 10px 22px -9px rgba(239, 63, 121, 1);
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.sakura-admin .progress--soda .progress__bar,
+	.sakura-admin .progress--soda .progress__bar::before {
+		animation: none;
+	}
+
+	.sakura-admin .progress--soda .progress__fizz,
+	.sakura-admin .progress--soda .progress__pop {
+		display: none;
+	}
+}
+
+/* 樱前线：本地 → 云端 → 索引一条线上的三站。数字落在自己的节点上方，
+ * 说明跟在下方——视觉稿就是这么摆的，所以图例是覆盖在弧线上的绝对定位层，
+ * 锚点百分比直接对应视图框里的圆点（86/452/818 of 900、112/56/96 of 150）。
+ * 数字不进 SVG 是因为真实数值会到五位数，SVG 文本会在左侧锚点被裁掉。 */
+.sakura-admin .frontline {
+	margin: 2px 0 18px;
+	padding: 6px 4px 0;
+}
+
+.sakura-admin .frontline__plot {
+	position: relative;
+	margin-bottom: 20px;
+}
+
+/* 弧线图上半部本来就是空的（最高点在 150 里的 20），视觉稿把它紧贴文案，
+ * 这里用负外边距吃掉那点空白；只在弧线显示的宽度区间里生效。 */
+@media (min-width: 721px) {
+	.sakura-admin .frontline__plot {
+		margin-top: -26px;
+	}
+}
+
+.sakura-admin .frontline__arc {
+	display: block;
+	width: 100%;
+	height: auto;
+}
+
+.sakura-admin .frontline__dot {
+	fill: #fff;
+	stroke-width: 4;
+}
+
+.sakura-admin .frontline__dot--sky {
+	stroke: var(--g-sky);
+}
+
+.sakura-admin .frontline__dot--petal {
+	stroke: var(--g-petal-3);
+}
+
+.sakura-admin .frontline__dot--sun {
+	stroke: var(--g-sun);
+}
+
+.sakura-admin .frontline__legend {
+	position: absolute;
+	inset: 0;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.sakura-admin .frontline__station {
+	position: absolute;
+	left: var(--frontline-x);
+	top: var(--frontline-y);
+	width: 0;
+	height: 0;
+}
+
+.sakura-admin .frontline__value {
+	position: absolute;
+	left: 0;
+	bottom: 21px;
+	transform: translateX(-50%);
+	white-space: nowrap;
+	font-size: 26px;
+	font-weight: 800;
+	line-height: 1;
+	letter-spacing: -.02em;
+	font-variant-numeric: tabular-nums;
+	color: var(--g-ink);
+}
+
+.sakura-admin .frontline__meta {
+	position: absolute;
+	left: 0;
+	top: 20px;
+	transform: translateX(-50%);
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 1px;
+	white-space: nowrap;
+}
+
+.sakura-admin .frontline__label {
+	font-size: 12.5px;
+	color: var(--g-muted);
+}
+
+.sakura-admin .frontline__sub {
+	font-size: 12px;
+	color: var(--g-faint);
+}
+
+.sakura-admin .frontline__caption {
+	display: flex;
+	justify-content: space-between;
+	align-items: baseline;
+	gap: 10px 16px;
+	flex-wrap: wrap;
+	margin: 0;
+	padding-top: 10px;
+	border-top: 1px dashed rgba(238, 122, 166, .45);
+	font-size: 12px;
+	color: var(--g-faint);
+}
+
+/* 窄屏（≤782px，与 wp-admin 自己折叠成单列的断点一致）：整块不显示。弧线在手机上会被压成一条细缝，而三站的数值
+ * 与下方票根卡片完全重复；手机宽度本来就紧，重复一遍数据只会挤掉真正要读的内容。 */
+@media (max-width: 782px) {
+	.sakura-admin .frontline {
+		display: none;
 	}
 }

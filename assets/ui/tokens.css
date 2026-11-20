@@ -15,85 +15,90 @@
 :root {
 	/* Ink — warmed by a touch of the accent hue so text sits in the same
 	 * family as the canvas instead of reading as cold graphite on pink. */
-	--g-ink: #241a1e;
-	--g-ink-soft: #3d3035;
-	--g-muted: #6b5a60;
+	--g-ink: #3a2333;
+	--g-ink-soft: #4c3341;
+	--g-muted: #6e5764;
 	/* #776469, not a lighter rose: eyebrows sit on --g-paper-deep inside KPI
 	 * tiles, where anything paler drops under 4.5:1. */
-	--g-faint: #776469;
-	--g-line: #f0e3e6;
-	--g-line-soft: #f7eef0;
-	--g-line-strong: #dfc9ce;
+	--g-faint: #7a636e;
+	--g-line: #f6dfe9;
+	--g-line-soft: #fbedf3;
+	--g-line-strong: #e8c6d6;
 
 	/* Surfaces */
-	--g-paper: #fdf7f8;
-	--g-paper-deep: #f8eef0;
+	--g-paper: #fff6fa;
+	--g-paper-deep: #ffe9f3;
 	--g-card: #ffffff;
-	--g-card-surface: #fffdfd;
+	--g-card-surface: #fffdfe;
 	--g-card-border-width: 1px;
-	--g-wash: #fdf9fa;
+	--g-wash: #fffafc;
 	--g-overlay: rgba(46, 22, 30, .40);
 
 	/* One accent: deep sakura. Status colours are separate and never decorative. */
-	--g-accent: #9d3452;
-	--g-accent-hover: #832a45;
-	--g-accent-soft: #fbe9ee;
+	--g-accent: #c7335b;
+	--g-accent-hover: #a6284b;
+	--g-accent-soft: #ffe3ee;
 	--g-accent-ink: #ffffff;
 	/* Tinted edge for accent-filled controls; keeps a solid button from
 	 * looking like a flat sticker on a soft canvas. */
-	--g-accent-line: #8f2f4d;
-	--g-accent-glow: rgba(157, 52, 82, .30);
+	--g-accent-line: #b62f58;
+	--g-accent-glow: rgba(199, 51, 91, .30);
 
 	/* Sakura scale: four steps from deep to barely-there. Used by charts and
 	 * by any place that needs more than one accent tone. Only steps 1-2 carry
 	 * text; 3-4 are fill-only. */
-	--g-sakura-1: #8f2f4d;
-	--g-sakura-2: #c25e7d;
-	--g-sakura-3: #e79fb3;
-	--g-sakura-4: #f3d8dd;
+	--g-sakura-1: #c7335b;
+	--g-sakura-2: #e4577f;
+	--g-sakura-3: #ff8fb8;
+	--g-sakura-4: #ffc6db;
 
 	/* Progress: the track is the accent at 8% so an empty bar still reads as
 	 * "this is a meter", and the fill starts deep rather than pale: at 1.5% only
 	 * the left cap of the gradient is ever painted, and a pale cap disappears
 	 * into a pale track. */
-	--g-track: #fbe9ee;
-	--g-track-line: rgba(157, 52, 82, .10);
-	--g-fill: linear-gradient(90deg, #b8496b 0%, #a83b5b 52%, var(--g-accent) 100%);
+	--g-track: #ffe7f1;
+	--g-track-line: rgba(199, 51, 91, .10);
+	/* 汽水的颜色来自设计稿：容器里的液体是淡粉→玫红，不是深红 */
+	--g-fill: linear-gradient(180deg, #ff9ec6 0%, #ff5f95 52%, #ef3f79 100%);
 
 	/* Canvas: the mist layers and the petal dust. Pure CSS, no image assets.
 	 * Tuned on the real sync page: below ~.40 the mist reads as "white with a
 	 * hint of pink" and the theme stops being visible at all; above ~.50 the
 	 * page turns into a beauty product. .44 is the widest wash that still lets
 	 * --g-muted body copy clear 4.5:1 (5.32:1 over the deepest patch). */
-	--sakura-mist-strong: rgba(238, 172, 192, .50);
-	--sakura-mist-soft: rgba(241, 188, 204, .38);
-	--sakura-mist-far: rgba(244, 198, 212, .28);
-	--sakura-canvas-top: #fffbfa;
-	--sakura-canvas-mid: #fbf5f6;
-	--sakura-canvas-bottom: #fdf9fa;
-	--sakura-dust: rgba(190, 74, 113, .22);
+	--sakura-mist-strong: rgba(255, 138, 180, .26);
+	--sakura-mist-soft: rgba(196, 224, 255, .46);
+	--sakura-mist-far: rgba(255, 180, 208, .50);
+	--sakura-canvas-top: #fffdfe;
+	--sakura-canvas-mid: #fff6fb;
+	--sakura-canvas-bottom: #ffe7f2;
 	/* Card bloom: a corner of light so a white card reads as paper catching the
 	 * mist rather than a flat rectangle pasted on it. Fill only, never text. */
 	--g-card-bloom: radial-gradient(100% 78% at 100% 0%, rgba(233, 168, 190, .26) 0%, rgba(233, 168, 190, 0) 58%), radial-gradient(78% 68% at 0% 100%, rgba(240, 205, 214, .18) 0%, rgba(240, 205, 214, 0) 64%);
 
 	/* Selection controls */
-	--g-select: #9d3452;
-	--g-select-dot: #fff6f8;
+	--g-select: #c7335b;
+	--g-select-dot: #fff5fa;
 	--g-select-surface: #fffdfd;
-	--g-select-border: #dcc4c9;
-	--g-select-border-hover: #b99aa2;
-	--g-select-focus: rgba(157, 52, 82, .16);
+	--g-select-border: #e3c4d2;
+	--g-select-border-hover: #c08fa4;
+	--g-select-focus: rgba(199, 51, 91, .18);
 
 	/* Status */
+	/* Status dots: bright enough to read at 7px on a glass card. */
+	--g-dot-idle: #c9a6b4;
+	--g-dot-ok: #35a06b;
+	--g-dot-warn: #e0a11b;
+	--g-dot-bad: #d9503f;
 	--g-ok: #2f6b4a;
-	--g-ok-bg: #edf5f0;
+	--g-ok-bg: #e9f7ef;
 	--g-ok-line: #cfe3d7;
 	--g-warn: #8a651d;
-	--g-warn-bg: #faf3e4;
+	--g-warn-bg: #fff4df;
 	--g-warn-line: #ead9b5;
 	--g-bad: #a63a2c;
-	--g-bad-hover: #8d2f24;
-	--g-bad-bg: #fbedeb;
+	--g-bad-hover: #912118;
+	--g-bad-bg: #ffeae8;
 	--g-bad-line: #efd3ce;
 	--g-info: #6d5560;
 	--g-info-bg: #f7f0f2;
@@ -101,16 +106,31 @@
 
 	/* Depth. Two levels only: resting card, lifted surface. Shadows are tinted
 	 * with the accent hue; a neutral grey shadow over a pink canvas reads as dirt. */
-	--g-shadow-card: 0 1px 2px rgba(93, 29, 45, .05), 0 14px 32px -24px rgba(93, 29, 45, .24), 0 40px 72px -64px rgba(93, 29, 45, .26);
-	--g-shadow-soft: 0 1px 2px rgba(93, 29, 45, .04), 0 8px 20px -16px rgba(93, 29, 45, .16);
-	--g-shadow-pop: 0 2px 4px rgba(93, 29, 45, .06), 0 24px 60px -28px rgba(93, 29, 45, .36);
+	--g-shadow-card: 0 1px 2px rgba(190, 60, 110, .05), 0 18px 40px -28px rgba(190, 60, 110, .34), 0 44px 80px -64px rgba(190, 60, 110, .22);
+	--g-shadow-soft: 0 1px 2px rgba(190, 60, 110, .04), 0 10px 24px -18px rgba(190, 60, 110, .22);
+	--g-shadow-pop: 0 2px 4px rgba(190, 60, 110, .06), 0 26px 64px -28px rgba(190, 60, 110, .38);
+
+
+	/* V2 · decorative tokens (Sakura Front). Fill and stroke only — never text,
+	 * never status. White text on any of these fails 4.5:1: petal-2 is 2.13,
+	 * petal-3 is 3.52, sun is 1.54, mint is 2.29, sky is 3.29. Their one job is
+	 * to make the canvas feel alive without stealing meaning from the accent. */
+	--g-petal-1: #ffc6db;
+	--g-petal-2: #ff8fb8;
+	--g-petal-3: #e4577f;
+	--g-sun: #ffc85c;
+	--g-sky: #4a90e2;
+	--g-sky-ink: #2b6cb0;
+	--g-mint: #58be8b;
+	--g-glass: rgba(255, 255, 255, .55);
+	--g-petal-fall: rgba(255, 156, 196, .55);
 
 	/* Shape */
-	--g-radius-card: 18px;
+	--g-radius-card: 22px;
 	--g-radius-lg: 22px;
-	--g-radius-md: 14px;
-	--g-radius-sm: 10px;
-	--g-radius-xs: 7px;
+	--g-radius-md: 16px;
+	--g-radius-sm: 12px;
+	--g-radius-xs: 8px;
 	--g-radius-pill: 999px;
 
 	/* Type */
@@ -121,8 +141,8 @@
 	--g-fs-meta: 12.5px;
 	--g-fs-eyebrow: 11px;
 	--g-fs-table: 13.5px;
-	--g-fs-h1: clamp(26px, 2.5vw, 32px);
-	--g-fs-h2: 17px;
+	--g-fs-h1: clamp(30px, 3vw, 42px);
+	--g-fs-h2: 19px;
 	--g-fs-h3: 15px;
 	--g-lh-body: 1.65;
 	--g-lh-tight: 1.28;

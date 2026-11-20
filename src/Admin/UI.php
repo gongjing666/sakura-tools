@@ -16,6 +16,7 @@ namespace Sakura\ImageOptimizer\Admin;
 use Sakura\ImageOptimizer\Admin\UI\Card as Card_View;
 use Sakura\ImageOptimizer\Admin\UI\Feedback;
 use Sakura\ImageOptimizer\Admin\UI\Field as Field_View;
+use Sakura\ImageOptimizer\Admin\UI\Frontline as Frontline_View;
 use Sakura\ImageOptimizer\Admin\UI\Modal as Modal_View;
 use Sakura\ImageOptimizer\Admin\UI\Page as Page_View;
 
@@ -46,6 +47,18 @@ final class UI {
 	 */
 	public static function card( array $args, callable $body ): void {
 		Card_View::render( $args, $body );
+	}
+
+	/**
+	 * Render the "sakura front" rail (local → cloud → index).
+	 *
+	 * @param array<int,array<string,string>> $stations Three value/label pairs.
+	 * @param string                          $caption  Left-hand caption.
+	 * @param string                          $note     Right-hand caption.
+	 * @return void
+	 */
+	public static function frontline( array $stations, string $caption = '', string $note = '' ): void {
+		Frontline_View::render( $stations, $caption, $note );
 	}
 
 	/**

@@ -166,9 +166,13 @@ final class Layout {
 			),
 		),
 		'files-queue' => array(
-			'order' => array( 'execute', 'queue' ),
+			'order' => array( 'execute', 'capability-matrix', 'queue' ),
 			'cards' => array(
-				'execute' => array( 1, 1, 12 ),
+				'execute' => array( 1, 1, 6 ),
+				// The matrix is six narrow checkbox columns plus a role column;
+				// half a row leaves ~700px at 1480, which is what it was
+				// designed for. Full width would leave a mostly empty band.
+				'capability-matrix' => array( 1, 7, 6 ),
 				'queue' => array( 2, 1, 12 ),
 			),
 		),

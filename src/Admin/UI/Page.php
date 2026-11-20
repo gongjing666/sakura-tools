@@ -138,6 +138,8 @@ final class Page {
 		$eyebrow = isset( $args['eyebrow'] ) ? (string) $args['eyebrow'] : '';
 		$title   = isset( $args['title'] ) ? (string) $args['title'] : '';
 		$lede    = isset( $args['lede'] ) ? (string) $args['lede'] : '';
+		$tagline = isset( $args['tagline'] ) ? (string) $args['tagline'] : '';
+		$stamp   = isset( $args['stamp'] ) && is_array( $args['stamp'] ) ? $args['stamp'] : array();
 		$status  = isset( $args['status'] ) && is_array( $args['status'] ) ? $args['status'] : array();
 		$actions = isset( $args['actions'] ) && is_array( $args['actions'] ) ? $args['actions'] : array();
 
@@ -149,19 +151,72 @@ final class Page {
 		if ( '' !== $title ) {
 			echo '<h1 id="sakura-page-title">' . esc_html( $title ) . '</h1>';
 		}
+		if ( '' !== $tagline ) {
+			/*
+			 * The tagline is the one place a page may use inline emphasis: V2
+			 * paints the <em> with the accent gradient. Anything beyond em /
+			 * strong / span is stripped, so a view cannot smuggle layout in.
+			 */
+			echo '<span class="page-head__tag">' . wp_kses( $tagline, array( 'em' => array(), 'strong' => array(), 'span' => array() ) ) . '</span>';
+		}
 		if ( '' !== $lede ) {
 			echo '<p class="page-head__lede">' . esc_html( $lede ) . '</p>';
 		}
 		self::actions( $actions );
+		/*
+		 * The stamp belongs to the copy column: as a third child of the header
+		 * grid it would claim the "auto" column and push the status card onto a
+		 * second row, stretching both across the full width.
+		 */
+		$stamp_in_aside = isset( $stamp['place'] ) && 'aside' === $stamp['place'];
+		if ( ! $stamp_in_aside ) {
+			self::stamp( $stamp );
+		}
 		echo '</div>';
 
-		if ( ! empty( $status ) ) {
+		if ( ! empty( $status ) || ( $stamp_in_aside && ! empty( $stamp['zh'] ) ) ) {
 			echo '<aside class="page-head__aside">';
-			self::status( $status );
+			if ( ! empty( $status ) ) {
+				self::status( $status );
+			}
+			if ( $stamp_in_aside ) {
+				self::stamp( $stamp );
+			}
 			echo '</aside>';
 		}
 
 		echo '</header>';
+	}
+
+	/**
+	 * Seal that names the page, never its state.
+	 *
+	 * Verbatim from the design draft (docs/设计稿/s3-sync-center-sakura.html):
+	 * one SVG with a dashed outer ring, a hairline inner ring, a solid glyph
+	 * and a letterspaced caption — drawn rather than assembled from a CSS
+	 * circle, because the two rings and the optical centring of the glyph are
+	 * the whole look. Colours ride on `currentColor`, so the seal follows the
+	 * theme while keeping the draft's proportions.
+	 *
+	 * `place` decides the column: the copy column (default) or the aside
+	 * column, which is where the draft puts it.
+	 *
+	 * @param array<string,mixed> $stamp Stamp arguments.
+	 * @return void
+	 */
+	private static function stamp( array $stamp ): void {
+		if ( empty( $stamp['zh'] ) ) {
+			return;
+		}
+
+		echo '<svg class="page-head__stamp" viewBox="0 0 120 120" aria-hidden="true" focusable="false">';
+		echo '<circle cx="60" cy="60" r="53" fill="rgba(255,255,255,.72)" stroke="currentColor" stroke-opacity=".34" stroke-width="1.6" stroke-dasharray="4 6"/>';
+		echo '<circle cx="60" cy="60" r="43" fill="none" stroke="currentColor" stroke-opacity=".22" stroke-width="1"/>';
+		echo '<text x="60" y="62" text-anchor="middle" font-size="35" font-weight="800" fill="currentColor">' . esc_html( (string) $stamp['zh'] ) . '</text>';
+		if ( ! empty( $stamp['en'] ) ) {
+			echo '<text x="60" y="82" text-anchor="middle" font-size="8.5" letter-spacing="2.4" fill="var(--g-faint)">' . esc_html( (string) $stamp['en'] ) . '</text>';
+		}
+		echo '</svg>';
 	}
 
 	/**
@@ -207,6 +262,18 @@ final class Page {
 				echo ' id="' . esc_attr( $sub_id ) . '"';
 			}
 			echo '>' . esc_html( (string) $status['sub'] ) . '</span>';
+		}
+		if ( ! empty( $status['ping'] ) ) {
+			// Filled by the page controller: the round-trip time to the bucket.
+			echo '<span class="status-card__ping" data-sakura-ping data-state="checking">';
+			echo '<i class="status-card__dot" aria-hidden="true"></i>';
+			if ( ! empty( $status['ping_name'] ) ) {
+				echo '<span class="status-card__ping-name">' . esc_html( (string) $status['ping_name'] ) . '</span>';
+				echo '<span class="status-card__ping-sep" aria-hidden="true">·</span>';
+			}
+			echo '<span class="status-card__ping-text">' . esc_html__( '检测中…', 'sakura-imgopt' ) . '</span>';
+			echo '<b class="status-card__ping-ms" data-sakura-ping-ms></b>';
+			echo '</span>';
 		}
 		echo '</div>';
 	}

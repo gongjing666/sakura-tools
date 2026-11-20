@@ -22,10 +22,16 @@ final class Appearance {
 	public const MAX_BORDER    = 6;
 	public const MAX_RADIUS    = 40;
 
+	/**
+	 * Only the knobs the operator still owns.
+	 *
+	 * V2 moved the canvas and the card surface into design tokens: a hand-picked
+	 * page colour fights the layered mist gradient, and a custom card colour
+	 * breaks the paper metaphor every other page is built on. The keys are gone
+	 * from the option too, so an old saved value can no longer reintroduce them.
+	 */
 	public const DEFAULTS = array(
 		'page_width'   => self::DEFAULT_WIDTH,
-		'page_bg'      => '',
-		'card_bg'      => '#fffdfd',
 		'border_width' => 1,
 		'radius'       => 18,
 		'shadow'       => 'default',
@@ -51,14 +57,8 @@ final class Appearance {
 	public static function sanitize( $value ): array {
 		$value = is_array( $value ) ? $value : array();
 
-		$page_bg = ! empty( $value['page_bg_default'] )
-			? ''
-			: self::color( $value['page_bg'] ?? '', '' );
-
 		return array(
 			'page_width'   => self::clamp_int( $value['page_width'] ?? self::DEFAULT_WIDTH, self::MIN_WIDTH, self::MAX_WIDTH, self::DEFAULT_WIDTH ),
-			'page_bg'      => $page_bg,
-			'card_bg'      => self::color( $value['card_bg'] ?? self::DEFAULTS['card_bg'], self::DEFAULTS['card_bg'] ),
 			'border_width' => self::clamp_int( $value['border_width'] ?? 1, 0, self::MAX_BORDER, 1 ),
 			'radius'       => self::clamp_int( $value['radius'] ?? 18, 0, self::MAX_RADIUS, 18 ),
 			'shadow'       => in_array( $value['shadow'] ?? '', array( 'none', 'soft', 'strong' ), true ) ? (string) $value['shadow'] : 'default',
@@ -75,10 +75,6 @@ final class Appearance {
 
 		if ( self::DEFAULT_WIDTH !== $values['page_width'] ) {
 			$style[] = '--g-page-max:' . $values['page_width'] . 'px';
-		}
-
-		if ( self::DEFAULTS['card_bg'] !== $values['card_bg'] ) {
-			$style[] = '--g-card-surface:' . $values['card_bg'];
 		}
 
 		if ( 1 !== $values['border_width'] ) {
@@ -101,10 +97,6 @@ final class Appearance {
 				break;
 		}
 
-		if ( '' !== $values['page_bg'] ) {
-			$style[] = 'background:' . $values['page_bg'];
-		}
-
 		return implode( ';', $style );
 	}
 
@@ -117,22 +109,5 @@ final class Appearance {
 		}
 
 		return max( $min, min( $max, (int) $value ) );
-	}
-
-	/**
-	 * Accept #RGB or #RRGGBB, normalize to lowercase; anything else falls back.
-	 */
-	private static function color( $value, string $fallback ): string {
-		if ( ! is_string( $value ) ) {
-			return $fallback;
-		}
-
-		$value = strtolower( trim( $value ) );
-
-		if ( preg_match( '/^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/', $value ) ) {
-			return $value;
-		}
-
-		return $fallback;
 	}
 }

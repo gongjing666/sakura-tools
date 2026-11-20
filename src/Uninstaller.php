@@ -286,6 +286,10 @@ final class Uninstaller {
 		delete_option( 'sufm_backfill_pending' );
 		delete_option( 'sufm_tokens_pending' );
 		delete_option( 'sufm_tokens_after' );
+		// Role-capability bookkeeping: both options only describe grants this
+		// plugin made, so they must not survive an uninstall.
+		delete_option( 'sufm_media_caps_version' );
+		delete_option( 'sufm_caps_seeded' );
 		$wpdb->delete( $wpdb->usermeta, array( 'meta_key' => 'sufm_quota_bytes' ) );
 		self::drop_sufm_tables();
 

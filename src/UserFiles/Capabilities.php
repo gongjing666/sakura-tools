@@ -113,6 +113,42 @@ final class Capabilities {
 		}
 
 		delete_option( 'sufm_media_caps_version' );
+		delete_option( self::SEED_OPTION );
+	}
+
+	/**
+	 * Option remembering that the default grants already ran once.
+	 *
+	 * `grant()` cannot run on every request: since P4 the operator can take a
+	 * capability away on the matrix card, and a per-request grant would silently
+	 * put it back on the next page load.
+	 */
+	public const SEED_OPTION = 'sufm_caps_seeded';
+
+	/**
+	 * Grant the defaults once per installation.
+	 *
+	 * The matrix card (P4) is the authority afterwards: it calls
+	 * `mark_managed()` on every save, and this method becomes a no-op.
+	 *
+	 * @return void
+	 */
+	public static function grant_defaults(): void {
+		if ( '1' === (string) get_option( self::SEED_OPTION, '' ) ) {
+			return;
+		}
+
+		self::grant();
+		update_option( self::SEED_OPTION, '1', false );
+	}
+
+	/**
+	 * Remember that a human edited the matrix, so defaults must not come back.
+	 *
+	 * @return void
+	 */
+	public static function mark_managed(): void {
+		update_option( self::SEED_OPTION, '1', false );
 	}
 
 	/** Grant only the newly introduced caps once during upgrade, not on each request. */

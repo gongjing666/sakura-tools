@@ -66,6 +66,8 @@ final class Page {
 		$hooks->add_action( 'update_option_' . Settings::OPTION, array( $this, 'flush_entry_cache' ) );
 		$hooks->add_action( 'admin_post_sakura_sufm_download', array( $this, 'download_request_file' ) );
 
+		Capability_Matrix::register( $hooks );
+
 		/*
 		 * Registering the renderers touches Registry::tabs(), which builds the
 		 * translated module labels. Doing that here would run __() during

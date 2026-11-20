@@ -14,6 +14,9 @@ use Sakura\ImageOptimizer\Media_Library_Module;
 use Sakura\ImageOptimizer\Thumbnail_Optimizer_Module;
 use Sakura\ImageOptimizer\S3\Options;
 use Sakura\ImageOptimizer\S3\Storage;
+use Sakura\ImageOptimizer\S3\Storage_Adapter;
+use Sakura\ImageOptimizer\Sync\Attachment_Indexer;
+use Sakura\ImageOptimizer\Sync\Index_Repository;
 use Sakura\ImageOptimizer\S3_Storage_Module;
 use Sakura\ImageOptimizer\Image_Optimizer_Module;
 use Sakura\ImageOptimizer\Support\Hook_Loader;
@@ -98,6 +101,18 @@ final class ModuleRegistrationTest extends TestCase {
 		( new Storage( new Options( $GLOBALS['sakura_test_options']['s3_options'] ) ) )->register_hooks( $loader );
 		$this->assertContains( 'add_attachment', array_column( $loader->actions(), 'hook' ) );
 		$this->assertContains( 'wp_update_attachment_metadata', array_column( $loader->filters(), 'hook' ) );
+	}
+
+	public function test_attachment_indexer_drops_remote_rows_after_object_deletion(): void {
+		$loader = new Hook_Loader();
+		$indexer = new Attachment_Indexer( new Options( array() ), new Storage_Adapter( new Options( array() ) ), new Index_Repository() );
+		$indexer->register_hooks( $loader );
+
+		$hooks = array_column( $loader->actions(), 'hook' );
+		$this->assertContains( 'delete_attachment', $hooks );
+		// The delete worker settles the remote copy later; without this the row
+		// would keep reporting the object as cloud-only until a full scan.
+		$this->assertContains( 'sakura_imgopt_s3_object_deleted', $hooks );
 	}
 
 	public function test_constructors_do_not_register_hooks(): void {

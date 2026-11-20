@@ -53,6 +53,7 @@ final class Attachment_Indexer implements Module {
 		$hooks->add_action( 'add_attachment', array( $this, 'index_attachment' ), 20, 1 );
 		$hooks->add_action( 'wp_update_attachment_metadata', array( $this, 'on_metadata' ), 20, 2 );
 		$hooks->add_action( 'delete_attachment', array( $this, 'forget_attachment' ), 10, 1 );
+		$hooks->add_action( 'sakura_imgopt_s3_object_deleted', array( $this, 'forget_remote' ), 10, 2 );
 	}
 
 	/**
@@ -99,6 +100,25 @@ final class Attachment_Indexer implements Module {
 		if ( $keys ) {
 			$this->index->forget_local( $this->options->active_profile_id(), $keys );
 		}
+	}
+
+	/**
+	 * Drop the index row once the remote copy is gone.
+	 *
+	 * forget_attachment() only clears the local side, which leaves the row
+	 * claiming the object is cloud-only; the delete worker settles the remote
+	 * copy asynchronously and fires this hook when it is really gone.
+	 *
+	 * @param mixed $key        Object key.
+	 * @param mixed $profile_id Profile the delete job was created with.
+	 */
+	public function forget_remote( $key, $profile_id ): void {
+		$key = (string) $key;
+		if ( '' === $key || ! Feature::enabled() ) {
+			return;
+		}
+
+		$this->index->apply_action( (string) $profile_id, $key, 'delete' );
 	}
 
 	/**

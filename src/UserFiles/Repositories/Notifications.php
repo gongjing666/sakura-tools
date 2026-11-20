@@ -26,12 +26,13 @@ final class Notifications {
 	 * Put one owner-facing summary into the outbox.
 	 *
 	 * @param int                  $owner_id  Owner.
-	 * @param int                  $request_id Request.
+	 * @param int                  $request_id Request, 0 for events that have none.
 	 * @param string               $status    New request status.
 	 * @param array<string, mixed> $summary   Path-free summary.
+	 * @param string               $dedupe    Explicit dedupe key; empty keeps the (request, status) default.
 	 * @return void
 	 */
-	public function enqueue( int $owner_id, int $request_id, string $status, array $summary = array() ): void {
+	public function enqueue( int $owner_id, int $request_id, string $status, array $summary = array(), string $dedupe = '' ): void {
 		global $wpdb;
 
 		$table = Schema::table( 'notifications' );
@@ -43,6 +44,7 @@ final class Notifications {
 				'status'     => $status,
 				'count'      => (int) ( $summary['count'] ?? 0 ),
 				'bytes'      => (int) ( $summary['bytes'] ?? 0 ),
+				'reason'     => isset( $summary['reason'] ) ? mb_substr( (string) $summary['reason'], 0, 120 ) : '',
 			)
 		);
 
@@ -54,7 +56,7 @@ final class Notifications {
 				$request_id,
 				(int) ( $summary['event_id'] ?? 0 ),
 				(int) ( $summary['revision'] ?? 1 ),
-				sprintf( 'r%d:%s', $request_id, substr( $status, 0, 20 ) ),
+				'' !== $dedupe ? substr( $dedupe, 0, 191 ) : sprintf( 'r%d:%s', $request_id, substr( $status, 0, 20 ) ),
 				(string) $payload,
 				$now,
 				$now,

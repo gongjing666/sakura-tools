@@ -113,6 +113,20 @@ final class Bucket_Confirmation {
 	}
 
 	/**
+	 * Whether this instance can answer at all.
+	 *
+	 * A `false` here means "no confirmation is possible", not "absent": the
+	 * sync index is off, uninstalled, or no bucket is configured. Callers that
+	 * display the answer need to tell those two apart instead of reporting a
+	 * missing object.
+	 *
+	 * @return bool
+	 */
+	public function available(): bool {
+		return $this->index_available();
+	}
+
+	/**
 	 * Whether every object recorded for an attachment is in the active bucket.
 	 *
 	 * An attachment with no recorded objects answers no: nothing confirms it,

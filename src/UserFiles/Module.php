@@ -15,6 +15,7 @@ use Nboke\UserFiles\Repositories\Folders;
 use Nboke\UserFiles\Repositories\Notifications;
 use Nboke\UserFiles\Repositories\Requests;
 use Nboke\UserFiles\Rest\Controller;
+use Nboke\UserFiles\Services\Deletion;
 use Nboke\UserFiles\Services\Executor;
 use Nboke\UserFiles\Services\Notifier;
 use Nboke\UserFiles\Services\Quota;
@@ -89,7 +90,7 @@ final class Module implements Module_Contract {
 		// The delete guards must stay armed even while the feature is off, or
 		// managed attachments become deletable straight from the media library.
 		if ( class_exists( 'Nboke\\UserFiles\\Media\\Media_Hooks' ) ) {
-			( new Media\Media_Hooks( $services['files'], $services['folders'], $services['requests'], $services['sync'], $services['quota'], $services['events'] ) )->register_hooks( $hooks );
+			( new Media\Media_Hooks( $services['files'], $services['folders'], $services['requests'], $services['sync'], $services['quota'], $services['events'], $services['outbox'] ) )->register_hooks( $hooks );
 		}
 
 		// The REST surface carries the media library folder tree and transfer
@@ -229,7 +230,8 @@ final class Module implements Module_Contract {
 		$notifier    = new Notifier( $outbox );
 		$limiter     = new Rate_Limiter();
 		$uploader    = new Uploader( $files, $folders, $quota, $limiter, $events );
-		$executor    = new Executor( $files, $folders, $requests, $quota, $notifier );
+		$deletion    = new Deletion( $files, $quota, $events );
+		$executor    = new Executor( $files, $folders, $requests, $quota, $notifier, $deletion );
 		$sync        = new Sync_Service( $files, $quota );
 
 		$this->services = array(
@@ -242,6 +244,7 @@ final class Module implements Module_Contract {
 			'notifier' => $notifier,
 			'limiter'  => $limiter,
 			'uploader' => $uploader,
+			'deletion' => $deletion,
 			'executor' => $executor,
 			'sync'     => $sync,
 		);
@@ -257,10 +260,11 @@ final class Module implements Module_Contract {
 	public function maybe_install(): void {
 		Schema::maybe_install();
 		Capabilities::upgrade_media_caps();
-		// Roles are a per-site option, not a schema version: keep the two
-		// user-facing capabilities granted even on sites that installed the
-		// module before those capabilities existed. grant() is idempotent.
-		Capabilities::grant();
+		// Roles are a per-site option, not a schema version: grant the defaults
+		// once on sites that installed the module before those capabilities
+		// existed. After that the matrix card owns them, so a per-request grant
+		// would silently undo an operator's choice.
+		Capabilities::grant_defaults();
 	}
 
 	/**

@@ -97,6 +97,78 @@ if ( ! function_exists( 'add_filter' ) ) {
 	}
 }
 
+if ( ! function_exists( 'remove_filter' ) ) {
+	/**
+	 * Minimal filter removal shim: record calls for assertions.
+	 *
+	 * @param string   $hook     Hook name.
+	 * @param callable $callback Callback.
+	 * @param int      $priority Priority.
+	 * @return bool
+	 */
+	function remove_filter( $hook, $callback, $priority = 10 ) {
+		$GLOBALS['sakura_test_hooks']['removed'][] = array( $hook, $callback, $priority );
+
+		return true;
+	}
+}
+
+if ( ! function_exists( 'user_can' ) ) {
+	/**
+	 * Capability shim for an arbitrary user.
+	 *
+	 * `$GLOBALS['sakura_test_user_can']` holds a per-capability override; a
+	 * missing key allows, so tests only list what they deny.
+	 *
+	 * @param int    $user       User id.
+	 * @param string $capability Capability name.
+	 * @param mixed  ...$args    Object/extra args (ignored).
+	 * @return bool
+	 */
+	function user_can( $user, $capability, ...$args ) {
+		unset( $user, $args );
+
+		$map = (array) ( $GLOBALS['sakura_test_user_can'] ?? array() );
+
+		return array_key_exists( (string) $capability, $map ) ? (bool) $map[ (string) $capability ] : true;
+	}
+}
+
+if ( ! function_exists( 'wp_delete_attachment' ) ) {
+	/**
+	 * Minimal wp_delete_attachment() shim.
+	 *
+	 * Removes the post from the test store and fires the two hooks the plugin
+	 * observes. `$GLOBALS['sakura_test_refuse_attachment_delete']` keeps the
+	 * post in place so the "attachment_kept" branch can be tested.
+	 *
+	 * @param int  $post_id      Attachment id.
+	 * @param bool $force_delete Whether to bypass the trash.
+	 * @return object|false
+	 */
+	function wp_delete_attachment( $post_id, $force_delete = false ) {
+		$post_id = (int) $post_id;
+		$GLOBALS['sakura_test_deleted_attachments'][] = array( $post_id, (bool) $force_delete );
+
+		$post = get_post( $post_id );
+
+		if ( ! $post ) {
+			return false;
+		}
+
+		if ( ! empty( $GLOBALS['sakura_test_refuse_attachment_delete'] ) ) {
+			return false;
+		}
+
+		unset( $GLOBALS['sakura_test_posts'][ $post_id ] );
+
+		do_action( 'delete_attachment', $post_id );
+		do_action( 'deleted_post', $post_id, $post );
+
+		return $post;
+	}
+}
+
 if ( ! function_exists( 'wp_parse_args' ) ) {
 	/**
 	 * Minimal wp_parse_args() shim.
@@ -448,7 +520,9 @@ if ( ! function_exists( 'apply_filters' ) ) {
 	 * @param mixed  $value Value.
 	 * @return mixed
 	 */
-	function apply_filters( $hook, $value ) {
+	function apply_filters( $hook, $value, ...$args ) {
+		unset( $hook, $args );
+
 		return $value;
 	}
 }
@@ -698,6 +772,13 @@ if ( ! class_exists( 'Sakura_Test_Role' ) ) {
 		private array $caps;
 
 		/**
+		 * Public map, mirroring WP_Role::$capabilities for read-only callers.
+		 *
+		 * @var array<string,bool>
+		 */
+		public array $capabilities;
+
+		/**
 		 * Duplicate the roles so the WordPress storage can be inspected.
 		 *
 		 * @param mixed $role_name Role slug.
@@ -715,7 +796,8 @@ if ( ! class_exists( 'Sakura_Test_Role' ) ) {
 		 * @param array<string,bool> $caps Capability map.
 		 */
 		public function __construct( array $caps ) {
-			$this->caps = $caps;
+			$this->caps         = $caps;
+			$this->capabilities = $caps;
 		}
 
 		/**
@@ -731,10 +813,31 @@ if ( ! class_exists( 'Sakura_Test_Role' ) ) {
 		 * @return void
 		 */
 		public function remove_cap( $cap ) {
-			unset( $this->caps[ $cap ] );
+			unset( $this->caps[ $cap ], $this->capabilities[ $cap ] );
 			foreach ( (array) ( $GLOBALS['sakura_test_role_caps'] ?? array() ) as $role_name => $role_caps ) {
 				if ( isset( $role_caps[ $cap ] ) ) {
 					unset( $GLOBALS['sakura_test_role_caps'][ $role_name ][ $cap ] );
+				}
+			}
+		}
+
+		/**
+		 * @param string $cap  Capability name.
+		 * @param bool   $grant Whether to grant it.
+		 * @param array<int,string> $deps Dependencies, ignored.
+		 * @return void
+		 */
+		public function add_cap( $cap, $grant = true, $deps = array() ) {
+			unset( $deps );
+
+			$this->caps[ $cap ]         = (bool) $grant;
+			$this->capabilities[ $cap ] = (bool) $grant;
+
+			foreach ( (array) ( $GLOBALS['sakura_test_role_caps'] ?? array() ) as $role_name => $role_caps ) {
+				unset( $role_caps );
+
+				if ( isset( $GLOBALS['sakura_test_role_caps'][ $role_name ] ) ) {
+					$GLOBALS['sakura_test_role_caps'][ $role_name ][ $cap ] = (bool) $grant;
 				}
 			}
 		}

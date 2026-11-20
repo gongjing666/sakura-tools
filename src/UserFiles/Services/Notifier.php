@@ -65,6 +65,8 @@ final class Notifier {
 				return __( '删除已排队', 'sakura-imgopt' );
 			case 'executing':
 				return __( '删除执行中', 'sakura-imgopt' );
+			case 'moderation':
+				return __( '文件已被管理员下架', 'sakura-imgopt' );
 			default:
 				return __( '文件管理通知', 'sakura-imgopt' );
 		}
@@ -103,6 +105,12 @@ final class Notifier {
 				return __( '部分内容删除失败，管理员可在后台查看明细。', 'sakura-imgopt' );
 			case 'revoked':
 				return __( '管理员已撤销先前的批准，文件保持不变。', 'sakura-imgopt' ) . $reason;
+			case 'moderation':
+				return sprintf(
+					/* translators: %d: number of files */
+					__( '管理员已下架您文件空间中的 %d 个文件，占用容量已相应释放。如有疑问请联系站点管理员。', 'sakura-imgopt' ),
+					$count
+				) . $reason;
 			default:
 				return __( '您的文件空间有新的状态更新。', 'sakura-imgopt' );
 		}

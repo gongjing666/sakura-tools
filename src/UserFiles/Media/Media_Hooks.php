@@ -17,14 +17,20 @@ use Nboke\UserFiles\Capabilities;
 use Nboke\UserFiles\Repositories\Events;
 use Nboke\UserFiles\Repositories\Files;
 use Nboke\UserFiles\Repositories\Folders;
+use Nboke\UserFiles\Repositories\Notifications;
 use Nboke\UserFiles\Repositories\Requests;
 use Nboke\UserFiles\Services\Deletion;
+use Nboke\UserFiles\Services\Deletion_Context;
+use Nboke\UserFiles\Services\Deletion_Result;
 use Nboke\UserFiles\Services\Media_Adoption;
 use Nboke\UserFiles\Services\Quota;
 use Nboke\UserFiles\Services\Sync_Service;
 use Nboke\UserFiles\Services\Uploader;
 use Nboke\UserFiles\Schema;
 use Nboke\UserFiles\Settings;
+use Sakura\ImageOptimizer\S3\Bucket_Confirmation;
+use Sakura\ImageOptimizer\S3\Delete_Jobs;
+use Sakura\ImageOptimizer\S3\Sync_Status;
 use Sakura\ImageOptimizer\Support\Hook_Loader;
 use WP_Error;
 use WP_Post;
@@ -46,7 +52,27 @@ final class Media_Hooks {
 	/**
 	 * Media list table columns owned by this integration.
 	 */
-	private const COLUMNS = array( 'sufm_source', 'sufm_owner', 'sufm_folder', 'sufm_size' );
+	private const COLUMNS = array( 'sufm_source', 'sufm_owner', 'sufm_folder', 'sufm_size', 'sufm_cloud' );
+
+	/**
+	 * Moderation reasons offered by the takedown action.
+	 *
+	 * A closed list keeps the audit row comparable: the key is stored, the label
+	 * is rendered, and free text only ever lives in the note. A method rather
+	 * than a constant because the labels are translated.
+	 *
+	 * @return array<string, string>
+	 */
+	private static function takedown_reasons(): array {
+		return array(
+			'copyright' => __( '侵犯版权', 'sakura-imgopt' ),
+			'illegal'   => __( '违法违规内容', 'sakura-imgopt' ),
+			'abuse'     => __( '辱骂或骚扰', 'sakura-imgopt' ),
+			'privacy'   => __( '泄露他人隐私', 'sakura-imgopt' ),
+			'policy'    => __( '违反站点规则', 'sakura-imgopt' ),
+			'other'     => __( '其他', 'sakura-imgopt' ),
+		);
+	}
 
 	private Files $files;
 
@@ -103,13 +129,54 @@ final class Media_Hooks {
 
 	private ?Events $events;
 
-	public function __construct( Files $files, Folders $folders, Requests $requests, ?Sync_Service $sync = null, ?Quota $quota = null, ?Events $events = null ) {
+	/**
+	 * Notification outbox (moderation takedowns tell the owner).
+	 *
+	 * @var Notifications|null
+	 */
+	private ?Notifications $outbox;
+
+	/**
+	 * Cloud state per attachment for the current list page.
+	 *
+	 * @var array<int, array<string, mixed>>
+	 */
+	private array $cloud_states = array();
+
+	/**
+	 * Whether the current media list page already resolved cloud states.
+	 */
+	private bool $cloud_primed = false;
+
+	/**
+	 * Bucket confirmation service, built on first use.
+	 *
+	 * @var Bucket_Confirmation|null
+	 */
+	private ?Bucket_Confirmation $confirmation = null;
+
+	/**
+	 * Attachment sync state, built on first use.
+	 *
+	 * @var Sync_Status|null
+	 */
+	private ?Sync_Status $sync_status = null;
+
+	/**
+	 * Remote delete queue, built on first use.
+	 *
+	 * @var Delete_Jobs|null
+	 */
+	private ?Delete_Jobs $delete_jobs = null;
+
+	public function __construct( Files $files, Folders $folders, Requests $requests, ?Sync_Service $sync = null, ?Quota $quota = null, ?Events $events = null, ?Notifications $outbox = null ) {
 		$this->files    = $files;
 		$this->folders  = $folders;
 		$this->requests = $requests;
 		$this->sync     = $sync;
 		$this->quota    = $quota;
 		$this->events   = $events;
+		$this->outbox   = $outbox;
 	}
 
 	/**
@@ -181,6 +248,7 @@ final class Media_Hooks {
 			'sufm_owner'  => __( '所有者', 'sakura-imgopt' ),
 			'sufm_folder' => __( '虚拟目录', 'sakura-imgopt' ),
 			'sufm_size'   => __( '容量', 'sakura-imgopt' ),
+			'sufm_cloud'  => __( '云端状态', 'sakura-imgopt' ),
 		);
 
 		if ( isset( $columns['sufm_source'] ) ) {
@@ -229,6 +297,14 @@ final class Media_Hooks {
 				$label = __( '用户文件空间', 'sakura-imgopt' );
 			}
 			echo esc_html( $label );
+			return;
+		}
+
+		/* The cloud state is real for every attachment: a file can be in the
+		 * bucket without ever having a ledger row. Resolve it before the
+		 * managed gate so an administrator can judge a takedown either way. */
+		if ( 'sufm_cloud' === $column ) {
+			$this->render_cloud_column( $post_id );
 			return;
 		}
 
@@ -575,6 +651,14 @@ final class Media_Hooks {
 			return $delete;
 		}
 
+		/* A plugin purge already claimed this row. Letting an administrator
+		 * finish it through the official entry keeps WordPress's own delete
+		 * semantics intact; answering "no permission" for a job that is already
+		 * approved would be a lie. */
+		if ( Files::LIFECYCLE_DELETING === (string) $file->lifecycle && current_user_can( Capabilities::DELETE_FILES ) && current_user_can( 'delete_post', $post_id ) ) {
+			return $delete;
+		}
+
 		/* Admission is decided by the actor's capability, never by where the
 		 * file came from. The administrator may remove any file; everyone below
 		 * them has to file a delete request and wait for execution. */
@@ -660,7 +744,17 @@ final class Media_Hooks {
 				return $result;
 			}
 
-			if ( $this->is_managed_attachment( $attachment_id ) && ! current_user_can( Capabilities::DELETE_FILES ) ) {
+			$file = $this->files->get_by_attachment( $attachment_id );
+
+			if ( $file && Files::LIFECYCLE_DELETING === (string) $file->lifecycle ) {
+				return current_user_can( Capabilities::DELETE_FILES ) ? $result : $this->deleting_error();
+			}
+
+			/* Gate by the ledger, not by the row's source: an adoption from the
+			 * media library is charged to its author exactly like a user-space
+			 * upload, so both answer with the request-flow message instead of
+			 * letting core return its generic "不能删除这篇文章" 500. */
+			if ( $file && Files::LIFECYCLE_PURGED !== (string) $file->lifecycle && ! current_user_can( Capabilities::DELETE_FILES ) ) {
 				return $this->managed_error();
 			}
 
@@ -688,11 +782,20 @@ final class Media_Hooks {
 			return $actions;
 		}
 
-		if ( ! current_user_can( 'upload_files' ) || ! current_user_can( Capabilities::REQUEST_DELETE ) ) {
+		if ( ! current_user_can( 'upload_files' ) ) {
 			return $actions;
 		}
 
-		$actions['sufm_request_delete'] = __( '提交删除申请（用户文件空间）', 'sakura-imgopt' );
+		if ( current_user_can( Capabilities::REQUEST_DELETE ) ) {
+			$actions['sufm_request_delete'] = __( '提交删除申请（用户文件空间）', 'sakura-imgopt' );
+		}
+
+		/* Moderation is offered to whoever may delete anything; the per-row
+		 * `delete_post` check still runs in the handler, so an author cannot
+		 * take down somebody else's file through this action. */
+		if ( current_user_can( Capabilities::DELETE_FILES ) ) {
+			$actions['sufm_takedown'] = __( '违规下架（删除本地与云端）', 'sakura-imgopt' );
+		}
 
 		return $actions;
 	}
@@ -706,6 +809,12 @@ final class Media_Hooks {
 	 * @return string
 	 */
 	public function handle_bulk_action( $redirect_to, $action, $post_ids ) {
+		$action = (string) $action;
+
+		if ( 'sufm_takedown' === $action ) {
+			return $this->handle_takedown( $redirect_to, $post_ids );
+		}
+
 		if ( 'sufm_request_delete' !== $action ) {
 			return $redirect_to;
 		}
@@ -764,6 +873,185 @@ final class Media_Hooks {
 			$target
 		);
 	}
+
+	/**
+	 * Take selected files down from the site and the bucket, with an audit trail.
+	 *
+	 * The removal itself goes through the deletion kernel, so the local file,
+	 * the attachment row, the remote-delete queue and the ledger settlement run
+	 * in the same order as every other plugin-initiated delete. What this
+	 * action adds is the reason — the context carries the moderation reason, so
+	 * the audit row reads moderation + the chosen reason instead of an anonymous
+	 * operator delete — and the owner-facing notification.
+	 *
+	 * @param string $redirect_to Redirect URL from core.
+	 * @param array  $post_ids    Selected attachment IDs.
+	 * @return string
+	 */
+	public function handle_takedown( $redirect_to, $post_ids ) {
+		$fallback = $redirect_to ? (string) $redirect_to : admin_url( 'upload.php' );
+
+		if ( ! current_user_can( 'upload_files' ) || ! current_user_can( Capabilities::DELETE_FILES ) ) {
+			return add_query_arg( 'sufm_takedown_denied', 1, $fallback );
+		}
+
+		/* The list table submits with GET — core reads the bulk action from
+		 * $_REQUEST — so the reason arrives in the query string, not in $_POST. */
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Core verifies bulk-media before this filter runs.
+		$reason = isset( $_REQUEST['sufm_takedown_reason'] ) && is_scalar( $_REQUEST['sufm_takedown_reason'] ) ? sanitize_key( wp_unslash( (string) $_REQUEST['sufm_takedown_reason'] ) ) : '';
+
+		/* A takedown without a recorded reason is exactly the anonymous delete
+		 * this action exists to replace, so refuse instead of guessing one. */
+		$reasons = self::takedown_reasons();
+
+		if ( ! isset( $reasons[ $reason ] ) ) {
+			return add_query_arg( 'sufm_takedown_reason_missing', 1, $fallback );
+		}
+
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Core verifies bulk-media before this filter runs.
+		$note   = isset( $_REQUEST['sufm_takedown_note'] ) && is_scalar( $_REQUEST['sufm_takedown_note'] ) ? sanitize_text_field( wp_unslash( (string) $_REQUEST['sufm_takedown_note'] ) ) : '';
+		$note   = mb_substr( trim( $note ), 0, 120 );
+		$label  = $reasons[ $reason ];
+		$detail = '' !== $note ? $label . '：' . $note : $label;
+		$actor  = get_current_user_id();
+		$ids    = $this->normalize_ids( (array) $post_ids );
+
+		if ( ! $ids ) {
+			return add_query_arg(
+				array(
+					'sufm_takedown_done'    => 0,
+					'sufm_takedown_skipped' => 0,
+				),
+				$fallback
+			);
+		}
+
+		$this->prime_summaries( $ids );
+
+		$done    = 0;
+		$skipped = 0;
+		$targets = array();
+
+		foreach ( $ids as $id ) {
+			$post = get_post( $id );
+
+			if ( ! $post instanceof WP_Post || 'attachment' !== $post->post_type ) {
+				$skipped++;
+				continue;
+			}
+
+			$summary = $this->summaries[ $id ] ?? null;
+
+			/* An executor already owns this row; the kernel would answer
+			 * in_progress, so do not hand it over just to be told that. */
+			if ( is_array( $summary ) && Files::LIFECYCLE_DELETING === (string) ( $summary['lifecycle'] ?? '' ) ) {
+				$skipped++;
+				continue;
+			}
+
+			$targets[] = $id;
+		}
+
+		if ( $targets ) {
+			$ctx = new Deletion_Context(
+				Deletion_Context::MODE_TAKEDOWN,
+				$actor,
+				Deletion::REASON_MODERATION,
+				false,
+				true,
+				Deletion::VIA_PLUGIN,
+				false,
+				$detail
+			);
+
+			$result = $this->deletion()->delete( $targets, $ctx );
+
+			foreach ( $result->items() as $item ) {
+				if ( Deletion_Result::DELETED !== (string) ( $item['status'] ?? '' ) ) {
+					$skipped++;
+					continue;
+				}
+
+				$id  = (int) ( $item['attachment_id'] ?? 0 );
+				$done++;
+
+				$summary = $this->summaries[ $id ] ?? null;
+
+				if ( is_array( $summary ) ) {
+					$this->notify_takedown( $id, $summary, $detail );
+				} else {
+					$this->log_takedown( $id, $detail );
+				}
+			}
+		}
+
+		return add_query_arg(
+			array(
+				'sufm_takedown_done'    => $done,
+				'sufm_takedown_skipped' => $skipped,
+			),
+			$fallback
+		);
+	}
+
+	/**
+	 * Tell the owner once per file that it was taken down.
+	 *
+	 * @param int                  $attachment_id Attachment ID.
+	 * @param array<string, mixed> $summary       Ledger summary.
+	 * @param string               $detail        Reason label and note.
+	 * @return void
+	 */
+	private function notify_takedown( int $attachment_id, array $summary, string $detail ): void {
+		if ( ! $this->outbox ) {
+			return;
+		}
+
+		$owner_id = (int) ( $summary['owner_id'] ?? 0 );
+
+		if ( $owner_id <= 0 ) {
+			return;
+		}
+
+		$this->outbox->enqueue(
+			$owner_id,
+			0,
+			'moderation',
+			array(
+				'count'  => 1,
+				'reason' => $detail,
+			),
+			'sufm-moderation:' . get_current_blog_id() . ':' . $attachment_id
+		);
+	}
+
+	/**
+	 * Audit a takedown of a file that never had a ledger row.
+	 *
+	 * Without a ledger the settlement observer writes nothing, but the action
+	 * still removed a public file and must leave the same kind of record.
+	 *
+	 * @param int    $attachment_id Attachment ID.
+	 * @param string $detail        Reason label and note.
+	 * @return void
+	 */
+	private function log_takedown( int $attachment_id, string $detail ): void {
+		if ( ! $this->events ) {
+			return;
+		}
+
+		$this->events->log(
+			array(
+				'actor_id'    => get_current_user_id(),
+				'owner_id'    => (int) get_post_field( 'post_author', $attachment_id ),
+				'subject_id'  => $attachment_id,
+				'action'      => 'delete',
+				'result'      => 'purged',
+				'safe_detail' => Deletion::VIA_PLUGIN . ':' . Deletion::REASON_MODERATION . '|' . mb_substr( $detail, 0, 80 ),
+			)
+		);
+	}
+
 
 	/**
 	 * Explain why the bulk action did not redirect to the user center.
@@ -1121,6 +1409,8 @@ final class Media_Hooks {
 				'restUrl' => esc_url_raw( rest_url( 'sufm/v1/' ) ),
 				'nonce'   => wp_create_nonce( 'wp_rest' ),
 				'userId'  => get_current_user_id(),
+				// Rendered here because the media list's own admin notice sits under the fixed folder cabinet.
+				'notice'  => $this->takedown_result_notice(),
 				'strings' => array(
 					'requestFailed' => __( '请求失败，请重试。', 'sakura-imgopt' ),
 					'refreshFailed' => __( '列表刷新失败，请刷新页面查看最新结果。', 'sakura-imgopt' ),
@@ -1188,6 +1478,17 @@ final class Media_Hooks {
 					'uploadRefresh' => __( '正在刷新媒体库…', 'sakura-imgopt' ),
 					/* translators: %d: number of deleted files */
 					'deleteDone' => __( '已删除 %d 个文件。', 'sakura-imgopt' ),
+					'takedownTitle' => __( '违规下架', 'sakura-imgopt' ),
+					'takedownHint' => __( '这会同时删除本地文件与云端对象，并释放该用户占用的容量。理由与备注会写入审计记录并通知文件所有者。', 'sakura-imgopt' ),
+					'takedownReason' => __( '下架理由', 'sakura-imgopt' ),
+					'takedownNote' => __( '备注（可选，最多 120 字）', 'sakura-imgopt' ),
+					'takedownConfirm' => __( '确认下架', 'sakura-imgopt' ),
+					'takedownCancel' => __( '取消', 'sakura-imgopt' ),
+					'takedownNeedReason' => __( '请选择下架理由。', 'sakura-imgopt' ),
+					'needSelection' => __( '请先选择要处理的文件。', 'sakura-imgopt' ),
+					'takedownReasons' => self::takedown_reasons(),
+					/* translators: %d: number of selected files */
+					'takedownSummary' => __( '即将下架选中的 %d 个文件', 'sakura-imgopt' ),
 					/* translators: 1: deleted count, 2: failed count */
 					'deletePartial' => __( '已删除 %d 个文件，%s 个未能删除（无删除权限，用户上传的文件请提交申请或由管理员删除）。', 'sakura-imgopt' ), // phpcs:ignore WordPress.WP.I18n.UnorderedPlaceholdersText -- JS replaces %s/%d literally; ordering them would break the UI.
 				)
@@ -1272,13 +1573,25 @@ final class Media_Hooks {
 			return;
 		}
 
+		$has_delete_cap = current_user_can( Capabilities::DELETE_FILES );
+
 		$blocked = 0;
 		foreach ( $ids as $id ) {
 			// Media-library imports may be deleted from the library itself; only
 			// files that belong to the user file space need the request flow.
-			if ( $this->is_managed_attachment( $id ) ) {
-				$blocked++;
+			if ( ! $this->is_managed_attachment( $id ) ) {
+				continue;
 			}
+
+			/* The gate would let this one through — an administrator holding
+			 * both capabilities deletes it like any other attachment — so
+			 * counting it here would bounce the whole selection to a notice
+			 * that tells the operator to do what they are already doing. */
+			if ( $has_delete_cap && current_user_can( 'delete_post', $id ) ) {
+				continue;
+			}
+
+			$blocked++;
 		}
 
 		if ( $blocked < 1 ) {
@@ -1290,6 +1603,60 @@ final class Media_Hooks {
 		exit;
 	}
 
+	/**
+	 * Bulk-action result carried back by the media list's GET submit.
+	 *
+	 * The list table submits with GET and the result has to survive the 302, so
+	 * the flags live in the query string. `assets/media-folders.js` reads them
+	 * and shows a toast: an admin notice here would be painted underneath the
+	 * fixed folder cabinet and never be seen (verified on production).
+	 *
+	 * @return array{message:string,error:bool}|null
+	 */
+	private function takedown_result_notice(): ?array {
+		if ( ! current_user_can( 'upload_files' ) ) {
+			return null;
+		}
+
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only result flag.
+		$done = isset( $_GET['sufm_takedown_done'] ) && is_scalar( $_GET['sufm_takedown_done'] )
+			? absint( wp_unslash( (string) $_GET['sufm_takedown_done'] ) )
+			: null;
+
+		if ( null !== $done ) {
+			// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only result flag.
+			$skipped = isset( $_GET['sufm_takedown_skipped'] ) && is_scalar( $_GET['sufm_takedown_skipped'] )
+				? absint( wp_unslash( (string) $_GET['sufm_takedown_skipped'] ) )
+				: 0;
+
+			$message = $done > 0
+				? sprintf(
+					/* translators: 1: taken down count, 2: skipped count */
+					__( '已下架 %1$d 个文件（本地与云端），跳过 %2$d 个。', 'sakura-imgopt' ),
+					$done,
+					$skipped
+				)
+				: sprintf(
+					/* translators: %d: skipped count */
+					__( '没有文件被下架，跳过 %d 个（多为无权限、已在删除流程中或不是附件）。', 'sakura-imgopt' ),
+					$skipped
+				);
+
+			return array( 'message' => $message, 'error' => $done < 1 );
+		}
+
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only result flag.
+		if ( isset( $_GET['sufm_takedown_reason_missing'] ) ) {
+			return array( 'message' => __( '请先选择下架理由，本次未删除任何文件。', 'sakura-imgopt' ), 'error' => true );
+		}
+
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only result flag.
+		if ( isset( $_GET['sufm_takedown_denied'] ) ) {
+			return array( 'message' => __( '你没有删除文件的权限，本次未下架任何文件。', 'sakura-imgopt' ), 'error' => true );
+		}
+
+		return null;
+	}
 	public function render_bulk_notice(): void {
 		if ( ! current_user_can( 'upload_files' ) ) {
 			return;
@@ -1314,7 +1681,7 @@ final class Media_Hooks {
 					esc_html(
 						sprintf(
 							/* translators: %d: number of managed attachments. */
-							__( '有 %d 个文件属于“用户文件空间”，不能从媒体库直接删除。请让文件所有者到用户中心提交删除申请，管理员在“樱花工具箱 → 文件管理”批准并执行。', 'sakura-imgopt' ),
+							__( '有 %d 个文件属于“用户文件空间”，不能从媒体库直接删除。请到“用户中心 → 文件空间”提交删除申请，管理员批准后执行。', 'sakura-imgopt' ),
 							$delete_blocked
 						)
 					),
@@ -1538,6 +1905,232 @@ final class Media_Hooks {
 		if ( $ids ) {
 			$this->prime_summaries( $ids );
 		}
+	}
+
+	/**
+	 * Resolve the cloud state for every attachment on the current list page.
+	 */
+	private function prime_cloud_states(): void {
+		if ( $this->cloud_primed ) {
+			return;
+		}
+
+		$this->cloud_primed = true;
+		$ids                = $this->list_attachment_ids();
+
+		if ( $ids ) {
+			$this->resolve_cloud_states( $ids );
+		}
+	}
+
+	/**
+	 * Classify the cloud state of a batch of attachments.
+	 *
+	 * One meta cache prime, one batched confirmation and one grouped queue
+	 * query per page: the column must not turn a 100-row list into 300 queries.
+	 * Everything this needs comes from the sync index the sync center already
+	 * reads, so the two screens cannot disagree about "synced".
+	 *
+	 * @param array<int, int> $attachment_ids Attachment IDs.
+	 */
+	private function resolve_cloud_states( array $attachment_ids ): void {
+		$ids = $this->normalize_ids( $attachment_ids );
+		if ( ! $ids ) {
+			return;
+		}
+
+		$pending = array();
+		foreach ( $ids as $id ) {
+			if ( ! array_key_exists( $id, $this->cloud_states ) ) {
+				$pending[] = $id;
+			}
+		}
+
+		if ( ! $pending ) {
+			return;
+		}
+
+		if ( ! class_exists( Bucket_Confirmation::class ) ) {
+			foreach ( $pending as $id ) {
+				$this->cloud_states[ $id ] = Cloud_State::classify( array(), array(), null, false );
+			}
+
+			return;
+		}
+
+		update_meta_cache( 'post', $pending );
+
+		$objects = array();
+		$all     = array();
+
+		foreach ( $pending as $id ) {
+			$keys           = array_map( 'strval', $this->sync_status()->objects( $id ) );
+			$keys           = array_values(
+				array_filter(
+					$keys,
+					static function ( string $key ): bool {
+						return '' !== $key;
+					}
+				)
+			);
+			$objects[ $id ] = $keys;
+
+			foreach ( $keys as $key ) {
+				$all[ $key ] = $key;
+			}
+		}
+
+		$confirmation = $this->confirmation();
+		$can_confirm  = $confirmation->available();
+		$confirmed    = array();
+
+		if ( $can_confirm && $all ) {
+			$confirmed = $confirmation->confirms_many( array_values( $all ) );
+		}
+
+		$deletes = $this->delete_jobs()->states_for( $pending );
+
+		foreach ( $pending as $id ) {
+			$delete                     = isset( $deletes[ $id ] ) && is_array( $deletes[ $id ] ) ? $deletes[ $id ] : null;
+			$this->cloud_states[ $id ] = Cloud_State::classify( $objects[ $id ], $confirmed, $delete, $can_confirm );
+		}
+	}
+
+	/**
+	 * Print the cloud state cell.
+	 *
+	 * @param int $post_id Attachment ID.
+	 */
+	private function render_cloud_column( int $post_id ): void {
+		$this->prime_cloud_states();
+
+		if ( ! array_key_exists( $post_id, $this->cloud_states ) ) {
+			$this->resolve_cloud_states( array( $post_id ) );
+		}
+
+		$state = $this->cloud_states[ $post_id ] ?? Cloud_State::classify( array(), array(), null, false );
+		$key   = (string) ( $state['state'] ?? Cloud_State::UNKNOWN );
+		$label = self::cloud_label( $key, (int) ( $state['confirmed'] ?? 0 ), (int) ( $state['total'] ?? 0 ), (int) ( $state['count'] ?? 0 ) );
+		$title = self::cloud_title( $key, $state );
+
+		printf(
+			'<span class="sufm-cloud sufm-cloud--%s" title="%s">%s</span>',
+			esc_attr( $key ),
+			esc_attr( $title ),
+			esc_html( $label )
+		);
+	}
+
+	/**
+	 * Human label of one cloud state.
+	 *
+	 * @param string $state     One of the Cloud_State constants.
+	 * @param int    $confirmed Confirmed object count.
+	 * @param int    $total     Recorded object count.
+	 * @param int    $count     Queued delete task count.
+	 * @return string
+	 */
+	public static function cloud_label( string $state, int $confirmed = 0, int $total = 0, int $count = 0 ): string {
+		switch ( $state ) {
+			case Cloud_State::SYNCED:
+				return __( '已同步', 'sakura-imgopt' );
+			case Cloud_State::PARTIAL:
+				return sprintf(
+					/* translators: 1: confirmed object count, 2: recorded object count */
+					__( '部分同步 %1$d/%2$d', 'sakura-imgopt' ),
+					$confirmed,
+					$total
+				);
+			case Cloud_State::PENDING:
+				return __( '待上传', 'sakura-imgopt' );
+			case Cloud_State::DELETING:
+				return $count > 1
+					? sprintf(
+						/* translators: %d: queued delete task count */
+						__( '删除中（%d 项）', 'sakura-imgopt' ),
+						$count
+					)
+					: __( '删除中', 'sakura-imgopt' );
+			case Cloud_State::FAILED:
+				return __( '删除失败', 'sakura-imgopt' );
+			case Cloud_State::LOCAL:
+				return __( '仅本地', 'sakura-imgopt' );
+			default:
+				return __( '未知', 'sakura-imgopt' );
+		}
+	}
+
+	/**
+	 * Tooltip for one cloud state: counts and the last queue error only.
+	 *
+	 * @param string               $state Classified state.
+	 * @param array<string, mixed> $row   Classifier result.
+	 * @return string
+	 */
+	private static function cloud_title( string $state, array $row ): string {
+		$error = trim( (string) ( $row['error'] ?? '' ) );
+
+		if ( Cloud_State::FAILED === $state && '' !== $error ) {
+			return mb_substr( $error, 0, 120 );
+		}
+
+		if ( Cloud_State::SYNCED === $state ) {
+			return __( '云端与本地一致', 'sakura-imgopt' );
+		}
+
+		if ( Cloud_State::LOCAL === $state ) {
+			return __( '没有云端对象记录，只存在于本站', 'sakura-imgopt' );
+		}
+
+		if ( Cloud_State::UNKNOWN === $state ) {
+			return __( '同步索引未启用，无法确认云端状态', 'sakura-imgopt' );
+		}
+
+		return sprintf(
+			/* translators: 1: confirmed object count, 2: recorded object count */
+			__( '已确认 %1$d / %2$d 个云端对象', 'sakura-imgopt' ),
+			(int) ( $row['confirmed'] ?? 0 ),
+			(int) ( $row['total'] ?? 0 )
+		);
+	}
+
+	/**
+	 * Bucket confirmation service (first use builds it).
+	 *
+	 * @return Bucket_Confirmation
+	 */
+	private function confirmation(): Bucket_Confirmation {
+		if ( null === $this->confirmation ) {
+			$this->confirmation = new Bucket_Confirmation();
+		}
+
+		return $this->confirmation;
+	}
+
+	/**
+	 * Attachment sync state (first use builds it).
+	 *
+	 * @return Sync_Status
+	 */
+	private function sync_status(): Sync_Status {
+		if ( null === $this->sync_status ) {
+			$this->sync_status = new Sync_Status();
+		}
+
+		return $this->sync_status;
+	}
+
+	/**
+	 * Remote delete queue (first use builds it).
+	 *
+	 * @return Delete_Jobs
+	 */
+	private function delete_jobs(): Delete_Jobs {
+		if ( null === $this->delete_jobs ) {
+			$this->delete_jobs = new Delete_Jobs();
+		}
+
+		return $this->delete_jobs;
 	}
 
 	/**
@@ -2139,7 +2732,10 @@ final class Media_Hooks {
 		$rows = $wpdb->get_results( $wpdb->prepare( $file_sql, $check ) );
 
 		foreach ( is_array( $rows ) ? $rows : array() as $row ) {
-			if ( Files::SOURCE === (string) $row->source && 'purged' !== (string) $row->lifecycle ) {
+			// Same rule as the single-item gate: any charged ledger row counts,
+			// whether it came from the user space or was adopted from the media
+			// library, because both are settled by the plugin.
+			if ( 'purged' !== (string) $row->lifecycle ) {
 				return true;
 			}
 		}
@@ -2154,6 +2750,24 @@ final class Media_Hooks {
 		return new WP_Error(
 			'sufm_managed',
 			__( '你没有直接删除该文件的权限。请提交删除申请，等待管理员批准执行；管理员可直接在媒体库删除。', 'sakura-imgopt' ),
+			array( 'status' => 409 )
+		);
+	}
+
+	/**
+	 * Answer for a file whose deletion is already in flight.
+	 *
+	 * Distinct from {@see self::managed_error()}: the actor may well have the
+	 * right to delete this file, it is simply being removed right now by an
+	 * approved request. "No permission" here would send the operator to file a
+	 * second request for a file that is already on its way out.
+	 *
+	 * @return WP_Error
+	 */
+	private function deleting_error(): WP_Error {
+		return new WP_Error(
+			'sufm_deleting',
+			__( '该文件正在删除中，请稍后刷新查看结果。', 'sakura-imgopt' ),
 			array( 'status' => 409 )
 		);
 	}

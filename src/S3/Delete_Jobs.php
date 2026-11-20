@@ -243,6 +243,75 @@ final class Delete_Jobs {
 	}
 
 	/**
+	 * Queue state per attachment, for read-only display.
+	 *
+	 * One grouped query answers the whole media-list page. The strongest state
+	 * wins: a dead row means the object may still be in the bucket even after
+	 * its attachment row is gone, so it must not be hidden behind a pending
+	 * retry of another key.
+	 *
+	 * @param array<int, int> $attachment_ids Attachment ids.
+	 * @return array<int, array{state: string, count: int, last_error: string}>
+	 */
+	public function states_for( array $attachment_ids ): array {
+		global $wpdb;
+
+		$ids = array();
+		foreach ( $attachment_ids as $attachment_id ) {
+			$attachment_id = (int) $attachment_id;
+			if ( $attachment_id > 0 ) {
+				$ids[ $attachment_id ] = $attachment_id;
+			}
+		}
+
+		if ( ! $ids ) {
+			return array();
+		}
+
+		$placeholders = implode( ',', array_fill( 0, count( $ids ), '%d' ) );
+		$sql          = "SELECT attachment_id, state, COUNT(*) AS row_count, MAX(last_error) AS last_error FROM {$this->table} WHERE attachment_id IN ({$placeholders}) GROUP BY attachment_id, state";
+
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Prepared below.
+		$rows = $wpdb->get_results( $wpdb->prepare( $sql, array_values( $ids ) ) );
+
+		$rank   = array(
+			'queued'  => 1,
+			'running' => 2,
+			'dead'    => 3,
+		);
+		$states = array();
+
+		foreach ( is_array( $rows ) ? $rows : array() as $row ) {
+			$attachment_id = (int) ( $row->attachment_id ?? 0 );
+			$state         = sanitize_key( (string) ( $row->state ?? '' ) );
+
+			if ( $attachment_id <= 0 || ! isset( $rank[ $state ] ) ) {
+				continue;
+			}
+
+			$count = max( 0, (int) ( $row->row_count ?? 0 ) );
+
+			if ( ! isset( $states[ $attachment_id ] ) ) {
+				$states[ $attachment_id ] = array(
+					'state'      => $state,
+					'count'      => $count,
+					'last_error' => (string) ( $row->last_error ?? '' ),
+				);
+				continue;
+			}
+
+			$states[ $attachment_id ]['count'] += $count;
+
+			if ( $rank[ $state ] > $rank[ $states[ $attachment_id ]['state'] ] ) {
+				$states[ $attachment_id ]['state']      = $state;
+				$states[ $attachment_id ]['last_error'] = (string) ( $row->last_error ?? '' );
+			}
+		}
+
+		return $states;
+	}
+
+	/**
 	 * Drop every queued delete for one profile (R8 step 3).
 	 *
 	 * Deleting a configuration has to take its queue with it: the rows name keys

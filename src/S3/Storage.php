@@ -229,6 +229,21 @@ final class Storage implements Module {
 	 */
 	public function delete_remote_attachment( $attachment_id ): void {
 		$attachment_id = (int) $attachment_id;
+
+		/**
+		 * Let the caller remove the objects itself.
+		 *
+		 * The sync centre deletes synchronously and proves the objects are gone
+		 * before it reports success; queueing the same keys behind it would only
+		 * add a pending job for objects that no longer exist. The caller owns
+		 * the retry in that case, so the recorded keys are cleared here.
+		 */
+		if ( (bool) apply_filters( 'sufm_skip_remote_enqueue', false, $attachment_id ) ) {
+			$this->status->clear( $attachment_id );
+
+			return;
+		}
+
 		$keys          = $this->status->objects( $attachment_id );
 
 		if ( ! $keys ) {

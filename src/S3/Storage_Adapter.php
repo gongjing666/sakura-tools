@@ -202,6 +202,46 @@ final class Storage_Adapter {
 	}
 
 	/**
+	 * Round-trip time to the configured bucket, in milliseconds.
+	 *
+	 * One LIST with max-keys=1 is the cheapest signed request that exercises the
+	 * whole chain a user cares about — DNS, TLS, signature, bucket policy — while
+	 * staying inside the read permission every deployment already has. Probing a
+	 * guessed key with HEAD would answer 404 on an empty bucket, and a 404 takes
+	 * extra bookkeeping to tell apart from a broken endpoint.
+	 *
+	 * @return int|\WP_Error Milliseconds, or the transport error.
+	 */
+	public function probe_latency() {
+		try {
+			$store = $this->store();
+		} catch ( \Throwable $e ) {
+			return new \WP_Error( 'sakura_s3_probe_failed', $e->getMessage() );
+		}
+
+		/*
+		 * Warm-up, not measured: the first call in a request also pays for the
+		 * short-lived credential exchange (multiple seconds on a cold cache).
+		 * Billing that to the bucket would paint the dot red for something the
+		 * bucket had nothing to do with.
+		 */
+		$warm = $store->list_objects( '', 1 );
+
+		if ( is_wp_error( $warm ) ) {
+			return $warm;
+		}
+
+		$started = microtime( true );
+		$result  = $store->list_objects( '', 1 );
+
+		if ( is_wp_error( $result ) ) {
+			return $result;
+		}
+
+		return (int) round( ( microtime( true ) - $started ) * 1000 );
+	}
+
+	/**
 	 * Normalize an object key.
 	 *
 	 * @param string $key Raw key.
@@ -380,6 +420,46 @@ final class Storage_Adapter {
 			return true;
 		} catch ( \Throwable $e ) {
 			return new \WP_Error( 'sakura_s3_delete_failed', $e->getMessage() );
+		}
+	}
+
+	/**
+	 * Which of these keys still exist in the bucket.
+	 *
+	 * Deleting an object is not proof it is gone: the provider answers a
+	 * delete without confirming the result. Callers that promise the operator
+	 * "已删除" use this to prove it, and a failed check is returned as an error
+	 * rather than an empty list so it can never read as success.
+	 *
+	 * @param string[] $keys Keys.
+	 * @return string[]|\WP_Error Remaining keys, or an error when the check failed.
+	 */
+	public function objects_exist( array $keys ) {
+		$keys = array_values( array_filter( array_map( array( $this, 'normalize_key' ), $keys ) ) );
+		if ( ! $keys ) {
+			return array();
+		}
+
+		try {
+			$store = $this->store();
+
+			$remaining = array();
+
+			foreach ( $keys as $key ) {
+				$exists = $store->object_exists( (string) $key );
+
+				if ( is_wp_error( $exists ) ) {
+					return $exists;
+				}
+
+				if ( true === $exists ) {
+					$remaining[] = (string) $key;
+				}
+			}
+
+			return $remaining;
+		} catch ( \Throwable $e ) {
+			return new \WP_Error( 'sakura_s3_head_failed', $e->getMessage() );
 		}
 	}
 

@@ -848,4 +848,44 @@ final class Object_Store {
 			return new \WP_Error( 'sio_delete_uncertain', $e->getMessage() );
 		}
 	}
+
+	/**
+	 * Whether one object still exists in the bucket.
+	 *
+	 * A 404 is the only answer that means "gone"; any other failure is returned
+	 * as an error so a caller never mistakes a network problem for a completed
+	 * delete.
+	 *
+	 * @param string $key Normalized object key.
+	 * @return bool|\WP_Error
+	 */
+	public function object_exists( string $key ) {
+		if ( '' === $key ) {
+			return false;
+		}
+
+		try {
+			$options = (array) call_user_func( $this->options );
+			$client  = call_user_func( $this->client );
+
+			$client->headObject(
+				array(
+					'Bucket' => (string) ( $options['bucket'] ?? '' ),
+					'Key'    => $key,
+				)
+			);
+
+			return true;
+		} catch ( \Sakura\Vendor\Aws\S3\Exception\S3Exception $e ) {
+			$missing = 404 === (int) $e->getStatusCode();
+
+			if ( ! $missing ) {
+				$missing = in_array( (string) $e->getAwsErrorCode(), array( 'NoSuchKey', 'NotFound' ), true );
+			}
+
+			return $missing ? false : new \WP_Error( 'sio_head_failed', $e->getMessage() );
+		} catch ( \Throwable $e ) {
+			return new \WP_Error( 'sio_head_failed', $e->getMessage() );
+		}
+	}
 }

@@ -233,6 +233,9 @@ final class Delete_Worker implements Module {
 			if ( $this->deletes->complete( $id, $claim_token ) ) {
 				do_action( 'sakura_imgopt_s3_log', sprintf( '[delete queue] removed orphan %s', $key ) );
 			}
+			// The index row still says the object is cloud-only until the next
+			// full scan; let the sync side drop it now that the copy is gone.
+			do_action( 'sakura_imgopt_s3_object_deleted', $key, $profile_id );
 			return;
 		}
 		$error  = $result instanceof \WP_Error ? $result->get_error_message() : __( '远端对象删除失败（未返回具体原因）。', 'sakura-imgopt' );

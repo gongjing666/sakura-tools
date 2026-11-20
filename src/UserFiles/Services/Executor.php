@@ -70,20 +70,29 @@ final class Executor {
 	private Notifier $notifier;
 
 	/**
+	 * Deletion kernel; built on demand when the module did not inject one.
+	 *
+	 * @var Deletion|null
+	 */
+	private ?Deletion $deletion;
+
+	/**
 	 * Wire dependencies.
 	 *
-	 * @param Files    $files    Files.
-	 * @param Folders  $folders  Folders.
-	 * @param Requests $requests Requests.
-	 * @param Quota    $quota    Quota.
-	 * @param Notifier $notifier Notifications.
+	 * @param Files         $files    Files.
+	 * @param Folders       $folders  Folders.
+	 * @param Requests      $requests Requests.
+	 * @param Quota         $quota    Quota.
+	 * @param Notifier      $notifier Notifications.
+	 * @param Deletion|null $deletion Deletion kernel.
 	 */
-	public function __construct( Files $files, Folders $folders, Requests $requests, Quota $quota, Notifier $notifier ) {
+	public function __construct( Files $files, Folders $folders, Requests $requests, Quota $quota, Notifier $notifier, ?Deletion $deletion = null ) {
 		$this->files    = $files;
 		$this->folders  = $folders;
 		$this->requests = $requests;
 		$this->quota    = $quota;
 		$this->notifier = $notifier;
+		$this->deletion = $deletion;
 	}
 
 	/**
@@ -669,16 +678,10 @@ final class Executor {
 		}
 
 		if ( $is_media ) {
-			$allow = static function () {
-				return true;
-			};
+			$failure = $this->remove_via_kernel( $file, $request );
 
-			add_filter( 'sufm_allow_attachment_delete', $allow, 99 );
-			wp_delete_attachment( (int) $file->attachment_id, true );
-			remove_filter( 'sufm_allow_attachment_delete', $allow, 99 );
-
-			if ( get_post( (int) $file->attachment_id ) ) {
-				$this->update_item( (int) $item->id, 'failed', 'attachment_kept' );
+			if ( '' !== $failure ) {
+				$this->update_item( (int) $item->id, 'failed', $failure );
 
 				return false;
 			}
@@ -751,23 +754,75 @@ final class Executor {
 			}
 		}
 
-		$allow = static function () {
-			return true;
-		};
+		$failure = $this->remove_via_kernel( $file, $request );
 
-		add_filter( 'sufm_allow_attachment_delete', $allow, 99 );
-
-		wp_delete_attachment( (int) $file->attachment_id, true );
-
-		remove_filter( 'sufm_allow_attachment_delete', $allow, 99 );
-
-		if ( get_post( (int) $file->attachment_id ) ) {
-			$this->update_item( (int) $item->id, 'failed', 'attachment_kept' );
+		if ( '' !== $failure ) {
+			$this->update_item( (int) $item->id, 'failed', $failure );
 
 			return false;
 		}
 
 		return $this->complete_purge( $item, $request, $file );
+	}
+
+	/**
+	 * Remove the attachment through the plugin's single deletion kernel.
+	 *
+	 * The executor owns the request item, its lease and the batch accounting;
+	 * the kernel owns the ordering (claim the ledger row, remove the attachment,
+	 * write the audit event, settle the charge). Both write to the same ledger,
+	 * which is exactly the point: the media library, the sync centre and the
+	 * approved request cannot drift apart into three different orders again.
+	 *
+	 * @param object $file    File row.
+	 * @param object $request Request row.
+	 * @return string Empty when the attachment is gone, otherwise the failure code to record.
+	 */
+	private function remove_via_kernel( object $file, object $request ): string {
+		$ctx = new Deletion_Context(
+			Deletion_Context::MODE_FULL,
+			(int) $request->executor_id,
+			Deletion::REASON_REQUEST,
+			false,
+			false,
+			Deletion::VIA_EXECUTOR,
+			true
+		);
+
+		$result = $this->deletion()->delete(
+			array(
+				array(
+					'attachment_id' => (int) $file->attachment_id,
+					'file_id'       => (int) $file->id,
+				),
+			),
+			$ctx
+		);
+
+		if ( $result->deleted() || Deletion_Result::MISSING === $result->first_status() ) {
+			return '';
+		}
+
+		if ( Deletion_Result::IN_PROGRESS === $result->first_status() ) {
+			return 'attachment_busy';
+		}
+
+		$error = (string) $result->first_error();
+
+		return '' !== $error ? $error : 'attachment_kept';
+	}
+
+	/**
+	 * Deletion kernel, built with this executor's dependencies when absent.
+	 *
+	 * @return Deletion
+	 */
+	private function deletion(): Deletion {
+		if ( ! $this->deletion ) {
+			$this->deletion = new Deletion( $this->files, $this->quota );
+		}
+
+		return $this->deletion;
 	}
 
 	/**

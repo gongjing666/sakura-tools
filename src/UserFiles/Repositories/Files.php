@@ -34,6 +34,29 @@ final class Files {
 	public const SOURCE_MEDIA = 'media';
 
 	/**
+	 * Row is live: listed to the owner, counted against the quota.
+	 */
+	public const LIFECYCLE_ACTIVE = 'active';
+
+	/**
+	 * A plugin worker claimed the row and is deleting it.
+	 *
+	 * The claim is what lets the deletion kernel refuse a second concurrent
+	 * delete as `in_progress` instead of racing the same files twice.
+	 */
+	public const LIFECYCLE_DELETING = 'deleting';
+
+	/**
+	 * Row is settled: the charge is released and the row is audit history.
+	 */
+	public const LIFECYCLE_PURGED = 'purged';
+
+	/**
+	 * Storage marker written next to `purged` once the local file is gone.
+	 */
+	public const STORAGE_DELETED = 'deleted';
+
+	/**
 	 * MIME type groups used by the type tabs.
 	 *
 	 * @return array<string, array<int, string>>

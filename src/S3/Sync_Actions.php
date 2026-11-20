@@ -9,6 +9,11 @@ declare( strict_types=1 );
 
 namespace Sakura\ImageOptimizer\S3;
 
+use Nboke\UserFiles\Repositories\Files;
+use Nboke\UserFiles\Services\Deletion;
+use Nboke\UserFiles\Services\Deletion_Context;
+use Nboke\UserFiles\Services\Deletion_Result;
+
 defined( 'ABSPATH' ) || exit;
 
 /**
@@ -172,13 +177,96 @@ final class Sync_Actions {
 	}
 
 	/**
-	 * Delete one cloud object.
+	 * Delete one object through the plugin's deletion kernel.
 	 *
-	 * @param string $key Object key.
+	 * The sync centre is the one caller that can finish a delete inside the
+	 * request: objects are removed synchronously and proven gone before the row
+	 * says 已删除. When the key still belongs to an active ledger row the whole
+	 * attachment goes (D7) — leaving the attachment behind while its objects
+	 * vanish is exactly the "文件没了库还在" state the kernel exists to prevent.
+	 * Orphan keys, thumbnails of unmanaged uploads and rows whose ledger entry
+	 * is already settled are cloud-only.
+	 *
+	 * @param string $key      Object key.
+	 * @param int    $actor_id Acting user id (0 for the queue worker).
 	 * @return true|\WP_Error
 	 */
-	public function delete( string $key ) {
-		return $this->adapter->delete_keys( array( $key ) );
+	public function delete( string $key, int $actor_id = 0 ) {
+		$key = $this->adapter->normalize_key( $key );
+
+		if ( ! is_string( $key ) || '' === $key ) {
+			return new \WP_Error( 'sakura_s3_invalid_key', __( '对象 Key 无效。', 'sakura-imgopt' ) );
+		}
+
+		/* The storage module works on its own: when the user file space is not
+		 * loaded there is no ledger to settle and a plain object delete is the
+		 * whole job. */
+		if ( ! class_exists( Deletion::class ) || ! class_exists( Files::class ) ) {
+			return $this->adapter->delete_keys( array( $key ) );
+		}
+
+		$attachment = $this->adapter->attachment_id_for_key( $key );
+		$mode       = $this->removes_attachment( $attachment ) ? Deletion_Context::MODE_FULL : Deletion_Context::MODE_REMOTE_ONLY;
+
+		$ctx = new Deletion_Context(
+			$mode,
+			$actor_id,
+			Deletion::REASON_OPERATOR,
+			true,
+			false,
+			Deletion::VIA_PLUGIN
+		);
+
+		$result = ( new Deletion( new Files() ) )->delete(
+			array(
+				array(
+					'key'           => $key,
+					'attachment_id' => $attachment,
+				),
+			),
+			$ctx
+		);
+
+		$status = $result->first_status();
+
+		if ( Deletion_Result::DELETED === $status || Deletion_Result::MISSING === $status ) {
+			return true;
+		}
+
+		$error = $result->first_error();
+
+		return new \WP_Error(
+			'sakura_s3_delete_failed',
+			'' !== $error ? $error : $result->message()
+		);
+	}
+
+	/**
+	 * Whether this attachment still has to be removed along with its objects.
+	 *
+	 * An `active` ledger row means the file counts against a user's quota, and a
+	 * `deleting` row means something already claimed the removal: both must go
+	 * through the kernel so the second caller is told "in progress" instead of
+	 * deleting the cloud copy behind the first caller's back. A settled row is
+	 * already accounted for, and a row without any ledger entry never was, so
+	 * both of those may lose their objects without touching the media library
+	 * record.
+	 *
+	 * @param int $attachment_id Attachment ID.
+	 * @return bool
+	 */
+	public function removes_attachment( int $attachment_id ): bool {
+		if ( $attachment_id <= 0 || ! class_exists( Files::class ) ) {
+			return false;
+		}
+
+		$file = ( new Files() )->get_by_attachment( $attachment_id );
+
+		if ( ! $file ) {
+			return false;
+		}
+
+		return in_array( (string) $file->lifecycle, array( Files::LIFECYCLE_ACTIVE, Files::LIFECYCLE_DELETING ), true );
 	}
 
 	/**

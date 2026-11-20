@@ -1,0 +1,1465 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>樱花工具箱 · S3 同步中心（视觉稿）</title>
+<!--
+  静态视觉稿：插件后台「对象存储 → 同步中心」整页。
+  数据取自 1.28.5 生产页（135 文件 / 45.73 MB / 100% 覆盖 / 0 差异 / 队列 0）。
+  方向：樱前线（さくらぜんせん）—— 本地 → 云端 → 索引 三站一线，花瓣沿线推进。
+  令牌见 :root；无外链资源，花瓣/印章/吉祥物均为内联 SVG。
+-->
+<style>
+	:root {
+		--sakura: #ff8fb8;
+		--sakura-deep: #e4577f;
+		--sakura-soft: #ffe9f2;
+		--sakura-mist: #fff6fa;
+		--sky: #9dccff;
+		--sky-deep: #4a90e2;
+		--sun: #ffc85c;
+		--leaf: #58be8b;
+		--ink: #3a2333;
+		--ink-soft: #7b5a6b;
+		--ink-faint: #a98f9d;
+		--paper: #ffffff;
+		--line: #f3dbe6;
+		--shadow: 0 26px 60px -34px rgba(160, 70, 110, .38);
+		--shadow-soft: 0 14px 30px -22px rgba(160, 70, 110, .45);
+		--radius: 22px;
+		--radius-sm: 14px;
+	}
+
+	* { box-sizing: border-box; }
+
+	html { -webkit-text-size-adjust: 100%; }
+
+	body {
+		margin: 0;
+		min-height: 100%;
+		font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB",
+			"Microsoft YaHei", "Noto Sans CJK SC", "Source Han Sans SC", sans-serif;
+		color: var(--ink);
+		background-color: #ffeaf3;
+		background-image:
+			radial-gradient(1100px 520px at 82% -8%, rgba(255, 226, 240, .95), transparent 62%),
+			radial-gradient(760px 420px at 8% 4%, rgba(214, 240, 255, .8), transparent 60%),
+			linear-gradient(180deg, #fff9fc 0%, #ffeff5 46%, #ffe8f1 100%);
+		background-repeat: no-repeat;
+		background-size: cover, cover, 100% 100%;
+		line-height: 1.6;
+	}
+
+	.app {
+		max-width: 1180px;
+		margin: 0 auto;
+		padding: 34px 30px 64px;
+		position: relative;
+	}
+
+	/* ── 页头 ─────────────────────────────────────────────── */
+
+	.masthead {
+		display: flex;
+		align-items: center;
+		gap: 12px;
+		flex-wrap: wrap;
+	}
+
+	.mark {
+		width: 38px;
+		height: 38px;
+		border-radius: 13px;
+		display: grid;
+		place-items: center;
+		background: linear-gradient(140deg, #fff, var(--sakura-soft));
+		box-shadow: 0 10px 22px -14px rgba(231, 90, 139, .8), inset 0 0 0 1px rgba(255, 255, 255, .9);
+	}
+
+	.masthead__name {
+		font-size: 17px;
+		font-weight: 800;
+		letter-spacing: .01em;
+	}
+
+	.masthead__crumb {
+		color: var(--ink-faint);
+		font-weight: 700;
+	}
+
+	.masthead__version {
+		font-size: 11.5px;
+		color: var(--ink-faint);
+		padding: 3px 9px;
+		border-radius: 999px;
+		background: rgba(255, 255, 255, .7);
+		box-shadow: inset 0 0 0 1px rgba(243, 219, 230, .9);
+	}
+
+	.masthead__bucket {
+		margin-left: auto;
+		display: inline-flex;
+		align-items: center;
+		gap: 8px;
+		padding: 7px 14px;
+		border-radius: 999px;
+		font-size: 12.5px;
+		font-weight: 700;
+		color: var(--ink-soft);
+		background: rgba(255, 255, 255, .85);
+		box-shadow: var(--shadow-soft);
+	}
+
+	.masthead__bucket i {
+		width: 7px;
+		height: 7px;
+		border-radius: 50%;
+		background: var(--leaf);
+		box-shadow: 0 0 0 4px rgba(88, 190, 139, .18);
+	}
+
+	.tabs {
+		display: flex;
+		gap: 8px;
+		flex-wrap: wrap;
+		margin: 18px 0 0;
+	}
+
+	.tab {
+		appearance: none;
+		border: 0;
+		cursor: pointer;
+		font: inherit;
+		font-size: 13px;
+		font-weight: 700;
+		padding: 9px 18px;
+		border-radius: 999px;
+		color: var(--ink-soft);
+		background: rgba(255, 255, 255, .78);
+		box-shadow: inset 0 0 0 1px rgba(243, 219, 230, .95);
+		transition: transform .16s ease, box-shadow .16s ease;
+	}
+
+	.tab:hover { transform: translateY(-1px); }
+
+	.tab[aria-selected="true"] {
+		color: #fff;
+		background: linear-gradient(135deg, var(--sakura) 0%, var(--sakura-deep) 100%);
+		box-shadow: 0 12px 26px -14px rgba(231, 90, 139, .9);
+	}
+
+	/* ── 樱前线 ───────────────────────────────────────────── */
+
+	.hero { position: relative; margin-top: 30px; }
+
+	.hero::after {
+		content: "";
+		position: absolute;
+		right: -6px;
+		top: 0;
+		width: 220px;
+		height: 170px;
+		pointer-events: none;
+		background-image: radial-gradient(rgba(231, 90, 139, .26) 1.6px, transparent 1.7px);
+		background-size: 11px 11px;
+		-webkit-mask-image: radial-gradient(closest-side at 66% 34%, #000 0%, transparent 78%);
+		mask-image: radial-gradient(closest-side at 66% 34%, #000 0%, transparent 78%);
+		opacity: .7;
+	}
+
+	.stamp {
+		position: absolute;
+		right: 4px;
+		top: 4px;
+		width: 112px;
+		height: 112px;
+		transform: rotate(7deg);
+		opacity: .92;
+		filter: drop-shadow(0 12px 22px rgba(231, 90, 139, .18));
+	}
+
+	.sparkle {
+		position: absolute;
+		left: 322px;
+		top: 26px;
+		color: var(--sun);
+		filter: drop-shadow(0 2px 4px rgba(255, 168, 88, .45));
+	}
+
+	h1 {
+		margin: 0;
+		font-size: clamp(34px, 5vw, 56px);
+		line-height: 1.02;
+		letter-spacing: -.02em;
+		font-weight: 900;
+	}
+
+	.hero__tag {
+		display: block;
+		margin-top: 6px;
+		font-size: clamp(19px, 2.4vw, 27px);
+		line-height: 1.3;
+		font-weight: 800;
+	}
+
+	.hero__tag i {
+		font-style: normal;
+		color: transparent;
+		background: linear-gradient(96deg, #ff6fa5 0%, var(--sakura-deep) 46%, #ff9f68 100%);
+		-webkit-background-clip: text;
+		background-clip: text;
+	}
+
+	.hero__tag::before {
+		content: "";
+		display: inline-block;
+		width: 22px;
+		height: 1px;
+		margin-right: 10px;
+		vertical-align: 6px;
+		background: var(--sakura-deep);
+		opacity: .45;
+	}
+
+	.hero p {
+		margin: 14px 0 0;
+		max-width: 620px;
+		font-size: 14.5px;
+		color: var(--ink-soft);
+	}
+
+	.front { position: relative; margin: 10px 0 0; padding: 4px 4px 0; }
+
+	.front svg { display: block; width: 100%; height: auto; }
+
+	.front__caption {
+		display: flex;
+		justify-content: space-between;
+		align-items: baseline;
+		gap: 12px;
+		flex-wrap: wrap;
+		font-size: 12px;
+		color: var(--ink-faint);
+		margin-top: 4px;
+	}
+
+	.stations { display: none; margin: 16px 0 2px; padding: 0; list-style: none; position: relative; }
+
+	.stations li {
+		position: relative;
+		display: flex;
+		align-items: baseline;
+		gap: 10px;
+		padding: 9px 0 9px 26px;
+	}
+
+	.stations li::before {
+		content: "";
+		position: absolute;
+		left: 5px;
+		top: 15px;
+		width: 10px;
+		height: 10px;
+		border-radius: 50%;
+		background: #fff;
+		box-shadow: 0 0 0 3px var(--sakura), 0 0 0 6px rgba(255, 143, 184, .18);
+	}
+
+	.stations li + li::after {
+		content: "";
+		position: absolute;
+		left: 9px;
+		top: -6px;
+		height: 18px;
+		border-left: 2px dashed rgba(231, 90, 139, .4);
+	}
+
+	.stations b { font-size: 21px; font-weight: 800; font-variant-numeric: tabular-nums; }
+	.stations span { font-size: 12.5px; color: var(--ink-soft); }
+
+	/* ── 数字票根 ─────────────────────────────────────────── */
+
+	.strip {
+		display: grid;
+		grid-template-columns: repeat(5, minmax(0, 1fr));
+		gap: 0;
+		margin: 22px 0 0;
+		padding: 16px 8px;
+		border-radius: var(--radius);
+		background: rgba(255, 255, 255, .82);
+		box-shadow: var(--shadow-soft);
+	}
+
+	.strip__cell {
+		padding: 4px 16px;
+		border-left: 1px dashed rgba(231, 90, 139, .22);
+	}
+
+	.strip__cell:first-child { border-left: 0; }
+
+	.strip__label {
+		font-size: 12px;
+		color: var(--ink-faint);
+		display: flex;
+		align-items: center;
+		gap: 6px;
+	}
+
+	.strip__value {
+		font-size: 26px;
+		font-weight: 900;
+		line-height: 1.15;
+		font-variant-numeric: tabular-nums;
+		margin-top: 2px;
+	}
+
+	.strip__value small { font-size: 12px; font-weight: 700; color: var(--ink-faint); margin-left: 4px; }
+
+	.strip__note { font-size: 11.5px; color: var(--ink-faint); }
+
+	.strip__value.is-ok { color: var(--leaf); }
+
+	/* ── 卡片系统 ─────────────────────────────────────────── */
+
+	.cards { display: grid; grid-template-columns: minmax(0, 1fr); gap: 20px; margin-top: 22px; }
+
+	.row2 { display: grid; gap: 20px; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); align-items: start; min-width: 0; }
+
+	.row2 > * { min-width: 0; }
+
+	.card {
+		position: relative;
+		min-width: 0;
+		padding: 26px 26px 22px;
+		border-radius: var(--radius);
+		background: var(--paper);
+		box-shadow: var(--shadow);
+	}
+
+	.card__kicker {
+		font-size: 11.5px;
+		font-weight: 800;
+		letter-spacing: .12em;
+		color: var(--sakura-deep);
+	}
+
+	.card__title {
+		margin: 6px 0 0;
+		font-size: 20px;
+		font-weight: 800;
+		letter-spacing: -.01em;
+	}
+
+	.card__desc {
+		margin: 6px 0 0;
+		font-size: 13px;
+		color: var(--ink-soft);
+		max-width: 62ch;
+	}
+
+	.card__head {
+		display: flex;
+		align-items: flex-start;
+		justify-content: space-between;
+		gap: 16px;
+		flex-wrap: wrap;
+	}
+
+	.card__body { margin-top: 18px; }
+
+	.card__foot {
+		margin-top: 18px;
+		padding-top: 14px;
+		border-top: 1px dashed var(--line);
+		display: flex;
+		align-items: center;
+		gap: 12px;
+		flex-wrap: wrap;
+	}
+
+	.card__foot .note { font-size: 12px; color: var(--ink-faint); }
+
+	/* 笔记本：忽略规则 / 核对口径 */
+
+	.card--notebook {
+		background:
+			repeating-linear-gradient(180deg, rgba(246, 214, 228, .55) 0 1px, transparent 1px 30px),
+			var(--paper);
+		padding-left: 34px;
+	}
+
+	.card--notebook::before {
+		content: "";
+		position: absolute;
+		left: 18px;
+		top: 16px;
+		bottom: 16px;
+		border-left: 1px dashed rgba(231, 90, 139, .4);
+	}
+
+	.card--notebook::after {
+		content: "";
+		position: absolute;
+		right: 30px;
+		top: -9px;
+		width: 46px;
+		height: 17px;
+		background: linear-gradient(135deg, #ffc2d8 0%, var(--sakura) 100%);
+		border-radius: 12px 4px 12px 4px;
+		opacity: .72;
+		transform: rotate(-3.5deg);
+	}
+
+	/* ── 控件 ─────────────────────────────────────────────── */
+
+	.btn {
+		appearance: none;
+		border: 0;
+		cursor: pointer;
+		font: inherit;
+		font-size: 13px;
+		font-weight: 700;
+		padding: 10px 18px;
+		border-radius: 999px;
+		display: inline-flex;
+		align-items: center;
+		gap: 8px;
+		transition: transform .16s ease, box-shadow .16s ease;
+	}
+
+	.btn:hover { transform: translateY(-1px); }
+	.btn:focus-visible { outline: 3px solid rgba(74, 168, 224, .55); outline-offset: 3px; }
+	.btn:disabled { opacity: .45; cursor: not-allowed; transform: none; }
+
+	.btn--primary {
+		color: #fff;
+		background: linear-gradient(140deg, #ff9dbf 0%, var(--sakura-deep) 82%);
+		box-shadow: 0 14px 26px -16px rgba(231, 90, 139, .95);
+	}
+
+	.btn--ghost {
+		color: var(--ink-soft);
+		background: rgba(255, 255, 255, .9);
+		box-shadow: inset 0 0 0 1.5px rgba(243, 219, 230, 1);
+	}
+
+	.btn--warn {
+		color: var(--sakura-deep);
+		background: rgba(255, 255, 255, .86);
+		box-shadow: inset 0 0 0 1.5px rgba(231, 90, 139, .38);
+	}
+
+	.btn--warn::before {
+		content: "";
+		width: 7px;
+		height: 7px;
+		border-radius: 50%;
+		background: var(--sakura-deep);
+	}
+
+	.btn--small { font-size: 12px; padding: 7px 13px; }
+
+	.field {
+		width: 100%;
+		font: inherit;
+		font-size: 13.5px;
+		padding: 12px 14px;
+		border-radius: var(--radius-sm);
+		border: 1px solid var(--line);
+		background: rgba(255, 255, 255, .92);
+		color: var(--ink);
+		resize: vertical;
+	}
+
+	.field:focus-visible { outline: 3px solid rgba(74, 168, 224, .4); outline-offset: 2px; }
+
+	.search {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		padding: 9px 14px;
+		border-radius: 999px;
+		background: rgba(255, 255, 255, .92);
+		box-shadow: inset 0 0 0 1.5px rgba(243, 219, 230, 1);
+		color: var(--ink-faint);
+		font-size: 13px;
+		min-width: 220px;
+	}
+
+	.search input {
+		border: 0;
+		background: transparent;
+		font: inherit;
+		color: var(--ink);
+		width: 100%;
+		outline: none;
+	}
+
+	/* ── 徽标 / 状态 ──────────────────────────────────────── */
+
+	.badge {
+		display: inline-flex;
+		align-items: center;
+		gap: 6px;
+		padding: 5px 12px;
+		border-radius: 999px;
+		font-size: 12px;
+		font-weight: 700;
+		background: rgba(88, 190, 139, .14);
+		color: #2f8f66;
+		white-space: nowrap;
+	}
+
+	.badge--sun { background: rgba(255, 200, 92, .18); color: #a5731a; }
+	.badge--rose { background: rgba(231, 90, 139, .12); color: var(--sakura-deep); }
+	.badge--soft { background: rgba(123, 90, 107, .1); color: var(--ink-soft); }
+
+	.badge i { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+
+	/* ── 任务中心 ─────────────────────────────────────────── */
+
+	.progress {
+		position: relative;
+		height: 24px;
+		border-radius: 999px;
+		background: linear-gradient(180deg, #ffeaf4, #ffdcec);
+		box-shadow: inset 0 1px 0 #fff, inset 0 -2px 6px rgba(231, 90, 139, .14);
+	}
+
+	.progress__bar {
+		display: block;
+		height: 100%;
+		width: var(--p, 0%);
+		border-radius: 999px;
+		position: relative;
+		background:
+			radial-gradient(120% 80% at 20% 0%, rgba(255, 255, 255, .35), transparent 60%),
+			linear-gradient(180deg, #ff9ec6 0%, #ff5f95 52%, #ef3f79 100%);
+		box-shadow: inset 0 2px 0 rgba(255, 255, 255, .5), 0 8px 18px -10px rgba(239, 63, 121, .9);
+		animation: sufm-fizz 2.8s ease-in-out infinite;
+	}
+
+	/* 液面上的一道高光 */
+	.progress__bar::after {
+		content: "";
+		position: absolute;
+		inset: 0 0 auto 0;
+		height: 46%;
+		border-radius: 999px 999px 0 0;
+		background: linear-gradient(180deg, rgba(255, 255, 255, .55), rgba(255, 255, 255, 0));
+		pointer-events: none;
+	}
+
+	/* 汽水：上升的小气泡 */
+	.progress__fizz {
+		position: absolute;
+		inset: 0;
+		border-radius: inherit;
+		pointer-events: none;
+	}
+
+	.progress__fizz i {
+		position: absolute;
+		bottom: -10px;
+		width: 6px;
+		height: 6px;
+		border-radius: 50%;
+		background: radial-gradient(circle at 32% 30%, #fff 0 46%, rgba(255, 255, 255, .7) 72%, rgba(255, 255, 255, .25) 100%);
+		box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .55);
+		opacity: 0;
+		animation: sufm-bubble 2.4s linear infinite;
+	}
+
+	/* 冒出液面的气泡：升到条外再破掉 */
+	.progress__pop {
+		position: absolute;
+		inset: 0;
+		pointer-events: none;
+	}
+
+	.progress__pop i {
+		position: absolute;
+		top: 2px;
+		width: 5px;
+		height: 5px;
+		border-radius: 50%;
+		background: radial-gradient(circle at 34% 30%, #ffe9f3 0 40%, rgba(255, 214, 232, .85) 72%, rgba(255, 214, 232, .2) 100%);
+		box-shadow: 0 0 0 1px rgba(255, 255, 255, .7);
+		opacity: 0;
+		animation: sufm-pop 2.2s ease-out infinite;
+	}
+
+	@keyframes sufm-pop {
+		0% { transform: translateY(0) scale(.45); opacity: 0; }
+		14% { opacity: .95; }
+		70% { opacity: .3; }
+		100% { transform: translateY(-26px) scale(1.15); opacity: 0; }
+	}
+
+	/* 液面薄薄一层泡沫 */
+	.progress__bar::before {
+		content: "";
+		position: absolute;
+		left: 2px;
+		right: 2px;
+		top: 1.5px;
+		height: 4px;
+		border-radius: 999px;
+		background: linear-gradient(180deg, rgba(255, 255, 255, .62), rgba(255, 255, 255, .12));
+		filter: blur(.5px);
+		animation: sufm-foam 3.4s ease-in-out infinite;
+	}
+
+	@keyframes sufm-foam {
+		0%, 100% { transform: scaleY(1); opacity: .9; }
+		50% { transform: scaleY(1.35); opacity: 1; }
+	}
+
+	@keyframes sufm-bubble {
+		0% { transform: translateY(0) scale(.45); opacity: 0; }
+		16% { opacity: .9; }
+		78% { opacity: .8; }
+		100% { transform: translateY(-26px) scale(1.05); opacity: 0; }
+	}
+
+	@keyframes sufm-fizz {
+		0%, 100% { box-shadow: inset 0 2px 0 rgba(255, 255, 255, .5), 0 8px 18px -10px rgba(239, 63, 121, .9); }
+		50% { box-shadow: inset 0 2px 0 rgba(255, 255, 255, .7), 0 10px 22px -9px rgba(239, 63, 121, 1); }
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.progress__bar,
+		.progress__bar::before,
+		.progress__fizz i,
+		.progress__pop i { animation: none; }
+		.progress__fizz,
+		.progress__pop { display: none; }
+	}
+
+	.progress__meta {
+		display: flex;
+		justify-content: space-between;
+		gap: 12px;
+		flex-wrap: wrap;
+		margin-top: 8px;
+		font-size: 12.5px;
+		color: var(--ink-soft);
+	}
+
+	.progress__meta b { color: var(--ink); }
+
+	.chart {
+		display: grid;
+		grid-template-columns: repeat(7, minmax(0, 1fr));
+		gap: 10px;
+		align-items: end;
+		margin-top: 20px;
+		padding: 14px 4px 0;
+		border-top: 1px dashed var(--line);
+	}
+
+	.chart__col {
+		display: flex;
+		flex-direction: column;
+		justify-content: flex-end;
+		align-items: center;
+		gap: 6px;
+		min-height: 96px;
+	}
+
+	.chart__stack {
+		display: flex;
+		flex-direction: column;
+		justify-content: flex-end;
+		gap: 3px;
+		width: 100%;
+		max-width: 26px;
+	}
+
+	.chart__bar {
+		border-radius: 7px;
+		background: linear-gradient(180deg, #ffb4d0, var(--sakura));
+	}
+
+	.chart__bar--bad { background: linear-gradient(180deg, #ffd3a8, #ff9f68); }
+
+	.chart__label { font-size: 11px; color: var(--ink-faint); }
+
+	/* ── 健康与分布 ───────────────────────────────────────── */
+
+	.rows { display: grid; gap: 10px; }
+
+	.rows__row {
+		display: flex;
+		justify-content: space-between;
+		gap: 14px;
+		padding-bottom: 9px;
+		border-bottom: 1px dashed rgba(243, 219, 230, .9);
+		font-size: 13px;
+	}
+
+	.rows__row:last-child { border-bottom: 0; padding-bottom: 0; }
+	.rows__row dt { color: var(--ink-faint); margin: 0; white-space: nowrap; }
+	.rows__row dd { margin: 0; font-weight: 600; text-align: right; overflow-wrap: anywhere; }
+	.rows__row dd.mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; font-weight: 500; color: var(--ink-soft); }
+
+	.donut-wrap {
+		display: flex;
+		align-items: center;
+		gap: 22px;
+		flex-wrap: wrap;
+	}
+
+	.donut {
+		width: 148px;
+		height: 148px;
+		border-radius: 50%;
+		display: grid;
+		place-items: center;
+		position: relative;
+		flex: none;
+		background: conic-gradient(
+			var(--sakura) 0 92.4%,
+			var(--sky-deep) 92.4% 96.5%,
+			var(--sun) 96.5% 99.1%,
+			#c9b6c2 99.1% 100%
+		);
+	}
+
+	.donut::before {
+		content: "";
+		position: absolute;
+		inset: 16px;
+		border-radius: 50%;
+		background: #fff;
+		box-shadow: inset 0 0 0 1px rgba(243, 219, 230, .8);
+	}
+
+	.donut__center { position: relative; text-align: center; }
+	.donut__center strong { display: block; font-size: 22px; font-weight: 900; font-variant-numeric: tabular-nums; }
+	.donut__center span { font-size: 11px; color: var(--ink-faint); }
+
+	.legend { display: grid; gap: 8px; font-size: 12.5px; min-width: 160px; }
+	.legend div { display: flex; align-items: center; gap: 8px; color: var(--ink-soft); }
+	.legend b { margin-left: auto; color: var(--ink); font-variant-numeric: tabular-nums; }
+	.legend i { width: 9px; height: 9px; border-radius: 3px; }
+
+	.mix-foot {
+		margin-top: 16px;
+		padding-top: 12px;
+		border-top: 1px dashed var(--line);
+		display: flex;
+		gap: 18px;
+		flex-wrap: wrap;
+		font-size: 12px;
+		color: var(--ink-faint);
+	}
+
+	.mix-foot strong { color: var(--ink); }
+
+	/* ── 表格 ─────────────────────────────────────────────── */
+
+	.table-wrap { overflow-x: auto; min-width: 0; max-width: 100%; }
+
+	table {
+		width: 100%;
+		border-collapse: collapse;
+		font-size: 13px;
+		min-width: 680px;
+	}
+
+	thead th {
+		text-align: left;
+		font-size: 11.5px;
+		font-weight: 700;
+		color: var(--ink-faint);
+		padding: 0 10px 9px;
+		border-bottom: 1px solid var(--line);
+		white-space: nowrap;
+	}
+
+	tbody td { padding: 11px 10px; border-bottom: 1px dashed rgba(243, 219, 230, .85); }
+	tbody tr:last-child td { border-bottom: 0; }
+
+	.empty {
+		padding: 34px 16px 30px;
+		text-align: center;
+		color: var(--ink-soft);
+	}
+
+	.empty__art { margin-bottom: 10px; }
+	.empty__title { font-weight: 800; font-size: 15px; color: var(--ink); }
+	.empty__desc { font-size: 12.5px; color: var(--ink-faint); margin-top: 4px; }
+
+	/* ── 日志 ─────────────────────────────────────────────── */
+
+	.logs { display: grid; gap: 0; }
+
+	.logs__row {
+		display: grid;
+		grid-template-columns: 92px 74px minmax(0, 1fr);
+		gap: 12px;
+		align-items: baseline;
+		padding: 11px 0;
+		border-bottom: 1px dashed rgba(243, 219, 230, .85);
+		font-size: 13px;
+	}
+
+	.logs__row:last-child { border-bottom: 0; }
+	.logs__time { color: var(--ink-faint); font-size: 12px; font-variant-numeric: tabular-nums; }
+	.logs__msg { color: var(--ink-soft); overflow-wrap: anywhere; }
+	.logs__msg b { color: var(--ink); }
+
+	/* ── 口径列表 ─────────────────────────────────────────── */
+
+	.notes { margin: 0; padding: 0; list-style: none; display: grid; gap: 9px; font-size: 13px; color: var(--ink-soft); }
+	.notes li { position: relative; padding-left: 20px; }
+	.notes li::before {
+		content: "";
+		position: absolute;
+		left: 2px;
+		top: .52em;
+		width: 8px;
+		height: 8px;
+		border-radius: 60% 0 60% 60%;
+		transform: rotate(28deg);
+		background: var(--sakura);
+		opacity: .75;
+	}
+	.notes b { color: var(--ink); }
+
+	/* ── 页脚 ─────────────────────────────────────────────── */
+
+	.footnote {
+		margin-top: 26px;
+		font-size: 12px;
+		color: var(--ink-faint);
+		display: flex;
+		gap: 18px;
+		flex-wrap: wrap;
+	}
+
+	/* ── 弹窗 ─────────────────────────────────────────────── */
+
+	.modal {
+		position: fixed;
+		inset: 0;
+		display: none;
+		place-items: center;
+		padding: 24px;
+		background: rgba(74, 43, 58, .38);
+		backdrop-filter: blur(6px);
+		z-index: 40;
+	}
+
+	.modal.is-open { display: grid; }
+
+	.modal__card {
+		width: min(560px, 100%);
+		max-height: calc(100vh - 48px);
+		overflow: auto;
+		padding: 26px 26px 22px;
+		border-radius: 26px;
+		background:
+			radial-gradient(420px 220px at 88% -10%, rgba(255, 226, 240, .9), transparent 70%),
+			#fff;
+		box-shadow: 0 40px 80px -40px rgba(74, 43, 58, .55);
+		position: relative;
+	}
+
+	.modal__close {
+		position: absolute;
+		right: 14px;
+		top: 14px;
+		width: 34px;
+		height: 34px;
+		border-radius: 50%;
+		border: 0;
+		cursor: pointer;
+		background: rgba(255, 255, 255, .9);
+		color: var(--ink-faint);
+		font-size: 17px;
+		line-height: 1;
+		box-shadow: inset 0 0 0 1px var(--line);
+	}
+
+	.modal__head { display: flex; gap: 14px; align-items: flex-start; padding-right: 34px; }
+	.modal__mascot { flex: none; margin-top: 2px; }
+	.modal__title { margin: 0; font-size: 20px; font-weight: 800; }
+	.modal__desc { margin: 6px 0 0; font-size: 13px; color: var(--ink-soft); }
+
+	.filelist { margin: 18px 0 0; padding: 10px 14px; border-radius: 16px; background: rgba(255, 246, 250, .9); box-shadow: inset 0 0 0 1px rgba(243, 219, 230, .9); }
+	.filelist__row { display: flex; align-items: center; gap: 10px; padding: 8px 0; font-size: 13px; border-bottom: 1px dashed rgba(243, 219, 230, .85); }
+	.filelist__row:last-child { border-bottom: 0; }
+	.filelist__row span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+	.filelist__row em { margin-left: auto; font-style: normal; color: var(--ink-faint); font-size: 12px; font-variant-numeric: tabular-nums; }
+
+	.warning {
+		margin-top: 14px;
+		padding: 11px 14px;
+		border-radius: 14px;
+		font-size: 12.5px;
+		line-height: 1.65;
+		color: #a33f5f;
+		background: rgba(231, 90, 139, .08);
+		box-shadow: inset 0 0 0 1px rgba(231, 90, 139, .18);
+	}
+
+	.modal__actions { margin-top: 20px; display: flex; justify-content: flex-end; gap: 10px; flex-wrap: wrap; }
+
+	.btn--danger {
+		color: #fff;
+		background: linear-gradient(140deg, #ff7fa8, #d8285c);
+		box-shadow: 0 16px 30px -18px rgba(216, 40, 92, .85);
+	}
+
+	/* ── 响应式 ───────────────────────────────────────────── */
+
+	@media (max-width: 980px) {
+		.row2 { grid-template-columns: minmax(0, 1fr); }
+		.strip { grid-template-columns: repeat(3, minmax(0, 1fr)); row-gap: 14px; }
+		.strip__cell:nth-child(4) { border-left: 0; }
+	}
+
+	@media (max-width: 720px) {
+		.app { padding: 20px 16px 52px; }
+		.front { display: none; }
+		.stations { display: block; }
+		.stamp { display: none; }
+		.sparkle { display: none; }
+		.strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+		.strip__cell { border-left: 0; }
+		.card { padding: 22px 18px 18px; }
+		.card--notebook { padding-left: 26px; }
+		.card--notebook::before { left: 12px; }
+		.card--notebook::after { right: 16px; }
+		.logs__row { grid-template-columns: 72px minmax(0, 1fr); }
+		.logs__row .badge { grid-column: 1 / -1; justify-self: start; }
+		.modal { padding: 12px; }
+		.modal__card { padding: 22px 18px 18px; }
+		.modal__actions .btn { flex: 1; }
+		.donut { width: 128px; height: 128px; }
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.tab, .btn { transition: none; }
+		.petal { animation: none !important; }
+	}
+
+	@keyframes drift {
+		0% { transform: translate3d(0, -12px, 0) rotate(0deg); opacity: 0; }
+		18% { opacity: .9; }
+		100% { transform: translate3d(26px, 190px, 0) rotate(120deg); opacity: 0; }
+	}
+
+	.petal { animation: drift 13s linear infinite; }
+	.petal:nth-of-type(2) { animation-duration: 17s; animation-delay: 3s; }
+	.petal:nth-of-type(3) { animation-duration: 21s; animation-delay: 7s; }
+</style>
+</head>
+<body>
+<div class="app">
+
+	<!-- 页头 -->
+	<div class="masthead">
+		<span class="mark" aria-hidden="true">
+			<svg width="20" height="20" viewBox="0 0 32 32"><path fill="#e4577f" d="M16 3c4.6 2.8 8.4 7.3 8.4 12.3C24.4 21.6 20.7 28 16 29.4 11.3 28 7.6 21.6 7.6 15.3 7.6 10.3 11.4 5.8 16 3z"/><path fill="#fff" d="M16 9.4c2.2 1.4 4 3.6 4 6.1 0 3-1.8 6.1-4 6.8-2.2-.7-4-3.8-4-6.8 0-2.5 1.8-4.7 4-6.1z" opacity=".85"/></svg>
+		</span>
+		<span class="masthead__name">樱花工具箱</span>
+		<span class="masthead__crumb">/ 对象存储</span>
+		<span class="masthead__version">1.28.5 · 视觉稿</span>
+		<span class="masthead__bucket"><i aria-hidden="true"></i> nboke · 多吉云连接正常</span>
+	</div>
+
+	<div class="tabs" role="tablist" aria-label="对象存储页签">
+		<button class="tab" role="tab" aria-selected="false">连接配置</button>
+		<button class="tab" role="tab" aria-selected="true">同步中心</button>
+		<button class="tab" role="tab" aria-selected="false">删除队列</button>
+		<button class="tab" role="tab" aria-selected="false">链接改写</button>
+		<button class="tab" role="tab" aria-selected="false">费用估算</button>
+	</div>
+
+	<!-- 樱前线 -->
+	<section class="hero" aria-labelledby="page-title">
+		<svg class="stamp" viewBox="0 0 120 120" aria-hidden="true">
+			<circle cx="60" cy="60" r="53" fill="rgba(255,255,255,.72)" stroke="rgba(231,90,139,.34)" stroke-width="1.6" stroke-dasharray="4 6"/>
+			<circle cx="60" cy="60" r="43" fill="none" stroke="rgba(231,90,139,.22)" stroke-width="1"/>
+			<text x="60" y="62" text-anchor="middle" font-size="35" font-weight="800" fill="#e75a8b">桜</text>
+			<text x="60" y="82" text-anchor="middle" font-size="8.5" letter-spacing="2.4" fill="#9c7a8c">SAKURA TOOLS</text>
+		</svg>
+		<svg class="sparkle" width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 .8l1.9 7.1L21 9.8l-6.2 2.6L12 19.6 9.2 12.4 3 9.8l7.1-1.9z"/></svg>
+
+		<h1 id="page-title">同步中心<span class="hero__tag"><i>樱前线已经过境</i></span></h1>
+		<p>本地媒体、云端对象与索引三条线都停在同一点上：135 个文件，45.73 MB，覆盖率 100%。没有待处理的差异，也没有卡住的删除任务。</p>
+
+		<div class="front">
+			<svg viewBox="0 0 900 150" role="img" aria-label="本地媒体 135 个文件、云端对象 135 个、已同步 100%">
+				<defs>
+					<linearGradient id="arc" x1="0" y1="0" x2="1" y2="0">
+						<stop offset="0" stop-color="#7eb6f0"/>
+						<stop offset=".42" stop-color="#c99cd8"/>
+						<stop offset=".66" stop-color="#ff9cc0"/>
+						<stop offset="1" stop-color="#ffc85c"/>
+					</linearGradient>
+					<radialGradient id="glow" cx=".5" cy=".5" r=".5">
+						<stop offset="0" stop-color="#fff4d6" stop-opacity=".95"/>
+						<stop offset="1" stop-color="#fff4d6" stop-opacity="0"/>
+					</radialGradient>
+				</defs>
+
+				<circle cx="820" cy="74" r="64" fill="url(#glow)"/>
+
+				<path d="M86 112C210 22 330 20 452 56c120 36 244 40 366 40" fill="none" stroke="url(#arc)" stroke-width="3.5" stroke-linecap="round" opacity=".55"/>
+				<path d="M86 112C210 22 330 20 452 56c120 36 244 40 366 40" fill="none" stroke="#ffb0d0" stroke-width="10" stroke-linecap="round" stroke-dasharray="2 46" opacity=".9"/>
+
+				<g class="petal" opacity=".85">
+					<path transform="translate(268 44) rotate(18)" d="M0 0c3.4 2 6 5.4 6 9.1C6 12.7 3.4 17 0 18.3-3.4 17-6 12.7-6 9.1-6 5.4-3.4 2 0 0z" fill="#ffb3d1"/>
+					<path transform="translate(636 84) rotate(-24)" d="M0 0c2.6 1.5 4.5 4.1 4.5 7 0 2.7-1.9 6-4.5 7-2.6-1-4.5-4.3-4.5-7 0-2.9 1.9-5.5 4.5-7z" fill="#ffc6db" opacity=".9"/>
+				</g>
+
+				<g>
+					<circle cx="86" cy="112" r="9" fill="#fff" stroke="#4aa8e0" stroke-width="4"/>
+					<text x="86" y="86" text-anchor="middle" font-size="32" font-weight="800" fill="#3a2333">135</text>
+					<text x="86" y="138" text-anchor="middle" font-size="12.5" fill="#7b5a6b">本地媒体 · 45.73 MB</text>
+				</g>
+
+				<g>
+					<circle cx="452" cy="56" r="9" fill="#fff" stroke="#e75a8b" stroke-width="4"/>
+					<text x="452" y="32" text-anchor="middle" font-size="32" font-weight="800" fill="#3a2333">135</text>
+					<text x="470" y="61" text-anchor="start" font-size="12.5" fill="#7b5a6b">云端对象</text>
+				</g>
+
+				<g>
+					<circle cx="818" cy="96" r="9" fill="#fff" stroke="#ffc85c" stroke-width="4"/>
+					<text x="818" y="70" text-anchor="middle" font-size="32" font-weight="800" fill="#3a2333">100%</text>
+					<text x="818" y="122" text-anchor="middle" font-size="12.5" fill="#7b5a6b">已同步</text>
+				</g>
+			</svg>
+			<div class="front__caption">
+				<span>本地 → 云端 → 索引，一条线上的三站</span>
+				<span>最近核对 11-19 18:09</span>
+			</div>
+		</div>
+
+		<ul class="stations" aria-hidden="true">
+			<li><b>135</b><span>本地媒体 · 45.73 MB</span></li>
+			<li><b>135</b><span>云端对象</span></li>
+			<li><b>100%</b><span>已同步</span></li>
+		</ul>
+	</section>
+
+	<!-- 数字票根 -->
+	<section class="strip" aria-label="同步摘要">
+		<div class="strip__cell">
+			<div class="strip__label">本地媒体</div>
+			<div class="strip__value">135<small>个文件</small></div>
+			<div class="strip__note">45.73 MB · uploads</div>
+		</div>
+		<div class="strip__cell">
+			<div class="strip__label">云端文件</div>
+			<div class="strip__value">135<small>个文件</small></div>
+			<div class="strip__note">45.73 MB · nboke</div>
+		</div>
+		<div class="strip__cell">
+			<div class="strip__label">已同步</div>
+			<div class="strip__value is-ok">100%</div>
+			<div class="strip__note">135 个文件 · 覆盖率 100%</div>
+		</div>
+		<div class="strip__cell">
+			<div class="strip__label">待处理差异</div>
+			<div class="strip__value">0<small>项</small></div>
+			<div class="strip__note">0 待上传 · 0 失败 · 0 仅云端</div>
+		</div>
+		<div class="strip__cell">
+			<div class="strip__label">失败任务</div>
+			<div class="strip__value">0<small>个</small></div>
+			<div class="strip__note">重试队列 0 个任务</div>
+		</div>
+	</section>
+
+	<div class="cards">
+
+		<div class="row2">
+			<!-- 任务中心 -->
+			<article class="card" aria-labelledby="task-title">
+				<header class="card__head">
+					<div>
+						<div class="card__kicker">TASK CENTER</div>
+						<h2 class="card__title" id="task-title">任务中心</h2>
+						<p class="card__desc">核对、重试与补传都从这里开始；失败任务保留错误与重试次数。</p>
+					</div>
+					<span class="badge"><i aria-hidden="true"></i>最近核对完成</span>
+				</header>
+
+				<div class="card__body">
+					<div class="progress" role="progressbar" aria-valuenow="100" aria-valuemin="0" aria-valuemax="100" aria-label="同步覆盖进度" data-progress="1" style="--p:100%">
+						<span class="progress__bar"><span class="progress__fizz" aria-hidden="true"></span></span>
+						<span class="progress__pop" aria-hidden="true"></span>
+					</div>
+					<div class="progress__meta">
+						<span><b>135</b> / 135 个文件 · 本地 135 · 云端 135</span>
+						<span>同步记录表 · 实时读取</span>
+					</div>
+
+					<div class="chart" aria-label="近七天文件变更">
+						<div class="chart__col"><div class="chart__stack"><span class="chart__bar" style="height:26px"></span></div><span class="chart__label">11-13</span></div>
+						<div class="chart__col"><div class="chart__stack"><span class="chart__bar" style="height:12px"></span><span class="chart__bar chart__bar--bad" style="height:5px"></span></div><span class="chart__label">11-14</span></div>
+						<div class="chart__col"><div class="chart__stack"><span class="chart__bar" style="height:38px"></span></div><span class="chart__label">11-15</span></div>
+						<div class="chart__col"><div class="chart__stack"><span class="chart__bar" style="height:18px"></span></div><span class="chart__label">11-16</span></div>
+						<div class="chart__col"><div class="chart__stack"><span class="chart__bar" style="height:52px"></span><span class="chart__bar chart__bar--bad" style="height:7px"></span></div><span class="chart__label">11-17</span></div>
+						<div class="chart__col"><div class="chart__stack"><span class="chart__bar" style="height:30px"></span></div><span class="chart__label">11-18</span></div>
+						<div class="chart__col"><div class="chart__stack"><span class="chart__bar" style="height:22px"></span></div><span class="chart__label">今天</span></div>
+					</div>
+				</div>
+
+				<div class="card__foot">
+					<button class="btn btn--primary btn--small" type="button">开始核对</button>
+					<button class="btn btn--ghost btn--small" type="button" disabled>重试失败 (0)</button>
+					<span class="note">近七天 61 正常 / 2 失败 · 已清零</span>
+				</div>
+			</article>
+
+			<!-- 连接与队列健康 -->
+			<article class="card" aria-labelledby="health-title">
+				<header class="card__head">
+					<div>
+						<div class="card__kicker">CONNECTION</div>
+						<h2 class="card__title" id="health-title">连接与队列健康</h2>
+					</div>
+					<span class="badge"><i aria-hidden="true"></i>连接正常</span>
+				</header>
+
+				<div class="card__body">
+					<dl class="rows">
+						<div class="rows__row"><dt>服务商</dt><dd>多吉云</dd></div>
+						<div class="rows__row"><dt>存储桶</dt><dd class="mono">nboke</dd></div>
+						<div class="rows__row"><dt>端点</dt><dd class="mono">cos.ap-chengdu.myqcloud.com</dd></div>
+						<div class="rows__row"><dt>媒体 URL</dt><dd class="mono">doge.nboke.com/wp-content/uploads</dd></div>
+						<div class="rows__row"><dt>最近核对</dt><dd>11-19 18:09 · 135 / 135</dd></div>
+						<div class="rows__row"><dt>重试队列</dt><dd>0 个任务 · 动作队列 0 待执行 / 0 死信</dd></div>
+						<div class="rows__row"><dt>本轮指标</dt><dd class="mono">页面 0 · 批次 0 · 均 0 ms · 429 0 · 5xx 0</dd></div>
+						<div class="rows__row"><dt>定时任务</dt><dd>已调度 · 按需执行</dd></div>
+					</dl>
+				</div>
+
+				<div class="card__foot">
+					<button class="btn btn--ghost btn--small" type="button">连接测试</button>
+					<button class="btn btn--ghost btn--small" type="button">停用同步记录</button>
+					<span class="note">同步记录表实时读取中</span>
+				</div>
+			</article>
+		</div>
+
+		<div class="row2">
+			<!-- 云端体积分布 -->
+			<article class="card" aria-labelledby="mix-title">
+				<header class="card__head">
+					<div>
+						<div class="card__kicker">STORAGE MIX</div>
+						<h2 class="card__title" id="mix-title">云端体积分布</h2>
+						<p class="card__desc">按对象类型统计云端占用；本地与云端的差额会单独列出。</p>
+					</div>
+				</header>
+
+				<div class="card__body">
+					<div class="donut-wrap">
+						<div class="donut" role="img" aria-label="云端文件体积分布"><div class="donut__center"><strong>45.73</strong><span>MB · 135 个对象</span></div></div>
+						<div class="legend">
+							<div><i style="background:var(--sakura)"></i>图片 <b>92.4%</b></div>
+							<div><i style="background:var(--sky-deep)"></i>文档 <b>4.1%</b></div>
+							<div><i style="background:var(--sun)"></i>压缩包 <b>2.6%</b></div>
+							<div><i style="background:#c9b6c2"></i>其它 <b>0.9%</b></div>
+						</div>
+					</div>
+					<div class="mix-foot">
+						<span>本地 <strong>45.73 MB</strong></span>
+						<span>云端 <strong>45.73 MB</strong></span>
+						<span>差 <strong>0 B</strong></span>
+					</div>
+				</div>
+			</article>
+
+			<!-- 同步日志 -->
+			<article class="card" aria-labelledby="log-title">
+				<header class="card__head">
+					<div>
+						<div class="card__kicker">ACTIVITY</div>
+						<h2 class="card__title" id="log-title">同步日志</h2>
+						<p class="card__desc">默认显示最近 6 条；可查询更多，完整日志可在任务详情中查看。</p>
+					</div>
+				</header>
+
+				<div class="card__body">
+					<div class="logs">
+						<div class="logs__row"><span class="logs__time">18:09</span><span class="badge badge--soft">信息</span><span class="logs__msg">核对完成：<b>135</b> 个文件一致，0 项差异</span></div>
+						<div class="logs__row"><span class="logs__time">17:52</span><span class="badge badge--soft">信息</span><span class="logs__msg">索引重建：<b>135</b> 条记录已写入</span></div>
+						<div class="logs__row"><span class="logs__time">16:20</span><span class="badge badge--sun">警告</span><span class="logs__msg">对象 <b>20261117-214958</b> 修改时间超出容差，已重传</span></div>
+						<div class="logs__row"><span class="logs__time">15:03</span><span class="badge badge--soft">信息</span><span class="logs__msg">上传完成：<b>3</b> 个对象，共 2.1 MB</span></div>
+						<div class="logs__row"><span class="logs__time">11:41</span><span class="badge badge--soft">信息</span><span class="logs__msg">删除队列处理：<b>2</b> 个对象，桶内已确认不存在</span></div>
+						<div class="logs__row"><span class="logs__time">09:18</span><span class="badge badge--soft">信息</span><span class="logs__msg">定时任务执行：增量扫描 <b>0</b> 个新文件</span></div>
+					</div>
+				</div>
+
+				<div class="card__foot">
+					<button class="btn btn--ghost btn--small" type="button">查询更多日志（还有 12 条）</button>
+				</div>
+			</article>
+		</div>
+
+		<!-- 文件核对 -->
+		<article class="card" aria-labelledby="recon-title">
+			<header class="card__head">
+				<div>
+					<div class="card__kicker">RECONCILIATION</div>
+					<h2 class="card__title" id="recon-title">文件核对（0 项差异）</h2>
+					<p class="card__desc">按对象 Key 对照本地与云端；差异不会自动删除，删除必须经过二次确认。</p>
+				</div>
+				<div style="display:flex;gap:8px;flex-wrap:wrap">
+					<label class="search"><svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M7 1a6 6 0 014.7 9.7l3.3 3.3-1.4 1.4-3.3-3.3A6 6 0 117 1zm0 2a4 4 0 100 8 4 4 0 000-8z"/></svg><input type="search" placeholder="搜索对象 Key" aria-label="搜索对象 Key"></label>
+					<button class="btn btn--ghost btn--small" type="button">导出差异表格（CSV）</button>
+				</div>
+			</header>
+
+			<div class="card__body">
+				<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:0 0 14px">
+					<div class="tabs" style="margin:0" role="tablist" aria-label="差异筛选">
+						<button class="tab" role="tab" aria-selected="true">全部（0）</button>
+						<button class="tab" role="tab" aria-selected="false">待上传（0）</button>
+						<button class="tab" role="tab" aria-selected="false">仅云端（0）</button>
+						<button class="tab" role="tab" aria-selected="false">内容不一致（0）</button>
+					</div>
+					<span style="margin-left:auto;font-size:12px;color:var(--ink-faint)">0 行 · 每页 20 条</span>
+				</div>
+
+				<div class="table-wrap">
+					<table aria-label="本地与云端文件核对">
+						<thead>
+							<tr>
+								<th scope="col" style="width:34px"><input type="checkbox" aria-label="全选当前页" disabled></th>
+								<th scope="col">文件</th>
+								<th scope="col">类型</th>
+								<th scope="col">大小</th>
+								<th scope="col">本地</th>
+								<th scope="col">云端</th>
+								<th scope="col">状态</th>
+								<th scope="col">最后变化</th>
+								<th scope="col">操作</th>
+							</tr>
+						</thead>
+					</table>
+					<div class="empty">
+						<div class="empty__art" aria-hidden="true">
+							<svg width="104" height="80" viewBox="0 0 104 80">
+								<circle cx="52" cy="40" r="27" fill="#fff0f6"/>
+								<circle cx="52" cy="40" r="19" fill="#fff" stroke="#ffc6db" stroke-width="2.5"/>
+								<path d="M44 40.5l5.4 5.4L61 34.6" fill="none" stroke="#e4577f" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/>
+								<path d="M19 22c-2.6 1.6-4.7 4.1-4.7 6.9 0 2.8 2.1 5.9 4.7 6.9 2.6-1 4.7-4.1 4.7-6.9 0-2.8-2.1-5.3-4.7-6.9z" fill="#ffb3d1"/>
+								<path d="M86 52c-2 1.2-3.6 3.2-3.6 5.3 0 2.2 1.6 4.6 3.6 5.4 2-.8 3.6-3.2 3.6-5.4 0-2.1-1.6-4.1-3.6-5.3z" fill="#ffc6db"/>
+								<path d="M80 20c-1.5.9-2.7 2.4-2.7 4 0 1.6 1.2 3.4 2.7 4 1.5-.6 2.7-2.4 2.7-4 0-1.6-1.2-3.1-2.7-4z" fill="#ffd9a6"/>
+							</svg>
+						</div>
+						<div class="empty__title">三条线没有差异</div>
+						<div class="empty__desc">本地 135 · 云端 135 · 索引 135，最后核对 11-19 18:09。有新文件后这里才会出现行。</div>
+					</div>
+				</div>
+			</div>
+
+			<div class="card__foot">
+				<span class="note">上次核对前发现 2 项差异，已全部重传并复核通过。</span>
+				<div style="margin-left:auto;display:flex;gap:8px;flex-wrap:wrap">
+					<button class="btn btn--ghost btn--small" type="button" disabled>重试选中 (0)</button>
+					<button class="btn btn--warn btn--small" type="button" id="open-modal">删除选中对象 (0)</button>
+				</div>
+			</div>
+		</article>
+
+		<!-- 忽略规则 -->
+		<article class="card card--notebook" aria-labelledby="excl-title">
+			<div class="card__kicker">EXCLUSIONS</div>
+			<h2 class="card__title" id="excl-title">忽略规则</h2>
+			<p class="card__desc">核对与迁移会跳过这些路径。每行一条，相对于 uploads 根目录；可以写目录（如 2024/05），也可以写单个文件（如 .htaccess）。清空即恢复默认规则。</p>
+
+			<div class="card__body">
+				<label class="card__desc" for="excl" style="display:block;margin:0 0 6px;font-weight:700;color:var(--ink)">忽略路径 <span style="float:right;font-weight:500;color:var(--ink-faint)">当前 5 条生效</span></label>
+				<textarea class="field" id="excl" rows="6" spellcheck="false">.htaccess
+index.php
+sakura-imgopt-backup
+zse-emoticons
+zse-smiles</textarea>
+			</div>
+
+			<div class="card__foot">
+				<span class="note">插件默认规则始终生效，这里的条目只做追加。</span>
+				<button class="btn btn--primary btn--small" type="button" style="margin-left:auto">保存规则</button>
+			</div>
+		</article>
+
+		<!-- 核对口径 -->
+		<article class="card card--notebook" aria-labelledby="notes-title">
+			<div class="card__kicker">NOTES</div>
+			<h2 class="card__title" id="notes-title">核对口径</h2>
+			<p class="card__desc">页面显示的是差异，不直接等于「未同步」。</p>
+
+			<div class="card__body">
+				<ul class="notes">
+					<li><b>已同步：</b>本地与云端 Key 存在，且大小／修改时间在容差内。</li>
+					<li><b>待上传：</b>本地有、云端无；包含排队中的任务。</li>
+					<li><b>仅云端：</b>云端有、本地无；不会自动删除，避免误删 CDN 回源文件。</li>
+					<li><b>内容不一致：</b>Key 相同但大小或内容（MD5／ETag）不一致，需重新上传或人工核对。</li>
+					<li><b>搜索：</b>按对象 Key 任意位置匹配，只输入文件名也能找到；筛选后的条数与分页按匹配结果计算。</li>
+					<li><b>危险操作：</b>删除必须二次确认；属于用户文件空间的附件会连同附件记录、本地文件与容量一起删除，其它对象只删云端副本。批量删除会先列出数量与对象。</li>
+				</ul>
+			</div>
+		</article>
+	</div>
+
+	<div class="footnote">
+		<span>多吉云 · nboke · 连接正常</span>
+		<span>只读摘要：差异 0，删除队列空</span>
+		<span>数据来源：本轮扫描 11-19 18:09</span>
+	</div>
+</div>
+
+<!-- 弹窗：删除确认 -->
+<div class="modal" id="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title" hidden>
+	<div class="modal__card">
+		<button class="modal__close" type="button" id="close-modal" aria-label="关闭">×</button>
+		<div class="modal__head">
+			<svg class="modal__mascot" width="46" height="46" viewBox="0 0 46 46" aria-hidden="true">
+				<circle cx="23" cy="24" r="17" fill="#ffd9e6"/>
+				<path d="M9 15c2 2 4 3.2 6.5 3.4C18 11 28 11 30.5 18.4 33 18.2 35 17 37 15c1.4 2.2 1.8 4.6 1.4 7-2.6-.6-4.8-.2-6.6 1.2.7 6.7-4.4 12.4-11.3 12.4S8.9 30.1 9.6 23.4c-1.8-1.4-4-1.8-6.6-1.2-.4-2.4 0-4.8 1.4-7z" fill="#ffb3d1"/>
+				<circle cx="18.4" cy="24" r="1.9" fill="#3a2333"/><circle cx="27.6" cy="24" r="1.9" fill="#3a2333"/>
+				<path d="M20.4 28.6c1.7 1.5 3.5 1.5 5.2 0" stroke="#3a2333" stroke-width="1.6" fill="none" stroke-linecap="round"/>
+				<circle cx="15.2" cy="27.4" r="2.4" fill="#ff8fb8" opacity=".55"/><circle cx="30.8" cy="27.4" r="2.4" fill="#ff8fb8" opacity=".55"/>
+			</svg>
+			<div>
+				<h2 class="modal__title" id="modal-title">删除这 3 个云端对象？</h2>
+				<p class="modal__desc">其中 2 个属于用户文件空间的附件，会连同附件记录、本地文件与容量一起删除。</p>
+			</div>
+		</div>
+
+		<div class="filelist">
+			<div class="filelist__row"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path fill="#ff8fb8" d="M3 1h6l4 4v10H3z"/><path fill="#fff" d="M9 1v4h4z" opacity=".65"/></svg><span>20261119-135531-TgTir.webp</span><em>2.0 MB</em></div>
+			<div class="filelist__row"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path fill="#ff8fb8" d="M3 1h6l4 4v10H3z"/><path fill="#fff" d="M9 1v4h4z" opacity=".65"/></svg><span>20261119-135532-j6uAT.webp</span><em>1.2 MB</em></div>
+			<div class="filelist__row"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path fill="#9dccff" d="M3 1h6l4 4v10H3z"/><path fill="#fff" d="M9 1v4h4z" opacity=".65"/></svg><span>20261119-141143-tvbza.webp</span><em>1.2 MB</em></div>
+		</div>
+
+		<p class="warning">删除不可撤销。选中对象会先从云端移除，再核对本地副本；使用 CDN 的页面可能在缓存过期前仍能访问。</p>
+
+		<div class="modal__actions">
+			<button class="btn btn--ghost" type="button" id="cancel-modal">取消</button>
+			<button class="btn btn--danger" type="button">删除 3 个对象</button>
+		</div>
+	</div>
+</div>
+
+<script>
+	(function () {
+		var modal = document.getElementById('modal');
+		var open = document.getElementById('open-modal');
+		var close = document.getElementById('close-modal');
+		var cancel = document.getElementById('cancel-modal');
+
+		function show() {
+			modal.hidden = false;
+			modal.classList.add('is-open');
+			(close || modal).focus();
+		}
+
+		function hide() {
+			modal.classList.remove('is-open');
+			modal.hidden = true;
+			if (open) { open.focus(); }
+		}
+
+		if (open) { open.addEventListener('click', show); }
+		if (close) { close.addEventListener('click', hide); }
+		if (cancel) { cancel.addEventListener('click', hide); }
+		modal.addEventListener('click', function (event) {
+			if (event.target === modal) { hide(); }
+		});
+		document.addEventListener('keydown', function (event) {
+			if (event.key === 'Escape' && !modal.hidden) { hide(); }
+		});
+	})();
+</script>
+	<script>
+		// 进度条进入视野时再生长：条形自左伸展，花瓣领头，停在 --p。
+		( function () {
+			var reduced = window.matchMedia && window.matchMedia( '(prefers-reduced-motion: reduce)' ).matches;
+			var bars = document.querySelectorAll( '[data-progress]' );
+
+			Array.prototype.forEach.call( bars, function ( bar ) {
+				if ( reduced ) {
+					return;
+				}
+
+				var fill = bar.querySelector( '.progress__bar' );
+				var target = bar.style.getPropertyValue( '--p' ) || '100%';
+				var ease = 'cubic-bezier(.22,.61,.36,1)';
+				var done = false;
+
+				fill.style.width = '0%';
+
+				function grow() {
+					if ( done ) {
+						return;
+					}
+					done = true;
+
+					requestAnimationFrame( function () {
+						fill.style.transition = 'width 1.15s ' + ease;
+						fill.style.width = target;
+					} );
+				}
+
+				// 汽水气泡：尺寸、位置、节奏都错开，避免整排同步上升。
+				var fizz = fill.querySelector( '.progress__fizz' );
+				if ( fizz ) {
+					for ( var i = 0; i < 44; i++ ) {
+						var bubble = document.createElement( 'i' );
+						var size = 4 + Math.round( Math.random() * 5 );
+						bubble.style.width = size + 'px';
+						bubble.style.height = size + 'px';
+						bubble.style.left = ( 3 + Math.random() * 93 ) + '%';
+						bubble.style.animationDuration = ( 1.1 + Math.random() * 1.6 ).toFixed( 2 ) + 's';
+						bubble.style.animationDelay = ( Math.random() * 2.2 ).toFixed( 2 ) + 's';
+						fizz.appendChild( bubble );
+					}
+				}
+
+				// 冒出液面的气泡：只落在已填充的那一段里，避免气泡凭空出现在空管里。
+				var popLayer = bar.querySelector( '.progress__pop' );
+				if ( popLayer ) {
+					var ratio = Math.min( 1, Math.max( 0, parseFloat( bar.style.getPropertyValue( '--p' ) ) || 100 ) / 100 );
+					for ( var j = 0; j < 10; j++ ) {
+						var pop = document.createElement( 'i' );
+						var popSize = 4 + Math.round( Math.random() * 4 );
+						pop.style.width = popSize + 'px';
+						pop.style.height = popSize + 'px';
+						pop.style.left = ( 2 + Math.random() * ratio * 94 ) + '%';
+						pop.style.animationDelay = ( Math.random() * 2.4 ).toFixed( 2 ) + 's';
+						pop.style.animationDuration = ( 1.8 + Math.random() * 1.2 ).toFixed( 2 ) + 's';
+						popLayer.appendChild( pop );
+					}
+				}
+
+				if ( 'IntersectionObserver' in window ) {
+					var io = new IntersectionObserver( function ( entries ) {
+						entries.forEach( function ( entry ) {
+							if ( entry.isIntersecting ) {
+								grow();
+								io.disconnect();
+							}
+						} );
+					}, { threshold: 0.35 } );
+					io.observe( bar );
+				} else {
+					grow();
+				}
+			} );
+		}() );
+	</script>
+</body>
+</html>

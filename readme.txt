@@ -4,7 +4,7 @@ Tags: image optimization, webp, avif, imagick, media library
 Requires at least: 6.4
 Tested up to: 7.1.4
 Requires PHP: 8.2
-Stable tag: 1.28.5-beta-1
+Stable tag: 1.28.6
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -79,6 +79,22 @@ Access Key 和 Secret 会加密后存进数据库，页面和源码都不会显�
 插件目前没有接管这个跳转。等出现「既要防直链、又要保留购买校验」的需求时再研发，方向是在主题之前拦截下载请求，由插件代理输出或签发短时有效的预签名地址；若暂时需要这层保护，请关闭「上传后删除本地文件」，让文件保留在本地。
 
 == Changelog ==
+
+= 1.28.6 =
+
+* 新增：**删除内核 `Deletion::delete()`**（P3）——附件删除、审核队列、媒体库「违规下架」与同步中心「删除远端」全部收敛到同一条路径：先抢占 `deleting` 状态、再删附件与本地文件、可选同步删云端并逐个校验对象是否真的消失、最后由 `Files::settle_purged()` 唯一结算（抢到锁的才退容量）。返回 `Deletion_Result`（deleted / missing / denied / partial / in_progress），批次里一条失败不再连带其他条。
+* 新增：**权限矩阵卡片**（P4）——放在「文件空间 → 审核与执行」页、与「执行删除」并列：五个内置角色 × 六个插件能力；管理员的「直接删除文件」永久锁定；配置值与实际值不一致时标 ⚠；缺 `delete_others_posts` 的角色标「仅本人附件」；每次保存写 `cap_change` 审计。默认授权改为一次性（新增 option `sufm_caps_seeded`），此后矩阵是权威，不再被每次 `admin_init` 回写。
+* 新增：**同步中心「删除远端」区分整链与仅云端**——对象属于用户文件空间的附件时，连带删附件、本地文件、索引行与容量；解析不到附件的对象只删云端副本。
+* 新增：**后台 UI 视觉方向 V2「樱前线」在「S3 同步中心」试点**——新令牌（淡樱渐变、22px 卡片圆角、更软的阴影）、页头副题与「桜」印章、本地→云端→索引的樱前线弧线（数字落在节点上）、KPI 票根、汽水进度条（真实气泡元素各自异相位上升）、四色云端体积环、服务器→当前存储桶的延迟胶囊（进页面测一次，停留时每 30 秒复测，颜色取最近 3 次采样的中位数）。
+* 调整：**按钮统一成一套**——主按钮淡樱渐变、悬浮抬起 1px；模块导航、页内页签、筛选与分页也换成同规格按钮，不再有下划线页签与胶囊。
+* 调整：**所有提示框统一成同一副面孔**——鲸鱼记号 + 标题 + 一句话结论 + 清单（带类型纸片图标与体积）+ 粉底后果说明 + 右对齐按钮，配渐显渐隐的进出场动效（`prefers-reduced-motion` 下立即开关）。浮层改挂在 `.sakura-admin` 根节点下，修掉「保存后到弹窗出现有一帧两侧留白」。
+* 修复：**管理员在媒体库批量删除受管附件会被自己拦住**（预检只查 `upload_files`，没看 `sufm_admin_delete_files`）。
+* 修复：**页签悬浮时上边框被滚动容器裁掉**（把裁切区做成滚动容器的上下内边距，占位高度用负外边距抵回）。
+* 修复：**移动端文件列表里图片按原始尺寸铺满整行**（缩略图尺寸规则改为全局作用域，不再只写在桌面媒体查询里）。
+* 修复：**前台文件列表有的文件名带扩展名、有的不带**——展示层统一去掉白名单内的扩展名（tooltip 仍是完整文件名），PDF 等非图片文件改显内置 SVG 类型图标（vscode-icons MIT 子集原生 23 个，按「扩展名 → mime → mime 前缀族」三级回退）；编辑器文件面板（`/newposts`、`/posts-edit/`）同步这套图标与显示名。
+* 修复：**媒体库上传器的「上传目标文件夹」与左侧目录树不同步**——双向同步：点树带过去、下拉选了带回来；浏览他人目录时目标回落到根目录（服务端只接受本人名下目录）。
+* 移除：系统设置里的「页面背景 / 自定义页面背景色 / 卡片背景色」三项（旧 `page_bg`、`card_bg` 键被忽略，不再覆盖令牌），以及插件自带的「花瓣微尘」点阵背景——背景统一交给 V2 画布控制。
+* 影响范围：新增 `src/UserFiles/Services/` 下 `Deletion.php`、`Deletion_Context.php`、`Deletion_Result.php`，`src/UserFiles/Admin/Capability_Matrix.php`、`src/UserFiles/Media/Cloud_State.php`、`src/Admin/UI/Frontline.php` 与 `assets/file-icons/`（23 个 SVG + LICENSE）；新增 option `sufm_caps_seeded`。**不改表结构、不改路由、不改既有 option 键与钩子语义**；`sufm_allow_attachment_delete`、`sufm_skip_remote_enqueue` 都是新增过滤器，旧代码不受影响。
 
 = 1.28.4 =
 

@@ -2,9 +2,9 @@
 
 给在这个仓库里改代码的 AI 会话和开发者。**本文件只放「必须先知道」和「该去哪儿读」，规则正文一律在 `docs/开发规则/`，不要在这里复述。**
 
-- 版本基线 **1.28.3**，分支 `main`，要求 PHP 8.2+ / WordPress 6.4+
-- 开发期版本号写 `1.28.3-beta-N`（每次动代码 +1，纯 `.md` 不动），正式版本号只在开发者说「同步到 GitHub」时才加；**纯 `.md` 文档改动不碰版本号，直接 push `main`**——见 §5.1
-- 类、方法、钩子、文件清单：`docs/sakura-tools-代码结构-1.28.3.md`（**生成物，不要手改**；1.28.1/1.28.2 只删一条警告与几处行为，1.28.3 才动了类与表结构——新增 4 类、删 2 类、Schema 1.9.0）
+- 版本基线 **1.28.6**，分支 `main`，要求 PHP 8.2+ / WordPress 6.4+
+- 开发期版本号写 `1.28.6-beta-N`（每次动代码 +1，纯 `.md` 不动），正式版本号只在开发者说「同步到 GitHub」时才加；**纯 `.md` 文档改动不碰版本号，直接 push `main`**——见 §5.1
+- 类、方法、钩子、文件清单：`docs/sakura-tools-代码结构-1.28.3.md`（**生成物，不要手改**）。它由 `docs/tools/` 的五步管线产出，最后一次生成停在 1.28.3；1.28.4–1.28.6 新增的类没有进这份文档，改这些类前按 `src/` 目录直接看：`src/UserFiles/Services/Deletion.php`、`Deletion_Context.php`、`Deletion_Result.php`（P3 删除内核）、`src/UserFiles/Admin/Capability_Matrix.php`（P4 权限矩阵）、`src/UserFiles/Media/Cloud_State.php`（媒体库云端状态列）、`src/Admin/UI/Frontline.php`（V2 樱前线弧线）
 - 设计动机（为什么这么做）：`DECISIONS.md`
 
 ## 1. 按任务选一篇文档
@@ -19,6 +19,7 @@
 | 发版、打包、部署、回滚 | `docs/开发规则/06-发布流程.md` |
 | 改 S3 存储的启用、切换、绑定锁定、删除，或「上传行为」两项（上传后删本地 / 不上传缩略图），改图片 URL 出口（`srcset` 不经过附件过滤器，见 R12），或改「同步中心 → 下载到媒体库」后附件状态的回写（见 R13）与该附件的用户文件空间记账（见 R14），或改缩略图 URL 改写方式的推断与换桶时它的开关（见 R15/R16），或改短效临时凭据的获取与续期（多吉云，见 R17），或改换桶后同步中心的封存与解锁（见 R18），或改「这两个是不是同一个桶」的判定与 URL / 上传跳过 / 死链计数共用的确认入口（见 R19） | `docs/开发规则/07-S3存储生命周期.md` |
 | 换桶时把对象从旧桶搬到新桶 / 跨厂商迁移（插件不提供迁移通道，见 08 §11；本地有副本走插件原生上传，没有就先下载回本地） | `docs/开发规则/08-OpenList迁移通道.md` |
+| 改删除行为：谁能删、删除顺序、容量怎么退、媒体库直删与违规下架（P1 已落地，P2 起待实现） | `docs/开发规则/09-删除与结算.md` |
 | 查历史（**不代表现状**） | `docs/history/` |
 
 入口索引与铁律原文：`docs/开发规则/00-索引.md`。**动手前至少读 01 的 §2–§4 和 02 的 §0–§1。**
@@ -123,19 +124,19 @@ git diff --check       # 行尾空白
 
 | 阶段 | 版本号 | 什么时候改 |
 |---|---|---|
-| 基准（已发布） | `1.28.3` | — |
-| 第 1 次代码改动 | `1.28.3-beta-1` | 动第一行 `.php` / `.js` / `.css` 前 |
-| 第 2 次代码改动 | `1.28.3-beta-2` | 下一次动代码前 +1 |
-| 开发者说「同步到 GitHub」 | `1.28.4` | 发版时收敛成正式号 |
+| 基准（已发布） | `1.28.6` | — |
+| 第 1 次代码改动 | `1.28.6-beta-1` | 动第一行 `.php` / `.js` / `.css` 前 |
+| 第 2 次代码改动 | `1.28.6-beta-2` | 下一次动代码前 +1 |
+| 开发者说「同步到 GitHub」 | `1.28.7` | 发版时收敛成正式号 |
 
 - **每次动代码就 +1**：只要改动涉及 `.php` / `.js` / `.css`，动第一行代码前就把三处版本号 +1；只有整轮只改 `.md` 时才完全不动版本号。
-- **三处一起改**：头部 `* Version:`、`SAKURA_TOOLS_VERSION`、`Stable tag:` 都写 `1.28.3-beta-N`。`release.yml` 与打包脚本的正则 `^[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$` 接受这个形式。
-- **正式版本号只由开发者拍板**：他说「同步到 GitHub」才把 beta 收敛成正式号，默认在基准上 PATCH +1（`1.28.3` → `1.28.4`）；这批改动若含新功能或破坏兼容，按 `06-发布流程.md` §1 的语义走 MINOR/MAJOR，具体号以他确认为准。
-- **beta 号不要 push 到 `main`**：`release.yml` 在 push `main` 时触发，会给 `1.28.3-beta-1` 打 `v1.28.3-beta-1` tag 并发 Release（不标 prerelease）；生产的插件目录就是 `main` 的 checkout，push 等于上线。beta 号留在本地，发布时才换成正式号推。
+- **三处一起改**：头部 `* Version:`、`SAKURA_TOOLS_VERSION`、`Stable tag:` 都写 `1.28.6-beta-N`。`release.yml` 与打包脚本的正则 `^[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$` 接受这个形式。
+- **正式版本号只由开发者拍板**：他说「同步到 GitHub」才把 beta 收敛成正式号，默认在基准上 PATCH +1（`1.28.6` → `1.28.7`）；这批改动若含新功能或破坏兼容，按 `06-发布流程.md` §1 的语义走 MINOR/MAJOR，具体号以他确认为准。
+- **beta 号不要 push 到 `main`**：`release.yml` 在 push `main` 时触发，会给 `1.28.6-beta-1` 打 `v1.28.6-beta-1` tag 并发 Release（不标 prerelease）；生产的插件目录就是 `main` 的 checkout，push 等于上线。beta 号留在本地，发布时才换成正式号推。
 - **changelog 只在发布时写**：beta 期不动 `readme.txt` 的 changelog，发布时把整批改动合并成一条 `= 正式版本号 =`，免得 Release 正文抽到空的 beta 段落。
 - **纯文档改动不碰版本号**：只改 `.md`（`AGENTS.md`、`docs/**`、`README.md`、`CONTRIBUTING.md`）时三处版本号原样不动，既不写 beta 号也不写正式号，changelog 也不动，这一轮不跑测试（没有代码变化）；提交后直接 push `main` 同步 GitHub——`release.yml` 的 `paths` 只认 `sakura-tools.php`、`readme.txt`、`bin/build-plugin-zip.sh` 与自身，纯文档提交不会打包发版。详见 `06-发布流程.md` §1。
-- **beta 号在数据库看来是降级**：`Upgrade_Guard::needs_upgrade()`（`src/Upgrade_Guard.php:60`）用 `version_compare( $installed, $current, '<' )` 判断，`1.28.3-beta-1` 比 `1.28.3` 小——已经装过 1.28.3 的站点在 beta 期**不会**自动补建表 / option / cron。beta 里新增了这些，验证前先把 `sakura_imgopt_version` 删掉或改小。
-- 本地可以出 beta 包做验证：`bin/build-plugin-zip.sh --version 1.28.3-beta-1 --out dist`。
+- **beta 号在数据库看来是降级**：`Upgrade_Guard::needs_upgrade()`（`src/Upgrade_Guard.php:60`）用 `version_compare( $installed, $current, '<' )` 判断，`1.28.6-beta-1` 比 `1.28.6` 小——已经装过 1.28.6 的站点在 beta 期**不会**自动补建表 / option / cron。beta 里新增了这些，验证前先把 `sakura_imgopt_version` 删掉或改小。
+- 本地可以出 beta 包做验证：`bin/build-plugin-zip.sh --version 1.28.6-beta-1 --out dist`。
 - **不自行发版**：不加正式号、不 push `main`、不打 tag。
 
 发布检查与打包：

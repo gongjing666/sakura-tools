@@ -19,7 +19,11 @@ defined( 'ABSPATH' ) || exit;
 final class Shell {
 
 	/**
-	 * Print the top bar and, when the module has more than one screen, the tabs.
+	 * Print the top bar and the module's tab strip.
+	 *
+	 * One tab is shown as well: a module that starts with a single screen still
+	 * reads as "this is a tab", and the strip simply grows when the module gains
+	 * more screens.
 	 *
 	 * @param string              $module  Active module id.
 	 * @param string              $tab     Active tab id.
@@ -72,7 +76,7 @@ final class Shell {
 			</div>
 		</header>
 
-		<?php if ( count( (array) $current['tabs'] ) > 1 ) : ?>
+		<?php if ( count( (array) $current['tabs'] ) >= 1 ) : ?>
 			<nav class="sakura-tabs" aria-label="<?php esc_attr_e( '模块页面', 'sakura-imgopt' ); ?>">
 				<?php foreach ( (array) $current['tabs'] as $id => $definition ) : ?>
 					<?php

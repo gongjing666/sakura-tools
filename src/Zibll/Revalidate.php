@@ -80,13 +80,14 @@ final class Revalidate {
 		/*
 		 * Aim at the moment the current verdict lapses, not at “now + lifetime”:
 		 * retuning keeps created_at, so “now + lifetime” would re-check later
-		 * than the cache expires and leave a gap of theme-side checks.
+		 * than the cache expires and leave a gap of theme-side checks. A verdict
+		 * that already lapsed (missed cron, shortened lifetime) is re-checked on
+		 * the next tick.
 		 */
 		$cache = License_Cache::get();
 		$until = (int) ( $cache['cache_until'] ?? 0 );
-		$target = $until > 0 ? $until : time() + $lifetime;
 
-		return max( time() + HOUR_IN_SECONDS, $target );
+		return $until > 0 ? $until : time() + $lifetime;
 	}
 
 	/**

@@ -938,7 +938,7 @@ body.upload-php.sufm-tree-active.folded { --sufm-tree-left: 56px; }
 
 **背景**：开发者要求在「Zibll 授权缓存」卡片里能自己定缓存多久，单位按小时 / 天 / 周 / 月 / 年，以及「永久」。
 
-**决策**：开关下面加一行「缓存时长 + 单位」，存进同一个 `sakura_imgopt_zibll` option（`duration`、`unit`，默认 `1 / 永久`，即迁移时的行为）。缓存数组多一个 `cache_until`：`created_at + lifetime`，`0` 表示不设时间上限。`License_Cache::is_valid()` 在原有的主题版本、站点地址、授权指纹、授权到期之外，再加一道 `cache_until`。复验从固定 `daily` 改成**单次事件**：间隔 = 配置的有效期（永久时仍是每日），下限 1 小时；每次复验成功或失败后自排下一次。
+**决策**：开关下面加一行「缓存时长 + 单位」，存进同一个 `sakura_imgopt_zibll` option（`duration`、`unit`，默认 `1 / 永久`，即迁移时的行为）。缓存数组多一个 `cache_until`：`created_at + lifetime`，`0` 表示不设时间上限。`License_Cache::is_valid()` 在原有的主题版本、站点地址、授权指纹、授权到期之外，再加一道 `cache_until`。复验从固定 `daily` 改成**单次事件**：下一个时点优先对齐「当前缓存到期时刻」；没有缓存时排 `now + 有效期`（永久时仍是每日）；每次复验成功或失败后自排下一次。
 
 **理由**：把「多久信一次这个结论」交回操作者，同时保持安全方向不变——缓存到期只是先回到主题自己的校验，不会伪造授权。用单次事件而不是注册一堆动态的 `cron_schedules` 间隔，是因为间隔跟着设置变，注册表里会越堆越多，还得在停用时逐个清；单次事件只有一个钩子，停用/卸载沿用现有的 `wp_clear_scheduled_hook` 即可。改时长时用 `retune()` 改写 `cache_until` 而不是丢掉结论，只有把时长缩到比缓存年龄还短才会当场重新验证一次（此时确实等于换了一个更严的约束）。
 

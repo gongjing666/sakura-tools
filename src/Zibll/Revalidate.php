@@ -45,7 +45,7 @@ final class Revalidate {
 			return;
 		}
 
-		wp_schedule_single_event( time() + self::delay( $lifetime ), self::HOOK );
+		wp_schedule_single_event( self::next_time( $lifetime ), self::HOOK );
 	}
 
 	/**
@@ -59,7 +59,7 @@ final class Revalidate {
 	}
 
 	/**
-	 * Seconds until the next check.
+	 * Unix time of the next check.
 	 *
 	 * Follows the lifetime, so a 6-hour cache is refreshed around the moment it
 	 * would lapse; an unlimited cache is re-checked daily to notice a renewed
@@ -68,16 +68,25 @@ final class Revalidate {
 	 *
 	 * @return int
 	 */
-	private static function delay( ?int $lifetime = null ): int {
+	private static function next_time( ?int $lifetime = null ): int {
 		if ( null === $lifetime ) {
 			$lifetime = Settings::lifetime_seconds();
 		}
 
 		if ( $lifetime <= 0 ) {
-			return DAY_IN_SECONDS;
+			return time() + DAY_IN_SECONDS;
 		}
 
-		return max( HOUR_IN_SECONDS, $lifetime );
+		/*
+		 * Aim at the moment the current verdict lapses, not at “now + lifetime”:
+		 * retuning keeps created_at, so “now + lifetime” would re-check later
+		 * than the cache expires and leave a gap of theme-side checks.
+		 */
+		$cache = License_Cache::get();
+		$until = (int) ( $cache['cache_until'] ?? 0 );
+		$target = $until > 0 ? $until : time() + $lifetime;
+
+		return max( time() + HOUR_IN_SECONDS, $target );
 	}
 
 	/**

@@ -4,7 +4,7 @@ Tags: image optimization, webp, avif, imagick, media library
 Requires at least: 6.4
 Tested up to: 7.1.4
 Requires PHP: 8.2
-Stable tag: 1.28.7-beta-10
+Stable tag: 1.28.7-beta-11
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 

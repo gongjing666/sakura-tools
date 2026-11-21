@@ -36,7 +36,7 @@ final class Revalidate {
 	 *
 	 * @return void
 	 */
-	public static function schedule(): void {
+	public static function schedule( ?int $lifetime = null ): void {
 		if ( ! function_exists( 'wp_next_scheduled' ) ) {
 			return;
 		}
@@ -45,7 +45,7 @@ final class Revalidate {
 			return;
 		}
 
-		wp_schedule_single_event( time() + self::delay(), self::HOOK );
+		wp_schedule_single_event( time() + self::delay( $lifetime ), self::HOOK );
 	}
 
 	/**
@@ -53,9 +53,9 @@ final class Revalidate {
 	 *
 	 * @return void
 	 */
-	public static function reschedule(): void {
+	public static function reschedule( ?int $lifetime = null ): void {
 		self::unschedule();
-		self::schedule();
+		self::schedule( $lifetime );
 	}
 
 	/**
@@ -68,8 +68,10 @@ final class Revalidate {
 	 *
 	 * @return int
 	 */
-	private static function delay(): int {
-		$lifetime = Settings::lifetime_seconds();
+	private static function delay( ?int $lifetime = null ): int {
+		if ( null === $lifetime ) {
+			$lifetime = Settings::lifetime_seconds();
+		}
 
 		if ( $lifetime <= 0 ) {
 			return DAY_IN_SECONDS;

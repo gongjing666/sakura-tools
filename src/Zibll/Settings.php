@@ -226,15 +226,17 @@ final class Settings {
 		 * it away; only shortening it below the cache's age makes the verdict
 		 * stale, and then the check runs again right here.
 		 */
-		if ( License_Cache::is_valid() && License_Cache::retune( self::lifetime_for( $duration, $unit ) ) ) {
-			Revalidate::reschedule();
+		$lifetime = self::lifetime_for( $duration, $unit );
+
+		if ( License_Cache::is_valid() && License_Cache::retune( $lifetime ) ) {
+			Revalidate::reschedule( $lifetime );
 
 			$base['license_cache'] = 1;
 
 			return $base;
 		}
 
-		$cache = License_Cache::warm( 'admin_enable' );
+		$cache = License_Cache::warm( 'admin_enable', $lifetime );
 
 		if ( is_wp_error( $cache ) ) {
 			License_Cache::clear();
@@ -245,11 +247,11 @@ final class Settings {
 			return $base;
 		}
 
-		Revalidate::reschedule();
+		Revalidate::reschedule( $lifetime );
 
 		$message = __( '授权验证通过，缓存已预热。前台与后台页面命中缓存时将跳过子比的 zib_init_add_action。', 'sakura-imgopt' );
 
-		if ( 0 === self::lifetime_for( $duration, $unit ) ) {
+		if ( 0 === $lifetime ) {
 			$message .= ' ' . __( '缓存不按时间过期，只受授权到期约束。', 'sakura-imgopt' );
 		} else {
 			$message .= ' ' . sprintf(

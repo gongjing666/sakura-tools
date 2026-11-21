@@ -85,10 +85,11 @@ final class License_Cache {
 	/**
 	 * Verify the license for real and persist the result.
 	 *
-	 * @param string $source Where the check came from (admin_enable, cron, ajax_manual).
+	 * @param string   $source   Where the check came from (admin_enable, cron, ajax_manual).
+	 * @param int|null $lifetime Lifetime to stamp; null reads the saved setting.
 	 * @return array<string,mixed>|\WP_Error Cache payload on success.
 	 */
-	public static function warm( string $source ) {
+	public static function warm( string $source, ?int $lifetime = null ) {
 		if ( ! License::is_zibll_theme() ) {
 			return new \WP_Error(
 				'sakura_zibll_no_theme',
@@ -111,8 +112,11 @@ final class License_Cache {
 			return $result;
 		}
 
-		$created  = time();
-		$lifetime = Settings::lifetime_seconds();
+		$created = time();
+
+		if ( null === $lifetime ) {
+			$lifetime = Settings::lifetime_seconds();
+		}
 
 		$cache = array(
 			'ok'               => 1,

@@ -1,6 +1,6 @@
 <?php
 /**
- * Front-end license bypass.
+ * License check bypass for read-only requests.
  *
  * @package Sakura_Image_Optimizer
  */
@@ -18,11 +18,16 @@ defined( 'ABSPATH' ) || exit;
  * at the earliest priority so the removal happens before the theme's callback
  * would fire. It never fabricates a verdict: the callback is only removed when
  * a cache written by the theme's own successful check is still valid for this
- * site, theme version and license, and only on plain read-only front-end
- * requests. Anything that writes, any admin/AJAX/REST/cron context and any
- * endpoint the theme owns keeps the original callback.
+ * site, theme version and license, and only on plain read-only requests —
+ * front-end page views and admin page views alike. Anything that writes, any
+ * AJAX/REST/XML-RPC/cron context and the login/cron endpoints keep the original
+ * callback, so every state-changing request still runs the real check.
+ *
+ * Admin page views are included on purpose: the theme's check costs the same
+ * 33–47 ms there, and the admin license screen calls the check itself instead of
+ * relying on a side effect of the `init` callback (verified on 9.2).
  */
-final class Frontend_Guard {
+final class Request_Guard {
 
 	/**
 	 * Theme callback that runs the license check on every request.
@@ -53,7 +58,9 @@ final class Frontend_Guard {
 	 *
 	 * A false negative costs one license check (33–47 ms); a false positive
 	 * would skip the check in a context the cache was never verified for, so
-	 * every ambiguous case returns false.
+	 * every ambiguous case returns false. In particular a request carrying a
+	 * body or an upload is never skipped, whatever page it targets: that is
+	 * where the theme's own option saves and licence actions live.
 	 *
 	 * @return bool
 	 */
@@ -70,12 +77,10 @@ final class Frontend_Guard {
 			return false;
 		}
 
-		if ( is_admin() || wp_doing_ajax() || wp_doing_cron() ) {
+		if ( wp_doing_ajax() || wp_doing_cron() ) {
 			return false;
 		}
 
-		// A request carrying a body or an upload is not a read; let the theme
-		// verify it, whatever the endpoint turns out to be.
 		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- Read-only inspection.
 		if ( ! empty( $_POST ) || ! empty( $_FILES ) ) {
 			return false;
@@ -94,6 +99,10 @@ final class Frontend_Guard {
 	/**
 	 * Whether the request method and path describe a plain page read.
 	 *
+	 * Admin page views count: the license screen fetches its own state, so a
+	 * skipped `init` callback does not turn the theme into "unlicensed" there.
+	 * Login, REST, XML-RPC and cron endpoints never count.
+	 *
 	 * @param string $method Request method, upper case.
 	 * @param string $path   Request path.
 	 * @return bool
@@ -103,7 +112,7 @@ final class Frontend_Guard {
 			return false;
 		}
 
-		return ! preg_match( '#^/(wp-admin|wp-login\.php|wp-json|xmlrpc\.php|wp-cron\.php)(/|$)#i', $path );
+		return ! preg_match( '#^/(wp-json|wp-login\.php|xmlrpc\.php|wp-cron\.php)(/|$)#i', $path );
 	}
 
 	/**

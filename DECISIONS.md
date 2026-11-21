@@ -914,10 +914,22 @@ body.upload-php.sufm-tree-active.folded { --sufm-tree-left: 56px; }
 
 **背景**：开发者决定把 `zibll-site-enhance`（下称 zse）的功能逐步迁进樱花工具箱——zse 借用子比的 CSF 框架，扩展成本高。迁移第一步是新建「子比增强」模块，第一个迁过来的功能是 zse 性能优化里的「启用 Zibll 授权缓存」。
 
-**决策**：新模块 id `zibll`、slug `sakura-tools-zibll`、能力 `manage_options`，目前只有一个页签 `performance`（页面 id `zibll-performance`），页签 gate 用 `License::is_zibll_theme()`，非子比主题显示 403 说明而不是空白页。设置落在 `sakura_imgopt_zibll` 数组（只有一个键 `license_cache`），缓存落在 `sakura_imgopt_zibll_license_cache`（`autoload=false`），每日复验 cron 是 `sakura_imgopt_zibll_revalidate`。真实验证只发生在三处：后台保存时、后台手动复验时、每日 cron；前台仅在缓存有效且当前请求是 GET/HEAD 的只读请求时 `remove_action( 'init', 'zib_init_add_action' )`。
+**决策**：新模块 id `zibll`、slug `sakura-tools-zibll`、能力 `manage_options`，目前只有一个页签 `performance`（页面 id `zibll-performance`），页签 gate 用 `License::is_zibll_theme()`，非子比主题显示 403 说明而不是空白页。设置落在 `sakura_imgopt_zibll` 数组（只有一个键 `license_cache`），缓存落在 `sakura_imgopt_zibll_license_cache`（`autoload=false`），每日复验 cron 是 `sakura_imgopt_zibll_revalidate`。真实验证只发生在三处：后台保存时、后台手动复验时、每日 cron；请求旁路仅在缓存有效且当前请求是 GET/HEAD 的只读页面请求时 `remove_action( 'init', 'zib_init_add_action' )`（1.28.7-beta-7 起含 wp-admin 页面请求，见下一条）。
 
 **理由**：子比 8.8+ 的 Z5 加密层把授权校验挂进每个前台请求（`init:10` 的 `zib_init_add_action → ZibAut::is_aut()`），实测单次 33–47 ms，且其中大段 `eval` 无法被 OPcache 缓存。缓存的是「主题自己已经判定通过」这个结论而不是伪造授权：命中缓存只是不再重复跑同一个校验，校验结果仍然来自主题。缓存写在自己的 option 而不是读 zse 的 `zse_zibll_perf_cache`——两个插件会并存一段时间，读别人的 option 会让「停用谁」变成隐患。
 
 **边界**：缓存有效要同时满足四件事——主题版本、`untrailingslashit(home_url('/'))`、`hash('sha256', zibll_code.'|'.post_zat_end_time)`（用 `hash_equals` 比）、以及 `post_zat_next` 到期。**不监听 `post_zat_next` 的更新**：主题自己会频繁刷新到期时间，跟着清缓存等于永远冷；只有主题切换、站点地址、`zibll_code`、`post_zat_end_time` 变化才清。验证必须看返回值（`(bool) ZibAut::is_aut()`，返回 false 就是拒绝，绝不写成功缓存）；主题在输出后 `exit` 时由 shutdown 钩子写一条错误提示、缓存不写入。旧 mu-plugin（`/wp-content/mu-plugins/zibll-performance.php`）的冲突检测曾要求先改名才能启用，2026-11-21 开发者确认该 mu-plugin 方案已弃用、不再开发，检测与页面上的展示一并移除。主题版本不在 `9.1 / 9.2` 范围内时，需要在同一次保存里勾选确认才允许启用。
 
-**验收**：`wp option get sakura_imgopt_zibll` 只有 `license_cache`；启用后 `wp option get sakura_imgopt_zibll_license_cache` 含 `ok/theme_version/home_url/auth_fingerprint/expires_at/created_at/created_by/source`；前台只读请求里 `has_action('init','zib_init_add_action')` 为 `false`，而 `/wp-admin`、`wp-json`、带 POST 的请求里仍为 `10`；保存失败时页面弹「设置未保存」并附主题/授权返回的原因，开关自动回落到关闭。
+**验收**：`wp option get sakura_imgopt_zibll` 只有 `license_cache`；启用后 `wp option get sakura_imgopt_zibll_license_cache` 含 `ok/theme_version/home_url/auth_fingerprint/expires_at/created_at/created_by/source`；只读页面请求里 `has_action('init','zib_init_add_action')` 为 `false`；`wp-json`、`xmlrpc.php`、`wp-login.php`、`wp-cron.php`、admin-ajax、带 POST 的请求里仍为 `10`（wp-admin 页面请求自 beta-7 起也跳过，见下一条）；保存失败时页面弹「设置未保存」并附主题/授权返回的原因，开关自动回落到关闭。
+
+## 授权缓存覆盖后台页面请求（2026-11-21，1.28.7-beta-7）
+
+**背景**：上线后开发者看 Query Monitor 时间线，发现后台每个页面的 `init` 仍要 56 ms 左右（前台命中缓存后是 17 ms）——后台请求一直在跑主题的 `zib_init_add_action → ZibAut::is_aut()`。原迁移照搬 zse，只放行前台只读请求（`is_admin()` 直接判 false）。
+
+**决策**：把 `is_admin()` 从排除条件里拿掉，只保留「CLI / REST / XML-RPC / cron / admin-ajax / 请求体非空（POST、上传）/ wp-login、wp-cron、wp-json、xmlrpc 路径」这些硬边界；类从 `Frontend_Guard` 改名为 `Request_Guard`（它的职责本来就不止前台）。代价不变：真实验证仍然只发生在保存、手动复验、每日 cron 三处，只是后台页面视图也开始复用同一个缓存结论。
+
+**理由**：① 后台实测 56.4 / 57.1 / 57.4 ms，移除主题回调后 14.0–17.8 ms，收益约 40 ms/次，和前台同一量级；② 后台对这些页面并不额外消费校验的「副作用」——在 `zibll_options` 的「主题&授权」页实测仍显示「恭喜您! 已完成授权 / 授权域名 nboke.com / 授权有效期 永久授权」，说明该页自己取授权状态，不依赖 init 回调写下的结果；③ 写操作、AJAX、REST 仍然完整校验，主题设置保存、撤销授权这些路径不受影响；④ 缓存本来就会在主题版本、站点地址、`zibll_code`、`post_zat_end_time` 变化时清空，并用每日 cron 兜底。
+
+**边界**：`wp-admin` 的 POST（`options.php`、`admin-post.php`）与 admin-ajax 都不跳过，`wp-login.php` / `wp-cron.php` / `wp-json` / `xmlrpc.php` 也不跳过。后台页面在缓存无效或开关关闭时行为与从前完全一致。验证方式：后台页面 QM 的 `init` 从 ~56 ms 降到 ~15 ms，且 `zibll_options` 授权页仍显示已完成授权。
+
+**验收**：启用且缓存有效时，`/wp-admin/edit.php`、`/wp-admin/admin.php?page=zibll_options` 都命中缓存（`init` ≈15 ms、`has_action('init','zib_init_add_action')` 为 false），而 `POST /wp-admin/options.php` 仍为 10；主题授权页状态不变；关闭开关后后台恢复到每次真实验证。

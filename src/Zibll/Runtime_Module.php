@@ -15,11 +15,11 @@ use Sakura\ImageOptimizer\Support\Hook_Loader;
 defined( 'ABSPATH' ) || exit;
 
 /**
- * The hooks that must exist on the front end, not only in wp-admin.
+ * The hooks that must exist on every request, not only in wp-admin.
  *
- * Loaded outside the `is_admin()` branch of the composition root: the whole
- * point of the feature is a front-end request that skips the theme check, and
- * the cron job that refreshes it also runs without an admin context.
+ * Loaded outside the `is_admin()` branch of the composition root: request
+ * bypass, cache invalidation and the daily revalidation all have to run on
+ * front-end, admin and cron requests alike.
  */
 final class Runtime_Module implements Module {
 
@@ -30,9 +30,9 @@ final class Runtime_Module implements Module {
 	 * @return void
 	 */
 	public function register_hooks( Hook_Loader $hooks ): void {
-		// Must run before the theme's own init:10 registration check in
-		// Frontend_Guard::maybe_skip_auth() looks the callback up by name.
-		$hooks->add_action( 'init', array( Frontend_Guard::class, 'maybe_skip_auth' ), -PHP_INT_MAX );
+		// Must run before the theme's own init:10 registration; the guard looks
+		// the theme callback up by name and removes it only when the cache holds.
+		$hooks->add_action( 'init', array( Request_Guard::class, 'maybe_skip_auth' ), -PHP_INT_MAX );
 		$hooks->add_action( 'init', array( Revalidate::class, 'ensure' ), 20 );
 		$hooks->add_action( Revalidate::HOOK, array( Revalidate::class, 'run' ) );
 

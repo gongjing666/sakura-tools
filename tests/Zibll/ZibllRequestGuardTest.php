@@ -1,6 +1,6 @@
 <?php
 /**
- * Zibll front-end guard tests.
+ * Zibll license-bypass guard tests.
  *
  * @package Sakura_Image_Optimizer
  */
@@ -8,7 +8,7 @@
 declare( strict_types=1 );
 
 use PHPUnit\Framework\TestCase;
-use Sakura\ImageOptimizer\Zibll\Frontend_Guard;
+use Sakura\ImageOptimizer\Zibll\Request_Guard;
 use Sakura\ImageOptimizer\Zibll\License;
 use Sakura\ImageOptimizer\Zibll\License_Cache;
 use Sakura\ImageOptimizer\Zibll\Settings;
@@ -25,7 +25,7 @@ if ( ! function_exists( 'sakura_test_zib_init_add_action' ) ) {
 /**
  * The bypass only applies to cached, verified, plain page reads.
  */
-final class ZibllFrontendGuardTest extends TestCase {
+final class ZibllRequestGuardTest extends TestCase {
 
 	/**
 	 * Reset the shimmed environment between tests.
@@ -50,24 +50,25 @@ final class ZibllFrontendGuardTest extends TestCase {
 	 * Plain page reads qualify; writes and theme-owned endpoints do not.
 	 */
 	public function test_read_path_classification(): void {
-		$this->assertTrue( Frontend_Guard::is_read_path( 'GET', '/' ) );
-		$this->assertTrue( Frontend_Guard::is_read_path( 'HEAD', '/posts/hello/' ) );
-		$this->assertTrue( Frontend_Guard::is_read_path( 'GET', '/wp-content-style-path/' ) );
+		$this->assertTrue( Request_Guard::is_read_path( 'GET', '/' ) );
+		$this->assertTrue( Request_Guard::is_read_path( 'HEAD', '/posts/hello/' ) );
+		$this->assertTrue( Request_Guard::is_read_path( 'GET', '/wp-content-style-path/' ) );
+		$this->assertTrue( Request_Guard::is_read_path( 'GET', '/wp-admin/admin.php' ) );
+		$this->assertTrue( Request_Guard::is_read_path( 'GET', '/wp-admin/edit.php' ) );
 
-		$this->assertFalse( Frontend_Guard::is_read_path( 'POST', '/' ) );
-		$this->assertFalse( Frontend_Guard::is_read_path( 'GET', '/wp-admin/' ) );
-		$this->assertFalse( Frontend_Guard::is_read_path( 'GET', '/wp-admin' ) );
-		$this->assertFalse( Frontend_Guard::is_read_path( 'GET', '/wp-login.php' ) );
-		$this->assertFalse( Frontend_Guard::is_read_path( 'GET', '/wp-json/wp/v2/posts' ) );
-		$this->assertFalse( Frontend_Guard::is_read_path( 'GET', '/xmlrpc.php' ) );
-		$this->assertFalse( Frontend_Guard::is_read_path( 'GET', '/wp-cron.php' ) );
+		$this->assertFalse( Request_Guard::is_read_path( 'POST', '/' ) );
+		$this->assertFalse( Request_Guard::is_read_path( 'POST', '/wp-admin/options.php' ) );
+		$this->assertFalse( Request_Guard::is_read_path( 'GET', '/wp-login.php' ) );
+		$this->assertFalse( Request_Guard::is_read_path( 'GET', '/wp-json/wp/v2/posts' ) );
+		$this->assertFalse( Request_Guard::is_read_path( 'GET', '/xmlrpc.php' ) );
+		$this->assertFalse( Request_Guard::is_read_path( 'GET', '/wp-cron.php' ) );
 	}
 
 	/**
 	 * PHPUnit runs on the command line, which must never skip the check.
 	 */
 	public function test_command_line_is_detected(): void {
-		$this->assertTrue( Frontend_Guard::is_cli_request() );
+		$this->assertTrue( Request_Guard::is_cli_request() );
 	}
 
 	/**
@@ -77,7 +78,7 @@ final class ZibllFrontendGuardTest extends TestCase {
 		add_action( 'init', 'sakura_test_zib_init_add_action', 10 );
 		$this->seed_cache();
 
-		Frontend_Guard::maybe_skip_auth();
+		Request_Guard::maybe_skip_auth();
 
 		$this->assertSame( 10, has_action( 'init', 'sakura_test_zib_init_add_action' ) );
 		$this->assertSame( array(), $GLOBALS['sakura_test_removed_actions'] );
@@ -90,7 +91,7 @@ final class ZibllFrontendGuardTest extends TestCase {
 		update_option( Settings::OPTION, array( 'license_cache' => 1 ) );
 		add_action( 'init', 'sakura_test_zib_init_add_action', 10 );
 
-		Frontend_Guard::maybe_skip_auth();
+		Request_Guard::maybe_skip_auth();
 
 		$this->assertSame( 10, has_action( 'init', 'sakura_test_zib_init_add_action' ) );
 		$this->assertSame( array(), $GLOBALS['sakura_test_removed_actions'] );
@@ -104,7 +105,7 @@ final class ZibllFrontendGuardTest extends TestCase {
 		$this->seed_cache();
 		add_action( 'init', 'sakura_test_zib_init_add_action', 10 );
 
-		Frontend_Guard::maybe_skip_auth();
+		Request_Guard::maybe_skip_auth();
 
 		$this->assertSame( 10, has_action( 'init', 'sakura_test_zib_init_add_action' ) );
 		$this->assertSame( array(), $GLOBALS['sakura_test_removed_actions'] );

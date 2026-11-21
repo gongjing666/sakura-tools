@@ -229,7 +229,7 @@ final class Plugin {
 		$modules[] = new Upload_Observer( $s3_options );
 		$modules[] = new Storage( $s3_options, $s3_adapter );
 
-		// 子比增强：前台旁路与每日复验都必须在非后台请求里存在。
+		// 子比增强：请求旁路、缓存失效与每日复验必须在所有请求里存在。
 		$modules[] = new Zibll\Runtime_Module();
 
 		// 用户文件空间：前台、REST 与后台审核页都挂在这个模块上。

@@ -629,7 +629,7 @@ require_once dirname( __DIR__ ) . '/src/Zibll/Probe.php';
 require_once dirname( __DIR__ ) . '/src/Zibll/License_Cache.php';
 require_once dirname( __DIR__ ) . '/src/Zibll/Revalidate.php';
 require_once dirname( __DIR__ ) . '/src/Zibll/Settings.php';
-require_once dirname( __DIR__ ) . '/src/Zibll/Frontend_Guard.php';
+require_once dirname( __DIR__ ) . '/src/Zibll/Request_Guard.php';
 
 if ( ! function_exists( 'untrailingslashit' ) ) {
 	/**

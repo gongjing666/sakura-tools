@@ -52,7 +52,7 @@ final class Hero {
 			'files-log'           => __( '<em>动过什么都留痕</em>：最近的操作记录按时间倒序。', 'sakura-imgopt' ),
 			'files-zibll'         => __( '<em>与主题对齐</em>：能力、支付、入口与等级加成，运行时读取，不写死。', 'sakura-imgopt' ),
 			'storage-sync'        => __( '<em>樱前线已经过境</em>：本地、云端、索引三条线停在同一点。', 'sakura-imgopt' ),
-			'zibll-performance'   => __( '<em>一次通过，整站受益</em>：把主题每个前台请求都要跑的授权校验，换成已验证过的缓存。', 'sakura-imgopt' ),
+			'zibll-performance'   => __( '<em>一次通过，整站受益</em>：把主题每个请求都要跑的授权校验，换成已验证过的缓存（后台页面也生效）。', 'sakura-imgopt' ),
 		);
 	}
 

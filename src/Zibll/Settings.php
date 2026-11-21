@@ -103,7 +103,7 @@ final class Settings {
 			Revalidate::unschedule();
 
 			if ( $was_on ) {
-				self::error( 'success', __( '授权缓存已关闭。前台请求恢复由子比主题自行校验。', 'sakura-imgopt' ) );
+				self::error( 'success', __( '授权缓存已关闭。所有请求恢复由子比主题自行校验。', 'sakura-imgopt' ) );
 			}
 
 			return array( 'license_cache' => 0 );
@@ -151,7 +151,7 @@ final class Settings {
 
 		Revalidate::schedule();
 
-		$message = __( '授权验证通过，缓存已预热。前台命中缓存时将跳过子比的 zib_init_add_action。', 'sakura-imgopt' );
+		$message = __( '授权验证通过，缓存已预热。前台与后台页面命中缓存时将跳过子比的 zib_init_add_action。', 'sakura-imgopt' );
 
 		if ( ! License::is_supported( $version ) ) {
 			$message .= ' ' . __( '当前版本未经验证，如遇异常请关闭本功能。', 'sakura-imgopt' );

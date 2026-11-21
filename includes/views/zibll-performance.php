@@ -51,21 +51,21 @@ if ( $zibll_enabled && $zibll_valid ) {
 	$zibll_status = array(
 		'label' => __( '授权缓存', 'sakura-imgopt' ),
 		'value' => __( '已启用', 'sakura-imgopt' ),
-		'sub'   => __( '前台命中缓存时跳过授权校验', 'sakura-imgopt' ),
+		'sub'   => __( '页面命中缓存时跳过授权校验', 'sakura-imgopt' ),
 		'tone'  => 'ok',
 	);
 } elseif ( $zibll_enabled ) {
 	$zibll_status = array(
 		'label' => __( '授权缓存', 'sakura-imgopt' ),
 		'value' => __( '已失效', 'sakura-imgopt' ),
-		'sub'   => __( '前台仍由子比主题校验', 'sakura-imgopt' ),
+		'sub'   => __( '页面请求仍由子比主题校验', 'sakura-imgopt' ),
 		'tone'  => 'warn',
 	);
 } else {
 	$zibll_status = array(
 		'label' => __( '授权缓存', 'sakura-imgopt' ),
 		'value' => __( '未启用', 'sakura-imgopt' ),
-		'sub'   => __( '每个前台请求都会真实验证', 'sakura-imgopt' ),
+		'sub'   => __( '每个页面请求都会真实验证', 'sakura-imgopt' ),
 		'tone'  => 'neutral',
 	);
 }
@@ -84,7 +84,7 @@ ob_start();
 		<span class="zibll-status" id="zibll-warm-status" role="status" aria-live="polite"></span>
 	</div>
 </div>
-<p class="zibll-hint"><?php esc_html_e( '保存时真实调用一次子比的授权校验；通过后缓存永久有效，前台命中缓存时跳过 zib_init_add_action。关闭后缓存立即失效，前台恢复由主题自行校验。', 'sakura-imgopt' ); ?></p>
+<p class="zibll-hint"><?php esc_html_e( '保存时真实调用一次子比的授权校验；通过后缓存永久有效，前台与后台页面命中缓存时跳过 zib_init_add_action。关闭后缓存立即失效，所有请求恢复由主题自行校验。', 'sakura-imgopt' ); ?></p>
 <?php
 
 if ( ! $zibll_state['supported'] ) {
@@ -197,7 +197,7 @@ $zibll_cards = static function () use ( $zibll_form_body, $zibll_status_body ): 
 			'id'          => 'license-cache',
 			'kicker'      => __( 'License', 'sakura-imgopt' ),
 			'title'       => __( 'Zibll 授权缓存', 'sakura-imgopt' ),
-			'description' => __( '子比 8.8 起每个前台请求都会跑一次授权校验：9.2 约 33 ms，其中大半是 OPcache 存不下的 eval。这里只缓存“已经真实通过”的结论。', 'sakura-imgopt' ),
+			'description' => __( '子比 8.8 起每个请求（含 wp-admin）都会跑一次授权校验：9.2 约 33 ms，其中大半是 OPcache 存不下的 eval。这里只缓存“已经真实通过”的结论。', 'sakura-imgopt' ),
 			'form'        => array(
 				'id'           => 'sakura-zibll-license-cache',
 				'option_group' => Settings::GROUP,
@@ -217,7 +217,7 @@ $zibll_cards = static function () use ( $zibll_form_body, $zibll_status_body ): 
 			'id'          => 'cache-status',
 			'kicker'      => __( 'Status', 'sakura-imgopt' ),
 			'title'       => __( '授权缓存状态', 'sakura-imgopt' ),
-			'description' => __( '当前请求与缓存的实际对比结果；任何一项对不上，前台都会回到主题自己的校验。', 'sakura-imgopt' ),
+			'description' => __( '当前请求与缓存的实际对比结果；任何一项对不上，请求都会回到主题自己的校验。', 'sakura-imgopt' ),
 		),
 		static function () use ( $zibll_status_body ): void {
 			echo $zibll_status_body; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- pre-escaped markup.

@@ -109,19 +109,6 @@ final class Settings {
 			return array( 'license_cache' => 0 );
 		}
 
-		if ( License::has_legacy_muplugin() ) {
-			License_Cache::clear();
-			Revalidate::unschedule();
-
-			self::error(
-				'error',
-				/* translators: %s: path of the legacy must-use plugin. */
-				sprintf( __( '检测到旧的 mu-plugin：%s。它会在本插件之前无条件跳过授权校验，请先重命名或删除它，再启用本功能。', 'sakura-imgopt' ), License::legacy_muplugin() )
-			);
-
-			return array( 'license_cache' => 0 );
-		}
-
 		$version = License::theme_version();
 
 		/*

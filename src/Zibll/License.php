@@ -12,7 +12,7 @@ namespace Sakura\ImageOptimizer\Zibll;
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Theme version, license fingerprints and the legacy mu-plugin check.
+ * Theme version and license fingerprints.
  *
  * Everything here is read-only environment state. The cache this module writes
  * is a record of one successful check by the theme's own code, so these values
@@ -34,11 +34,6 @@ final class License {
 	 * Version the cache contract was designed for.
 	 */
 	public const BASELINE = '9.2';
-
-	/**
-	 * Legacy must-use plugin that skips the license check unconditionally.
-	 */
-	public const LEGACY_MUPLUGIN = 'zibll-performance.php';
 
 	/**
 	 * Active theme version, or '' when it cannot be read.
@@ -146,33 +141,6 @@ final class License {
 	 */
 	public static function expires_at(): int {
 		return (int) get_option( 'post_zat_next', 0 );
-	}
-
-	/**
-	 * Absolute path of the legacy mu-plugin, or '' when WordPress has no content dir.
-	 *
-	 * @return string
-	 */
-	public static function legacy_muplugin(): string {
-		if ( ! defined( 'WP_CONTENT_DIR' ) ) {
-			return '';
-		}
-
-		return rtrim( (string) WP_CONTENT_DIR, '/\\' ) . '/mu-plugins/' . self::LEGACY_MUPLUGIN;
-	}
-
-	/**
-	 * Whether the legacy mu-plugin is installed.
-	 *
-	 * It removes the theme callback before this plugin can decide anything, so
-	 * "enabled" here would be a lie about what actually runs on the front end.
-	 *
-	 * @return bool
-	 */
-	public static function has_legacy_muplugin(): bool {
-		$path = self::legacy_muplugin();
-
-		return '' !== $path && file_exists( $path );
 	}
 
 	/**

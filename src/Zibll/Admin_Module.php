@@ -161,7 +161,6 @@ final class Admin_Module implements Module {
 			'expires_at' => (int) ( $cache['expires_at'] ?? 0 ),
 			'theme'      => License::theme_version(),
 			'supported'  => License::is_supported( License::theme_version() ),
-			'legacy'     => License::has_legacy_muplugin(),
 			'next_run'   => (int) ( wp_next_scheduled( Revalidate::HOOK ) ?: 0 ),
 		);
 	}

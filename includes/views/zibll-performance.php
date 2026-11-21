@@ -20,7 +20,6 @@ $zibll_enabled = ! empty( $zibll_state['enabled'] );
 $zibll_valid   = ! empty( $zibll_state['valid'] );
 $zibll_cache   = License_Cache::get();
 $zibll_version = (string) $zibll_state['theme'];
-$zibll_legacy  = ! empty( $zibll_state['legacy'] );
 $zibll_sources = array(
 	'admin_enable' => __( '保存时启用验证', 'sakura-imgopt' ),
 	'ajax_manual'  => __( '手动复验', 'sakura-imgopt' ),
@@ -87,16 +86,7 @@ UI::field(
 	)
 );
 
-if ( $zibll_legacy ) {
-	UI::notice(
-		sprintf(
-			/* translators: %s: path of the legacy mu-plugin. */
-			__( '检测到旧的 mu-plugin：%s。它会在本插件之前无条件跳过授权校验，请先重命名或删除它，否则本功能无法启用。', 'sakura-imgopt' ),
-			License::legacy_muplugin()
-		),
-		'bad'
-	);
-} elseif ( ! $zibll_state['supported'] ) {
+if ( ! $zibll_state['supported'] ) {
 	UI::notice(
 		sprintf(
 			/* translators: 1: current theme version, 2: supported versions. */
@@ -193,17 +183,6 @@ ob_start();
 							: __( '未排程', 'sakura-imgopt' )
 					);
 					?>
-				</td>
-			</tr>
-			<tr>
-				<th scope="row"><?php esc_html_e( '旧 mu-plugin', 'sakura-imgopt' ); ?></th>
-				<td data-label="<?php esc_attr_e( '旧 mu-plugin', 'sakura-imgopt' ); ?>">
-					<?php if ( $zibll_legacy ) : ?>
-						<?php UI::badge( __( '存在', 'sakura-imgopt' ), 'bad' ); ?>
-						<span class="zibll-meta"><?php echo esc_html( License::legacy_muplugin() ); ?></span>
-					<?php else : ?>
-						<?php esc_html_e( '未安装', 'sakura-imgopt' ); ?>
-					<?php endif; ?>
 				</td>
 			</tr>
 		</tbody>

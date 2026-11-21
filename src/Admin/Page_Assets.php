@@ -87,10 +87,13 @@ final class Page_Assets {
 		 * so the first paint already has the final arrangement. There is no drag
 		 * engine, no absolute positioning and no script to run on load.
 		 */
-		$page_css = 'assets/ui/pages/' . $module . '.css';
-		if ( is_readable( SAKURA_TOOLS_PATH . $page_css ) ) {
+		$page_css      = 'assets/ui/pages/' . $module . '.css';
+		$module_handle = $base . '-page-' . $module;
+		$module_loaded = is_readable( SAKURA_TOOLS_PATH . $page_css );
+
+		if ( $module_loaded ) {
 			wp_enqueue_style(
-				$base . '-page-' . $module,
+				$module_handle,
 				SAKURA_TOOLS_URL . $page_css,
 				array( $base . '-components' ),
 				self::group_version( array( $page_css ) )
@@ -98,13 +101,22 @@ final class Page_Assets {
 		}
 
 		// Optional page-specific stylesheet for tabs that need more than the
-		// shared module styles (for example files-zibll.css).
+		// shared module styles (for example files-zibll.css). A module with a
+		// single page may ship only this file, so the dependency is added only
+		// when the module stylesheet was actually enqueued — a missing handle
+		// makes WP_Styles warn about an unregistered dependency.
 		$tab_css = 'assets/ui/pages/' . $page . '.css';
 		if ( is_readable( SAKURA_TOOLS_PATH . $tab_css ) ) {
+			$tab_deps = array( $base . '-components' );
+
+			if ( $module_loaded ) {
+				$tab_deps[] = $module_handle;
+			}
+
 			wp_enqueue_style(
 				$base . '-page-' . $page,
 				SAKURA_TOOLS_URL . $tab_css,
-				array( $base . '-page-' . $module ),
+				$tab_deps,
 				self::group_version( array( $tab_css ) )
 			);
 		}

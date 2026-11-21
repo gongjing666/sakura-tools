@@ -24,6 +24,32 @@
 		var strings = config.strings || {};
 		var run = admin.qs( '#zibll-warm', root );
 		var status = admin.qs( '#zibll-warm-status', root );
+		var unit = admin.qs( '#zibll-unit', root );
+		var count = admin.qs( '#zibll-duration', root );
+
+		/*
+		 * “永久” has no number to pick: disable the field so the server keeps
+		 * the stored duration instead of validating a value nobody can see.
+		 */
+		function syncLifetime() {
+			if ( ! unit || ! count ) {
+				return;
+			}
+
+			var forever = 'forever' === unit.value;
+			var box = count.closest ? count.closest( '.field' ) : null;
+
+			count.disabled = forever;
+
+			if ( box ) {
+				box.classList.toggle( 'is-muted', forever );
+			}
+		}
+
+		if ( unit ) {
+			unit.addEventListener( 'change', syncLifetime );
+			syncLifetime();
+		}
 
 		if ( ! run || ! config.action || ! config.nonce ) {
 			return;

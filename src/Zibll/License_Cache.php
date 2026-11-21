@@ -71,7 +71,15 @@ final class License_Cache {
 		$expires = (int) ( $cache['expires_at'] ?? 0 );
 
 		// An expired license must fall back to the theme's own check.
-		return ! ( $expires > 0 && time() >= $expires );
+		if ( $expires > 0 && time() >= $expires ) {
+			return false;
+		}
+
+		// The operator can also cap how long a verdict is trusted (see
+		// Settings::lifetime_seconds()); zero means “no lifetime limit”.
+		$until = (int) ( $cache['cache_until'] ?? 0 );
+
+		return ! ( $until > 0 && time() >= $until );
 	}
 
 	/**
@@ -103,13 +111,17 @@ final class License_Cache {
 			return $result;
 		}
 
+		$created  = time();
+		$lifetime = Settings::lifetime_seconds();
+
 		$cache = array(
 			'ok'               => 1,
 			'theme_version'    => $version,
 			'home_url'         => License::home_fingerprint(),
 			'auth_fingerprint' => License::auth_fingerprint(),
 			'expires_at'       => License::expires_at(),
-			'created_at'       => time(),
+			'created_at'       => $created,
+			'cache_until'      => $lifetime > 0 ? $created + $lifetime : 0,
 			'created_by'       => (int) get_current_user_id(),
 			'source'           => sanitize_key( $source ),
 		);
@@ -119,6 +131,31 @@ final class License_Cache {
 		update_option( self::OPTION, $cache, false );
 
 		return $cache;
+	}
+
+	/**
+	 * Re-apply a lifetime to an existing verdict without probing again.
+	 *
+	 * Used when the operator changes the lifetime but the verdict itself still
+	 * matches the site, the theme and the license.
+	 *
+	 * @param int $lifetime New lifetime in seconds; zero means never expires.
+	 * @return bool Whether the retuned verdict is still valid.
+	 */
+	public static function retune( int $lifetime ): bool {
+		$cache = self::get();
+
+		if ( array() === $cache ) {
+			return false;
+		}
+
+		$created = (int) ( $cache['created_at'] ?? 0 );
+
+		$cache['cache_until'] = ( $lifetime > 0 && $created > 0 ) ? $created + $lifetime : 0;
+
+		update_option( self::OPTION, $cache, false );
+
+		return self::is_valid();
 	}
 
 	/**

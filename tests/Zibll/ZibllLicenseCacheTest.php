@@ -87,6 +87,33 @@ final class ZibllLicenseCacheTest extends TestCase {
 	}
 
 	/**
+	 * The configured lifetime caps how long a verdict is trusted.
+	 */
+	public function test_cache_lifetime_expiry(): void {
+		$this->seed_cache( array( 'cache_until' => time() - 10 ) );
+		$this->assertFalse( License_Cache::is_valid() );
+
+		$this->seed_cache( array( 'cache_until' => time() + 3600 ) );
+		$this->assertTrue( License_Cache::is_valid() );
+	}
+
+	/**
+	 * Retuning moves the deadline without touching the verdict itself.
+	 */
+	public function test_retune_applies_new_lifetime(): void {
+		$created = time();
+
+		$this->seed_cache( array( 'created_at' => $created ) );
+
+		$this->assertTrue( License_Cache::retune( 2 * HOUR_IN_SECONDS ) );
+		$this->assertSame( $created + 2 * HOUR_IN_SECONDS, (int) License_Cache::get()['cache_until'] );
+
+		// “Forever” clears the deadline again.
+		$this->assertTrue( License_Cache::retune( 0 ) );
+		$this->assertSame( 0, (int) License_Cache::get()['cache_until'] );
+	}
+
+	/**
 	 * Clear removes the option, so nothing is left to trust.
 	 */
 	public function test_clear_removes_cache(): void {

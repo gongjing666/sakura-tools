@@ -17,6 +17,32 @@
 	gap: var(--g-space-2);
 }
 
+/* The lifetime row: number + unit on one baseline, so the pair reads as a
+ * single setting rather than two unrelated fields. */
+.sakura-admin[data-sakura-page="zibll-performance"] .zibll-duration {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: flex-end;
+	gap: var(--g-space-3);
+	margin-top: var(--g-space-3);
+}
+
+.sakura-admin[data-sakura-page="zibll-performance"] .zibll-duration .field {
+	margin: 0;
+}
+
+.sakura-admin[data-sakura-page="zibll-performance"] .zibll-duration__count {
+	width: 8rem;
+}
+
+.sakura-admin[data-sakura-page="zibll-performance"] .zibll-duration__unit {
+	width: 10rem;
+}
+
+.sakura-admin[data-sakura-page="zibll-performance"] .zibll-duration .field.is-muted {
+	opacity: 0.55;
+}
+
 .sakura-admin[data-sakura-page="zibll-performance"] .zibll-hint {
 	margin: var(--g-space-2) 0 0;
 	max-width: 68ch;

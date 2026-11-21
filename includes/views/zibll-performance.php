@@ -84,7 +84,36 @@ ob_start();
 		<span class="zibll-status" id="zibll-warm-status" role="status" aria-live="polite"></span>
 	</div>
 </div>
-<p class="zibll-hint"><?php esc_html_e( '保存时真实调用一次子比的授权校验；通过后缓存永久有效，前台与后台页面命中缓存时跳过 zib_init_add_action。关闭后缓存立即失效，所有请求恢复由主题自行校验。', 'sakura-imgopt' ); ?></p>
+<div class="zibll-duration">
+	<?php
+	UI::field(
+		array(
+			'id'    => 'zibll-duration',
+			'type'  => 'number',
+			'name'  => Settings::OPTION . '[' . Settings::DURATION_FIELD . ']',
+			'value' => (string) Settings::duration(),
+			'min'   => 1,
+			'max'   => Settings::MAX_DURATION,
+			'step'  => 1,
+			'label' => __( '缓存时长', 'sakura-imgopt' ),
+			'class' => 'zibll-duration__count',
+		)
+	);
+
+	UI::field(
+		array(
+			'id'      => 'zibll-unit',
+			'type'    => 'select',
+			'name'    => Settings::OPTION . '[' . Settings::UNIT_FIELD . ']',
+			'value'   => Settings::unit(),
+			'options' => Settings::units(),
+			'label'   => __( '单位', 'sakura-imgopt' ),
+			'class'   => 'zibll-duration__unit',
+		)
+	);
+	?>
+</div>
+<p class="zibll-hint"><?php esc_html_e( '保存时真实调用一次子比的授权校验；通过后按上面的有效期缓存，前台与后台页面命中缓存时跳过 zib_init_add_action。到期后先回到主题校验，复验完成后重新生效。选「永久」时只受授权到期约束。', 'sakura-imgopt' ); ?></p>
 <?php
 
 if ( ! $zibll_state['supported'] ) {
@@ -162,6 +191,27 @@ ob_start();
 				</td>
 			</tr>
 			<tr>
+				<th scope="row"><?php esc_html_e( '缓存有效期', 'sakura-imgopt' ); ?></th>
+				<td data-label="<?php esc_attr_e( '缓存有效期', 'sakura-imgopt' ); ?>">
+					<?php echo esc_html( (string) $zibll_state['lifetime_label'] ); ?>
+					<?php if ( (int) $zibll_state['cache_until'] > 0 ) : ?>
+						<span class="zibll-meta">
+							<?php
+							echo esc_html(
+								sprintf(
+									/* translators: %s: cache expiry time. */
+									__( '到期时间 %s', 'sakura-imgopt' ),
+									$zibll_time( (int) $zibll_state['cache_until'] )
+								)
+							);
+							?>
+						</span>
+					<?php elseif ( ! empty( $zibll_cache['ok'] ) ) : ?>
+						<span class="zibll-meta"><?php esc_html_e( '不设时间上限，仅受授权到期约束', 'sakura-imgopt' ); ?></span>
+					<?php endif; ?>
+				</td>
+			</tr>
+			<tr>
 				<th scope="row"><?php esc_html_e( '授权到期', 'sakura-imgopt' ); ?></th>
 				<td data-label="<?php esc_attr_e( '授权到期', 'sakura-imgopt' ); ?>">
 					<?php echo esc_html( $zibll_time( License::expires_at() ) ); ?>
@@ -186,7 +236,7 @@ ob_start();
 	</table>
 </div>
 <p class="zibll-note">
-	<?php esc_html_e( '缓存与主题版本、站点地址、授权内容绑定；换域名、改授权或换主题都会让它自动失效。每日复验负责在授权续期后重新预热。', 'sakura-imgopt' ); ?>
+	<?php esc_html_e( '缓存与主题版本、站点地址、授权内容绑定；换域名、改授权或换主题都会让它自动失效。复验按上面设置的有效期排程，到期后自动重新预热。', 'sakura-imgopt' ); ?>
 </p>
 <?php
 $zibll_status_body = ob_get_clean();

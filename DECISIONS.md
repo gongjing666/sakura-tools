@@ -933,3 +933,15 @@ body.upload-php.sufm-tree-active.folded { --sufm-tree-left: 56px; }
 **边界**：`wp-admin` 的 POST（`options.php`、`admin-post.php`）与 admin-ajax 都不跳过，`wp-login.php` / `wp-cron.php` / `wp-json` / `xmlrpc.php` 也不跳过。后台页面在缓存无效或开关关闭时行为与从前完全一致。验证方式：后台页面 QM 的 `init` 从 ~56 ms 降到 ~15 ms，且 `zibll_options` 授权页仍显示已完成授权。
 
 **验收**：启用且缓存有效时，`/wp-admin/edit.php`、`/wp-admin/admin.php?page=zibll_options` 都命中缓存（`init` ≈15 ms、`has_action('init','zib_init_add_action')` 为 false），而 `POST /wp-admin/options.php` 仍为 10；主题授权页状态不变；关闭开关后后台恢复到每次真实验证。
+
+## 授权缓存的缓存时长可配置（2026-11-21，1.28.7-beta-9）
+
+**背景**：开发者要求在「Zibll 授权缓存」卡片里能自己定缓存多久，单位按小时 / 天 / 周 / 月 / 年，以及「永久」。
+
+**决策**：开关下面加一行「缓存时长 + 单位」，存进同一个 `sakura_imgopt_zibll` option（`duration`、`unit`，默认 `1 / 永久`，即迁移时的行为）。缓存数组多一个 `cache_until`：`created_at + lifetime`，`0` 表示不设时间上限。`License_Cache::is_valid()` 在原有的主题版本、站点地址、授权指纹、授权到期之外，再加一道 `cache_until`。复验从固定 `daily` 改成**单次事件**：间隔 = 配置的有效期（永久时仍是每日），下限 1 小时；每次复验成功或失败后自排下一次。
+
+**理由**：把「多久信一次这个结论」交回操作者，同时保持安全方向不变——缓存到期只是先回到主题自己的校验，不会伪造授权。用单次事件而不是注册一堆动态的 `cron_schedules` 间隔，是因为间隔跟着设置变，注册表里会越堆越多，还得在停用时逐个清；单次事件只有一个钩子，停用/卸载沿用现有的 `wp_clear_scheduled_hook` 即可。改时长时用 `retune()` 改写 `cache_until` 而不是丢掉结论，只有把时长缩到比缓存年龄还短才会当场重新验证一次（此时确实等于换了一个更严的约束）。
+
+**边界**：① 有效期只约束「缓存被信任多久」，不改变授权到期（`post_zat_next`）这个硬条件；② 有效期跨过复验间隔的那一小段时间里，页面请求会先回落主题校验，等 cron 跑完再恢复——这是有意的，宁可慢一点也不放大过期结论；③ WP-Cron 靠访问触发，选「年」只保证不会提前失效，不保证准点复验；④ 「永久」不是不发复验，而是每日复验一次、缓存本身不按时间过期。
+
+**验收**：把时长改成 `6 小时` 并保存，状态卡「缓存有效期」显示 `6 小时` 与具体到期时间，`wp cron event list` 里该钩子下次执行约在 6 小时后；改成「永久」后数量框置灰、状态行显示「不设时间上限，仅受授权到期约束」、下次复验回到每日；把时长缩到比缓存年龄还短时，保存会真的重跑一次校验并刷新 `created_at`。

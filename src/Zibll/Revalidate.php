@@ -1,6 +1,6 @@
 <?php
 /**
- * Daily revalidation of the Zibll license cache.
+ * Scheduled revalidation of the Zibll license cache.
  *
  * @package Sakura_Image_Optimizer
  */
@@ -14,11 +14,12 @@ defined( 'ABSPATH' ) || exit;
 /**
  * Owns the revalidation schedule and its callback.
  *
- * A cached verdict is bound to the license expiry the theme recorded, so it
- * lapses by itself; the daily job exists to notice a renewed license (and to
- * re-check a site whose expiry date moved) without waiting for an operator to
+ * A cached verdict is bound to the license expiry the theme recorded, and to
+ * the lifetime the operator picked, so it lapses by itself; this job exists to
+ * refresh it just as it lapses (or once a day when the lifetime is unlimited),
+ * which also notices a renewed license without waiting for the operator to
  * press the button. A failed re-check clears the cache, which puts the theme's
- * own check back in charge on the next front-end request.
+ * own check back in charge on the next request.
  */
 final class Revalidate {
 
@@ -28,7 +29,10 @@ final class Revalidate {
 	public const HOOK = 'sakura_imgopt_zibll_revalidate';
 
 	/**
-	 * Schedule the daily check when it is missing.
+	 * Schedule the next check when it is missing.
+	 *
+	 * Idempotent on purpose: ensure() runs on every request, so re-scheduling
+	 * here would push the event forward forever.
 	 *
 	 * @return void
 	 */
@@ -41,7 +45,37 @@ final class Revalidate {
 			return;
 		}
 
-		wp_schedule_event( time() + HOUR_IN_SECONDS, 'daily', self::HOOK );
+		wp_schedule_single_event( time() + self::delay(), self::HOOK );
+	}
+
+	/**
+	 * Move the pending check to the newly configured interval.
+	 *
+	 * @return void
+	 */
+	public static function reschedule(): void {
+		self::unschedule();
+		self::schedule();
+	}
+
+	/**
+	 * Seconds until the next check.
+	 *
+	 * Follows the lifetime, so a 6-hour cache is refreshed around the moment it
+	 * would lapse; an unlimited cache is re-checked daily to notice a renewed
+	 * or revoked license. One hour is the floor: shorter intervals would spend
+	 * more time probing than the cache saves.
+	 *
+	 * @return int
+	 */
+	private static function delay(): int {
+		$lifetime = Settings::lifetime_seconds();
+
+		if ( $lifetime <= 0 ) {
+			return DAY_IN_SECONDS;
+		}
+
+		return max( HOUR_IN_SECONDS, $lifetime );
 	}
 
 	/**
@@ -97,6 +131,7 @@ final class Revalidate {
 			// Keep the schedule: a theme rollback should heal on the next run
 			// instead of requiring the operator to toggle the switch again.
 			License_Cache::clear();
+			self::schedule();
 			return;
 		}
 
@@ -105,5 +140,8 @@ final class Revalidate {
 		if ( is_wp_error( $cache ) ) {
 			License_Cache::clear();
 		}
+
+		// A single event has just been consumed; queue the next cycle.
+		self::schedule();
 	}
 }

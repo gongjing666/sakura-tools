@@ -39,7 +39,9 @@ final class ZibllSettingsTest extends TestCase {
 
 		$result = Settings::sanitize( $this->submission( array( 'license_cache' => '0' ) ) );
 
-		$this->assertSame( array( 'license_cache' => 0 ), $result );
+		$this->assertSame( 0, $result['license_cache'] );
+		$this->assertSame( 1, $result['duration'] );
+		$this->assertSame( 'forever', $result['unit'] );
 		$this->assertSame( array(), License_Cache::get() );
 	}
 
@@ -57,7 +59,8 @@ final class ZibllSettingsTest extends TestCase {
 			)
 		);
 
-		$this->assertSame( array( 'license_cache' => 1 ), $result );
+		$this->assertSame( 1, $result['license_cache'] );
+		$this->assertSame( 'forever', $result['unit'] );
 	}
 
 	/**
@@ -68,7 +71,7 @@ final class ZibllSettingsTest extends TestCase {
 
 		$result = Settings::sanitize( $this->submission( array( 'license_cache' => '1' ) ) );
 
-		$this->assertSame( array( 'license_cache' => 0 ), $result );
+		$this->assertSame( 0, $result['license_cache'] );
 
 		$errors = (array) ( $GLOBALS['sakura_test_settings_errors'] ?? array() );
 		$this->assertCount( 1, $errors );
@@ -81,7 +84,7 @@ final class ZibllSettingsTest extends TestCase {
 	public function test_enabling_without_license_is_refused(): void {
 		$result = Settings::sanitize( $this->submission( array( 'license_cache' => '1' ) ) );
 
-		$this->assertSame( array( 'license_cache' => 0 ), $result );
+		$this->assertSame( 0, $result['license_cache'] );
 
 		$errors = (array) ( $GLOBALS['sakura_test_settings_errors'] ?? array() );
 		$this->assertCount( 1, $errors );
@@ -115,9 +118,94 @@ final class ZibllSettingsTest extends TestCase {
 
 		$result = Settings::sanitize( $this->submission( array( 'license_cache' => '1' ) ) );
 
-		$this->assertSame( array( 'license_cache' => 1 ), $result );
+		$this->assertSame( 1, $result['license_cache'] );
 		$this->assertSame( array(), (array) ( $GLOBALS['sakura_test_settings_errors'] ?? array() ) );
 		$this->assertSame( $created, (int) License_Cache::get()['created_at'] );
+	}
+
+	/**
+	 * Lifetime seconds follow the unit and fall back to “forever”.
+	 */
+	public function test_lifetime_seconds_follows_unit(): void {
+		$cases = array(
+			'hour'    => HOUR_IN_SECONDS,
+			'day'     => DAY_IN_SECONDS,
+			'week'    => 7 * DAY_IN_SECONDS,
+			'month'   => 30 * DAY_IN_SECONDS,
+			'year'    => 365 * DAY_IN_SECONDS,
+			'forever' => 0,
+		);
+
+		foreach ( $cases as $unit => $expected ) {
+			update_option(
+				Settings::OPTION,
+				array(
+					'license_cache' => 0,
+					'duration'      => 2,
+					'unit'          => $unit,
+				)
+			);
+
+			$this->assertSame( 2 * $expected, Settings::lifetime_seconds(), $unit );
+		}
+	}
+
+	/**
+	 * Bad input is clamped to a sane duration and a known unit.
+	 */
+	public function test_duration_and_unit_are_clamped(): void {
+		$result = Settings::sanitize(
+			$this->submission(
+				array(
+					'license_cache' => '0',
+					'duration'      => '0',
+					'unit'          => 'decade',
+				)
+			)
+		);
+
+		$this->assertSame( 1, $result['duration'] );
+		$this->assertSame( 'forever', $result['unit'] );
+	}
+
+	/**
+	 * Changing the lifetime retunes a valid verdict instead of probing again.
+	 */
+	public function test_changing_lifetime_retunes_cache_without_probe(): void {
+		$created = time();
+
+		update_option( 'zibll_code', str_repeat( 'a', 32 ) );
+		update_option( 'post_zat_end_time', '606012934560|ee720e98b54bb34a74b16f8b962f3174' );
+		update_option( 'post_zat_next', $created + 30 * DAY_IN_SECONDS );
+		update_option(
+			License_Cache::OPTION,
+			array(
+				'ok'               => 1,
+				'theme_version'    => License::theme_version(),
+				'home_url'         => License::home_fingerprint(),
+				'auth_fingerprint' => License::auth_fingerprint(),
+				'expires_at'       => $created + 30 * DAY_IN_SECONDS,
+				'created_at'       => $created,
+				'created_by'       => 1,
+				'source'           => 'cron',
+			)
+		);
+
+		$result = Settings::sanitize(
+			$this->submission(
+				array(
+					'license_cache' => '1',
+					'duration'      => '6',
+					'unit'          => 'hour',
+				)
+			)
+		);
+
+		$this->assertSame( 1, $result['license_cache'] );
+		$this->assertSame( 6, $result['duration'] );
+		$this->assertSame( 'hour', $result['unit'] );
+		$this->assertSame( array(), (array) ( $GLOBALS['sakura_test_settings_errors'] ?? array() ) );
+		$this->assertSame( $created + 6 * HOUR_IN_SECONDS, (int) License_Cache::get()['cache_until'] );
 	}
 
 	/**

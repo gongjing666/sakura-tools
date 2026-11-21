@@ -76,3 +76,11 @@
 	color: var(--g-muted);
 	font-size: var(--g-fs-meta);
 }
+
+/* Stacked rows already repeat the row label through td[data-label]; the <th>
+ * would print it a second time above the value. */
+@media (max-width: 782px) {
+	.sakura-admin[data-sakura-page="zibll-performance"] .table--responsive th {
+		display: none;
+	}
+}

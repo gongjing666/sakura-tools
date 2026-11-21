@@ -8,6 +8,7 @@
 declare( strict_types=1 );
 
 use PHPUnit\Framework\TestCase;
+use Sakura\ImageOptimizer\Zibll\License;
 use Sakura\ImageOptimizer\Zibll\License_Cache;
 use Sakura\ImageOptimizer\Zibll\Settings;
 
@@ -86,6 +87,37 @@ final class ZibllSettingsTest extends TestCase {
 		$this->assertCount( 1, $errors );
 		$this->assertSame( 'error', $errors[0][3] );
 		$this->assertStringContainsString( '授权', $errors[0][2] );
+	}
+
+	/**
+	 * A cache that already matches the environment is proof enough: saving must
+	 * neither rerun the probe nor print a second notice.
+	 */
+	public function test_valid_cache_skips_probe_on_save(): void {
+		$created = time();
+
+		update_option( 'zibll_code', str_repeat( 'a', 32 ) );
+		update_option( 'post_zat_end_time', '606012934560|ee720e98b54bb34a74b16f8b962f3174' );
+		update_option( 'post_zat_next', $created + DAY_IN_SECONDS );
+		update_option(
+			License_Cache::OPTION,
+			array(
+				'ok'               => 1,
+				'theme_version'    => License::theme_version(),
+				'home_url'         => License::home_fingerprint(),
+				'auth_fingerprint' => License::auth_fingerprint(),
+				'expires_at'       => $created + DAY_IN_SECONDS,
+				'created_at'       => $created,
+				'created_by'       => 1,
+				'source'           => 'cron',
+			)
+		);
+
+		$result = Settings::sanitize( $this->submission( array( 'license_cache' => '1' ) ) );
+
+		$this->assertSame( array( 'license_cache' => 1 ), $result );
+		$this->assertSame( array(), (array) ( $GLOBALS['sakura_test_settings_errors'] ?? array() ) );
+		$this->assertSame( $created, (int) License_Cache::get()['created_at'] );
 	}
 
 	/**

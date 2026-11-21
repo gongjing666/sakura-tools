@@ -124,10 +124,15 @@ final class Settings {
 
 		$version = License::theme_version();
 
-		// Already on with a cache that still matches this environment: keep the
-		// state instead of paying another 33–47 ms check (and risking the
-		// theme's exit path) on an unrelated save.
-		if ( $was_on && License_Cache::is_valid() ) {
+		/*
+		 * A cache that still matches this environment already proves the theme
+		 * accepted the license, so probing again buys nothing: skip the 33–47 ms
+		 * check (and the theme's exit path) on an unrelated save. This also
+		 * absorbs the second sanitisation WordPress runs for a brand-new option
+		 * (update_option() sanitises, then add_option() sanitises the same value
+		 * again), which would otherwise probe twice and print the notice twice.
+		 */
+		if ( License_Cache::is_valid() ) {
 			Revalidate::schedule();
 
 			return array( 'license_cache' => 1 );

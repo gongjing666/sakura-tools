@@ -35,6 +35,7 @@ final class Activation {
 			'backup_max_mb'         => 0,
 			'rename_enabled'        => 0,
 			'rename_rule'           => '{date}-{time}-{rand}',
+			'rename_fixed'          => '',
 			'batch_size'            => 1,
 			'ajax_delay'            => 500,
 			'upload_concurrency'    => 1,

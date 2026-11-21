@@ -135,11 +135,26 @@ final class Page {
 	 * @return void
 	 */
 	private static function head( array $args ): void {
+		$id      = isset( $args['id'] ) ? sanitize_key( (string) $args['id'] ) : '';
 		$eyebrow = isset( $args['eyebrow'] ) ? (string) $args['eyebrow'] : '';
 		$title   = isset( $args['title'] ) ? (string) $args['title'] : '';
 		$lede    = isset( $args['lede'] ) ? (string) $args['lede'] : '';
 		$tagline = isset( $args['tagline'] ) ? (string) $args['tagline'] : '';
 		$stamp   = isset( $args['stamp'] ) && is_array( $args['stamp'] ) ? $args['stamp'] : array();
+
+		/*
+		 * V2 hero: a page that does not describe its own hero still gets the
+		 * shared one. Without this every screen except the sync centre falls
+		 * back to a bare title, and the heads stop looking like one product.
+		 * An explicit argument always wins, so a view can still stay plain by
+		 * passing an empty string.
+		 */
+		if ( ! isset( $args['tagline'] ) ) {
+			$tagline = Hero::tagline( $id );
+		}
+		if ( array() === $stamp ) {
+			$stamp = Hero::stamp();
+		}
 		$status  = isset( $args['status'] ) && is_array( $args['status'] ) ? $args['status'] : array();
 		$actions = isset( $args['actions'] ) && is_array( $args['actions'] ) ? $args['actions'] : array();
 

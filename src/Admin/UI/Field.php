@@ -138,19 +138,10 @@ final class Field {
 		$checked = ! empty( $args['checked'] ) || ( ! isset( $args['checked'] ) && ! empty( $args['value'] ) );
 		$text    = isset( $args['text'] ) ? (string) $args['text'] : '';
 
-		if ( $toggle ) {
-			echo '<label class="switch">';
-			echo '<input type="checkbox" class="switch__input" name="' . esc_attr( $name ) . '" value="' . esc_attr( $value ) . '"' . self::checked( $checked ) . self::disabled( $args ) . self::describedby( $hint_id ) . ' />'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- checked()/disabled()/describedby() emit escaped attributes.
-			echo '<span class="switch__track" aria-hidden="true"></span>';
-			if ( '' !== $text ) {
-				echo '<span class="switch__text">' . esc_html( $text ) . '</span>';
-			}
-			echo '</label>';
-			return;
-		}
-
+		// A toggle is the switch: the same native checkbox with `.is-switch`, so
+		// the keyboard, the label wrap and the submitted value stay native.
 		echo '<label class="check">';
-		echo '<input type="checkbox" name="' . esc_attr( $name ) . '" value="' . esc_attr( $value ) . '"' . self::checked( $checked ) . self::disabled( $args ) . self::describedby( $hint_id ) . ' />'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- checked()/disabled()/describedby() emit escaped attributes.
+		echo '<input' . ( $toggle ? ' class="is-switch"' : '' ) . ' type="checkbox" name="' . esc_attr( $name ) . '" value="' . esc_attr( $value ) . '"' . self::checked( $checked ) . self::disabled( $args ) . self::describedby( $hint_id ) . ' />'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- checked()/disabled()/describedby() emit escaped attributes.
 		echo '<span class="check__box" aria-hidden="true"></span>';
 		if ( '' !== $text ) {
 			echo '<span class="check__text">' . esc_html( $text ) . '</span>';

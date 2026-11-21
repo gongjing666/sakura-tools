@@ -667,7 +667,7 @@ UI::page(
 											?>
 											<td class="caps-matrix__cell<?php echo $sufm_limited && Capabilities::DELETE_FILES === $sufm_cap ? ' is-limited' : ''; ?><?php echo $sufm_locked ? ' is-locked' : ''; ?>">
 												<?php if ( $sufm_locked ) : ?>
-													<span class="caps-matrix__fixed" title="<?php esc_attr_e( '管理员直删不受此页控制，始终开启。', 'sakura-imgopt' ); ?>" aria-hidden="true"><svg viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path fill="currentColor" d="M8 1.6a3.1 3.1 0 0 0-3.1 3.1V6H4.6A1.6 1.6 0 0 0 3 7.6v5.8A1.6 1.6 0 0 0 4.6 15h6.8a1.6 1.6 0 0 0 1.6-1.6V7.6A1.6 1.6 0 0 0 11.4 6h-.3V4.7A3.1 3.1 0 0 0 8 1.6Zm0 1.5a1.6 1.6 0 0 1 1.6 1.6V6H6.4V4.7A1.6 1.6 0 0 1 8 3.1Zm-.8 4.6h1.6v3.6H7.2V7.7Z"/></svg></span>
+													<span class="caps-matrix__fixed" title="<?php esc_attr_e( '管理员直删不受此页控制，始终开启。', 'sakura-imgopt' ); ?>" aria-hidden="true"><?php echo UI::lock_icon(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Static SVG. ?></span>
 													<input type="hidden" name="sufm_caps[<?php echo esc_attr( $sufm_role ); ?>][<?php echo esc_attr( $sufm_cap ); ?>]" value="1" />
 													<span class="screen-reader-text"><?php echo esc_html( Capability_Matrix::role_label( $sufm_role ) . '：' . $sufm_meta['label'] . __( '（固定开启）', 'sakura-imgopt' ) ); ?></span>
 												<?php else : ?>

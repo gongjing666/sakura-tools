@@ -555,6 +555,7 @@ if ( ! function_exists( 'current_time' ) ) {
 
 require_once dirname( __DIR__ ) . '/src/Upgrade_Guard.php';
 require_once dirname( __DIR__ ) . '/src/Support/Text.php';
+require_once dirname( __DIR__ ) . '/src/Support/Profiler.php';
 require_once dirname( __DIR__ ) . '/src/Support/Hook_Loader.php';
 require_once dirname( __DIR__ ) . '/src/Contracts/Module.php';
 require_once dirname( __DIR__ ) . '/src/Contracts/Backup_Repository_Interface.php';
@@ -1347,6 +1348,55 @@ require_once dirname( __DIR__ ) . '/src/Sync/Checksums.php';
 if ( ! function_exists( 'do_action' ) ) {
 	function do_action( $hook_name, ...$args ) {
 		$GLOBALS['sakura_test_actions'][] = array( $hook_name, $args );
+	}
+}
+
+if ( ! function_exists( 'has_action' ) ) {
+	/**
+	 * Minimal has_action() shim over the recorded registrations.
+	 *
+	 * @param string        $hook_name Hook name.
+	 * @param callable|bool $callback  Callback, or false to ask only whether anything is attached.
+	 * @return int|bool Priority for a matching callback, true when any callback is attached, false otherwise.
+	 */
+	function has_action( $hook_name, $callback = false ) {
+		$actions = (array) ( $GLOBALS['sakura_test_hooks']['actions'] ?? array() );
+
+		foreach ( $actions as $registered ) {
+			if ( (string) $registered[0] !== (string) $hook_name ) {
+				continue;
+			}
+
+			if ( false === $callback ) {
+				return true;
+			}
+
+			if ( $registered[1] === $callback ) {
+				return (int) $registered[2];
+			}
+		}
+
+		return false;
+	}
+}
+
+if ( ! function_exists( 'did_action' ) ) {
+	/**
+	 * Minimal did_action() shim: how many times a hook has fired.
+	 *
+	 * @param string $hook_name Hook name.
+	 * @return int
+	 */
+	function did_action( $hook_name ) {
+		$count = 0;
+
+		foreach ( (array) ( $GLOBALS['sakura_test_actions'] ?? array() ) as $entry ) {
+			if ( (string) $entry[0] === (string) $hook_name ) {
+				++$count;
+			}
+		}
+
+		return $count;
 	}
 }
 

@@ -72,9 +72,9 @@ $cache_note = ! empty( $cache_report['group_flush'] )
 		? __( '当前没有启用对象缓存，无需清理。', 'sakura-imgopt' )
 		: __( '当前的对象缓存不支持按组清理；插件不会清空整站缓存，请手动清理，或换用支持分组清理的缓存服务。', 'sakura-imgopt' ) );
 
-$checkbox_control = static function ( string $name, string $text, bool $checked ) {
+$checkbox_control = static function ( string $name, string $text, bool $checked, bool $as_switch = false ) {
 	echo '<input type="hidden" name="' . esc_attr( $name ) . '" value="0" />';
-	echo '<label class="check"><input type="checkbox" name="' . esc_attr( $name ) . '" value="1"' . checked( $checked, true, false ) . ' />';
+	echo '<label class="check"><input' . ( $as_switch ? ' class="is-switch"' : '' ) . ' type="checkbox" name="' . esc_attr( $name ) . '" value="1"' . checked( $checked, true, false ) . ' />';
 	echo '<span class="check__box" aria-hidden="true"></span><span class="check__text">' . esc_html( $text ) . '</span></label>';
 };
 
@@ -156,7 +156,7 @@ UI::page(
 								'label'   => __( '启用', 'sakura-imgopt' ),
 								'full'    => true,
 								'control' => static function () use ( $options, $checkbox_control ) {
-									$checkbox_control( 'sakura_imgopt_oss_thumb[enabled]', __( '启用缩略图 URL 改写', 'sakura-imgopt' ), ! empty( $options['enabled'] ) );
+									$checkbox_control( 'sakura_imgopt_oss_thumb[enabled]', __( '启用缩略图 URL 改写', 'sakura-imgopt' ), ! empty( $options['enabled'] ), true );
 								},
 							)
 						);

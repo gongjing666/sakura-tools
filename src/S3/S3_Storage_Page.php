@@ -243,7 +243,7 @@ final class S3_Storage_Page {
 						'id'          => 'profiles',
 						'kicker'      => 'PROFILES',
 						'title'       => __( '已保存的配置', 'sakura-imgopt' ),
-						'description' => __( '点一下卡片就启用这份配置：卡片变成深色即表示正在使用。再点一次正在使用的卡片会关闭 S3 存储（卡片变浅，配置仍在）。切换配置不用重新填写密钥。', 'sakura-imgopt' ),
+						'description' => __( '点一下卡片就启用这份配置：卡片变成樱花粉即表示正在使用。再点一次正在使用的卡片会关闭 S3 存储（卡片退回浅粉，配置仍在）。切换配置不用重新填写密钥。', 'sakura-imgopt' ),
 						'anchor'      => 'sakura-s3-profiles',
 						'class'       => 'card--wide',
 						'actions'     => array(
@@ -280,7 +280,7 @@ final class S3_Storage_Page {
 							// server enforces the same table; computing it here as well
 							// keeps the button honest before it is pressed.
 							$delete_locked = self::delete_refusal( (string) $profile_id, $is_active, $enabled, $bound_id, $risk_locked, count( $visible ) );
-							// 深色 = 这份配置正在使用（active + 已启用）；浅色 = 只是保存着。
+							// 樱花粉实底 = 这份配置正在使用（active + 已启用）；浅樱底 = 只是保存着。
 							$is_live   = $is_active && $enabled;
 							$badge     = __( '已保存', 'sakura-imgopt' );
 							if ( $is_live ) {
@@ -820,15 +820,51 @@ final class S3_Storage_Page {
 
 	/**
 	 * One checkbox row with a bold label and a description.
+	 *
+	 * @param string $name    Option key.
+	 * @param string $text    Title.
+	 * @param string $hint    Hint line.
+	 * @param bool   $checked Whether the switch is on.
+	 * @param bool   $danger  Whether the hint is a risk warning.
+	 * @param bool   $full    Whether the row spans the whole card.
+	 * @param bool   $locked  Whether the binding froze this switch (R11).
+	 * @return void
 	 */
-	private function check_field( string $name, string $text, string $hint, bool $checked, bool $danger = false, bool $full = false, bool $disabled = false ): void {
+	private function check_field( string $name, string $text, string $hint, bool $checked, bool $danger = false, bool $full = false, bool $locked = false ): void {
 		UI::field(
 			array(
 				'type'    => 'custom',
 				'class'   => 'field--check',
 				'full'    => $full,
-				'control' => static function () use ( $name, $text, $hint, $checked, $danger, $disabled ) {
-					return '<label class="check check--stacked' . ( $disabled ? ' is-locked' : '' ) . '"><input type="checkbox" name="' . esc_attr( $name ) . '" value="1"' . ( $checked ? ' checked' : '' ) . ( $disabled ? ' disabled' : '' ) . ' /><span class="check__box" aria-hidden="true"></span><span class="check__text"><strong class="check__title">' . esc_html( $text ) . '</strong><span class="check__hint' . ( $danger ? ' is-danger' : '' ) . '">' . esc_html( $hint ) . '</span></span></label>';
+				'control' => static function () use ( $name, $text, $hint, $checked, $danger, $locked ) {
+					/*
+					 * A frozen switch shows a padlock where the checkbox used to
+					 * be — the same glyph the capability matrix prints for a cell
+					 * nobody can change. A disabled checkbox read as "greyed out",
+					 * which never said whether the option was on; the lock plus
+					 * the 已开启/已关闭 word does.
+					 *
+					 * Settings_Saver::save() fills both frozen values from the
+					 * snapshot, so nothing has to post from here. The hidden input
+					 * only keeps the markup readable when someone inspects a POST.
+					 */
+					$state   = $checked
+						? '<span class="check__state is-on">' . esc_html__( '已开启', 'sakura-imgopt' ) . '</span>'
+						: '<span class="check__state">' . esc_html__( '已关闭', 'sakura-imgopt' ) . '</span>';
+					$control = $locked
+						? '<span class="check__lock" title="' . esc_attr__( '已随绑定锁定，不能在这里切换。', 'sakura-imgopt' ) . '" aria-hidden="true">' . UI::lock_icon() . '</span>'
+						: '<input type="checkbox" name="' . esc_attr( $name ) . '" value="1"' . ( $checked ? ' checked' : '' ) . ' />';
+					$hidden  = $locked && $checked
+						? '<input type="hidden" name="' . esc_attr( $name ) . '" value="1" />'
+						: '';
+					$reader  = $locked
+						? '<span class="screen-reader-text">' . esc_html( $checked ? __( '（已锁定，当前为开启）', 'sakura-imgopt' ) : __( '（已锁定，当前为关闭）', 'sakura-imgopt' ) ) . '</span>'
+						: '';
+					// A locked row has no control to click, so it must not stay a
+					// <label>: that would read as a form label pointing nowhere.
+					$tag = $locked ? 'div' : 'label';
+
+					return '<' . $tag . ' class="check check--stacked' . ( $locked ? ' is-locked' : '' ) . '">' . $control . $hidden . '<span class="check__text"><strong class="check__title">' . esc_html( $text ) . ( $locked ? $state : '' ) . '</strong><span class="check__hint' . ( $danger ? ' is-danger' : '' ) . '">' . esc_html( $hint ) . '</span></span>' . $reader . '</' . $tag . '>';
 				},
 			)
 		);

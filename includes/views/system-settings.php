@@ -73,6 +73,12 @@ $check_label = static function ( string $key ) use ( $check_map, $state_labels )
 $total_checks = count( $checks );
 $total_for_score = $total_checks > 0 ? $total_checks : 1;
 $score        = (int) round( ( ( (int) $summary['pass'] + (int) $summary['warn'] * 0.5 ) / $total_for_score ) * 100 );
+/*
+ * 分数配色只有三档，与「通过 / 建议 / 需要处理」的语义对齐：80 分以上说明
+ * 环境基本干净，60 分以上只是有建议项，60 分以下意味着有项没通过。阈值写进
+ * 类名而不是 style 属性，颜色归 CSS（见 assets/ui/pages/system.css）。
+ */
+$score_tone   = $score >= 80 ? 'ok' : ( $score >= 60 ? 'warn' : 'bad' );
 $page_tone    = (int) $summary['fail'] > 0 ? 'bad' : ( (int) $summary['warn'] > 0 ? 'warn' : 'ok' );
 $status_text  = (int) $summary['fail'] > 0
 	? __( '需要处理', 'sakura-imgopt' )
@@ -264,23 +270,23 @@ UI::page(
 			),
 		),
 	),
-	static function () use ( $score, $kpis, $runtime_rows, $engine_rows, $checks, $summary, $total_checks, $state_labels, $state_tone, $extensions, $gaps, $gaps_option, $gaps_max, $appearance, $appearance_option, $appearance_defaults, $appearance_width_min, $appearance_width_max, $appearance_border_max, $appearance_radius_max ) {
+	static function () use ( $score, $score_tone, $kpis, $runtime_rows, $engine_rows, $checks, $summary, $total_checks, $state_labels, $state_tone, $extensions, $gaps, $gaps_option, $gaps_max, $appearance, $appearance_option, $appearance_defaults, $appearance_width_min, $appearance_width_max, $appearance_border_max, $appearance_radius_max ) {
 		?>
-		<section class="kpis" aria-label="<?php echo esc_attr__( '环境评分', 'sakura-imgopt' ); ?>">
-			<div class="kpi">
+		<section class="kpis kpis--ticket" aria-label="<?php echo esc_attr__( '环境评分', 'sakura-imgopt' ); ?>">
+			<article class="kpi kpi--score kpi--score-<?php echo esc_attr( $score_tone ); ?>">
 				<span class="kpi__label"><?php echo esc_html__( '环境评分', 'sakura-imgopt' ); ?></span>
-				<strong class="kpi__value"><?php echo esc_html( (string) $score ); ?><small><?php echo esc_html__( '分', 'sakura-imgopt' ); ?></small></strong>
+				<span class="kpi__value"><?php echo esc_html( (string) $score ); ?><small><?php echo esc_html__( '分', 'sakura-imgopt' ); ?></small></span>
 				<div class="kpi__progress">
 					<progress class="progress" max="100" value="<?php echo esc_attr( (string) min( 100, max( 0, $score ) ) ); ?>" aria-label="<?php echo esc_attr__( '环境评分', 'sakura-imgopt' ); ?>"><?php echo esc_html( (string) min( 100, max( 0, $score ) ) ); ?>%</progress>
 				</div>
 				<span class="kpi__sub"><?php echo esc_html__( '通过项计满分，建议项计半分', 'sakura-imgopt' ); ?></span>
-			</div>
+			</article>
 			<?php foreach ( $kpis as $kpi ) : ?>
-				<div class="kpi">
+				<article class="kpi">
 					<span class="kpi__label"><?php echo esc_html( (string) $kpi['label'] ); ?></span>
-					<strong class="kpi__value"><?php echo esc_html( (string) $kpi['value'] ); ?><small><?php echo esc_html( (string) $kpi['unit'] ); ?></small></strong>
+					<span class="kpi__value"><?php echo esc_html( (string) $kpi['value'] ); ?><small><?php echo esc_html( (string) $kpi['unit'] ); ?></small></span>
 					<span class="kpi__sub"><?php echo esc_html( (string) $kpi['sub'] ); ?></span>
-				</div>
+				</article>
 			<?php endforeach; ?>
 		</section>
 

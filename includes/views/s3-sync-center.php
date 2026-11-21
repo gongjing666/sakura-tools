@@ -405,7 +405,7 @@ ob_start();
 );
 ?>
 
-<section class="kpis" id="summary" aria-label="<?php esc_attr_e( '同步摘要', 'sakura-imgopt' ); ?>">
+<section class="kpis kpis--ticket" id="summary" aria-label="<?php esc_attr_e( '同步摘要', 'sakura-imgopt' ); ?>">
 	<article class="kpi">
 		<span class="kpi__label"><?php esc_html_e( '本地媒体', 'sakura-imgopt' ); ?></span>
 		<span class="kpi__value"><?php echo esc_html( number_format_i18n( $local_files ) ); ?><small><?php esc_html_e( '个文件', 'sakura-imgopt' ); ?></small></span>

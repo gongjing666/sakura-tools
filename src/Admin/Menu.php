@@ -11,6 +11,7 @@ namespace Sakura\ImageOptimizer\Admin;
 
 use Sakura\ImageOptimizer\Contracts\Module;
 use Sakura\ImageOptimizer\Support\Hook_Loader;
+use Sakura\ImageOptimizer\Support\Profiler;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -30,6 +31,7 @@ final class Menu implements Module {
 	 */
 	public function register_hooks( Hook_Loader $hooks ): void {
 		$hooks->add_action( 'admin_menu', array( $this, 'register_menu' ) );
+		$hooks->add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_menu_icon' ) );
 
 		// Legacy slugs must be caught before WordPress validates ?page= against
 		// the registered screens, otherwise it dies with "not allowed" first.
@@ -57,7 +59,11 @@ final class Menu implements Module {
 					$cap,
 					$slug,
 					array( $this, 'render' ),
-					'dashicons-images-alt2',
+					// 'none' keeps WordPress from printing its own glyph and,
+					// because the value is not empty, it also skips the
+					// menu-icon-generic class — so the empty icon div is ours to
+					// paint (see assets/ui/admin-menu-icon.css).
+					'none',
 					80
 				);
 
@@ -84,6 +90,23 @@ final class Menu implements Module {
 				array( $this, 'render' )
 			);
 		}
+	}
+
+	/**
+	 * Load the stylesheet that paints the plugin's admin menu icon.
+	 *
+	 * The icon has to render on every admin screen, not just on ours, so this
+	 * runs for the whole dashboard and only adds one small CSS file.
+	 *
+	 * @return void
+	 */
+	public function enqueue_menu_icon(): void {
+		wp_enqueue_style(
+			'sakura-admin-menu-icon',
+			SAKURA_TOOLS_URL . 'assets/ui/admin-menu-icon.css',
+			array(),
+			Page_Assets::asset_version( 'assets/ui/admin-menu-icon.css' )
+		);
 	}
 
 	/**
@@ -119,7 +142,12 @@ final class Menu implements Module {
 		$renderer = Registry::renderer( $module, $tab );
 
 		if ( is_callable( $renderer ) ) {
-			call_user_func( $renderer );
+			Profiler::measure(
+				'admin page ' . $module . '/' . $tab,
+				static function () use ( $renderer ): void {
+					call_user_func( $renderer );
+				}
+			);
 			return;
 		}
 

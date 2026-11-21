@@ -66,6 +66,52 @@
 	background: var(--g-accent);
 }
 
+/*
+ * Score meter (2026-11-20): the <progress> was painted with --g-accent, so a
+ * failing environment still looked like "everything is fine, it's just pink".
+ * The tone class comes from the view (>=80 ok, >=60 warn, else bad); only the
+ * fill changes, the track stays --g-accent-soft so the bar still reads as a
+ * meter at low values.
+ */
+.sakura-admin[data-sakura-page="system-settings"] .kpi--score-ok .progress::-webkit-progress-value {
+	background: var(--g-score-ok);
+}
+
+.sakura-admin[data-sakura-page="system-settings"] .kpi--score-ok .progress::-moz-progress-bar {
+	background: var(--g-score-ok);
+}
+
+.sakura-admin[data-sakura-page="system-settings"] .kpi--score-warn .progress::-webkit-progress-value {
+	background: var(--g-score-warn);
+}
+
+.sakura-admin[data-sakura-page="system-settings"] .kpi--score-warn .progress::-moz-progress-bar {
+	background: var(--g-score-warn);
+}
+
+.sakura-admin[data-sakura-page="system-settings"] .kpi--score-bad .progress::-webkit-progress-value {
+	background: var(--g-score-bad);
+}
+
+.sakura-admin[data-sakura-page="system-settings"] .kpi--score-bad .progress::-moz-progress-bar {
+	background: var(--g-score-bad);
+}
+
+/* The number repeats the verdict, but as text it has to clear 4.5:1 — so it
+ * borrows the darker status inks (6.3 / 5.3 / 6.4 on white) rather than the bar
+ * fills, which are decorative and would wash out at 1.5–2.3:1. */
+.sakura-admin[data-sakura-page="system-settings"] .kpi--score-ok .kpi__value {
+	color: var(--g-ok);
+}
+
+.sakura-admin[data-sakura-page="system-settings"] .kpi--score-warn .kpi__value {
+	color: var(--g-warn);
+}
+
+.sakura-admin[data-sakura-page="system-settings"] .kpi--score-bad .kpi__value {
+	color: var(--g-bad);
+}
+
 .sakura-admin[data-sakura-page="system-settings"] .system-field-group {
 	grid-column: 1 / -1;
 	margin: 2px 0 -2px;
@@ -89,7 +135,12 @@
 }
 
 @media (max-width: 900px) {
-	.sakura-admin[data-sakura-page="system-settings"] .kpis {
+	/*
+	 * The ticket strip keeps auto-fit down to 782px: forcing two columns while
+	 * the ticket's own ≤782 rules are still off would leave a dashed rule at the
+	 * left edge of the second row, which reads as if the paper were cut.
+	 */
+	.sakura-admin[data-sakura-page="system-settings"] .kpis:not(.kpis--ticket) {
 		grid-template-columns: repeat(2, minmax(0, 1fr));
 	}
 }

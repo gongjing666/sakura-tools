@@ -1,0 +1,33 @@
+/* Admin menu icon for the plugin.
+ *
+ * WordPress is handed 'none' as the menu icon (see Admin\Menu::register_menu()),
+ * which leaves the .wp-menu-image div empty and free for us to paint. The glyph
+ * is a mask, not an image, so its colour comes from currentColor — WordPress
+ * already swaps that for hover (#72aee6) and for the current item (#fff on the
+ * blue #2271b1 plate), and the artwork stays in one file instead of being
+ * duplicated as path data.
+ *
+ * The slug in the selectors is Registry::PARENT; if the menu slug ever changes,
+ * these two rules have to follow it.
+ */
+#adminmenu #toplevel_page_sakura-tools div.wp-menu-image {
+	background-color: currentColor;
+	/* Core paints its own glyphs at 60% white on the default state; match that
+	 * weight, then let hover and the current item go to full strength. */
+	opacity: .62;
+	-webkit-mask-image: url(icons/sakura-mark.svg);
+	mask-image: url(icons/sakura-mark.svg);
+	-webkit-mask-size: 20px 20px;
+	mask-size: 20px 20px;
+	-webkit-mask-position: center;
+	mask-position: center;
+	-webkit-mask-repeat: no-repeat;
+	mask-repeat: no-repeat;
+}
+
+#adminmenu li#toplevel_page_sakura-tools:hover div.wp-menu-image,
+#adminmenu li#toplevel_page_sakura-tools a:focus div.wp-menu-image,
+#adminmenu li.current#toplevel_page_sakura-tools div.wp-menu-image,
+#adminmenu li.wp-has-current-submenu#toplevel_page_sakura-tools div.wp-menu-image {
+	opacity: 1;
+}

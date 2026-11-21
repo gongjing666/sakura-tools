@@ -477,3 +477,184 @@
 .sakura-admin .card__body > .code-block + .button-row {
 	margin-top: 12px;
 }
+
+/* ── 重命名规则编辑器 ──────────────────────────────────────────────
+ * 以前这颗字段只有一行 `regular-text` 加一段长说明：输入框 25em，卡片
+ * 右半边和下方全是空的。现在输入框撑满、占位符铺成一行可点的卡片：点未
+ * 选中的卡片按 `-` 拼到末尾（`{ext}` 用点号，末尾已有分隔符就不重复），
+ * 点已选中的卡片把该占位符连同连接符一起去掉 —— 每个占位符只用一次。
+ * 底部给出示例文件名预览，示例值来自服务端。 */
+.sakura-admin[data-sakura-page="image-rules"] .rule-composer {
+	display: grid;
+	gap: 10px;
+	min-width: 0;
+}
+
+.sakura-admin[data-sakura-page="image-rules"] .rule-composer__row {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.sakura-admin[data-sakura-page="image-rules"] .rule-composer__input {
+	flex: 1 1 auto;
+	min-width: 0;
+	width: 100%;
+	max-width: none;
+	font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+	font-size: 13px;
+	letter-spacing: .01em;
+}
+
+.sakura-admin[data-sakura-page="image-rules"] .rule-composer__tokens {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+}
+
+/* 十七张卡片平铺会把这块撑成一堵墙：用得少的占位符收进「更多」，
+   展开后还是同一套卡片，只是多一条虚线上边界。 */
+.sakura-admin[data-sakura-page="image-rules"] .rule-composer__more {
+	justify-self: start;
+	margin: 0;
+	padding: 0;
+	border: 0;
+	background: none;
+	color: var(--g-accent);
+	font-size: 11.5px;
+	font-weight: 600;
+	line-height: 1.5;
+	cursor: pointer;
+	text-decoration: underline;
+	text-decoration-color: var(--g-select-border);
+	text-underline-offset: 3px;
+}
+
+.sakura-admin[data-sakura-page="image-rules"] .rule-composer__more:hover {
+	color: var(--g-accent-hover);
+	text-decoration-color: var(--g-accent-line);
+}
+
+.sakura-admin[data-sakura-page="image-rules"] .rule-composer__more:focus-visible {
+	outline: 2px solid var(--g-accent);
+	outline-offset: 2px;
+	border-radius: var(--g-radius-xs);
+}
+
+.sakura-admin[data-sakura-page="image-rules"] .rule-composer__tokens--more {
+	padding-top: 10px;
+	border-top: 1px dashed var(--g-line);
+}
+
+.sakura-admin[data-sakura-page="image-rules"] .rule-composer__tokens--more[hidden] {
+	display: none;
+}
+
+/* 规则对所有文件类型都生效，哪里会「取不到值」得写在明面上。 */
+.sakura-admin[data-sakura-page="image-rules"] .rule-composer__note {
+	margin: 0;
+	font-size: 11.5px;
+	line-height: 1.6;
+	color: var(--g-faint);
+}
+
+.sakura-admin[data-sakura-page="image-rules"] .rule-token {
+	display: inline-flex;
+	align-items: baseline;
+	gap: 6px;
+	padding: 5px 9px;
+	border: 1px solid var(--g-line);
+	border-radius: var(--g-radius-xs);
+	background: var(--g-card-surface);
+	color: var(--g-muted);
+	font-size: 11.5px;
+	line-height: 1.4;
+	cursor: pointer;
+	transition: border-color var(--g-dur) var(--g-ease), background var(--g-dur) var(--g-ease), color var(--g-dur) var(--g-ease);
+}
+
+.sakura-admin[data-sakura-page="image-rules"] .rule-token code {
+	color: var(--g-accent);
+	font-size: 11.5px;
+	font-weight: 650;
+}
+
+/* 自定义占位符卡片：虚线和内置占位符分开；还没填固定文本时压暗，
+   点它插进规则也不会产生内容，别让人以为保存失败了。 */
+.sakura-admin[data-sakura-page="image-rules"] .rule-token--fixed {
+	border-style: dashed;
+}
+
+.sakura-admin[data-sakura-page="image-rules"] .rule-token--fixed.is-empty {
+	background: transparent;
+	color: var(--g-faint);
+}
+
+.sakura-admin[data-sakura-page="image-rules"] .rule-token--fixed.is-empty code {
+	color: var(--g-faint);
+}
+
+/* 固定文本输入：值会落进文件名，等宽字方便核对连字符与下划线。 */
+.sakura-admin[data-sakura-page="image-rules"] .rule-fixed-input {
+	width: 220px;
+	max-width: 100%;
+	font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+	font-size: 13px;
+	letter-spacing: .01em;
+}
+
+.sakura-admin[data-sakura-page="image-rules"] .rule-token:hover {
+	border-color: var(--g-accent-line);
+	background: var(--g-accent-soft);
+	color: var(--g-ink);
+}
+
+.sakura-admin[data-sakura-page="image-rules"] .rule-token:active {
+	transform: translateY(1px);
+}
+
+.sakura-admin[data-sakura-page="image-rules"] .rule-token:focus-visible {
+	outline: 2px solid var(--g-accent);
+	outline-offset: 2px;
+}
+
+/* 已写进规则的占位符：整块换成樱花淡粉（`--g-brand-petal`，和顶栏品牌瓦片同色），
+   墨字压在上面 8:1，一眼能看出哪几个在用；再点一次移除。每个占位符只能用一次，
+   所以按钮是 aria-pressed 的开关，不是普通按钮。底色浅，文字必须用墨色，不要白字。 */
+.sakura-admin[data-sakura-page="image-rules"] .rule-token[aria-pressed="true"] {
+	border-color: var(--g-petal-2);
+	background: var(--g-brand-petal);
+	color: var(--g-ink);
+	box-shadow: 0 1px 2px rgba(199, 51, 91, .16), inset 0 1px 0 rgba(255, 255, 255, .55);
+}
+
+.sakura-admin[data-sakura-page="image-rules"] .rule-token[aria-pressed="true"] code,
+.sakura-admin[data-sakura-page="image-rules"] .rule-token[aria-pressed="true"]:hover code {
+	color: var(--g-ink);
+	font-weight: 700;
+}
+
+.sakura-admin[data-sakura-page="image-rules"] .rule-token[aria-pressed="true"]:hover {
+	border-color: var(--g-petal-3);
+	background: var(--g-petal-2);
+	color: var(--g-ink);
+}
+
+.sakura-admin[data-sakura-page="image-rules"] .rule-token[aria-pressed="true"]:focus-visible {
+	outline-color: var(--g-accent);
+}
+
+.sakura-admin[data-sakura-page="image-rules"] .rule-composer__preview {
+	margin: 0;
+	color: var(--g-muted);
+	font-size: 12px;
+	line-height: 1.6;
+}
+
+.sakura-admin[data-sakura-page="image-rules"] .rule-composer__preview code {
+	padding: 2px 7px;
+	border-radius: var(--g-radius-xs);
+	background: var(--g-wash);
+	color: var(--g-ink);
+	font-size: 12px;
+}

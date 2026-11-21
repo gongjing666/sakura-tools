@@ -10,6 +10,7 @@ namespace Sakura\ImageOptimizer\Sync;
 use Sakura\ImageOptimizer\Contracts\Module;
 use Sakura\ImageOptimizer\S3\Upload_Metrics;
 use Sakura\ImageOptimizer\Support\Hook_Loader;
+use Sakura\ImageOptimizer\Support\Profiler;
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
@@ -124,7 +125,10 @@ final class Scan_Worker implements Module {
 		}
 
 		try {
-			$result = $this->scanner->tick( $scan_id, 0, Scan_Service::TICK_SECONDS );
+			$result = Profiler::measure(
+				'scan tick',
+				fn() => $this->scanner->tick( $scan_id, 0, Scan_Service::TICK_SECONDS )
+			);
 		} catch ( \Throwable $e ) {
 			$this->handle_failure( $scan_id, (string) $scan->profile_id, 'sio_scan_exception', $e->getMessage() );
 			return;

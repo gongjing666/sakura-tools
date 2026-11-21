@@ -44,6 +44,16 @@
 	--g-accent-line: #b62f58;
 	--g-accent-glow: rgba(199, 51, 91, .30);
 
+	/* The pale petal surface. Two places are licensed to use it, both with dark
+	 * ink — white on #FFAACA is only 1.77:1 and can never carry a label:
+	 *   ① 品牌瓦片：30px 方块里只有一颗 18px 的装饰图形，没有文字（开发者 2026-11-20 定）；
+	 *   ② 对象存储「使用中」的配置卡（开发者 2026-11-21 定）：樱花粉渐变
+	 *      `--g-petal-1 → --g-brand-petal → --g-petal-2` 的中间档，粉底压 --g-ink（8.07:1），
+	 *      说明文字用 --g-ink-soft（最深一档 5.32:1；--g-muted 只有 3.08–3.69:1 不达标）。
+	 * 除此之外的任何控件底都不要用它。 */
+	--g-brand-petal: #ffaaca;
+	--g-brand-ink: #ffffff;
+
 	/* Sakura scale: four steps from deep to barely-there. Used by charts and
 	 * by any place that needs more than one accent tone. Only steps 1-2 carry
 	 * text; 3-4 are fill-only. */
@@ -76,13 +86,30 @@
 	 * mist rather than a flat rectangle pasted on it. Fill only, never text. */
 	--g-card-bloom: radial-gradient(100% 78% at 100% 0%, rgba(233, 168, 190, .26) 0%, rgba(233, 168, 190, 0) 58%), radial-gradient(78% 68% at 0% 100%, rgba(240, 205, 214, .18) 0%, rgba(240, 205, 214, 0) 64%);
 
-	/* Selection controls */
+	/* Selection controls. A marked checkbox or radio is a sakura-petal disc
+	 * holding a white dot (developer request 2026-11-21); the accent stays the
+	 * border and focus colour so the disc never carries text. */
 	--g-select: #c7335b;
-	--g-select-dot: #fff5fa;
+	--g-select-dot: #ffffff;
 	--g-select-surface: #fffdfd;
 	--g-select-border: #e3c4d2;
 	--g-select-border-hover: #c08fa4;
 	--g-select-focus: rgba(199, 51, 91, .18);
+	--g-check-fill: #ffaaca;
+	--g-check-line: #f59bc0;
+
+	/* Switch track. Off is rice white, on is the sakura petal pink — both by
+	 * request, and both pale enough that the ring and the knob shadow, not the
+	 * fill, are what make the control legible. Nothing is ever written on a
+	 * track, so no text contrast is owed here. */
+	--g-switch-off: #f6efe2;
+	--g-switch-off-hover: #ece2d1;
+	--g-switch-off-line: rgba(150, 122, 104, .32);
+	--g-switch-on: #ffaaca;
+	--g-switch-on-hover: #ff9dbf;
+	--g-switch-on-line: #f79bc0;
+	--g-switch-knob: #ffffff;
+	--g-switch-knob-line: rgba(148, 118, 100, .20);
 
 	/* Status */
 	/* Status dots: bright enough to read at 7px on a glass card. */
@@ -103,6 +130,14 @@
 	--g-info: #6d5560;
 	--g-info-bg: #f7f0f2;
 	--g-info-line: #e8dade;
+
+	/* Score meter: the only place a reading is allowed to turn traffic-light.
+	 * Three bands, not five: ≥80 clean, 60–79 has suggestions, <60 has a real
+	 * failure. These are bar fills on the pink track, never text and never a
+	 * background behind words — mint is 2.29:1 on white, sun is 1.54:1. */
+	--g-score-ok: #58be8b;
+	--g-score-warn: #ffc85c;
+	--g-score-bad: #e8402f;
 
 	/* Depth. Two levels only: resting card, lifted surface. Shadows are tinted
 	 * with the accent hue; a neutral grey shadow over a pink canvas reads as dirt. */
@@ -141,7 +176,9 @@
 	--g-fs-meta: 12.5px;
 	--g-fs-eyebrow: 11px;
 	--g-fs-table: 13.5px;
-	--g-fs-h1: clamp(30px, 3vw, 42px);
+	/* V2 页头把 h1 抬高了一档：字号、字重与字距是这套外观的性格来源，
+	 * 所以取值直接写进令牌，页面层不再各写一份 clamp。 */
+	--g-fs-h1: clamp(32px, 3.6vw, 44px);
 	--g-fs-h2: 19px;
 	--g-fs-h3: 15px;
 	--g-lh-body: 1.65;

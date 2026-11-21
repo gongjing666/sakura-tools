@@ -4,7 +4,7 @@ Tags: image optimization, webp, avif, imagick, media library
 Requires at least: 6.4
 Tested up to: 7.1.4
 Requires PHP: 8.2
-Stable tag: 1.28.6
+Stable tag: 1.28.7
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -79,6 +79,20 @@ Access Key 和 Secret 会加密后存进数据库，页面和源码都不会显�
 插件目前没有接管这个跳转。等出现「既要防直链、又要保留购买校验」的需求时再研发，方向是在主题之前拦截下载请求，由插件代理输出或签发短时有效的预签名地址；若暂时需要这层保护，请关闭「上传后删除本地文件」，让文件保留在本地。
 
 == Changelog ==
+
+= 1.28.7 =
+
+* 新增：**后台「计时」面板接入 Query Monitor**（`src/Support/Profiler.php`）——boot、后台页渲染、S3 上传与删除、扫描/动作/核对三条后台队列、上传处理里的各阶段都登记成 QM 的计时行，排查「这一页为什么慢」不必再靠猜。没有装 QM、或 QM 没开计时收集器时零开销（只多一次数组查找）；`lap`/`stop` 只对本类 `start` 过的名字发，避免面板里出现 "Timer not started" 噪音行。**QM 自己一次也不调 `qm/start`，空面板是它的设计不是故障。**
+* 新增：**插件品牌图标**——`assets/ui/icons/sakura-mark.svg`（单色 `currentColor`、四瓣樱花 + 对焦环，viewBox 裁到实际墨迹、描边加粗到 20px 下仍可辨）。顶栏徽标换成这枚图形；WordPress 左侧菜单图标改为 `add_menu_page()` 第 6 参传 `'none'`，由 `assets/ui/admin-menu-icon.css` 用 `mask-image` + `background-color:currentColor` 绘制，自动跟随「静止 / 悬停 / 当前 / 折叠」与八套后台配色方案，不必为每种状态各写一份色值。
+* 新增：**上传重命名改成可点选的占位符卡片**（「图像优化 → 命名」）——输入框 + 内置卡片 +「更多占位符」折叠区 + 实时预览；卡片是 `aria-pressed` 开关，同一个占位符只能用一次，按下的卡片整块换成樱花淡粉底 + 墨色字（白字在这个底色上只有 1.77:1）。新增 `{hash}`（内容指纹）、`{user}`（上传者）、`{wxh}`（图片尺寸）与时间族 `{yy}` / `{week}` / `{dow}` / `{ts}`，以及 `{fixed}` 自定义文本（只收 `[A-Za-z0-9_-]`、最长 24 个字符，保存时若被清洗会当场提示）。规则现在对**所有上传文件**生效，不再只处理图片：扩展名原样保留、`tar.gz` 这类复合扩展名整体保留、没有扩展名的文件保持原名；取不到值的占位符连同它一侧的连接符一起去掉，不会在文件名里留下空段。
+* 新增：**系统设置页的页头与评分**——「环境评分 / 通过 / 建议 / 需要处理」四张小卡片合并成一张，环境评分进度条按分数取色（80–100 淡绿、60–80 淡黄、60 以下鲜红）。
+* 调整：**所有设置页的页头统一成同步中心的样式**——标题下方那句渐变填充的副题、右下角的樱花印章改由 `src/Admin/UI/Hero.php` 给默认文案（各页面可以覆盖，不必再各写一份）；KPI 摘要条统一成「票根」造型（`.kpis--ticket`，上沿锯齿 + 撕口）。
+* 调整：**品牌徽标改成樱花淡粉**——底色用 `--g-brand-petal` `#FFAACA`（浅端 `--g-petal-1`、深端 `--g-petal-2` 的 145° 渐变），墨色改 `--g-brand-ink`：白色图标压在淡粉上只有 1.77:1，必须换深色。
+* 调整：**卡片眉标全站统一樱粉**（`--g-accent`）——淡粉 `#FFAACA` 当 10.5px 文字只有 1.77:1、`#FF8FB8` 2.13:1、`#E4577F` 3.47:1，都读不出来；`#C7335B` 在卡片左上 5.1:1、右上粉光最浓处 4.5:1，是唯一同时成立「粉」与「可读」的一档。图像优化页的眉标同时去掉序号，改回与其他页一致的英文名词。
+* 调整：**勾选框与滑动开关重画**——勾选框是 18px 樱花淡粉圆盘 + 6px 白点，开关关闭米白 `#F6EFE2`、开启淡粉 `#FFAACA`，靠旋钮位置与 1px 内环表达状态。**同时显式压掉 WordPress 后台 `forms.css` 注入的 `margin:-3px 0 0 -4px`、`float:left`、`content:url(勾号)` 与 `:focus` 双环**——这是「生产环境样式错乱、旋钮停在 15px」的根因，不清掉会一直偏 4px。
+* 调整：**已保存的存储配置卡**——「使用中」改成 145° 樱花粉渐变（`#FFC6DB → #FFAACA → #FF8FB8`），说明行与徽标换墨色族；「连接测试 / 删除」改成白底 + 一根彩色细边，静止态不动、悬停才上色；被绑定冻结的开关改用小锁 +「已开启 / 已关闭」状态词，不再只把复选框灰掉——灰掉的框只说「不能动」，说不出当前是开还是关。
+* 修复：**前台文件管理弹窗里的鲸鱼图标缩成一个点**——子比主题有一条全局 `svg{width:1em;height:1em}`，而 CSS 声明优先于 `<svg width="38">` 属性，实际只剩 1em。改为 CSS 显式给尺寸（36px 徽章 + 30px 图形），后台的历史弹窗仍是 46px，不受影响。
+* 影响范围：新增 `src/Support/Profiler.php`、`src/Admin/UI/Hero.php`、`assets/ui/icons/sakura-mark.svg`、`assets/ui/admin-menu-icon.css` 与 `tests/ProfilerTest.php`、`tests/UploadRenamerTest.php`；新增 option `sakura_imgopt_rename_fixed`（默认空字符串）。**不改表结构、不改既有 option 键、不改钩子语义**，升级无需迁移。
 
 = 1.28.6 =
 

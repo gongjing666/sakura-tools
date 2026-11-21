@@ -1784,15 +1784,29 @@ body.dark-theme .sufm .sufm-drop {
 
 .sufm .sufm-dialog-head {
 	display: flex;
-	align-items: flex-start;
+	align-items: center;
 	justify-content: space-between;
 	gap: 12px;
 }
 
 .sufm .sufm-dialog-mascot {
+	display: grid;
+	place-items: center;
+	width: 36px;
+	height: 36px;
 	flex: none;
-	margin-top: 1px;
+	border-radius: 10px;
+	background: var(--sufm-pink-soft);
 	line-height: 0;
+}
+
+/* 主题（zibll）给所有 svg 写了全局 `svg{width:1em;height:1em}`，CSS 声明压过
+ * <svg width="38"> 属性，吉祥物只剩一个字号的体积，缩在标题旁边像颗色斑。这里
+ * 用显式尺寸兜住，别再依赖属性。徽章外形与「容量详情」的 .sufm-capacity-mark 一致。 */
+.sufm .sufm-dialog-mascot svg {
+	display: block;
+	width: 30px;
+	height: 30px;
 }
 
 .sufm .sufm-dialog-head h2 {

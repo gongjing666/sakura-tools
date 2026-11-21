@@ -83,6 +83,19 @@ final class UI {
 	}
 
 	/**
+	 * Padlock glyph for values that are fixed in place.
+	 *
+	 * One copy of the path data: the capability matrix cell and the frozen
+	 * upload-behaviour rows both print this, so the two screens cannot drift
+	 * apart into two different padlocks.
+	 *
+	 * @return string Static SVG markup.
+	 */
+	public static function lock_icon(): string {
+		return '<svg viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path fill="currentColor" d="M8 1.6a3.1 3.1 0 0 0-3.1 3.1V6H4.6A1.6 1.6 0 0 0 3 7.6v5.8A1.6 1.6 0 0 0 4.6 15h6.8a1.6 1.6 0 0 0 1.6-1.6V7.6A1.6 1.6 0 0 0 11.4 6h-.3V4.7A3.1 3.1 0 0 0 8 1.6Zm0 1.5a1.6 1.6 0 0 1 1.6 1.6V6H6.4V4.7A1.6 1.6 0 0 1 8 3.1Zm-.8 4.6h1.6v3.6H7.2V7.7Z"/></svg>';
+	}
+
+	/**
 	 * Page-level alert.
 	 *
 	 * @param string $message Message.

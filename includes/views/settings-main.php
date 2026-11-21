@@ -52,16 +52,19 @@ $stats_url  = \Sakura\ImageOptimizer\Admin\Registry::url( 'image', 'stats' );
 
 		echo '<div class="card-grid" data-sakura-layout="image" data-sakura-group="main">';
 
+		// 眉标只用名词，不带序号：其他页面的眉标（Runtime / Checks / Storage）
+		// 都是这个形态，编号一出现就把这一页从「同一套系统」里摘了出去。
 		$kickers = array(
-			'sakura_imgopt_section_thumbs'   => __( '01 尺寸', 'sakura-imgopt' ),
-			'sakura_imgopt_section_rename'   => __( '02 命名', 'sakura-imgopt' ),
-			'sakura_imgopt_section_compress' => __( '03 压缩', 'sakura-imgopt' ),
-			'sakura_imgopt_section_bulk'     => __( '04 批量', 'sakura-imgopt' ),
+			'sakura_imgopt_section_thumbs'   => __( 'Sizes', 'sakura-imgopt' ),
+			'sakura_imgopt_section_rename'   => __( 'Naming', 'sakura-imgopt' ),
+			'sakura_imgopt_section_compress' => __( 'Compression', 'sakura-imgopt' ),
+			'sakura_imgopt_section_bulk'     => __( 'Batch', 'sakura-imgopt' ),
 		);
 
 		$label_targets = array(
 			'sakura_imgopt_rename_enabled'      => 'sakura_imgopt_rename_enabled',
 			'sakura_imgopt_rename_rule'         => 'sakura_imgopt_rename_rule',
+			'sakura_imgopt_rename_fixed'        => 'sakura_imgopt_rename_fixed',
 			'sakura_imgopt_enable_compression'  => 'sakura_imgopt_enable_compression',
 			'sakura_imgopt_convert_format'      => 'sakura_imgopt_convert_format',
 			'sakura_imgopt_quality'             => 'sakura_imgopt_quality',
@@ -78,6 +81,7 @@ $stats_url  = \Sakura\ImageOptimizer\Admin\Registry::url( 'image', 'stats' );
 			$full_fields    = array(
 				'sakura_imgopt_disabled_sizes',
 				'sakura_imgopt_rename_rule',
+				'sakura_imgopt_rename_fixed',
 				'sakura_imgopt_enable_compression',
 				'sakura_imgopt_convert_format',
 				'sakura_imgopt_source_formats',

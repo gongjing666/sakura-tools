@@ -46,7 +46,7 @@ final class Shell {
 		?>
 		<header class="topbar sakura-topbar">
 			<div class="brand">
-				<span class="brand-mark" aria-hidden="true">S</span>
+				<span class="brand-mark" aria-hidden="true"><?php echo self::mark_svg(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Static SVG. ?></span>
 				<strong><?php esc_html_e( '樱花工具箱', 'sakura-imgopt' ); ?></strong>
 				<span class="path"><span class="slash">/</span> <?php echo esc_html( (string) $current['label'] ); ?></span>
 			</div>
@@ -118,5 +118,29 @@ final class Shell {
 			),
 			static function (): void {}
 		);
+	}
+
+	/**
+	 * The brand mark glyph, taken from the bundled SVG.
+	 *
+	 * The file is the only copy of this artwork: the admin menu icon masks the
+	 * same file (see assets/ui/admin-menu-icon.css), so the two can never drift
+	 * apart. Reading it once per request is enough — the string is cached.
+	 *
+	 * @return string SVG markup, or the plain letter when the file is missing.
+	 */
+	private static function mark_svg(): string {
+		static $svg = null;
+
+		if ( null !== $svg ) {
+			return $svg;
+		}
+
+		$path = defined( 'SAKURA_TOOLS_PATH' ) ? (string) SAKURA_TOOLS_PATH . 'assets/ui/icons/sakura-mark.svg' : '';
+		$raw  = '' !== $path && is_readable( $path ) ? file_get_contents( $path ) : false; // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents -- Local bundled asset, no HTTP fallback wanted.
+
+		$svg = false === $raw || '' === trim( $raw ) ? 'S' : trim( $raw );
+
+		return $svg;
 	}
 }

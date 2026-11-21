@@ -74,9 +74,13 @@
 	min-width: 0;
 }
 
+/* 眉标统一用强调色。2026-11-21 开发者要求「全都改掉，统一为一个樱花淡粉色」：
+ * 淡粉 #FFAACA 这类装饰取值当 10.5px 文字只有 1.77:1，压在卡片上根本读不出来，
+ * 所以取强调色 #C7335B —— 卡片左上 5.1:1、右上粉光最浓处 4.5:1，是全站唯一
+ * 能同时当「粉」和「字」的那一档。这也回到 docs/开发规则/03-后台UI.md §14.4 的原文。 */
 .sakura-admin .card__kicker {
 	margin: 0 0 5px;
-	color: var(--g-faint);
+	color: var(--g-accent);
 	font-size: 10.5px;
 	font-weight: 650;
 	letter-spacing: .12em;
@@ -389,7 +393,10 @@
 	opacity: 1;
 }
 
-/* Selection: one 18px circle, sakura fill, warm-white dot. */
+/* Selection. A checkbox and a radio are the same 18px disc: sakura-pink fill
+ * with a white centre dot once marked, a warm-white disc with a dusty border
+ * before that. The developer asked for exactly this shape on 2026-11-21 (a pink
+ * circle holding a white circle), so the square-and-tick variant is gone. */
 .sakura-admin input[type="checkbox"],
 .sakura-admin input[type="radio"] {
 	position: relative;
@@ -410,12 +417,18 @@
 	transition: background var(--g-dur) var(--g-ease), border-color var(--g-dur) var(--g-ease), box-shadow var(--g-dur) var(--g-ease);
 }
 
+/* WordPress core paints its own dashicon tick into `:checked::before` and then
+ * drags it up and to the left with a negative margin. That margin would pull our
+ * dot off centre, so every property core sets on the pseudo-element is restated
+ * here — content, float, width, height and margin — and the dot is centred from
+ * the middle instead. */
 .sakura-admin input[type="checkbox"]::before,
 .sakura-admin input[type="radio"]::before {
 	content: "";
 	position: absolute;
 	top: 50%;
 	left: 50%;
+	float: none;
 	width: 6px;
 	height: 6px;
 	margin: 0;
@@ -432,13 +445,21 @@
 
 .sakura-admin input[type="checkbox"]:checked,
 .sakura-admin input[type="radio"]:checked {
-	border-color: var(--g-select);
-	background: var(--g-select);
+	border-color: var(--g-check-line);
+	background: var(--g-check-fill);
 }
 
 .sakura-admin input[type="checkbox"]:checked::before,
 .sakura-admin input[type="radio"]:checked::before {
 	transform: translate(-50%, -50%) scale(1);
+}
+
+/* Focus is an outline on keyboard focus only: core also paints a two-ring
+ * box-shadow on plain :focus, which would fight the disc's own depth. */
+.sakura-admin input[type="checkbox"]:focus,
+.sakura-admin input[type="radio"]:focus {
+	outline: 0;
+	box-shadow: inset 0 1px 1px rgba(93, 29, 45, .06);
 }
 
 .sakura-admin input[type="checkbox"]:focus-visible,
@@ -460,9 +481,90 @@
    the wash surface, which makes a forced "save as new" look unticked. */
 .sakura-admin input[type="checkbox"]:checked:disabled,
 .sakura-admin input[type="radio"]:checked:disabled {
-	background: var(--g-select);
-	border-color: var(--g-select);
+	background: var(--g-check-fill);
+	border-color: var(--g-check-line);
 	opacity: .75;
+}
+
+/* Sliding switch: the same native checkbox, repainted as a track with a knob, so
+ * the label wrap, the keyboard and the submitted value keep working with no
+ * script. Singles only — a list of choices or a row-selection column stays a
+ * checkbox, because a switch cannot say "and also this one".
+ *
+ * Both states are light by request (2026-11-21): off is rice white, on is the
+ * sakura petal pink. That leaves the knob position and the tint to carry the
+ * state, so each track gets a 1px inner ring and the knob keeps a hairline of
+ * its own — without them a white knob on a pale track would melt into it. */
+.sakura-admin input[type="checkbox"].is-switch {
+	width: 38px;
+	height: 22px;
+	border: 0;
+	border-radius: var(--g-radius-pill);
+	background: var(--g-switch-off);
+	box-shadow: inset 0 0 0 1px var(--g-switch-off-line);
+}
+
+.sakura-admin input[type="checkbox"].is-switch::before {
+	content: "";
+	inset: auto;
+	top: 3px;
+	left: 3px;
+	float: none;
+	width: 16px;
+	height: 16px;
+	margin: 0;
+	border-radius: 50%;
+	background: var(--g-switch-knob);
+	box-shadow: 0 0 0 1px var(--g-switch-knob-line), 0 1px 3px rgba(93, 29, 45, .20);
+	transform: none;
+}
+
+.sakura-admin input[type="checkbox"].is-switch:hover {
+	background: var(--g-switch-off-hover);
+}
+
+.sakura-admin input[type="checkbox"].is-switch:checked {
+	background: var(--g-switch-on);
+	box-shadow: inset 0 0 0 1px var(--g-switch-on-line);
+}
+
+.sakura-admin input[type="checkbox"].is-switch:checked::before {
+	/* 38 − 3 (left) − 16 (knob) − 3 (right) = 16 */
+	transform: translateX(16px);
+}
+
+.sakura-admin input[type="checkbox"].is-switch:checked:hover {
+	background: var(--g-switch-on-hover);
+}
+
+/* Focus is an outline, never a ring: the inner ring is the track's edge, and an
+ * outline is the only thing a keyboard user actually needs to see. */
+.sakura-admin input[type="checkbox"].is-switch:focus-visible {
+	outline: 2px solid var(--g-select);
+	outline-offset: 3px;
+}
+
+.sakura-admin input[type="checkbox"].is-switch:disabled {
+	background: var(--g-switch-off);
+	box-shadow: inset 0 0 0 1px var(--g-switch-off-line);
+	opacity: .55;
+}
+
+.sakura-admin input[type="checkbox"].is-switch:checked:disabled {
+	background: var(--g-switch-on);
+	box-shadow: inset 0 0 0 1px var(--g-switch-on-line);
+	opacity: .6;
+}
+
+/* Text beside a switch sits on the track's centre line; a checkbox keeps the
+ * first line of the label, because that label is usually two lines tall. */
+.sakura-admin .check:has(> input.is-switch) {
+	align-items: center;
+	gap: 10px;
+}
+
+.sakura-admin .check > input.is-switch {
+	margin-top: 0;
 }
 
 .sakura-admin .check {
@@ -487,9 +589,14 @@
 	display: none;
 }
 
-/* R11 (07-S3存储生命周期): a frozen checkbox stays readable but stops looking
-   like something the operator can still flip. Muted, not hidden: the value shown
-   is the one the binding fixed, and hiding it would read as "this option is gone". */
+/* A frozen row stays readable but stops looking like something the operator can
+   still flip. Muted, not hidden: the value shown is the one the binding fixed,
+   and hiding it would read as "this option is gone".
+
+   Frozen rows in the upload-behaviour card no longer carry a checkbox at all —
+   they print a padlock in its seat and the value as a word (see
+   pages/storage.css: .check__lock / .check__state). The rules below are the
+   fallback for any other row that gets frozen later. */
 .sakura-admin .check.is-locked {
 	cursor: default;
 	color: var(--g-muted);
@@ -523,51 +630,9 @@
 	margin-top: 0;
 }
 
-.sakura-admin .switch {
-	display: inline-flex;
-	align-items: center;
-	gap: 10px;
-	cursor: pointer;
-}
-
-.sakura-admin .switch__input {
-	position: absolute;
-	width: 1px;
-	height: 1px;
-	opacity: 0;
-}
-
-.sakura-admin .switch__track {
-	position: relative;
-	width: 38px;
-	height: 22px;
-	border: 1px solid var(--g-select-border);
-	border-radius: 999px;
-	background: var(--g-select-surface);
-	transition: background var(--g-dur) var(--g-ease), border-color var(--g-dur) var(--g-ease);
-}
-
-.sakura-admin .switch__track::after {
-	content: "";
-	position: absolute;
-	top: 3px;
-	left: 3px;
-	width: 14px;
-	height: 14px;
-	border-radius: 50%;
-	background: var(--g-select-dot);
-	box-shadow: 0 1px 2px rgba(93, 29, 45, .24);
-	transition: transform var(--g-dur) var(--g-ease);
-}
-
-.sakura-admin .switch__input:checked + .switch__track {
-	border-color: var(--g-select);
-	background: var(--g-select);
-}
-
-.sakura-admin .switch__input:checked + .switch__track::after {
-	transform: translateX(16px);
-}
+/* The old `.switch` / `.switch__track` pair is gone: a toggle is now the same
+ * native checkbox wearing `.is-switch` above, so the plugin owns exactly one
+ * switch and `Field`'s `type => 'toggle'` renders this one too. */
 
 /* ============================================================
  * Buttons
@@ -1671,7 +1736,7 @@
 
 .sakura-admin .sakura-modal__kicker {
 	margin: 0;
-	color: var(--g-faint);
+	color: var(--g-accent);
 	font-size: var(--g-fs-eyebrow);
 	font-weight: 650;
 	letter-spacing: .12em;
@@ -2647,15 +2712,20 @@ html.sakura-media-open {
 }
 
 /* ============================================================
- * V2 · 数字票根（storage-sync 试点）
+ * V2 · 数字票根（.kpis--ticket）
  *
- * 五格读数原本是五块各自带圆角的浅底砖；V2 把它们排成一张「票根」：
+ * 几格读数原本是几块各自带圆角的浅底砖；V2 把它们排成一张「票根」：
  * 一张白卡、一条虚线分隔、数字大一号。理由见 03-后台UI.md §14.4——
- * 这五个数是同一件事的五个侧面，拆成五张卡会把它们读成五个模块。
+ * 这些数是同一件事的几个侧面，拆成几块砖会把它们读成几个模块。
+ *
+ * 2026-11-20 由 storage-sync 试点提升为组件：同步中心与系统设置页共用，
+ * 页面只加 `kpis--ticket` 这一个类，不再各自复制一份纸纹与虚线。
  * ============================================================ */
 
-.sakura-admin[data-sakura-page="storage-sync"] .kpis {
+.sakura-admin .kpis--ticket {
 	display: grid;
+	/* auto-fit：格数由使用方的读数条数决定（3–5 格），多出来的轨道会自己塌掉，
+	 * 所以同一套规则既能排同步中心的五格，也能排系统设置的四格。 */
 	grid-template-columns: repeat(auto-fit, minmax(168px, 1fr));
 	gap: 0;
 	padding: 2px;
@@ -2664,7 +2734,7 @@ html.sakura-media-open {
 	/*
 	 * 票根是「一张薄纸」而不是一张卡：底部向内透出一点樱雾，顶边提亮，
 	 * 于是它从画布上浮起来却不抢视线。边框换成半透明白，避免灰线把
-	 * 五个读数切成五个方块。
+	 * 每格读数切成一个个方块。
 	 */
 	background:
 		linear-gradient(180deg, rgba(255, 255, 255, .96) 0%, rgba(255, 249, 252, .92) 58%, rgba(255, 240, 246, .9) 100%);
@@ -2672,7 +2742,7 @@ html.sakura-media-open {
 	overflow: hidden;
 }
 
-.sakura-admin[data-sakura-page="storage-sync"] .kpi {
+.sakura-admin .kpis--ticket > .kpi {
 	position: relative;
 	padding: 17px 20px 16px;
 	border: 0;
@@ -2681,7 +2751,7 @@ html.sakura-media-open {
 	box-shadow: none;
 }
 
-.sakura-admin[data-sakura-page="storage-sync"] .kpi + .kpi::before {
+.sakura-admin .kpis--ticket > .kpi + .kpi::before {
 	content: "";
 	position: absolute;
 	left: 0;
@@ -2690,14 +2760,14 @@ html.sakura-media-open {
 	border-left: 1px dashed rgba(238, 122, 166, .55);
 }
 
-.sakura-admin[data-sakura-page="storage-sync"] .kpi__label {
+.sakura-admin .kpis--ticket .kpi__label {
 	color: var(--g-muted);
 	font-size: 11.5px;
 	font-weight: 600;
 	letter-spacing: .04em;
 }
 
-.sakura-admin[data-sakura-page="storage-sync"] .kpi__value {
+.sakura-admin .kpis--ticket .kpi__value {
 	margin-top: 6px;
 	color: var(--g-ink);
 	font-size: 30px;
@@ -2707,7 +2777,7 @@ html.sakura-media-open {
 	line-height: 1.08;
 }
 
-.sakura-admin[data-sakura-page="storage-sync"] .kpi__value small {
+.sakura-admin .kpis--ticket .kpi__value small {
 	margin-left: 2px;
 	color: var(--g-muted);
 	font-size: 12px;
@@ -2716,49 +2786,57 @@ html.sakura-media-open {
 }
 
 /* 唯一带语义的一格：全部同步时数字转绿，其余读数保持墨色。 */
-.sakura-admin[data-sakura-page="storage-sync"] .kpi--synced .kpi__value {
+.sakura-admin .kpis--ticket .kpi--synced .kpi__value {
 	color: var(--g-dot-ok);
 }
 
-.sakura-admin[data-sakura-page="storage-sync"] .kpi--synced .kpi__value small {
+.sakura-admin .kpis--ticket .kpi--synced .kpi__value small {
 	color: var(--g-ok);
 	opacity: .75;
 }
 
-.sakura-admin[data-sakura-page="storage-sync"] .kpi__sub {
+.sakura-admin .kpis--ticket .kpi__sub {
+	display: block;
 	margin-top: 5px;
 	color: var(--g-muted);
 	font-size: 12px;
 	line-height: 1.5;
 }
 
-.sakura-admin[data-sakura-page="storage-sync"] .kpi__progress {
+.sakura-admin .kpis--ticket .kpi__progress {
 	margin-top: 9px;
 }
 
-.sakura-admin[data-sakura-page="storage-sync"] .kpi__progress .progress {
+.sakura-admin .kpis--ticket .kpi__progress .progress {
 	height: 4px;
 	background: var(--g-track);
 }
 
 @media (max-width: 782px) {
-	.sakura-admin[data-sakura-page="storage-sync"] .kpis {
+	.sakura-admin .kpis--ticket {
 		grid-template-columns: repeat(2, minmax(0, 1fr));
 	}
 
-	.sakura-admin[data-sakura-page="storage-sync"] .kpi + .kpi::before {
+	.sakura-admin .kpis--ticket > .kpi + .kpi::before {
 		display: none;
 	}
 
-	.sakura-admin[data-sakura-page="storage-sync"] .kpi:nth-child(odd) {
+	.sakura-admin .kpis--ticket > .kpi:nth-child(odd) {
 		border-right: 1px dashed rgba(238, 122, 166, .55);
 	}
 
-	.sakura-admin[data-sakura-page="storage-sync"] .kpi:nth-child(n + 3) {
+	.sakura-admin .kpis--ticket > .kpi:nth-child(n + 3) {
 		border-top: 1px dashed rgba(238, 122, 166, .55);
 	}
 
-	.sakura-admin[data-sakura-page="storage-sync"] .kpi__value {
+	/* 奇数格（同步中心是 5 格）在两列网格里会剩下半行空位，末格右虚线对着
+	 * 空白，看着像纸被裁掉一角。让末格独占整行，虚线就只画在真正有邻居的地方。 */
+	.sakura-admin .kpis--ticket > .kpi:last-child:nth-child(odd) {
+		grid-column: 1 / -1;
+		border-right: 0;
+	}
+
+	.sakura-admin .kpis--ticket .kpi__value {
 		font-size: 24px;
 	}
 }

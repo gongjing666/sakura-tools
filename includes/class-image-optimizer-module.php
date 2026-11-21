@@ -11,6 +11,7 @@ use Sakura\ImageOptimizer\Contracts\Settings_Repository_Interface;
 use Sakura\ImageOptimizer\Contracts\Stats_Repository_Interface;
 use Sakura\ImageOptimizer\Image\Crop_Config_Scanner;
 use Sakura\ImageOptimizer\Image\Size_Catalog;
+use Sakura\ImageOptimizer\Image\Upload_Renamer;
 use Sakura\ImageOptimizer\Settings\Settings_Repository;
 use Sakura\ImageOptimizer\Stats\Stats_Repository;
 use Sakura\ImageOptimizer\Support\Hook_Loader;
@@ -154,6 +155,24 @@ class Image_Optimizer_Module implements Module {
 			$this->menu_slug,
 			'sakura_imgopt_section_rename',
 			array( 'label_for' => 'sakura_imgopt_rename_rule' )
+		);
+
+		register_setting(
+			$this->option_group,
+			'sakura_imgopt_rename_fixed',
+			array(
+				'type'              => 'string',
+				'sanitize_callback' => array( $this, 'sanitize_rename_fixed' ),
+				'default'           => '',
+			)
+		);
+		add_settings_field(
+			'sakura_imgopt_rename_fixed',
+			__( '固定文本', 'sakura-imgopt' ),
+			array( $this, 'field_rename_fixed_cb' ),
+			$this->menu_slug,
+			'sakura_imgopt_section_rename',
+			array( 'label_for' => 'sakura_imgopt_rename_fixed' )
 		);
 
 		// ── 节：图片压缩 ────────────────────────────
@@ -380,6 +399,7 @@ class Image_Optimizer_Module implements Module {
 			array(
 				'label_for' => 'sakura_imgopt_delete_data_on_uninstall',
 				'default'   => 0,
+				'switch'    => false,
 				'desc'      => __( '默认关闭：卸载插件后仍保留设置、云存储密钥、统计数据与备份文件，重新安装可以接着用。开启后卸载会删除这些数据，并把本插件改过的图片地址和上传目录恢复原样。', 'sakura-imgopt' ),
 			)
 		);
@@ -439,7 +459,7 @@ class Image_Optimizer_Module implements Module {
 			$this->option_group,
 			array(
 				'thumbs'  => array( 'sakura_imgopt_disabled_sizes' ),
-				'rename'  => array( 'sakura_imgopt_rename_enabled', 'sakura_imgopt_rename_rule' ),
+				'rename'  => array( 'sakura_imgopt_rename_enabled', 'sakura_imgopt_rename_rule', 'sakura_imgopt_rename_fixed' ),
 				'compress' => array(
 					'sakura_imgopt_enable_compression',
 					'sakura_imgopt_compression_mode',
@@ -771,7 +791,7 @@ class Image_Optimizer_Module implements Module {
 	}
 
 	public function section_rename_cb() {
-		echo '<p>' . esc_html__( '上传图片时按规则重命名文件，避免中文、特殊字符或重名带来的兼容问题。', 'sakura-imgopt' ) . '</p>';
+		echo '<p>' . esc_html__( '上传文件时按规则重命名，避免中文、特殊字符或重名带来的兼容问题。图片、视频、压缩包、文档等各类文件都适用，扩展名始终保持原样。', 'sakura-imgopt' ) . '</p>';
 	}
 
 	public function section_compress_cb() {
@@ -791,6 +811,11 @@ class Image_Optimizer_Module implements Module {
 
 		$value = (int) $this->settings->get( $key );
 
+		// Single on/off settings render as a sliding switch; a switch that turns
+		// something destructive on keeps the plain box, because a green "on" would
+		// read as "this is the good state".
+		$is_switch = ! isset( $args['switch'] ) || (bool) $args['switch'];
+
 		// A hidden zero makes an unchecked card checkbox save as 0 instead of
 		// disappearing from the request.
 		printf(
@@ -798,7 +823,8 @@ class Image_Optimizer_Module implements Module {
 			esc_attr( $key )
 		);
 		printf(
-			'<label for="%1$s"><input type="checkbox" id="%1$s" name="%1$s" value="1" %2$s /> %3$s</label>',
+			'<label class="check"><input%1$s type="checkbox" id="%2$s" name="%2$s" value="1" %3$s /><span class="check__text">%4$s</span></label>',
+			$is_switch ? ' class="is-switch"' : '',
 			esc_attr( $key ),
 			checked( 1, $value, false ),
 			esc_html__( '启用', 'sakura-imgopt' )
@@ -810,18 +836,191 @@ class Image_Optimizer_Module implements Module {
 	}
 
 	/**
-	 * 重命名规则字段。
+	 * 固定文本字段：`{fixed}` 占位符的取值。
+	 *
+	 * @param array<string, mixed> $args 字段参数。
+	 */
+	public function field_rename_fixed_cb( $args ) {
+		$value = $this->settings->rename_fixed();
+
+		printf(
+			'<input type="text" class="rule-fixed-input" id="sakura_imgopt_rename_fixed" name="sakura_imgopt_rename_fixed" value="%1$s" maxlength="24" spellcheck="false" autocomplete="off" />',
+			esc_attr( $value )
+		);
+
+		echo '<p class="description">'
+			. esc_html__( '填一段固定文字（例如 sakura），它就等于一个 {fixed} 占位符：点上面规则卡片里的「固定文本」就能把它插进规则，摆在最前面就是固定前缀。只保留英文字母、数字、连字符（-）和下划线（_），最长 24 个字符。', 'sakura-imgopt' )
+			. '</p>';
+		echo '<p class="description">'
+			. esc_html__( '不建议使用中文：中文、空格和符号在保存时会被去掉，中文文件名在部分服务器、网盘和下载工具里还会变成乱码。', 'sakura-imgopt' )
+			. '</p>';
+
+		if ( ! empty( $args['desc'] ) ) {
+			printf( '<p class="description">%s</p>', esc_html( (string) $args['desc'] ) );
+		}
+	}
+
+	/**
+	 * 重命名规则字段：输入框 + 可点击的占位符卡片 + 实时预览。
+	 *
+	 * 以前只有一行 `regular-text` 加一段长说明，卡片右半边全是空的。现在把
+	 * 占位符做成卡片铺在下方，点击即按 `-` 拼到输入框末尾（输入框末尾已经是
+	 * 分隔符时不再重复），预览给出示例文件名，右边不再留白。
 	 *
 	 * @param array<string, mixed> $args 字段参数。
 	 */
 	public function field_rename_rule_cb( $args ) {
 		unset( $args );
 
-		printf(
-			'<input type="text" class="regular-text" id="sakura_imgopt_rename_rule" name="sakura_imgopt_rename_rule" value="%s" />',
-			esc_attr( $this->settings->rename_rule() )
+		$default = '{date}-{time}-{rand}';
+		$current = $this->settings->rename_rule();
+		$fixed   = $this->settings->rename_fixed();
+		$samples = Upload_Renamer::preview_tokens( $fixed );
+		$tokens  = array(
+			'{filename}' => __( '原文件名', 'sakura-imgopt' ),
+			'{ext}'      => __( '扩展名', 'sakura-imgopt' ),
+			'{date}'     => __( '日期', 'sakura-imgopt' ),
+			'{time}'     => __( '时间', 'sakura-imgopt' ),
+			'{year}'     => __( '年', 'sakura-imgopt' ),
+			'{month}'    => __( '月', 'sakura-imgopt' ),
+			'{day}'      => __( '日', 'sakura-imgopt' ),
+			'{rand}'     => __( '5 位随机', 'sakura-imgopt' ),
+			'{rand8}'    => __( '8 位随机', 'sakura-imgopt' ),
+			'{fixed}'    => '' === $fixed
+				? __( '固定文本（未填）', 'sakura-imgopt' )
+				: sprintf(
+					/* translators: %s: the fixed text the user typed. */
+					__( '固定文本 · %s', 'sakura-imgopt' ),
+					$fixed
+				),
+			'{hash}'     => __( '内容指纹', 'sakura-imgopt' ),
+			'{wxh}'      => __( '尺寸（仅图片）', 'sakura-imgopt' ),
+			'{user}'     => __( '上传者', 'sakura-imgopt' ),
+			'{yy}'       => __( '2 位年', 'sakura-imgopt' ),
+			'{week}'     => __( '周数', 'sakura-imgopt' ),
+			'{dow}'      => __( '星期', 'sakura-imgopt' ),
+			'{ts}'       => __( '时间戳', 'sakura-imgopt' ),
 		);
-		echo '<p class="description">' . esc_html__( '可用占位符：{filename} 原文件名、{ext} 扩展名、{date} 日期、{time} 时间、{year}/{month}/{day}、{rand} 5 位随机、{rand8} 8 位随机。示例：{date}-{time}-{rand}', 'sakura-imgopt' ) . '</p>';
+
+		$title_add    = __( '点击插入', 'sakura-imgopt' );
+		$title_remove = __( '点击移除', 'sakura-imgopt' );
+
+		printf(
+			'<div class="rule-composer" data-rule-composer data-rule-title-add="%1$s" data-rule-title-remove="%2$s">',
+			esc_attr( $title_add ),
+			esc_attr( $title_remove )
+		);
+
+		echo '<div class="rule-composer__row">';
+		printf(
+			'<input type="text" class="rule-composer__input" id="sakura_imgopt_rename_rule" name="sakura_imgopt_rename_rule" value="%1$s" data-rule-default="%2$s" spellcheck="false" autocomplete="off" aria-describedby="sakura-rename-preview" />',
+			esc_attr( $current ),
+			esc_attr( $default )
+		);
+		printf(
+			'<button type="button" class="btn btn--quiet btn--small" data-rule-reset>%s</button>',
+			esc_html__( '恢复默认', 'sakura-imgopt' )
+		);
+		echo '</div>';
+
+		// 常用占位符排在卡片行里，其余收进「更多」——十七张卡片平铺会把卡片撑成
+		// 一堵墙，而 `{hash}`、`{wxh}`、`{user}`、时间族本来就用得少。
+		$more_tokens = array( '{hash}', '{wxh}', '{user}', '{yy}', '{week}', '{dow}', '{ts}' );
+		$more_used   = false;
+		foreach ( $more_tokens as $token ) {
+			if ( str_contains( $current, $token ) ) {
+				$more_used = true;
+				break;
+			}
+		}
+
+		// 卡片是开关式的：规则里已经用到的占位符按下去，再点一次移除。
+		$render_token = function ( string $token, string $label ) use ( $current, $samples, $fixed, $title_add, $title_remove ): void {
+			$used    = str_contains( $current, $token );
+			$classes = 'rule-token';
+			$extra   = '';
+
+			if ( '{fixed}' === $token ) {
+				// 自定义卡片：跟内置占位符分开看，还没填的时候给个虚线空态。
+				$classes .= ' rule-token--fixed';
+
+				if ( '' === $fixed ) {
+					$classes .= ' is-empty';
+				}
+
+				// 标题带上当前值（或「还没填」），所以交给自己的属性，别让
+				// 前端 syncPressed() 用通用的「点击插入/移除」覆盖掉。
+				$title = '' === $fixed
+					? __( '还没填固定文本，插进规则不会产生内容', 'sakura-imgopt' )
+					: sprintf(
+						/* translators: %s: the fixed text the user typed. */
+						__( '点击插入 {fixed}（当前：%s）', 'sakura-imgopt' ),
+						$fixed
+					);
+
+				$extra = sprintf(
+					' data-rule-fixed data-rule-title-when-off="%1$s" data-rule-title-when-on="%2$s"',
+					esc_attr( $title ),
+					esc_attr__( '点击移除 {fixed}', 'sakura-imgopt' )
+				);
+			} else {
+				$title = ( $used ? $title_remove : $title_add ) . ' ' . $token;
+			}
+
+			printf(
+				'<button type="button" class="%1$s" data-rule-token="%2$s" data-rule-sample="%3$s" aria-pressed="%5$s" title="%6$s"%7$s><code>%2$s</code><span>%4$s</span></button>',
+				esc_attr( $classes ),
+				esc_attr( $token ),
+				esc_attr( isset( $samples[ $token ] ) ? $samples[ $token ] : '' ),
+				esc_html( $label ),
+				$used ? 'true' : 'false',
+				esc_attr( $title ),
+				$extra // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Escaped above.
+			);
+		};
+
+		printf(
+			'<div class="rule-composer__tokens" role="group" aria-label="%s">',
+			esc_attr__( '占位符：点击插入，再次点击移除', 'sakura-imgopt' )
+		);
+		foreach ( $tokens as $token => $label ) {
+			if ( in_array( $token, $more_tokens, true ) ) {
+				continue;
+			}
+
+			$render_token( (string) $token, (string) $label );
+		}
+		echo '</div>';
+
+		printf(
+			'<button type="button" class="rule-composer__more" data-rule-more-toggle data-rule-more-label="%1$s" data-rule-more-label-open="%2$s" aria-expanded="%3$s" aria-controls="sakura-rename-more">%4$s</button>',
+			esc_attr__( '更多占位符', 'sakura-imgopt' ),
+			esc_attr__( '收起更多占位符', 'sakura-imgopt' ),
+			$more_used ? 'true' : 'false',
+			esc_html( $more_used ? __( '收起更多占位符', 'sakura-imgopt' ) : __( '更多占位符', 'sakura-imgopt' ) )
+		);
+
+		printf(
+			'<div class="rule-composer__tokens rule-composer__tokens--more" id="sakura-rename-more" data-rule-more-panel role="group" aria-label="%1$s"%2$s>',
+			esc_attr__( '更多占位符：点击插入，再次点击移除', 'sakura-imgopt' ),
+			$more_used ? '' : ' hidden'
+		);
+		foreach ( $more_tokens as $token ) {
+			if ( isset( $tokens[ $token ] ) ) {
+				$render_token( $token, (string) $tokens[ $token ] );
+			}
+		}
+		echo '</div>';
+
+		printf(
+			'<p class="rule-composer__preview" id="sakura-rename-preview">%1$s <code data-rule-preview>%2$s</code></p>',
+			esc_html__( '预览', 'sakura-imgopt' ),
+			esc_html( Upload_Renamer::preview_filename( $current, $fixed ) )
+		);
+
+		echo '<p class="description rule-composer__note">' . esc_html__( '扩展名始终保留，没有扩展名的文件保持原名。「尺寸」只对图片生效，「内容指纹」对超过 32 MB 的文件不计算；取不到值的占位符会连同它一侧的连接符一起去掉。', 'sakura-imgopt' ) . '</p>';
+
+		echo '</div>';
 	}
 
 	/**
@@ -836,7 +1035,25 @@ class Image_Optimizer_Module implements Module {
 			return '{date}-{time}-{rand}';
 		}
 
-		$allowed = array( '{filename}', '{ext}', '{date}', '{time}', '{year}', '{month}', '{day}', '{rand}', '{rand8}' );
+		$allowed = array(
+			'{filename}',
+			'{ext}',
+			'{date}',
+			'{time}',
+			'{year}',
+			'{month}',
+			'{day}',
+			'{yy}',
+			'{week}',
+			'{dow}',
+			'{ts}',
+			'{rand}',
+			'{rand8}',
+			'{hash}',
+			'{wxh}',
+			'{user}',
+			'{fixed}',
+		);
 		$rule    = (string) preg_replace_callback(
 			'/\{[a-zA-Z0-9_]+\}/',
 			static function ( $matches ) use ( $allowed ) {
@@ -848,6 +1065,33 @@ class Image_Optimizer_Module implements Module {
 		$rule    = trim( $rule, " -_." );
 
 		return '' === $rule ? '{date}-{time}-{rand}' : $rule;
+	}
+
+	/**
+	 * 清洗固定文本：只留 ASCII 字母、数字、`-`、`_`，最长 24 个字符。
+	 *
+	 * 这段文字最终会进文件名。中文、空格、emoji 在部分服务器 / 网盘 / 下载工具
+	 * 里会乱码，所以这里直接去掉而不是原样保存；去掉时给一条提示，别让用户以为
+	 * 自己没保存成功。
+	 *
+	 * @param mixed $value 原始值。
+	 * @return string
+	 */
+	public function sanitize_rename_fixed( $value ) {
+		$raw   = sanitize_text_field( (string) $value );
+		$fixed = (string) preg_replace( '/[^A-Za-z0-9_-]+/', '', $raw );
+		$fixed = trim( substr( $fixed, 0, 24 ), '-_' );
+
+		if ( '' !== $raw && $raw !== $fixed ) {
+			add_settings_error(
+				'sakura_imgopt_rename_fixed',
+				'sakura_imgopt_rename_fixed_ascii',
+				__( '固定文本只保留英文字母、数字、连字符与下划线（最多 24 个字符）；中文、空格和符号已被去掉。', 'sakura-imgopt' ),
+				'warning'
+			);
+		}
+
+		return $fixed;
 	}
 
 	public function field_mode_cb() {

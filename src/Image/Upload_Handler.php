@@ -14,6 +14,7 @@ use Sakura\ImageOptimizer\Contracts\File_System_Interface;
 use Sakura\ImageOptimizer\Settings\Settings_Repository;
 use Sakura\ImageOptimizer\Contracts\Settings_Repository_Interface;
 use Sakura\ImageOptimizer\Contracts\Stats_Repository_Interface;
+use Sakura\ImageOptimizer\Support\Profiler;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -144,7 +145,7 @@ class Upload_Handler {
 			return $upload;
 		}
 
-		$result = $this->processor->process_file( $file_path );
+		$result = Profiler::measure( 'upload process', fn(): array => $this->processor->process_file( $file_path ) );
 
 		// M-08：体积未减小而保留原图时，原文件没有被替换，本次备份也没有存在意义。
 		if ( ! empty( $result['skipped'] ) && is_string( $backup_rel ) && '' !== $backup_rel ) {
@@ -192,7 +193,7 @@ class Upload_Handler {
 	 * @return array
 	 */
 	public function process_metadata( $metadata, $attachment_id ) {
-		return $this->metadata->process( $metadata, $attachment_id );
+		return Profiler::measure( 'upload subsizes', fn(): array => $this->metadata->process( $metadata, $attachment_id ) );
 	}
 
 	/**

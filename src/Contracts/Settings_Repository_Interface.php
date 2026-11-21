@@ -92,6 +92,11 @@ interface Settings_Repository_Interface {
 	public function rename_rule(): string;
 
 	/**
+	 * Fixed text for the `{fixed}` placeholder in the rename rule.
+	 */
+	public function rename_fixed(): string;
+
+	/**
 	 * Disabled intermediate sizes.
 	 *
 	 * @return array<int,string>

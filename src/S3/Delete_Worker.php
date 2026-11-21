@@ -11,6 +11,7 @@ namespace Sakura\ImageOptimizer\S3;
 
 use Sakura\ImageOptimizer\Contracts\Module;
 use Sakura\ImageOptimizer\Support\Hook_Loader;
+use Sakura\ImageOptimizer\Support\Profiler;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -111,6 +112,7 @@ final class Delete_Worker implements Module {
 			return;
 		}
 		$start = time();
+		Profiler::start( 'delete queue tick' );
 		try {
 			$deleted = 0;
 			while ( $deleted < self::MAX_JOBS && ( time() - $start ) < $max_seconds ) {
@@ -127,6 +129,7 @@ final class Delete_Worker implements Module {
 				}
 			}
 		} finally {
+			Profiler::stop( 'delete queue tick' );
 			$this->unlock( 'run' );
 		}
 		if ( $this->deletes->due_count() > 0 ) {

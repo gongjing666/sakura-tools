@@ -9,6 +9,8 @@ declare( strict_types=1 );
 
 namespace Sakura\ImageOptimizer\S3;
 
+use Sakura\ImageOptimizer\Support\Profiler;
+
 defined( 'ABSPATH' ) || exit;
 
 /**
@@ -133,9 +135,12 @@ final class Storage_Adapter {
 
 		try {
 			$store   = $this->store();
-			$results = $this->guard()->execute( array( $key ), 'upload', static function () use ( $store, $key, $filename, $delete_local ): array {
-				return array( $key => $store->upload_file( $key, $filename, $delete_local ) );
-			}, $this->mutation_check, array( $key => self::file_evidence( $filename ) ) );
+			$results = Profiler::measure(
+				's3 upload',
+				fn(): array => $this->guard()->execute( array( $key ), 'upload', static function () use ( $store, $key, $filename, $delete_local ): array {
+					return array( $key => $store->upload_file( $key, $filename, $delete_local ) );
+				}, $this->mutation_check, array( $key => self::file_evidence( $filename ) ) )
+			);
 			$result  = $results[ $key ] ?? new \WP_Error( 'sakura_s3_upload_missing_result', __( '上传结果缺失。', 'sakura-imgopt' ) );
 			if ( is_wp_error( $result ) ) {
 				$this->report_failure( $key, $filename, $result, $attachment_id );
@@ -176,13 +181,16 @@ final class Storage_Adapter {
 		$paths = array_column( $normalized, 'path', 'key' );
 		try {
 			$store   = $this->store();
-			$results = $this->guard()->execute( array_keys( $paths ), 'upload', static function ( array $keys ) use ( $store, $paths, $concurrency ): array {
-				$admitted = array();
-				foreach ( $keys as $key ) {
-					$admitted[] = array( 'key' => $key, 'path' => $paths[ $key ] );
-				}
-				return $store->upload_many( $admitted, $concurrency );
-			}, $this->mutation_check, array_map( static fn( $path ) => self::file_evidence( $path ), $paths ) );
+			$results = Profiler::measure(
+				's3 upload batch',
+				fn(): array => $this->guard()->execute( array_keys( $paths ), 'upload', static function ( array $keys ) use ( $store, $paths, $concurrency ): array {
+					$admitted = array();
+					foreach ( $keys as $key ) {
+						$admitted[] = array( 'key' => $key, 'path' => $paths[ $key ] );
+					}
+					return $store->upload_many( $admitted, $concurrency );
+				}, $this->mutation_check, array_map( static fn( $path ) => self::file_evidence( $path ), $paths ) )
+			);
 		} catch ( \Throwable $e ) {
 			$results = array();
 			foreach ( $normalized as $file ) {
@@ -232,7 +240,7 @@ final class Storage_Adapter {
 		}
 
 		$started = microtime( true );
-		$result  = $store->list_objects( '', 1 );
+		$result  = Profiler::measure( 's3 probe', static fn() => $store->list_objects( '', 1 ) );
 
 		if ( is_wp_error( $result ) ) {
 			return $result;
@@ -408,10 +416,13 @@ final class Storage_Adapter {
 
 		try {
 			$store = $this->store();
-			$results = $this->guard()->execute( $keys, 'delete', static function ( array $admitted ) use ( $store ): array {
-				$result = $store->delete_keys( $admitted );
-				return array_fill_keys( $admitted, $result );
-			}, $this->mutation_check );
+			$results = Profiler::measure(
+				's3 delete',
+				fn(): array => $this->guard()->execute( $keys, 'delete', static function ( array $admitted ) use ( $store ): array {
+					$result = $store->delete_keys( $admitted );
+					return array_fill_keys( $admitted, $result );
+				}, $this->mutation_check )
+			);
 			foreach ( $results as $result ) {
 				if ( true !== $result ) {
 					return $result;

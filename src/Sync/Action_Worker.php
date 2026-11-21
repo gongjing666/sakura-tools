@@ -16,6 +16,7 @@ use Sakura\ImageOptimizer\S3\Sync_Status;
 use Sakura\ImageOptimizer\S3\Synchronous_Uploader;
 use Sakura\ImageOptimizer\S3\Sync_Actions;
 use Sakura\ImageOptimizer\Support\Hook_Loader;
+use Sakura\ImageOptimizer\Support\Profiler;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -82,75 +83,80 @@ final class Action_Worker implements Module {
 	 * @return void
 	 */
 	public function run(): void {
-		$jobs = $this->index->due_jobs( self::BATCH );
-		foreach ( $jobs as $job ) {
-			$job_id  = (int) $job->id;
-			$profile = (string) $job->profile_id;
-			$key     = (string) $job->object_key;
-			$action  = (string) $job->action;
-			$target  = (string) ( $job->target_hash ?? '' );
-			$attachment_id = (int) ( $job->attachment_id ?? 0 );
+		Profiler::start( 'action queue tick' );
+		try {
+			$jobs = $this->index->due_jobs( self::BATCH );
+			foreach ( $jobs as $job ) {
+				$job_id  = (int) $job->id;
+				$profile = (string) $job->profile_id;
+				$key     = (string) $job->object_key;
+				$action  = (string) $job->action;
+				$target  = (string) ( $job->target_hash ?? '' );
+				$attachment_id = (int) ( $job->attachment_id ?? 0 );
 
-			$claim_token = $this->index->job_start( $job_id );
-			if ( false === $claim_token ) {
-				continue;
-			}
-
-			$resolved = $this->resolve( $profile );
-			if ( is_wp_error( $resolved ) ) {
-				$result = $resolved;
-			} elseif ( '' !== $target && ! Synchronous_Uploader::target_matches( $target, $resolved['options'], $profile ) ) {
-				$result = new \WP_Error( 'sio_job_target_changed', __( '排队后存储目标已变更，已停止该动作，请重新发起。', 'sakura-imgopt' ) );
-			} else {
-				try {
-					$result = $resolved['adapter']->with_mutation_check(
-						fn(): bool => $this->index->job_renew( $job_id, $claim_token ),
-						fn() => $this->execute( $key, $action, $resolved['options'], $resolved['adapter'] )
-					);
-				} catch ( \Throwable $e ) {
-					$result = new \WP_Error( 'sio_job_exception', $e->getMessage() );
-				}
-			}
-			if ( is_wp_error( $result ) ) {
-				$state = $this->index->job_failure( $job_id, $result->get_error_message(), $claim_token );
-				if ( empty( $state['applied'] ) ) {
+				$claim_token = $this->index->job_start( $job_id );
+				if ( false === $claim_token ) {
 					continue;
 				}
-				Metrics::bump( array( 'actions_failed' => 1 ) );
-				if ( ! empty( $state['dead'] ) ) {
-					Metrics::bump( array( 'jobs_dead' => 1 ) );
+
+				$resolved = $this->resolve( $profile );
+				if ( is_wp_error( $resolved ) ) {
+					$result = $resolved;
+				} elseif ( '' !== $target && ! Synchronous_Uploader::target_matches( $target, $resolved['options'], $profile ) ) {
+					$result = new \WP_Error( 'sio_job_target_changed', __( '排队后存储目标已变更，已停止该动作，请重新发起。', 'sakura-imgopt' ) );
+				} else {
+					try {
+						$result = $resolved['adapter']->with_mutation_check(
+							fn(): bool => $this->index->job_renew( $job_id, $claim_token ),
+							fn() => $this->execute( $key, $action, $resolved['options'], $resolved['adapter'] )
+						);
+					} catch ( \Throwable $e ) {
+						$result = new \WP_Error( 'sio_job_exception', $e->getMessage() );
+					}
 				}
-				$this->index->event(
-					$profile,
-					'error',
-					'action_failed',
-					sprintf(
-						/* translators: 1: action, 2: object key, 3: error. */
-						__( '队列动作 %1$s 失败：%2$s — %3$s', 'sakura-imgopt' ),
-						$action,
-						$key,
-						$result->get_error_message()
-					),
-					array(
-						'job'      => $job_id,
-						'attempts' => (int) $state['attempts'],
-						'dead'     => ! empty( $state['dead'] ),
-					)
-				);
-				continue;
+				if ( is_wp_error( $result ) ) {
+					$state = $this->index->job_failure( $job_id, $result->get_error_message(), $claim_token );
+					if ( empty( $state['applied'] ) ) {
+						continue;
+					}
+					Metrics::bump( array( 'actions_failed' => 1 ) );
+					if ( ! empty( $state['dead'] ) ) {
+						Metrics::bump( array( 'jobs_dead' => 1 ) );
+					}
+					$this->index->event(
+						$profile,
+						'error',
+						'action_failed',
+						sprintf(
+							/* translators: 1: action, 2: object key, 3: error. */
+							__( '队列动作 %1$s 失败：%2$s — %3$s', 'sakura-imgopt' ),
+							$action,
+							$key,
+							$result->get_error_message()
+						),
+						array(
+							'job'      => $job_id,
+							'attempts' => (int) $state['attempts'],
+							'dead'     => ! empty( $state['dead'] ),
+						)
+					);
+					continue;
+				}
+
+				if ( ! $this->index->job_success( $job_id, $claim_token ) ) {
+					continue;
+				}
+				$this->index->apply_action( $profile, $key, $action );
+				$this->write_back( $attachment_id, $key, $action, $resolved, $target, $profile );
+				Metrics::bump( array( 'actions_ok' => 1 ) );
+				$this->index->event( $profile, 'info', 'action_ok', sprintf( /* translators: 1: action, 2: object key. */ __( '队列动作 %1$s 完成：%2$s', 'sakura-imgopt' ), $action, $key ), array( 'job' => $job_id ) );
 			}
 
-			if ( ! $this->index->job_success( $job_id, $claim_token ) ) {
-				continue;
+			if ( $this->index->has_queued_jobs() ) {
+				self::schedule( 60 );
 			}
-			$this->index->apply_action( $profile, $key, $action );
-			$this->write_back( $attachment_id, $key, $action, $resolved, $target, $profile );
-			Metrics::bump( array( 'actions_ok' => 1 ) );
-			$this->index->event( $profile, 'info', 'action_ok', sprintf( /* translators: 1: action, 2: object key. */ __( '队列动作 %1$s 完成：%2$s', 'sakura-imgopt' ), $action, $key ), array( 'job' => $job_id ) );
-		}
-
-		if ( $this->index->has_queued_jobs() ) {
-			self::schedule( 60 );
+		} finally {
+			Profiler::stop( 'action queue tick' );
 		}
 	}
 

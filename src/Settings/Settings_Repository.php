@@ -79,6 +79,7 @@ final class Settings_Repository implements Settings_Repository_Interface {
 		'sakura_imgopt_backup_max_mb'               => 0,
 		'sakura_imgopt_rename_enabled'              => 0,
 		'sakura_imgopt_rename_rule'                 => '{date}-{time}-{rand}',
+		'sakura_imgopt_rename_fixed'                => '',
 		'sakura_imgopt_disabled_sizes'              => array(),
 		'sakura_imgopt_batch_size'                  => 1,
 		'sakura_imgopt_ajax_delay'                  => 500,
@@ -222,6 +223,21 @@ final class Settings_Repository implements Settings_Repository_Interface {
 	public function rename_rule(): string {
 		$rule = (string) $this->get( 'rename_rule' );
 		return '' === $rule ? '{date}-{time}-{rand}' : $rule;
+	}
+
+	/**
+	 * Fixed text for the `{fixed}` placeholder.
+	 *
+	 * Only ASCII letters, digits, `-` and `_` survive the settings screen: the
+	 * value ends up in a filename, and non-ASCII names break on plenty of
+	 * download paths. Cleaned again here so a database value written before
+	 * that rule existed cannot slip through.
+	 */
+	public function rename_fixed(): string {
+		$fixed = (string) $this->get( 'rename_fixed' );
+		$fixed = (string) preg_replace( '/[^A-Za-z0-9_-]+/', '', $fixed );
+
+		return trim( substr( $fixed, 0, 24 ), '-_' );
 	}
 
 	/**

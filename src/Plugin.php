@@ -30,6 +30,7 @@ use Sakura\ImageOptimizer\Sync\Scan_Service;
 use Sakura\ImageOptimizer\Sync\Scan_Worker;
 use Sakura\ImageOptimizer\Sync\Sync_Calibrator;
 use Sakura\ImageOptimizer\Support\Hook_Loader;
+use Sakura\ImageOptimizer\Support\Profiler;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -74,6 +75,12 @@ final class Plugin {
 		}
 		$this->booted = true;
 
+		/*
+		 * One timer for the whole boot. Query Monitor's Timing panel is the only
+		 * consumer; without it Profiler::measure() is a straight call.
+		 */
+		Profiler::start( 'boot' );
+
 		Credential_Cipher::migrate_legacy_option();
 		Options::migrate_legacy_profile();
 
@@ -90,10 +97,14 @@ final class Plugin {
 			\Sakura\ImageOptimizer\Sync\Schema::maybe_install();
 		}
 
-		$modules = $this->build_modules();
+		Profiler::lap( 'boot', 'schema' );
+
+		$modules = Profiler::measure( 'modules', fn(): array => $this->build_modules() );
 		foreach ( $modules as $module ) {
 			$module->register_hooks( $this->hooks );
 		}
+
+		Profiler::lap( 'boot', 'hooks queued' );
 
 		if ( is_admin() ) {
 			\add_action( 'admin_init', array( \Sakura\ImageOptimizer\Sync\Scan_Worker::class, 'schedule_maintenance' ) );
@@ -111,7 +122,13 @@ final class Plugin {
 		// Backup is a legacy class (includes/class-backup.php) and still load-bearing;
 		// read the manifest in sakura-tools.php before touching that directory.
 		$this->hooks->add_action( 'sakura_imgopt_daily_backup_cleanup', array( Backup::class, 'clean_expired' ) );
-		$this->hooks->register();
+		Profiler::measure(
+			'register hooks',
+			function (): void {
+				$this->hooks->register();
+			}
+		);
+		Profiler::stop( 'boot' );
 	}
 
 	/**

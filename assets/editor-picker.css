@@ -1783,15 +1783,28 @@ body.dark-theme #sufm-picker .sufm-drop {
 
 #sufm-picker .sufm-dialog-head {
 	display: flex;
-	align-items: flex-start;
+	align-items: center;
 	justify-content: space-between;
 	gap: 12px;
 }
 
 #sufm-picker .sufm-dialog-mascot {
+	display: grid;
+	place-items: center;
+	width: 36px;
+	height: 36px;
 	flex: none;
-	margin-top: 1px;
+	border-radius: 10px;
+	background: var(--sufm-pink-soft);
 	line-height: 0;
+}
+
+/* 与前台文件面板同因同解：主题全局 `svg{width:1em;height:1em}` 会压掉
+ * <svg width="38"> 属性，尺寸必须写在 CSS 上。 */
+#sufm-picker .sufm-dialog-mascot svg {
+	display: block;
+	width: 30px;
+	height: 30px;
 }
 
 #sufm-picker .sufm-dialog-head h2 {

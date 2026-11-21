@@ -167,6 +167,16 @@ final class Page_Assets {
 	}
 
 	/**
+	 * Cache-busting version for a single asset, for callers outside this class.
+	 *
+	 * @param string $relative Plugin-relative path.
+	 * @return string
+	 */
+	public static function asset_version( string $relative ): string {
+		return self::group_version( array( $relative ) );
+	}
+
+	/**
 	 * Cache-busting version from mtime and size.
 	 *
 	 * @param array<int, string> $relative Plugin-relative paths.

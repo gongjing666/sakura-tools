@@ -45,9 +45,9 @@ $retention_days = (int) get_option( 'sakura_imgopt_backup_retention_days', 0 );
 $max_mb         = (int) get_option( 'sakura_imgopt_backup_max_mb', 0 );
 $delete_data    = (int) get_option( 'sakura_imgopt_delete_data_on_uninstall', 0 );
 
-$checkbox_control = static function ( string $name, string $text, bool $checked ) {
+$checkbox_control = static function ( string $name, string $text, bool $checked, bool $as_switch = false ) {
 	echo '<input type="hidden" name="' . esc_attr( $name ) . '" value="0" />';
-	echo '<label class="check"><input type="checkbox" name="' . esc_attr( $name ) . '" value="1"' . checked( $checked, true, false ) . ' />';
+	echo '<label class="check"><input' . ( $as_switch ? ' class="is-switch"' : '' ) . ' type="checkbox" name="' . esc_attr( $name ) . '" value="1"' . checked( $checked, true, false ) . ' />';
 	echo '<span class="check__box" aria-hidden="true"></span><span class="check__text">' . esc_html( $text ) . '</span></label>';
 };
 

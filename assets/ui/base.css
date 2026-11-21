@@ -118,8 +118,10 @@
 	color: var(--g-ink);
 }
 
-/* The mark is the one place a gradient is earned: it is small, it is the
- * brand, and it reads as a petal-lit tile rather than a flat swatch. */
+/* The mark is the one place a pale petal is earned: it is small, it is the
+ * brand, and a flat sakura pink reads as a petal rather than as a control. The
+ * tile is deliberately not the deep accent — the accent stays reserved for
+ * things that must carry white text at 5.18:1. */
 .sakura-admin .brand-mark {
 	display: grid;
 	place-items: center;
@@ -127,12 +129,21 @@
 	width: 30px;
 	height: 30px;
 	border-radius: 9px;
-	background: linear-gradient(145deg, #b04263 0%, var(--g-accent) 52%, var(--g-accent-line) 100%);
-	box-shadow: 0 1px 2px rgba(93, 29, 45, .28), 0 8px 16px -10px var(--g-accent-glow), inset 0 1px 0 rgba(255, 255, 255, .22);
-	color: var(--g-accent-ink);
+	background: var(--g-brand-petal);
+	box-shadow: 0 1px 2px rgba(166, 40, 75, .16), 0 6px 14px -8px rgba(255, 143, 184, .85), inset 0 1px 0 rgba(255, 255, 255, .40);
+	color: var(--g-brand-ink);
 	font-size: 13.5px;
 	font-weight: 650;
 	letter-spacing: .02em;
+}
+
+/* The glyph inherits the tile's ink through currentColor, so the mark keeps a
+ * single colour. 18px inside a 30px tile is the largest size that still leaves
+ * the corners of the rounded square clear. */
+.sakura-admin .brand-mark svg {
+	display: block;
+	width: 18px;
+	height: 18px;
 }
 
 .sakura-admin .brand strong {
@@ -456,17 +467,19 @@
 	text-transform: uppercase;
 }
 
+/* The page title is the loudest thing on a settings screen: V2 的性格靠字重，
+ * 不是再加一层装饰，所以标题只用字号、字重与字距三件事。 */
 .sakura-admin .page-head h1 {
-	max-width: 20ch;
+	max-width: 24ch;
 	font-size: var(--g-fs-h1);
-	font-weight: 650;
-	letter-spacing: -.018em;
-	line-height: 1.16;
+	font-weight: 900;
+	letter-spacing: -.022em;
+	line-height: 1.06;
 }
 
 .sakura-admin .page-head .page-head__lede {
-	max-width: 68ch;
-	margin: 9px 0 0;
+	max-width: 62ch;
+	margin: 10px 0 0;
 	color: var(--g-muted);
 	font-size: 14px;
 	line-height: 1.72;
@@ -804,12 +817,14 @@
 }
 
 /* ============================================================
- * V2 · 樱前线（Sakura Front）——storage-sync 试点
+ * V2 · 樱前线（Sakura Front）
  *
- * 这一层只做「怎么读」：标题的字重与尺寸、页签的形状、副题与印章。
- * 颜色一律来自 tokens，页面不许再写裸色值。试点页 = storage-sync；
- * 其余页面仍用 V1 的页签与标题，等这页验收通过后再逐页铺开（见
- * docs/开发规则/03-后台UI.md §14.6）。
+ * 这一层只做「怎么读」：标题的字重与尺寸、副题与印章。
+ * 颜色一律来自 tokens，页面不许再写裸色值。
+ *
+ * 2026-11-20：原本只有 storage-sync 试点页用这套页头，开发者看过之后要求
+ * 「所有设置页面头部都改成同步中心的样式」，于是这里从 `[data-sakura-page=
+ * "storage-sync"]` 的作用域提升为全站默认；试点页不再需要单独规则。
  * ============================================================ */
 
 /* Hero：标题下面那句文学化的副题。渐变只上在副题上，主标题保持实色——
@@ -869,29 +884,11 @@
 	}
 }
 
-/* 试点页：页签从「下划线」换成「花瓣贴纸」。 */
+/* 页签：试点页原本单独把整条压低 1px（11 → 12），页头提升为全站后这条仍是
+ * 试点页的微调，不影响其他页面。 */
 .sakura-admin[data-sakura-page="storage-sync"] .sakura-tabs {
-	/* 试点页只把整条压低 2px；内边距必须沿用基类的 5/9，否则底部投影会被切。 */
 	margin-top: 12px;
 }
 
-/* 试点页的标题更重一档：V2 的性格靠字重，而不是再加一层装饰。 */
-.sakura-admin[data-sakura-page="storage-sync"] .page-head h1 {
-	max-width: 24ch;
-	font-size: clamp(32px, 3.6vw, 44px);
-	font-weight: 900;
-	letter-spacing: -.022em;
-	line-height: 1.06;
-}
-
-.sakura-admin[data-sakura-page="storage-sync"] .page-head .page-head__lede {
-	max-width: 62ch;
-	margin-top: 10px;
-	font-size: 14px;
-}
-
-/* 试点页的眉标跟随强调色：设计稿里卡片的小标题是樱粉，而不是灰。 */
-.sakura-admin[data-sakura-page="storage-sync"] .card__kicker {
-	color: var(--g-accent);
-	opacity: .9;
-}
+/* 卡片眉标的颜色 2026-11-21 起由 components.css 的 .card__kicker 统一负责
+ * （全站樱粉），这里不再保留试点页覆盖。 */

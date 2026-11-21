@@ -271,8 +271,186 @@
 		}
 	}
 
+	/**
+	 * 重命名规则编辑器：点击占位符卡片，按 `-` 拼到输入框末尾并刷新预览。
+	 * 没有这段脚本，输入框仍然是完整的设置字段（服务端已经渲染好预览）。
+	 */
+	function initRenameComposer() {
+		var box = qs( '[data-rule-composer]' );
+		if ( ! box ) {
+			return;
+		}
+
+		var input = qs( '.rule-composer__input', box );
+		var preview = qs( '[data-rule-preview]', box );
+		var reset = qs( '[data-rule-reset]', box );
+		var buttons = qsa( '[data-rule-token]', box );
+		var moreToggle = qs( '[data-rule-more-toggle]', box );
+		var morePanel = qs( '[data-rule-more-panel]', box );
+
+		if ( ! input ) {
+			return;
+		}
+
+		var samples = {};
+		buttons.forEach( function ( button ) {
+			samples[ button.getAttribute( 'data-rule-token' ) ] = button.getAttribute( 'data-rule-sample' ) || '';
+		} );
+
+		function syncPreview() {
+			if ( ! preview ) {
+				return;
+			}
+			var value = input.value || '';
+			// 与 PHP 的 prune_empty_tokens() 一致：值取不到的占位符（未填的固定文本、
+			// 访客上传时的 {user}…）只吃掉它前面那一个连接符，再把留下的双分隔符
+			// 收拢成一个——两侧都吃会把邻居粘成 `{hash}{filename}`。
+			var pruned = false;
+			Object.keys( samples ).forEach( function ( token ) {
+				if ( '' !== samples[ token ] || -1 === value.indexOf( token ) ) {
+					return;
+				}
+				var pattern = new RegExp( '[-_.]?' + token.replace( /[.*+?^${}()|[\]\\]/g, '\\$&' ), 'g' );
+				value = value.replace( pattern, '' );
+				pruned = true;
+			} );
+			if ( pruned ) {
+				value = value.replace( /([-_.])[-_.]+/g, '$1' ).replace( /^[-_.]+|[-_.]+$/g, '' );
+			}
+			var name = value.replace( /\{[a-zA-Z0-9_]+\}/g, function ( match ) {
+				return Object.prototype.hasOwnProperty.call( samples, match ) ? samples[ match ] : '';
+			} );
+			name = name.replace( /[\\/:*?"<>|]+/g, '-' ).replace( /^[\s\-_.]+|[\s\-_.]+$/g, '' );
+			if ( ! name ) {
+				name = 'sakura';
+			}
+			// 与 PHP 侧 pathinfo() 一致：没有点号时扩展名为空。
+			var dot = name.lastIndexOf( '.' );
+			var ext = dot >= 0 ? name.slice( dot + 1 ).toLowerCase() : '';
+			if ( 'webp' !== ext ) {
+				name += '.webp';
+			}
+			preview.textContent = name;
+		}
+
+		var titleAdd = box.getAttribute( 'data-rule-title-add' ) || '';
+		var titleRemove = box.getAttribute( 'data-rule-title-remove' ) || '';
+
+		/**
+		 * 同步卡片的按下态：规则里已经出现的占位符按下去，再点一次移除。
+		 * 手输的占位符也走这里，所以卡片状态永远跟输入框一致。
+		 */
+		function syncPressed() {
+			var value = input.value || '';
+			buttons.forEach( function ( button ) {
+				var token = button.getAttribute( 'data-rule-token' ) || '';
+				var used = '' !== token && -1 !== value.indexOf( token );
+				button.setAttribute( 'aria-pressed', used ? 'true' : 'false' );
+
+				// 自定义占位符的标题带当前值（或「还没填」），用服务端给的两条，
+				// 别被通用的「点击插入/移除 {token}」盖掉。
+				if ( button.hasAttribute( 'data-rule-fixed' ) ) {
+					var fixedOn = button.getAttribute( 'data-rule-title-when-on' );
+					var fixedOff = button.getAttribute( 'data-rule-title-when-off' );
+					var fixedTitle = used ? fixedOn : fixedOff;
+					if ( fixedTitle ) {
+						button.title = fixedTitle;
+					}
+					return;
+				}
+
+				if ( titleAdd || titleRemove ) {
+					button.title = ( used ? titleRemove : titleAdd ) + ' ' + token;
+				}
+			} );
+		}
+
+		function settle() {
+			if ( typeof input.setSelectionRange === 'function' ) {
+				input.setSelectionRange( input.value.length, input.value.length );
+			}
+			syncPreview();
+			syncPressed();
+		}
+
+		function append( token ) {
+			var value = input.value.trim();
+			// 每个占位符只用一次：已经在规则里就不重复插入。
+			if ( -1 !== value.indexOf( token ) ) {
+				settle();
+				return;
+			}
+			// {ext} 前面永远是点号，其余占位符之间用 `-`。
+			var separator = '{ext}' === token ? '.' : '-';
+			if ( ! value ) {
+				input.value = token;
+			} else if ( /[-_.]$/.test( value ) ) {
+				input.value = value + token;
+			} else {
+				input.value = value + separator + token;
+			}
+			input.focus();
+			settle();
+		}
+
+		/** 移除占位符：连同它一侧的连接符一起去掉，留下的分隔符收拢成一个。 */
+		function remove( token ) {
+			var next = ( input.value || '' ).split( token ).join( '' );
+			next = next.replace( /([-_.])[-_.]+/g, '$1' ).replace( /^[-_.]+|[-_.]+$/g, '' );
+			input.value = next;
+			input.focus();
+			settle();
+		}
+
+		admin.on( box, 'click', function ( event ) {
+			var button = event.target.closest ? event.target.closest( '[data-rule-token]' ) : null;
+			if ( button && box.contains( button ) ) {
+				event.preventDefault();
+				var token = button.getAttribute( 'data-rule-token' ) || '';
+				if ( ! token ) {
+					return;
+				}
+				if ( 'true' === button.getAttribute( 'aria-pressed' ) ) {
+					remove( token );
+				} else {
+					append( token );
+				}
+				return;
+			}
+			if ( moreToggle && event.target.closest( '[data-rule-more-toggle]' ) ) {
+				event.preventDefault();
+				var open = 'true' !== moreToggle.getAttribute( 'aria-expanded' );
+				moreToggle.setAttribute( 'aria-expanded', open ? 'true' : 'false' );
+				if ( morePanel ) {
+					morePanel.hidden = ! open;
+				}
+				var labelOpen = moreToggle.getAttribute( 'data-rule-more-label-open' ) || '';
+				var labelClosed = moreToggle.getAttribute( 'data-rule-more-label' ) || '';
+				if ( labelOpen && labelClosed ) {
+					moreToggle.textContent = open ? labelOpen : labelClosed;
+				}
+				return;
+			}
+			if ( reset && event.target.closest && event.target.closest( '[data-rule-reset]' ) ) {
+				event.preventDefault();
+				input.value = input.getAttribute( 'data-rule-default' ) || '{date}-{time}-{rand}';
+				input.focus();
+				syncPreview();
+				syncPressed();
+			}
+		} );
+
+		admin.on( input, 'input', function () {
+			syncPreview();
+			syncPressed();
+		} );
+		syncPreview();
+		syncPressed();
+	}
+
 	admin.ready( function () {
 		initModeLinkage();
 		initScan();
+		initRenameComposer();
 	} );
 }( window, document ) );

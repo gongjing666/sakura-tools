@@ -12,6 +12,7 @@ namespace Sakura\ImageOptimizer\Sync;
 use Sakura\ImageOptimizer\Contracts\Module;
 use Sakura\ImageOptimizer\S3\Options;
 use Sakura\ImageOptimizer\Support\Hook_Loader;
+use Sakura\ImageOptimizer\Support\Profiler;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -117,7 +118,10 @@ final class Verify_Worker implements Module {
 	 */
 	public function run(): void {
 		$service = new Verify_Service( $this->options, $this->index );
-		$result  = $service->run( self::SECONDS );
+		$result  = Profiler::measure(
+			'verify tick',
+			static fn(): array => $service->run( self::SECONDS )
+		);
 
 		if ( ! empty( $result['processed'] ) ) {
 			\do_action(

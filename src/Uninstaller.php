@@ -259,6 +259,7 @@ final class Uninstaller {
 			'sakura_imgopt_max_image_height',
 			'sakura_imgopt_rename_enabled',
 			'sakura_imgopt_rename_rule',
+			'sakura_imgopt_rename_fixed',
 			'sakura_imgopt_batch_size',
 			'sakura_imgopt_ajax_delay',
 			'sakura_imgopt_upload_concurrency',

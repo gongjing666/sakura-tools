@@ -215,6 +215,11 @@ final class Plugin {
 			Admin\Registry::register_renderer( 'storage', 'rewrite', array( $url_rewrite, 'render' ) );
 			Admin\Registry::register_renderer( 'storage', 'cost', array( $cost_panel, 'render' ) );
 
+			$zibll_admin = new Zibll\Admin_Module();
+			$modules[]   = $zibll_admin;
+
+			Admin\Registry::register_renderer( 'zibll', 'performance', array( $zibll_admin, 'render' ) );
+
 			// The menu is registered last so every renderer exists by the time
 			// WordPress asks for a screen.
 			$modules[] = new Admin\Menu();
@@ -223,6 +228,9 @@ final class Plugin {
 		$modules[] = new Delete_Worker( $s3_options, $s3_adapter );
 		$modules[] = new Upload_Observer( $s3_options );
 		$modules[] = new Storage( $s3_options, $s3_adapter );
+
+		// 子比增强：前台旁路与每日复验都必须在非后台请求里存在。
+		$modules[] = new Zibll\Runtime_Module();
 
 		// 用户文件空间：前台、REST 与后台审核页都挂在这个模块上。
 		$modules[] = new \Nboke\UserFiles\Module();

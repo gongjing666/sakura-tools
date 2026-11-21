@@ -100,6 +100,22 @@ final class Registry {
 					),
 				),
 			),
+			'zibll'   => array(
+				'label' => __( '子比增强', 'sakura-imgopt' ),
+				'slug'  => 'sakura-tools-zibll',
+				'caps'  => 'manage_options',
+				'tabs'  => array(
+					'performance' => array(
+						'label' => __( '性能优化', 'sakura-imgopt' ),
+						'gate'  => array(
+							'when' => static fn(): bool => \Sakura\ImageOptimizer\Zibll\License::is_zibll_theme(),
+							'note' => static fn(): string => __( '当前主题不是子比（zibll），没有可缓存的授权校验。切换到子比主题后本页才可用。', 'sakura-imgopt' ),
+							'code' => 'zibll',
+							'caps' => 'manage',
+						),
+					),
+				),
+			),
 		);
 	}
 

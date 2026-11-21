@@ -622,6 +622,14 @@ require_once dirname( __DIR__ ) . '/includes/class-image-optimizer-module.php';
 require_once dirname( __DIR__ ) . '/includes/class-thumbnail-manager.php';
 require_once dirname( __DIR__ ) . '/src/Image/Size_Catalog.php';
 require_once dirname( __DIR__ ) . '/src/Image/Crop_Config_Scanner.php';
+require_once dirname( __DIR__ ) . '/src/Admin/Card_Form.php';
+require_once dirname( __DIR__ ) . '/src/Zibll/License.php';
+require_once dirname( __DIR__ ) . '/src/Zibll/Notices.php';
+require_once dirname( __DIR__ ) . '/src/Zibll/Probe.php';
+require_once dirname( __DIR__ ) . '/src/Zibll/License_Cache.php';
+require_once dirname( __DIR__ ) . '/src/Zibll/Revalidate.php';
+require_once dirname( __DIR__ ) . '/src/Zibll/Settings.php';
+require_once dirname( __DIR__ ) . '/src/Zibll/Frontend_Guard.php';
 
 if ( ! function_exists( 'untrailingslashit' ) ) {
 	/**
@@ -1176,13 +1184,13 @@ if ( ! function_exists( 'wp_strip_all_tags' ) ) {
 
 if ( ! function_exists( 'home_url' ) ) {
 	/**
-	 * Minimal home_url shim.
+	 * Minimal home_url shim; tests move the site via $GLOBALS['sakura_test_home_url'].
 	 *
 	 * @param string $path Path.
 	 * @return string
 	 */
 	function home_url( $path = '' ) {
-		return 'https://example.test' . $path;
+		return (string) ( $GLOBALS['sakura_test_home_url'] ?? 'https://example.test' ) . $path;
 	}
 }
 
@@ -1715,5 +1723,196 @@ if ( ! function_exists( 'wp_kses_post' ) ) {
 	 */
 	function wp_kses_post( $text ) {
 		return (string) preg_replace( '#<(script|style)\b[^>]*>.*?</\1>#is', '', (string) $text );
+	}
+}
+
+if ( ! function_exists( 'remove_action' ) ) {
+	/**
+	 * Minimal remove_action() shim over the recorded registrations.
+	 *
+	 * @param string          $hook_name Hook name.
+	 * @param callable|string $callback  Callback.
+	 * @param int             $priority  Priority.
+	 * @return bool
+	 */
+	function remove_action( $hook_name, $callback, $priority = 10 ) {
+		$actions = (array) ( $GLOBALS['sakura_test_hooks']['actions'] ?? array() );
+		$kept    = array();
+
+		foreach ( $actions as $registered ) {
+			$matches = (string) $registered[0] === (string) $hook_name
+				&& $registered[1] === $callback
+				&& (int) $registered[2] === (int) $priority;
+
+			if ( $matches ) {
+				$GLOBALS['sakura_test_removed_actions'][] = array( (string) $hook_name, $callback, (int) $priority );
+				continue;
+			}
+
+			$kept[] = $registered;
+		}
+
+		$GLOBALS['sakura_test_hooks']['actions'] = $kept;
+
+		return true;
+	}
+}
+
+if ( ! function_exists( 'register_setting' ) ) {
+	/**
+	 * Minimal register_setting() shim: records the registration.
+	 *
+	 * @param string $option_group Group.
+	 * @param string $option_name  Option.
+	 * @param array  $args         Arguments.
+	 * @return void
+	 */
+	function register_setting( $option_group, $option_name, $args = array() ) {
+		$GLOBALS['sakura_test_settings'][] = array( $option_group, $option_name, $args );
+	}
+}
+
+if ( ! function_exists( 'add_settings_error' ) ) {
+	/**
+	 * Minimal add_settings_error() shim.
+	 *
+	 * @param string $setting Setting.
+	 * @param string $code    Code.
+	 * @param string $message Message.
+	 * @param string $type    Type.
+	 * @return void
+	 */
+	function add_settings_error( $setting, $code, $message, $type = 'error' ) {
+		$GLOBALS['sakura_test_settings_errors'][] = array( (string) $setting, (string) $code, (string) $message, (string) $type );
+	}
+}
+
+if ( ! function_exists( 'get_settings_errors' ) ) {
+	/**
+	 * Minimal get_settings_errors() shim reading the recorded errors.
+	 *
+	 * @param string $setting  Setting filter.
+	 * @param bool   $sanitize Unused.
+	 * @return array<int,array<string,string>>
+	 */
+	function get_settings_errors( $setting = '', $sanitize = false ) {
+		unset( $sanitize );
+
+		$errors = array();
+
+		foreach ( (array) ( $GLOBALS['sakura_test_settings_errors'] ?? array() ) as $error ) {
+			if ( '' !== (string) $setting && $error[0] !== (string) $setting ) {
+				continue;
+			}
+
+			$errors[] = array(
+				'setting' => $error[0],
+				'code'    => $error[1],
+				'message' => $error[2],
+				'type'    => $error[3],
+			);
+		}
+
+		return $errors;
+	}
+}
+
+if ( ! function_exists( 'settings_errors' ) ) {
+	/**
+	 * Minimal settings_errors() shim.
+	 *
+	 * @param string $setting        Setting filter.
+	 * @param bool   $sanitize       Unused.
+	 * @param bool   $hide_on_update Unused.
+	 * @return void
+	 */
+	function settings_errors( $setting = '', $sanitize = false, $hide_on_update = false ) {
+		unset( $sanitize, $hide_on_update );
+
+		foreach ( get_settings_errors( (string) $setting ) as $error ) {
+			printf(
+				'<div class="notice notice-%s"><p>%s</p></div>',
+				esc_attr( $error['type'] ),
+				esc_html( $error['message'] )
+			);
+		}
+	}
+}
+
+if ( ! function_exists( 'wp_send_json_success' ) ) {
+	/**
+	 * Minimal wp_send_json_success() shim: records the payload.
+	 *
+	 * @param mixed $data        Payload.
+	 * @param int   $status_code HTTP status.
+	 * @return void
+	 */
+	function wp_send_json_success( $data = null, $status_code = null ) {
+		$GLOBALS['sakura_test_json'][] = array( 'success' => true, 'data' => $data, 'status' => $status_code );
+	}
+}
+
+if ( ! function_exists( 'wp_send_json_error' ) ) {
+	/**
+	 * Minimal wp_send_json_error() shim: records the payload.
+	 *
+	 * @param mixed $data        Payload.
+	 * @param int   $status_code HTTP status.
+	 * @return void
+	 */
+	function wp_send_json_error( $data = null, $status_code = null ) {
+		$GLOBALS['sakura_test_json'][] = array( 'success' => false, 'data' => $data, 'status' => $status_code );
+	}
+}
+
+if ( ! function_exists( 'check_ajax_referer' ) ) {
+	/**
+	 * Minimal check_ajax_referer() shim: records the checked action.
+	 *
+	 * @param string $action    Nonce action.
+	 * @param string $query_arg Request key.
+	 * @param bool   $stop      Whether to die.
+	 * @return int
+	 */
+	function check_ajax_referer( $action = -1, $query_arg = false, $stop = true ) {
+		unset( $query_arg, $stop );
+
+		$GLOBALS['sakura_test_nonce_checks'][] = (string) $action;
+
+		return 1;
+	}
+}
+
+if ( ! class_exists( 'Sakura_Test_Theme' ) ) {
+	/**
+	 * Theme object stub for wp_get_theme().
+	 */
+	class Sakura_Test_Theme {
+
+		/**
+		 * Read a theme header value.
+		 *
+		 * @param string $key Header key.
+		 * @return string
+		 */
+		public function get( $key ) {
+			$values = (array) ( $GLOBALS['sakura_test_theme_headers'] ?? array() );
+
+			return isset( $values[ (string) $key ] ) ? (string) $values[ (string) $key ] : '';
+		}
+	}
+}
+
+if ( ! function_exists( 'wp_get_theme' ) ) {
+	/**
+	 * Minimal wp_get_theme() shim; set $GLOBALS['sakura_test_theme_headers']['Version'].
+	 *
+	 * @param string $stylesheet Theme slug.
+	 * @return Sakura_Test_Theme
+	 */
+	function wp_get_theme( $stylesheet = '' ) {
+		unset( $stylesheet );
+
+		return new Sakura_Test_Theme();
 	}
 }

@@ -33,6 +33,7 @@ final class Deactivation {
 		wp_clear_scheduled_hook( 'sakura_imgopt_s3_upload_watchdog' );
 		wp_clear_scheduled_hook( 'sakura_imgopt_s3_alert_check' );
 		wp_clear_scheduled_hook( 'sakura_imgopt_sync_verify_tick' );
+		wp_clear_scheduled_hook( \Sakura\ImageOptimizer\Zibll\Revalidate::HOOK );
 		wp_clear_scheduled_hook( 'sufm_tick' );
 		wp_unschedule_hook( 'sufm_tick' );
 		wp_unschedule_hook( 'sufm_delete_tick' );

@@ -77,6 +77,7 @@ final class Uninstaller {
 		wp_unschedule_hook( 'sufm_tick' );
 		// The delete tick carries a batch id, so a plain clear is not enough.
 		wp_unschedule_hook( 'sufm_delete_tick' );
+		wp_unschedule_hook( \Sakura\ImageOptimizer\Zibll\Revalidate::HOOK );
 		// Capabilities are not user data: they are removed even when the owner
 		// asked to keep files and ledger rows.
 		\Nboke\UserFiles\Capabilities::revoke();
@@ -197,6 +198,7 @@ final class Uninstaller {
 			'sakura_imgopt_sync_metrics',
 			'sakura_imgopt_thumb_cache_flush',
 			'sakura_imgopt_thumb_stats',
+			'sakura_imgopt_zibll_license_cache',
 			'sufm_space_reconcile_last',
 			'sufm_sync_state',
 		);
@@ -274,6 +276,7 @@ final class Uninstaller {
 			'sakura_imgopt_layout_gaps',
 			'sakura_imgopt_sync_ignored',
 			'sakura_imgopt_disable_all_thumbs',
+			'sakura_imgopt_zibll',
 			Appearance::OPTION,
 		);
 

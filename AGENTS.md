@@ -68,6 +68,7 @@ docs/                   文档（不进发布包）
 | image | `sakura-tools-image` | `manage_options` | rules, thumb, backup, stats |
 | storage | `sakura-tools-storage` | `manage_options` | connection, sync, deletes, rewrite, cost |
 | files | `sakura-tools-files` | `review` | settings, users, queue, log, zibll |
+| zibll | `sakura-tools-zibll` | `manage_options` | performance |
 
 页签参数是 `t`，**不是 `tab`**；`Registry::url( $module, $tab )` :213 在默认页签时省略 `t`。`Registry::current()` 对非本插件页面返回 `array( '', '' )`——任何「当前是不是我的页」的判断都必须走它。
 

@@ -191,6 +191,15 @@ final class Layout {
 				'space_reconcile' => array( 7, 7, 6 ),
 			),
 		),
+		'zibll-performance' => array(
+			'order' => array( 'license-cache', 'cache-status' ),
+			'cards' => array(
+				// The switch needs room for its explanation and the manual
+				// re-check; the readout is a short key/value table.
+				'license-cache' => array( 1, 1, 7 ),
+				'cache-status'  => array( 1, 8, 5 ),
+			),
+		),
 
 	);
 

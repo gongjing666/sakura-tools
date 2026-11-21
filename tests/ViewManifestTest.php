@@ -34,6 +34,7 @@ final class ViewManifestTest extends TestCase {
 		'userfiles-space-admin.php',
 		'userfiles-space-panel.php',
 		'userfiles-tab.php',
+		'zibll-performance.php',
 	);
 
 	/**

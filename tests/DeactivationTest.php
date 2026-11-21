@@ -48,6 +48,7 @@ final class DeactivationTest extends TestCase {
 				'sakura_imgopt_sync_job_tick',
 				'sufm_tick',
 				'sufm_delete_tick',
+				'sakura_imgopt_zibll_revalidate',
 			)
 			as $hook
 		) {

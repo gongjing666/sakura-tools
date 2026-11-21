@@ -131,6 +131,9 @@ final class Activation {
 			wp_schedule_event( time() + HOUR_IN_SECONDS, 'daily', 'sakura_imgopt_daily_backup_cleanup' );
 		}
 
+		// 子比授权缓存：开关开着才需要每日复验，ensure() 自己判断。
+		\Sakura\ImageOptimizer\Zibll\Revalidate::ensure();
+
 		// 版本号最后写：前面的建表/排程任一步失败时，Upgrade_Guard 下次请求仍会重跑。
 		$installed_version = get_option( 'sakura_imgopt_version', '' );
 		if ( '' === $installed_version ) {

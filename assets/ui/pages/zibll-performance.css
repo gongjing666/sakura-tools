@@ -1,0 +1,34 @@
+/* Zibll integration page: license cache. */
+.sakura-admin[data-sakura-page="zibll-performance"] .zibll-actions {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--g-space-2);
+	margin-top: var(--g-space-3);
+}
+
+.sakura-admin[data-sakura-page="zibll-performance"] .zibll-status {
+	color: var(--g-muted);
+	font-size: var(--g-fs-meta);
+}
+
+.sakura-admin[data-sakura-page="zibll-performance"] .zibll-status.is-ok {
+	color: var(--g-ok);
+}
+
+.sakura-admin[data-sakura-page="zibll-performance"] .zibll-status.is-bad {
+	color: var(--g-bad);
+}
+
+.sakura-admin[data-sakura-page="zibll-performance"] .zibll-meta {
+	display: block;
+	margin-top: var(--g-space-1);
+	color: var(--g-muted);
+	font-size: var(--g-fs-meta);
+}
+
+.sakura-admin[data-sakura-page="zibll-performance"] .zibll-note {
+	margin: var(--g-space-3) 0 0;
+	color: var(--g-muted);
+	font-size: var(--g-fs-meta);
+}

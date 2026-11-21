@@ -171,6 +171,12 @@ final class Menu implements Module {
 		$theme_name    = '' !== (string) $theme['name'] ? (string) $theme['name'] : __( '未取到', 'sakura-imgopt' );
 		$theme_version = '' !== (string) $theme['version'] ? (string) $theme['version'] : __( '未取到', 'sakura-imgopt' );
 
+		// The way back must lead somewhere the visitor can actually open: the
+		// files screen keeps its own zibll tab, while the zibll module has no
+		// other tab to fall back to.
+		$back_label = 'zibll' === $module ? __( '返回系统设置', 'sakura-imgopt' ) : __( '返回样式与策略', 'sakura-imgopt' );
+		$back_url   = 'zibll' === $module ? Registry::url( 'system', 'settings' ) : Registry::url( 'files', 'settings' );
+
 		UI::page(
 			array(
 				'id'      => Route::current_page(),
@@ -180,13 +186,13 @@ final class Menu implements Module {
 				'title'   => __( '子比专属功能不可用', 'sakura-imgopt' ),
 				'lede'    => $note,
 			),
-			static function () use ( $theme_name, $theme_version ): void {
+			static function () use ( $theme_name, $theme_version, $back_label, $back_url ): void {
 				UI::card(
 					array(
 						'title'       => __( '主题环境', 'sakura-imgopt' ),
 						'description' => __( '这个页面仅在子比主题启用时可用。', 'sakura-imgopt' ),
 					),
-					static function () use ( $theme_name, $theme_version ): void {
+					static function () use ( $theme_name, $theme_version, $back_label, $back_url ): void {
 						?>
 						<div class="field-list">
 							<div class="field">
@@ -199,7 +205,7 @@ final class Menu implements Module {
 							</div>
 						</div>
 						<div class="button-row">
-							<a class="btn btn--ghost" href="<?php echo esc_url( Registry::url( 'files', 'settings' ) ); ?>"><?php esc_html_e( '返回样式与策略', 'sakura-imgopt' ); ?></a>
+							<a class="btn btn--ghost" href="<?php echo esc_url( $back_url ); ?>"><?php echo esc_html( $back_label ); ?></a>
 						</div>
 						<?php
 					}

@@ -909,3 +909,15 @@ body.upload-php.sufm-tree-active.folded { --sufm-tree-left: 56px; }
 **理由**：动效的意义是解释「从哪里来、到哪里去」，`scale(.96) → 1` 说明卡片是从页面里长出来的，`translateY` 说明重心在上方；而 0.38 的灰罩会把注意力从卡片上撕开，薄雾保留上下文又不抢戏。整个改动只动 CSS 关键帧与一个 JS 辅助函数，没有引入动画库。
 
 **边界**：`prefers-reduced-motion: reduce` 下三条动画全部 `animation: none`，`closeDialog()` 直接 `dialog.close()`；`.sakura-modal`（PHP 提示框）与原生 `<dialog>` 共用同一组曲线，但前者由 JS 管键盘陷阱，仍是独立实现。
+
+## 子比增强模块与 Zibll 授权缓存迁移（2026-11-21，1.28.7-beta-1）
+
+**背景**：开发者决定把 `zibll-site-enhance`（下称 zse）的功能逐步迁进樱花工具箱——zse 借用子比的 CSF 框架，扩展成本高。迁移第一步是新建「子比增强」模块，第一个迁过来的功能是 zse 性能优化里的「启用 Zibll 授权缓存」。
+
+**决策**：新模块 id `zibll`、slug `sakura-tools-zibll`、能力 `manage_options`，目前只有一个页签 `performance`（页面 id `zibll-performance`），页签 gate 用 `License::is_zibll_theme()`，非子比主题显示 403 说明而不是空白页。设置落在 `sakura_imgopt_zibll` 数组（只有一个键 `license_cache`），缓存落在 `sakura_imgopt_zibll_license_cache`（`autoload=false`），每日复验 cron 是 `sakura_imgopt_zibll_revalidate`。真实验证只发生在三处：后台保存时、后台手动复验时、每日 cron；前台仅在缓存有效且当前请求是 GET/HEAD 的只读请求时 `remove_action( 'init', 'zib_init_add_action' )`。
+
+**理由**：子比 8.8+ 的 Z5 加密层把授权校验挂进每个前台请求（`init:10` 的 `zib_init_add_action → ZibAut::is_aut()`），实测单次 33–47 ms，且其中大段 `eval` 无法被 OPcache 缓存。缓存的是「主题自己已经判定通过」这个结论而不是伪造授权：命中缓存只是不再重复跑同一个校验，校验结果仍然来自主题。缓存写在自己的 option 而不是读 zse 的 `zse_zibll_perf_cache`——两个插件会并存一段时间，读别人的 option 会让「停用谁」变成隐患。
+
+**边界**：缓存有效要同时满足四件事——主题版本、`untrailingslashit(home_url('/'))`、`hash('sha256', zibll_code.'|'.post_zat_end_time)`（用 `hash_equals` 比）、以及 `post_zat_next` 到期。**不监听 `post_zat_next` 的更新**：主题自己会频繁刷新到期时间，跟着清缓存等于永远冷；只有主题切换、站点地址、`zibll_code`、`post_zat_end_time` 变化才清。验证必须看返回值（`(bool) ZibAut::is_aut()`，返回 false 就是拒绝，绝不写成功缓存）；主题在输出后 `exit` 时由 shutdown 钩子写一条错误提示、缓存不写入。仍保留旧 mu-plugin `/wp-content/mu-plugins/zibll-performance.php` 的冲突检测：它会无条件抢在前面跳过校验，必须先改名或删除才能启用本功能。主题版本不在 `9.1 / 9.2` 范围内时，需要在同一次保存里勾选确认才允许启用。
+
+**验收**：`wp option get sakura_imgopt_zibll` 只有 `license_cache`；启用后 `wp option get sakura_imgopt_zibll_license_cache` 含 `ok/theme_version/home_url/auth_fingerprint/expires_at/created_at/created_by/source`；前台只读请求里 `has_action('init','zib_init_add_action')` 为 `false`，而 `/wp-admin`、`wp-json`、带 POST 的请求里仍为 `10`；保存失败时页面弹「设置未保存」并附主题/授权返回的原因，开关自动回落到关闭。

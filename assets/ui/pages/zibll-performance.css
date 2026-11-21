@@ -1,10 +1,28 @@
 /* Zibll integration page: license cache. */
-.sakura-admin[data-sakura-page="zibll-performance"] .zibll-actions {
+/* One row: the switch on the left, the manual re-check on the right, so the
+ * secondary action sits next to the thing it re-runs instead of floating under
+ * the form where it competes with the card's own save button. */
+.sakura-admin[data-sakura-page="zibll-performance"] .zibll-switch {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--g-space-2) var(--g-space-3);
+}
+
+.sakura-admin[data-sakura-page="zibll-performance"] .zibll-switch__actions {
 	display: flex;
 	flex-wrap: wrap;
 	align-items: center;
 	gap: var(--g-space-2);
-	margin-top: var(--g-space-3);
+}
+
+.sakura-admin[data-sakura-page="zibll-performance"] .zibll-hint {
+	margin: var(--g-space-2) 0 0;
+	max-width: 68ch;
+	color: var(--g-muted);
+	font-size: var(--g-fs-meta);
+	line-height: 1.65;
 }
 
 .sakura-admin[data-sakura-page="zibll-performance"] .zibll-status {

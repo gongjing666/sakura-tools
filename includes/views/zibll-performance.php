@@ -72,19 +72,20 @@ if ( $zibll_enabled && $zibll_valid ) {
 
 ob_start();
 ?>
-<input type="hidden" name="<?php echo esc_attr( Settings::OPTION ); ?>[license_cache]" value="0" />
+<div class="zibll-switch">
+	<input type="hidden" name="<?php echo esc_attr( Settings::OPTION ); ?>[license_cache]" value="0" />
+	<label class="check">
+		<input class="is-switch" type="checkbox" id="zibll-license-cache" name="<?php echo esc_attr( Settings::OPTION ); ?>[license_cache]" value="1"<?php checked( $zibll_enabled, true ); ?> />
+		<span class="check__box" aria-hidden="true"></span>
+		<span class="check__text"><?php esc_html_e( '启用授权缓存', 'sakura-imgopt' ); ?></span>
+	</label>
+	<div class="zibll-switch__actions">
+		<button type="button" class="btn btn--ghost btn--small" id="zibll-warm"<?php if ( ! $zibll_enabled ) : ?> disabled<?php endif; ?>><?php esc_html_e( '重新验证', 'sakura-imgopt' ); ?></button>
+		<span class="zibll-status" id="zibll-warm-status" role="status" aria-live="polite"></span>
+	</div>
+</div>
+<p class="zibll-hint"><?php esc_html_e( '保存时真实调用一次子比的授权校验；通过后缓存永久有效，前台命中缓存时跳过 zib_init_add_action。关闭后缓存立即失效，前台恢复由主题自行校验。', 'sakura-imgopt' ); ?></p>
 <?php
-UI::field(
-	array(
-		'id'      => 'zibll-license-cache',
-		'type'    => 'toggle',
-		'name'    => Settings::OPTION . '[license_cache]',
-		'value'   => '1',
-		'checked' => $zibll_enabled,
-		'label'   => __( '启用 Zibll 授权缓存', 'sakura-imgopt' ),
-		'hint'    => __( '保存时真实调用一次子比的授权校验；通过后缓存永久有效，前台命中缓存时跳过 zib_init_add_action。关闭后缓存立即失效，前台恢复由主题自行校验。', 'sakura-imgopt' ),
-	)
-);
 
 if ( ! $zibll_state['supported'] ) {
 	UI::notice(
@@ -111,13 +112,9 @@ if ( ! $zibll_state['supported'] ) {
 }
 
 if ( $zibll_enabled && ! $zibll_valid ) {
-	UI::notice( __( '开关是开着的，但缓存与当前主题版本、站点地址或授权内容对不上，因此没有生效。请重新保存或点下面的按钮复验。', 'sakura-imgopt' ), 'warn' );
+	UI::notice( __( '开关是开着的，但缓存与当前主题版本、站点地址或授权内容对不上，因此没有生效。请重新保存，或点「重新验证」再做一次。', 'sakura-imgopt' ), 'warn' );
 }
 ?>
-<div class="zibll-actions">
-	<button type="button" class="btn btn--quiet btn--small" id="zibll-warm"<?php if ( ! $zibll_enabled ) : ?> disabled<?php endif; ?>><?php esc_html_e( '重新验证并预热缓存', 'sakura-imgopt' ); ?></button>
-	<span class="zibll-status" id="zibll-warm-status" role="status" aria-live="polite"></span>
-</div>
 <?php
 $zibll_form_body = ob_get_clean();
 
@@ -199,7 +196,7 @@ $zibll_cards = static function () use ( $zibll_form_body, $zibll_status_body ): 
 		array(
 			'id'          => 'license-cache',
 			'kicker'      => __( 'License', 'sakura-imgopt' ),
-			'title'       => __( '启用 Zibll 授权缓存', 'sakura-imgopt' ),
+			'title'       => __( 'Zibll 授权缓存', 'sakura-imgopt' ),
 			'description' => __( '子比 8.8 起每个前台请求都会跑一次授权校验：9.2 约 33 ms，其中大半是 OPcache 存不下的 eval。这里只缓存“已经真实通过”的结论。', 'sakura-imgopt' ),
 			'form'        => array(
 				'id'           => 'sakura-zibll-license-cache',

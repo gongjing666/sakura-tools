@@ -564,17 +564,24 @@
 		announce( '当前文件夹：' + breadcrumb[ breadcrumb.length - 1 ].name );
 	}
 
+	/* The folder group header. It used to be a narrow grey strip whose only
+	 * affordance was a tooltip, so nobody found the fold. It now reads like a
+	 * file-browser section header: label, count, and the verb spelled out. */
 	function foldBar( count ) {
 		var label = strings.foldersToggle || '\u5b50\u6587\u4ef6\u5939';
 		var hint = state.folded
 			? ( strings.foldersShow || '\u5c55\u5f00\u5b50\u6587\u4ef6\u5939' )
 			: ( strings.foldersHide || '\u6536\u8d77\u5b50\u6587\u4ef6\u5939' );
+		var verb = state.folded ? '\u5c55\u5f00' : '\u6536\u8d77';
 
-		return '<button type="button" class="sufm-fold" data-sufm-fold="1" aria-expanded="' + ( state.folded ? 'false' : 'true' ) + '" title="' + escapeHtml( hint ) + '">' +
-			'<svg class="sufm-fold-chev" viewBox="0 0 16 16" aria-hidden="true"><path d="M3.8 6.2 8 10.4l4.2-4.2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"></path></svg>' +
-			'<span class="sufm-fold-label">' + escapeHtml( label ) + '</span>' +
-			'<span class="sufm-fold-count">' + Number( count || 0 ) + '</span>' +
-		'</button>';
+		return '<div class="sufm-foldbar">' +
+			'<button type="button" class="sufm-fold" data-sufm-fold="1" aria-expanded="' + ( state.folded ? 'false' : 'true' ) + '" title="' + escapeHtml( hint ) + '">' +
+				'<svg class="sufm-fold-chev" viewBox="0 0 16 16" aria-hidden="true"><path d="M3.8 6.2 8 10.4l4.2-4.2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"></path></svg>' +
+				'<span class="sufm-fold-label">' + escapeHtml( label ) + '</span>' +
+				'<span class="sufm-fold-count">' + Number( count || 0 ) + '</span>' +
+				'<span class="sufm-fold-verb">' + escapeHtml( verb ) + '</span>' +
+			'</button>' +
+		'</div>';
 	}
 
 	function setFolded( folded ) {
@@ -995,6 +1002,12 @@
 		return true;
 	}
 
+	/* No hover means no double-click to rely on, so touch gets the older
+	 * "tap once to select, tap again to open" behaviour instead. */
+	function coarsePointer() {
+		return !!( window.matchMedia && window.matchMedia( '(hover: none)' ).matches );
+	}
+
 	function hasOpenMenus() {
 		return !! document.querySelector( '[data-sufm-menu-panel]:not([hidden])' );
 	}
@@ -1056,6 +1069,18 @@
 		state.anchor = id;
 		state.selectedCount = Object.keys( state.selection ).length;
 		if ( 0 === state.selectedCount ) { state.anchor = 0; }
+		updateBatch();
+	}
+
+	// Windows convention: a plain click replaces the selection with that one
+	// file, while Ctrl adds or removes a single item and Shift extends the range.
+	function selectOnly( id ) {
+		id = Number( id );
+		if ( ! isSelectable( id ) ) { return; }
+		state.selection = {};
+		state.selection[ String( id ) ] = true;
+		state.anchor = id;
+		state.selectedCount = 1;
 		updateBatch();
 	}
 
@@ -1703,6 +1728,75 @@
 		positionMenu( panel, x, y, alignRight );
 	}
 
+	function selectedFileIds() {
+		return Object.keys( state.selection ).map( Number );
+	}
+
+	function copyLinks( ids ) {
+		var urls = state.files.filter( function ( item ) {
+			return ids.indexOf( Number( item.id ) ) >= 0;
+		} ).map( function ( item ) { return item.url; } );
+
+		if ( ! urls.length ) { return; }
+
+		if ( navigator.clipboard ) {
+			navigator.clipboard.writeText( urls.join( '\n' ) ).then( function () {
+				toast( '已复制 ' + urls.length + ' 个链接' );
+			} );
+		} else {
+			toast( urls.join( '\n' ) );
+		}
+	}
+
+	/* The menu a multi-selection gets on right-click: a file browser never
+	 * offers "rename this one" for five rows, only the actions that make sense
+	 * for the whole set. */
+	function batchMenuPanel() {
+		var panel = document.getElementById( 'sufm-batch-menu' );
+
+		if ( ! panel ) {
+			panel = document.createElement( 'div' );
+			panel.className = 'sufm-menu';
+			panel.id = 'sufm-batch-menu';
+			panel.setAttribute( 'role', 'menu' );
+			panel.setAttribute( 'data-sufm-menu-panel', 'batch' );
+			panel.hidden = true;
+		}
+
+		panel.innerHTML =
+			'<div class="sufm-menu-head">已选 ' + state.selectedCount + ' 项</div>' +
+			'<button type="button" role="menuitem" data-sufm-act="batch-move">' + icon( 'move' ) + '移动到</button>' +
+			( state.folder > 0 ? '<button type="button" role="menuitem" data-sufm-act="batch-up">' + icon( 'move' ) + '移到上一级</button>' : '' ) +
+			'<button type="button" role="menuitem" data-sufm-act="batch-copy">' + icon( 'external' ) + '复制链接</button>' +
+			'<button type="button" role="menuitem" data-sufm-act="batch-cancel">' + icon( 'x' ) + '取消选择</button>' +
+			'<button type="button" role="menuitem" class="is-danger" data-sufm-act="batch-delete">' + icon( 'trash' ) + '申请删除</button>';
+
+		return panel;
+	}
+
+	/* Right-clicking empty space is the fastest way to reach new folder,
+	 * select-all and a refresh, all of which used to be toolbar-only. */
+	function emptyMenuPanel() {
+		var panel = document.getElementById( 'sufm-empty-menu' );
+
+		if ( ! panel ) {
+			panel = document.createElement( 'div' );
+			panel.className = 'sufm-menu sufm-menu--plain';
+			panel.id = 'sufm-empty-menu';
+			panel.setAttribute( 'role', 'menu' );
+			panel.setAttribute( 'data-sufm-menu-panel', 'empty' );
+			panel.hidden = true;
+		}
+
+		panel.innerHTML =
+			'<button type="button" role="menuitem" data-sufm-act="new-folder">新建文件夹</button>' +
+			'<button type="button" role="menuitem" data-sufm-act="select-all">全选</button>' +
+			( state.selectedCount > 0 ? '<button type="button" role="menuitem" data-sufm-act="batch-cancel">取消选择</button>' : '' ) +
+			'<button type="button" role="menuitem" data-sufm-act="refresh">刷新列表</button>';
+
+		return panel;
+	}
+
 	function runMenuAction( act ) {
 		var id = Number( act.getAttribute( 'data-id' ) );
 		var name = act.getAttribute( 'data-sufm-act' );
@@ -1736,6 +1830,26 @@
 			var folderNode = document.querySelector( '#sufm-folders [data-sufm-open-folder="' + id + '"] .sufm-folder-name, #sufm-files [data-sufm-open-folder="' + id + '"] .sufm-folder-name' );
 			if ( folderNode ) { folderName = folderNode.textContent; }
 			requestDelete( [ { type: 'folder', id: id, name: folderName || ( '文件夹 #' + id ) } ] );
+		}
+
+		if ( 'select-all' === name ) { selectAll( true ); }
+		if ( 'new-folder' === name ) { newFolder(); }
+		if ( 'refresh' === name ) { loadItems( true ); }
+		if ( 'batch-cancel' === name ) { clearSelection(); }
+
+		if ( 0 === name.indexOf( 'batch-' ) ) {
+			var picked = selectedFileIds();
+
+			if ( 'batch-move' === name && picked.length ) {
+				movePicker( picked.map( function ( item ) { return { type: 'file', id: item }; } ) );
+			}
+			if ( 'batch-up' === name && picked.length ) {
+				moveUp( picked.map( function ( item ) { return { type: 'file', id: item }; } ) );
+			}
+			if ( 'batch-copy' === name && picked.length ) { copyLinks( picked ); }
+			if ( 'batch-delete' === name && picked.length ) {
+				requestDelete( picked.map( function ( item ) { return { type: 'file', id: item, name: '文件 #' + item }; } ) );
+			}
 		}
 	}
 
@@ -1779,14 +1893,27 @@
 			return;
 		}
 
-		var modify = event.shiftKey || event.ctrlKey || event.metaKey;
+		/* Windows file-browser click model: a plain click replaces the selection,
+		 * Ctrl/Cmd toggles one item and Shift extends from the anchor. Opening
+		 * moved to the double-click handler below so a single click can no longer
+		 * yank open a new tab by accident. */
 		var fileRow = event.target.closest( '[data-sufm-file]' );
-		if ( modify && fileRow && ! event.target.closest( '.sufm-grid-check, .sufm-row-check, .sufm-check, [data-sufm-menu], [data-sufm-act]' ) ) {
+		if ( fileRow && ! event.target.closest( '.sufm-grid-check, .sufm-row-check, .sufm-check, [data-sufm-menu], [data-sufm-act]' ) ) {
+			var fileId = fileRow.getAttribute( 'data-sufm-file' );
 			closeAllMenus();
 			event.preventDefault();
 			event.stopPropagation();
-			var fileId = fileRow.getAttribute( 'data-sufm-file' );
-			if ( event.shiftKey ) { selectRange( fileId ); } else { toggleFile( fileId ); }
+			if ( event.shiftKey ) {
+				selectRange( fileId );
+			} else if ( event.ctrlKey || event.metaKey ) {
+				toggleFile( fileId );
+			} else {
+				var wasSelected = !! state.selection[ String( fileId ) ];
+				selectOnly( fileId );
+				// Touch has no double-click, so the second tap on an already
+				// selected item is what opens it.
+				if ( wasSelected && coarsePointer() ) { openFileById( Number( fileId ) ); }
+			}
 			return;
 		}
 
@@ -1866,6 +1993,21 @@
 			}
 			return;
 		}
+	} );
+
+	/* Double-click opens the file, the way a desktop file browser does. Folder
+	 * tiles still open on a single click: entering a directory is navigation,
+	 * not selection. */
+	root.addEventListener( 'dblclick', function ( event ) {
+		if ( state.requestsMode ) { return; }
+		if ( event.target.closest( '.sufm-grid-check, .sufm-row-check, .sufm-check, [data-sufm-menu], [data-sufm-act]' ) ) { return; }
+
+		var fileRow = event.target.closest( '[data-sufm-file]' );
+		if ( ! fileRow ) { return; }
+		var id = Number( fileRow.getAttribute( 'data-sufm-file' ) );
+		if ( ! id ) { return; }
+		event.preventDefault();
+		openFileById( id );
 	} );
 
 	root.addEventListener( 'change', function ( event ) {
@@ -2328,7 +2470,35 @@
 		if ( state.requestsMode ) { return; }
 
 		var row = event.target.closest( '[data-sufm-file], [data-sufm-open-folder]' );
-		if ( ! row || ! app.contains( row ) ) { return; }
+
+		// Empty space inside the file area: offer the browser-level commands.
+		// Anything outside the file area keeps the native menu.
+		if ( ! row ) {
+			if ( ! event.target.closest( '#sufm-files' ) ) { return; }
+			event.preventDefault();
+			closeAllMenus();
+			openMenuAt( emptyMenuPanel(), event.clientX + 2, event.clientY + 2, false );
+			return;
+		}
+
+		if ( ! app.contains( row ) ) { return; }
+
+		var isFile = row.hasAttribute( 'data-sufm-file' );
+		var rowId = Number( row.getAttribute( isFile ? 'data-sufm-file' : 'data-sufm-open-folder' ) );
+
+		// Windows: right-clicking a row outside the current selection moves the
+		// selection to that row; right-clicking inside a multi-selection keeps
+		// it and offers the batch actions instead of one file's menu.
+		if ( isFile ) {
+			if ( ! state.selection[ String( rowId ) ] ) { selectOnly( rowId ); }
+
+			if ( state.selectedCount > 1 ) {
+				event.preventDefault();
+				closeAllMenus();
+				openMenuAt( batchMenuPanel(), event.clientX + 2, event.clientY + 2, false );
+				return;
+			}
+		}
 
 		var panel = row.__sufmPanel || row.querySelector( '[data-sufm-menu-panel]' );
 		if ( ! panel ) { return; }

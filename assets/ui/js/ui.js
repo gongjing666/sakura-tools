@@ -1531,6 +1531,9 @@
 		labelTables: labelTables,
 		mediaPreview: mediaPreview,
 		openModal: openModal,
-		hideModal: hideModal
+		hideModal: hideModal,
+		/* 弹窗左上角那只小鲸鱼。页面自己拼 <dialog> 时用它，插件里因此只有
+		 * 一种弹窗长相；返回的是已经带 .dialog__mascot 的节点。 */
+		mascot: mascotSvg
 	};
 }( window, document ) );

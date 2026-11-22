@@ -50,7 +50,10 @@ body.upload-php.sufm-tree-active .sufm-tree-menu button:hover{background:#f0f2f8
 body.upload-php.sufm-tree-active .sufm-dialog{box-sizing:border-box;width:min(520px,calc(100vw - 24px));max-height:calc(100dvh - 32px);padding:22px;border:1px solid var(--sufm-line);border-radius:14px;box-shadow:0 16px 60px #0003;color:var(--sufm-ink);overflow:auto}
 body.upload-php.sufm-tree-active .sufm-dialog::backdrop{background:#1d232766}
 body.upload-php.sufm-tree-active .sufm-dialog h2{font-size:18px;line-height:1.4;margin:0 0 16px}
-body.upload-php.sufm-tree-active .sufm-dialog-body input{box-sizing:border-box;width:100%;margin-bottom:12px}
+/* 只给文本类输入框铺满整行。勾选框/单选框必须排除：`input` 通配会把
+   「同时处罚上传者」那颗复选框拉成整行宽的蓝条（2026-11-22 开发者截图报障），
+   而这里的勾选框本来就该是 WordPress 原生样式，不该被插件接管。 */
+body.upload-php.sufm-tree-active .sufm-dialog-body input:not([type="checkbox"]):not([type="radio"]){box-sizing:border-box;width:100%;margin-bottom:12px}
 body.upload-php.sufm-tree-active .sufm-dialog-footer{display:flex;justify-content:flex-end;gap:10px;margin-top:20px;position:sticky;bottom:-22px;background:white;padding:12px 0}
 body.upload-php.sufm-tree-active .sufm-targets{max-height:42dvh;min-height:120px;overflow:auto;overscroll-behavior:contain}
 body.upload-php.sufm-tree-active .sufm-target-owner{padding:6px 0;border-bottom:1px solid var(--sufm-line)}
@@ -65,6 +68,10 @@ body.upload-php.sufm-tree-active .sufm-transfer-note{color:var(--sufm-muted)}
 /* Sanction block inside the takedown dialog: collapsed until the operator
    ticks "also punish the uploader", so the default stays "remove + notify". */
 body.upload-php.sufm-tree-active .sufm-takedown-sanction{margin-top:14px;padding-top:12px;border-top:1px solid var(--sufm-line)}
+/* 「同时处罚上传者」这颗勾选框沿用 WordPress 原生外观（开发者 2026-11-22 明确要求
+   此处不套插件 UI 规则），这里只补一行对齐：勾选框与文字同一基线、不参与拉伸。 */
+body.upload-php.sufm-tree-active .sufm-takedown-sanction .sufm-modal-check{display:inline-flex;align-items:center;gap:7px;cursor:pointer}
+body.upload-php.sufm-tree-active .sufm-takedown-sanction .sufm-modal-check input[type="checkbox"]{flex:none;width:1rem;height:1rem;min-height:0;margin:0}
 body.upload-php.sufm-tree-active .sufm-takedown-sanction-fields{display:grid;gap:8px}
 body.upload-php.sufm-tree-active .sufm-takedown-sanction-fields[hidden]{display:none}
 body.upload-php.sufm-tree-active .sufm-takedown-sanction-fields select{max-width:100%}
@@ -99,7 +106,8 @@ body.upload-php.sufm-tree-active #sufm-tree-shade{position:fixed;inset:0;backgro
 body.upload-php.sufm-tree-active.sufm-drawer-open #sufm-tree-shade{display:block}
 body.upload-php.sufm-tree-active .sufm-node{min-height:44px}
 body.upload-php.sufm-tree-active .sufm-node-caret,body.upload-php.sufm-tree-active .sufm-node-more{min-height:44px;min-width:32px;flex-basis:32px;opacity:1}
-body.upload-php.sufm-tree-active #sufm-tree input,body.upload-php.sufm-tree-active .sufm-dialog input{font-size:16px;min-height:44px}
+/* 触摸目标放大只针对文本输入与按钮；勾选框排除，否则它会变成 44px 高的方框。 */
+body.upload-php.sufm-tree-active #sufm-tree input:not([type="checkbox"]):not([type="radio"]),body.upload-php.sufm-tree-active .sufm-dialog input:not([type="checkbox"]):not([type="radio"]){font-size:16px;min-height:44px}
 body.upload-php.sufm-tree-active .sufm-selection-toolbar{position:fixed;bottom:0;left:0;right:0;z-index:100001;margin:0;border-radius:10px 10px 0 0;padding:12px 12px calc(12px + env(safe-area-inset-bottom));box-shadow:0 -3px 20px #242a3414;gap:8px;flex-wrap:wrap}
 body.upload-php.sufm-tree-active .sufm-selection-toolbar .button,body.upload-php.sufm-tree-active .sufm-dialog .button{min-height:44px;display:inline-flex;align-items:center;justify-content:center}
 body.upload-php.sufm-tree-active .sufm-feedback{bottom:100px}

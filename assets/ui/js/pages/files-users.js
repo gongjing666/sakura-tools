@@ -422,15 +422,26 @@
 			form.className = 'sakura-dialog__form';
 			form.method = 'dialog';
 
+			/* 头部与插件里其它确认框同一套：左上角小鲸鱼 + 标题 + 说明。
+			 * data-mascot 把 .dialog__body 变成两列；鲸鱼由 ui.js 统一画，
+			 * 这里只取节点，插件里因此只有一种弹窗长相。取不到就只渲染文字，
+			 * 不让旧缓存里的 ui.js 把整个弹窗带崩。 */
 			var head = el( 'div', 'dialog__body' );
-			head.appendChild( el( 'h2', 'dialog__title', fill( strings.sanctionTitle || '', { name: displayName( row ) } ) ) );
-
-			if ( data.active ) {
-				head.appendChild( el( 'p', 'dialog__message', fill( strings.sanctionActive || '', { label: data.active.label || '' } ) ) );
-			} else {
-				head.appendChild( el( 'p', 'dialog__message', strings.sanctionNone || '' ) );
+			dialog.setAttribute( 'data-mascot', '1' );
+			if ( admin.ui.mascot ) {
+				head.appendChild( admin.ui.mascot() );
 			}
 
+			var headText = el( 'div', 'dialog__text' );
+			headText.appendChild( el( 'h2', 'dialog__title', fill( strings.sanctionTitle || '', { name: displayName( row ) } ) ) );
+
+			if ( data.active ) {
+				headText.appendChild( el( 'p', 'dialog__message', fill( strings.sanctionActive || '', { label: data.active.label || '' } ) ) );
+			} else {
+				headText.appendChild( el( 'p', 'dialog__message', strings.sanctionNone || '' ) );
+			}
+
+			head.appendChild( headText );
 			form.appendChild( head );
 
 			var grid = el( 'div', 'field-list sanction-form' );
@@ -513,8 +524,12 @@
 
 			var cancel = el( 'button', 'btn btn--ghost', strings.cancel || '取消' );
 			cancel.type = 'button';
+			/* settle() 而不是点 <form method="dialog"> 的默认提交：它会关窗、摘节点、
+			 * 还原焦点，并且幂等（close 事件里还会再调一次）。1.28.7-beta-25 这里
+			 * 调的是不存在的 closeSanctionDialog，点取消只会在控制台抛
+			 * ReferenceError、窗口留在原地，只有 ESC 能关。 */
 			cancel.addEventListener( 'click', function () {
-				closeSanctionDialog( dialog, null );
+				settle( null );
 			} );
 			actions.appendChild( cancel );
 

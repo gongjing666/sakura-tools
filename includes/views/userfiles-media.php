@@ -13,6 +13,7 @@
  */
 
 use Sakura\ImageOptimizer\Admin\UI;
+use Sakura\ImageOptimizer\Admin\UI\Modal;
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
@@ -67,9 +68,9 @@ UI::page(
 				<div class="sufm-mm__selection" id="sufm-mm-selection" hidden>
 					<span class="sufm-mm__count" id="sufm-mm-count" aria-live="polite"></span>
 					<?php if ( $can_takedown ) : ?>
-						<button type="button" class="button button-primary sufm-mm__takedown" id="sufm-mm-takedown"><?php echo esc_html__( '违规下架', 'sakura-imgopt' ); ?></button>
+						<button type="button" class="btn btn--small sufm-mm__takedown" id="sufm-mm-takedown"><?php echo esc_html__( '违规下架', 'sakura-imgopt' ); ?></button>
 					<?php endif; ?>
-					<button type="button" class="button-link sufm-mm__clear" id="sufm-mm-clear"><?php echo esc_html__( '取消选择', 'sakura-imgopt' ); ?></button>
+					<button type="button" class="btn btn--small btn--quiet sufm-mm__clear" id="sufm-mm-clear"><?php echo esc_html__( '取消选择', 'sakura-imgopt' ); ?></button>
 				</div>
 
 				<div class="sufm-mm__files" id="sufm-mm-files" data-view="list" aria-live="polite">
@@ -85,8 +86,14 @@ UI::page(
 		<dialog class="sakura-dialog sufm-mm-dialog" id="sufm-mm-takedown-dialog" aria-labelledby="sufm-mm-takedown-title">
 			<form method="dialog" class="sakura-dialog__form">
 				<div class="dialog__body">
-					<h2 class="dialog__title" id="sufm-mm-takedown-title"><?php echo esc_html__( '违规下架', 'sakura-imgopt' ); ?></h2>
-					<p class="sufm-mm-dialog__lead" id="sufm-mm-takedown-lead"></p>
+					<div class="sakura-modal__head sufm-mm-dialog__head">
+						<span class="sakura-modal__mascot" aria-hidden="true"><?php echo Modal::mascot(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Static SVG. ?></span>
+						<div class="sakura-modal__copy">
+							<p class="sakura-modal__kicker"><?php echo esc_html__( 'TAKEDOWN', 'sakura-imgopt' ); ?></p>
+							<h2 class="dialog__title" id="sufm-mm-takedown-title"><?php echo esc_html__( '违规下架', 'sakura-imgopt' ); ?></h2>
+							<p class="sufm-mm-dialog__lead" id="sufm-mm-takedown-lead"></p>
+						</div>
+					</div>
 
 					<div class="sufm-mm-dialog__field">
 						<label for="sufm-mm-reason"><?php echo esc_html__( '下架理由', 'sakura-imgopt' ); ?></label>
@@ -124,8 +131,8 @@ UI::page(
 					</div>
 				</div>
 				<div class="dialog__actions">
-					<button type="button" class="button" id="sufm-mm-takedown-cancel"><?php echo esc_html__( '取消', 'sakura-imgopt' ); ?></button>
-					<button type="button" class="button button-primary" id="sufm-mm-takedown-confirm"><?php echo esc_html__( '确认下架', 'sakura-imgopt' ); ?></button>
+					<button type="button" class="btn btn--quiet" id="sufm-mm-takedown-cancel"><?php echo esc_html__( '取消', 'sakura-imgopt' ); ?></button>
+					<button type="button" class="btn btn--primary" id="sufm-mm-takedown-confirm"><?php echo esc_html__( '确认下架', 'sakura-imgopt' ); ?></button>
 				</div>
 			</form>
 		</dialog>

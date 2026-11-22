@@ -157,7 +157,7 @@ if ( '' === $notice_text ) {
 			</div>
 		</div>
 
-		<div class="sufm-path">
+		<div class="sufm-path" title="<?php echo esc_attr( $sufm_str( 'selectHint' ) ); ?>">
 			<nav class="sufm-crumbs" id="sufm-crumbs" aria-label="<?php echo esc_attr__( '当前位置', 'sakura-imgopt' ); ?>">
 				<button type="button" class="sufm-crumb" data-sufm-folder="0"><?php esc_html_e( '全部文件', 'sakura-imgopt' ); ?></button>
 			</nav>

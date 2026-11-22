@@ -443,8 +443,13 @@
 
 /* Top-level blocks on one page never touch: KPI row, card grids, standalone cards.
  * The :not() specificity is deliberate: .card resets margin to 0 later in
- * components.css, so a plain * + * rule would lose for standalone cards. */
-.sakura-admin .page-body > :not(:first-child) {
+ * components.css, so a plain * + * rule would lose for standalone cards.
+ *
+ * 浮层不算「页面块」：<dialog> 与 .sakura-modal 都是 position:fixed + inset:0
+ * 的全屏层，`:not(:first-child)` 给它们补 20px margin-top 会把居中位置整个推下去
+ * （2026-11-22「违规下架」弹窗顶端贴边、垂直偏上 139px 就是这个）。:where() 不参与
+ * 特异性，所以这条规则的权重和以前一致，不会影响 .card 的 margin:0。 */
+.sakura-admin .page-body > :not(:first-child):not(:where(dialog, .sakura-modal)) {
 	margin-top: var(--g-stack);
 }
 

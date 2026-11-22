@@ -263,6 +263,10 @@
  * Selection bar
  * --------------------------------------------------------------- */
 
+/* The bar states the count; the destructive verb stays a quiet outlined button
+ * (white face, red hairline) instead of the filled crimson block it used to be,
+ * and "clear" uses the plugin's own quiet button rather than WordPress's
+ * link-styled one. */
 .sufm-mm__selection {
 	display: flex;
 	flex: 0 0 auto;
@@ -270,17 +274,37 @@
 	gap: 12px;
 	padding: 8px 12px;
 	background: var(--g-accent-soft);
-	border-bottom: 1px solid var(--g-accent-line);
+	border-bottom: 1px solid var(--g-line);
 }
 
 .sufm-mm__count {
 	font-size: 13px;
 	font-weight: 600;
-	color: var(--g-accent);
+	color: var(--g-accent-hover);
 }
 
-.sufm-mm__clear {
+.sufm-mm__selection .btn.sufm-mm__clear {
 	margin-left: auto;
+}
+
+.sufm-mm__selection .btn.sufm-mm__takedown {
+	border: 1px solid var(--g-bad-line);
+	background: var(--g-card);
+	color: var(--g-bad);
+}
+
+.sufm-mm__selection .btn.sufm-mm__takedown:hover:not(:disabled) {
+	border-color: var(--g-bad);
+	background: var(--g-bad-bg);
+	color: var(--g-bad-hover);
+}
+
+.sufm-mm__selection .btn.sufm-mm__takedown:disabled {
+	border-style: dashed;
+	border-color: var(--g-line-strong);
+	background: var(--g-wash);
+	color: var(--g-muted);
+	opacity: 1;
 }
 
 /* ---------------------------------------------------------------
@@ -350,6 +374,7 @@
 
 .sufm-mm__row.is-selected {
 	background: var(--g-accent-soft);
+	box-shadow: inset 2px 0 0 var(--g-accent);
 }
 
 .sufm-mm__row--head {
@@ -396,13 +421,32 @@
 	white-space: nowrap;
 }
 
-.sufm-mm__check {
+/* Selection is the tint on the row or the card, not a tick box. The input keeps
+ * its slot in the row and its keyboard focus, but it is drawn transparent so a
+ * click anywhere on the item selects it and the eye reads the colour instead of
+ * hunting for checkmarks. The selector is deliberately heavy: the global
+ * `.sakura-admin input[type="checkbox"]` rule would otherwise paint it. */
+.sufm-mm input[type="checkbox"].sufm-mm__check {
 	flex: 0 0 auto;
 	width: 15px;
 	height: 15px;
 	margin: 0;
-	accent-color: var(--g-accent);
+	appearance: none;
+	border: 0;
+	background: none;
+	box-shadow: none;
+	opacity: 0;
 	cursor: pointer;
+}
+
+.sufm-mm input[type="checkbox"].sufm-mm__check::before {
+	display: none;
+}
+
+.sufm-mm__card:has(.sufm-mm__check:focus-visible),
+.sufm-mm__row:has(.sufm-mm__check:focus-visible) {
+	outline: 2px solid var(--g-accent);
+	outline-offset: 1px;
 }
 
 .sufm-mm__thumb {
@@ -507,8 +551,29 @@
  * Takedown dialog
  * --------------------------------------------------------------- */
 
+/* 头部与插件里所有确认框同一副样子：左边小鲸鱼、右边 kicker + 标题 + 说明。
+ * .sakura-modal__head 默认右侧留 30px 给那个关闭按钮，这个弹窗没有关按钮
+ * （取消在底部动作条里），所以补 0；标题与说明的间距由下面两条自己给。 */
+.sufm-mm-dialog .sufm-mm-dialog__head {
+	gap: 13px;
+	margin-bottom: 16px;
+	padding-right: 0;
+}
+
+.sufm-mm-dialog .sufm-mm-dialog__head .sakura-modal__kicker {
+	margin-bottom: 4px;
+}
+
+.sufm-mm-dialog .sufm-mm-dialog__head .dialog__title {
+	margin: 0;
+}
+
+.sufm-mm-dialog .sufm-mm-dialog__head .sakura-modal__mascot {
+	margin-top: 0;
+}
+
 .sufm-mm-dialog__lead {
-	margin: 0 0 14px;
+	margin: 6px 0 0;
 	font-size: 13px;
 	line-height: 1.6;
 	color: var(--g-ink-soft);

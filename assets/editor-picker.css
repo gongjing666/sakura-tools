@@ -5749,3 +5749,105 @@ html.dark-theme #sufm-picker .sufm-files::-webkit-scrollbar-thumb {
 	object-fit: cover;
 	background: var(--sufm-soft);
 }
+
+/* ============================================================
+ * Windows 式选择（2026-11-22）
+ *
+ * 与用户中心文件管理同一套语义：单击只选中这一项、整块换颜色，勾选框退出
+ * 视觉层（仍留在 DOM 里，Tab 可达、读屏照读），双击把文件插入正文。
+ *
+ * 放在文件末尾是有原因的：这份表是从 userfiles.css 分叉来的，前面还留着三段
+ * 历史规则（.sufm-grid-check 在 1179/2768/5517 各有一份，最后一份会把勾选框
+ * 重新显示出来）。同特异性下后写的赢，所以这里写一次权威版本，不去动那三段，
+ * 免得以后合并分叉时又对不上。
+ * ============================================================ */
+
+#sufm-picker .sufm-file-card.is-selected {
+	border-color: var(--sufm-pink);
+	background: var(--sufm-pink-soft);
+	box-shadow: 0 0 0 1px var(--sufm-pink), 0 6px 16px -12px rgba(240, 68, 148, 0.6);
+}
+
+#sufm-picker .sufm-file-card.is-selected .sufm-grid-preview {
+	background: rgba(255, 255, 255, 0.45);
+}
+
+#sufm-picker .sufm-file-card.is-selected .sufm-grid-name {
+	color: var(--sufm-pink);
+	font-weight: 600;
+}
+
+#sufm-picker .sufm-row.is-selected {
+	background: var(--sufm-pink-soft);
+	box-shadow: inset 2px 0 0 var(--sufm-pink);
+}
+
+/* 网格卡片上那颗勾选框整块裁掉：位置交给 .is-selected 的底色。 */
+#sufm-picker .sufm-grid-check,
+#sufm-picker .sufm-file-card.is-selected .sufm-grid-check,
+#sufm-picker .sufm-file-card:hover .sufm-grid-check,
+#sufm-picker .sufm-file-card:focus-within .sufm-grid-check {
+	position: absolute;
+	top: 0;
+	left: 0;
+	width: 1px;
+	height: 1px;
+	margin: -1px;
+	padding: 0;
+	border: 0;
+	overflow: hidden;
+	background: none;
+	box-shadow: none;
+	opacity: 0;
+	clip-path: inset(50%);
+	white-space: nowrap;
+}
+
+/* 表格行保留 18px 的占位列宽，只把里面那颗勾选框藏起来。 */
+#sufm-picker .sufm-row-check {
+	width: 18px;
+}
+
+#sufm-picker .sufm-row-check .sufm-check,
+#sufm-picker .sufm-row .sufm-grid-check .sufm-check,
+#sufm-picker .sufm-grid-check .sufm-check {
+	width: 1px;
+	height: 1px;
+	margin: -1px;
+	padding: 0;
+	border: 0;
+	background: none;
+	box-shadow: none;
+	opacity: 0;
+	appearance: none;
+	clip-path: inset(50%);
+}
+
+/* 勾选框虽然看不见，焦点仍要看得见：键盘 Tab 到整块时给一圈描边。 */
+#sufm-picker .sufm-file-card:has(.sufm-check:focus-visible),
+#sufm-picker .sufm-row:has(.sufm-check:focus-visible) {
+	outline: 2px solid var(--sufm-pink);
+	outline-offset: 2px;
+}
+
+/* 双击插入、单击选中，触屏上要消掉 300ms 的双击缩放等待。 */
+#sufm-picker .sufm-file-card,
+#sufm-picker .sufm-row,
+#sufm-picker .sufm-folder {
+	touch-action: manipulation;
+}
+
+/* 菜单层挂 body，用 data-sufm-picker-menu 限定范围（见 editor-picker-manager.js）。 */
+[data-sufm-picker-menu] .sufm-menu-head {
+	margin-bottom: 2px;
+	padding: 4px 10px 8px;
+	border-bottom: 1px solid var(--sufm-line, rgba(50, 50, 50, 0.065));
+	color: var(--sufm-muted, #777);
+	font-size: 11.5px;
+	font-weight: 600;
+	line-height: 1.4;
+}
+
+[data-sufm-picker-menu] .sufm-menu--batch {
+	width: 184px;
+}

@@ -647,6 +647,62 @@
 		'</div>';
 	}
 
+	function selectedFileIds() {
+		return state.files.filter( function ( file ) {
+			return !! state.selection[ String( file.id ) ];
+		} ).map( function ( file ) {
+			return Number( file.id );
+		} );
+	}
+
+	/*
+	 * 右键菜单：单项时给该项目自己的面板（fileMenu/folderMenu），多选时给这一张
+	 * 批量面板，空白处给「新建文件夹 / 全选 / 刷新」。和用户中心文件管理一致。
+	 */
+	function batchMenuPanel() {
+		var panel = document.getElementById( 'sufm-batch-menu' );
+
+		if ( ! panel ) {
+			panel = document.createElement( 'div' );
+			panel.className = 'sufm-menu';
+			panel.id = 'sufm-batch-menu';
+			panel.setAttribute( 'role', 'menu' );
+			panel.setAttribute( 'data-sufm-menu-panel', 'batch' );
+			document.body.appendChild( panel );
+		}
+
+		var count = state.selectedCount;
+
+		panel.innerHTML = '<div class="sufm-menu-head">已选 ' + count + ' 项</div>' +
+			'<button type="button" role="menuitem" data-sufm-act="batch-insert">' + icon( 'insert' ) + '插入所选</button>' +
+			'<button type="button" role="menuitem" data-sufm-act="batch-move">' + icon( 'move' ) + '移动到</button>' +
+			( state.folder > 0 ? '<button type="button" role="menuitem" data-sufm-act="batch-up">' + icon( 'move' ) + '移到上一级</button>' : '' ) +
+			'<button type="button" role="menuitem" data-sufm-act="batch-copy">' + icon( 'external' ) + '复制链接</button>' +
+			'<button type="button" role="menuitem" data-sufm-act="batch-cancel">取消选择</button>';
+
+		return panel;
+	}
+
+	function emptyMenuPanel() {
+		var panel = document.getElementById( 'sufm-empty-menu' );
+
+		if ( ! panel ) {
+			panel = document.createElement( 'div' );
+			panel.className = 'sufm-menu';
+			panel.id = 'sufm-empty-menu';
+			panel.setAttribute( 'role', 'menu' );
+			panel.setAttribute( 'data-sufm-menu-panel', 'empty' );
+			document.body.appendChild( panel );
+		}
+
+		panel.innerHTML = '<button type="button" role="menuitem" data-sufm-act="new-folder">' + icon( 'folder' ) + '新建文件夹</button>' +
+			'<button type="button" role="menuitem" data-sufm-act="select-all">全选</button>' +
+			( state.selectedCount > 0 ? '<button type="button" role="menuitem" data-sufm-act="batch-cancel">取消选择</button>' : '' ) +
+			'<button type="button" role="menuitem" data-sufm-act="refresh">刷新列表</button>';
+
+		return panel;
+	}
+
 	function renderFiles() {
 		closeAllMenus();
 		el.files.classList.toggle( 'is-desk-scroll', !! state.desk );
@@ -1079,6 +1135,21 @@
 		state.anchor = id;
 		state.selectedCount = Object.keys( state.selection ).length;
 		if ( 0 === state.selectedCount ) { state.anchor = 0; }
+		updateBatch();
+	}
+
+	/*
+	 * Windows 资源管理器的单击：选中这一项、清掉其它。没有修饰键时用它，
+	 * 有 Ctrl/Shift 时仍走 toggleFile/selectRange —— 这样「单击选中」和
+	 * 「多选」不打架，插入条上的数量也仍然只有一条来源（state.selection）。
+	 */
+	function selectOnly( id ) {
+		id = Number( id );
+		if ( ! isSelectable( id ) ) { return; }
+		state.selection = {};
+		state.selection[ String( id ) ] = true;
+		state.anchor = id;
+		state.selectedCount = 1;
 		updateBatch();
 	}
 
@@ -1714,6 +1785,9 @@
 
 		menuLayer = document.createElement( 'div' );
 		menuLayer.className = 'sufm-menu-layer';
+		/* 弹出层挂在 body 上，不在 #sufm-picker 里；这个标记让 editor-picker.css
+		 * 只改面板自己的菜单，不碰用户中心那套（两套 CSS 在前台编辑器页会同时加载）。 */
+		menuLayer.setAttribute( 'data-sufm-picker-menu', '1' );
 		menuLayer.addEventListener( 'click', function ( event ) {
 			var clicked = event.target.closest( '[data-sufm-act]' );
 			if ( clicked ) { runMenuAction( clicked ); }
@@ -1787,6 +1861,44 @@
 			var folderNode = document.querySelector( '#sufm-folders [data-sufm-open-folder="' + id + '"] .sufm-folder-name, #sufm-files [data-sufm-open-folder="' + id + '"] .sufm-folder-name' );
 			if ( folderNode ) { folderName = folderNode.textContent; }
 			requestDelete( [ { type: 'folder', id: id, name: folderName || ( '文件夹 #' + id ) } ] );
+		}
+
+		/* 空白菜单与批量菜单的动作。批量那几个都建立在 state.selection 上，
+		 * 与单击/Shift/Ctrl 选出来的集合共用一份来源。 */
+		if ( 'new-folder' === name ) { newFolder(); }
+		if ( 'refresh' === name ) { loadItems( true ); }
+		if ( 'select-all' === name ) { selectAll( ! allSelected() ); }
+		if ( 'batch-cancel' === name ) { clearSelection(); }
+		if ( 'batch-insert' === name ) {
+			var pickedIds = selectedFileIds();
+			if ( ! pickedIds.length ) { return; }
+			if ( window.SUFMPicker && typeof window.SUFMPicker.insert === 'function' ) {
+				window.SUFMPicker.insert( pickedIds );
+			} else {
+				toast( '编辑器还没有准备好，请刷新页面再试。', true );
+			}
+		}
+		if ( 'batch-move' === name ) {
+			movePicker( selectedFileIds().map( function ( fileId ) { return { type: 'file', id: fileId }; } ) );
+		}
+		if ( 'batch-up' === name ) {
+			moveUp( selectedFileIds().map( function ( fileId ) { return { type: 'file', id: fileId }; } ) );
+		}
+		if ( 'batch-copy' === name ) {
+			var links = state.files.filter( function ( file ) {
+				return !! state.selection[ String( file.id ) ];
+			} ).map( function ( file ) {
+				return file.url;
+			} );
+
+			if ( ! links.length ) { return; }
+			if ( navigator.clipboard ) {
+				navigator.clipboard.writeText( links.join( '\n' ) ).then( function () {
+					toast( '已复制 ' + links.length + ' 个链接' );
+				} );
+			} else {
+				toast( links.join( '\n' ) );
+			}
 		}
 	}
 
@@ -1996,7 +2108,12 @@
 
 	document.addEventListener( 'sufm:file-picked', function ( event ) {
 		var id = Number( event.detail && event.detail.id );
-		if ( id ) { state.anchor = id; }
+		if ( ! id ) { return; }
+
+		// 编辑器里的「单击」和用户中心同一套语义：只选中这一项。
+		// editor-picker.js 在带 Ctrl/Shift 时不会发这个事件（它让给下面的
+		// 修饰键分支），所以这里可以放心地清空其它选中。
+		selectOnly( id );
 	} );
 
 	window.addEventListener( 'blur', function () {
@@ -2422,15 +2539,41 @@
 	app.addEventListener( 'contextmenu', function ( event ) {
 		if ( state.requestsMode ) { return; }
 
-		var row = event.target.closest( '[data-sufm-file], [data-sufm-open-folder]' );
-		if ( ! row || ! app.contains( row ) ) { return; }
+		var fileRow = event.target.closest( '[data-sufm-file]' );
+		var row = fileRow || event.target.closest( '[data-sufm-open-folder]' );
+
+		/*
+		 * 空白处：新建文件夹 / 全选 / 刷新列表。编辑器里的这块区域以前完全没反应，
+		 * 现在和用户中心文件管理的空白右键一致（2026-11-22 开发者要求两处同步）。
+		 */
+		if ( ! row ) {
+			if ( ! event.target.closest( '#sufm-files' ) ) { return; }
+			event.preventDefault();
+			closeAllMenus();
+			openMenuAt( emptyMenuPanel(), event.clientX + 2, event.clientY + 2, false );
+			return;
+		}
+
+		if ( ! app.contains( row ) ) { return; }
+
+		event.preventDefault();
+		closeAllMenus();
+
+		if ( fileRow ) {
+			var fileId = Number( fileRow.getAttribute( 'data-sufm-file' ) );
+
+			// 右键先选中：点在未选中的项上时选中它并清掉其它。
+			if ( ! state.selection[ String( fileId ) ] ) { selectOnly( fileId ); }
+
+			// 多选时给批量面板，单项时给该项目自己的面板。
+			if ( state.selectedCount > 1 ) {
+				openMenuAt( batchMenuPanel(), event.clientX + 2, event.clientY + 2, false );
+				return;
+			}
+		}
 
 		var panel = row.__sufmPanel || row.querySelector( '[data-sufm-menu-panel]' );
 		if ( ! panel ) { return; }
-
-		event.preventDefault();
-
-		closeAllMenus();
 
 		row.classList.add( 'is-menu-open' );
 		row.__sufmPanel = panel;

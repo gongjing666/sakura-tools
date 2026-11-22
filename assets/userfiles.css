@@ -563,6 +563,11 @@ body.dark-theme .sufm {
 	padding: 2px 25px 16px;
 	font-size: 11px;
 	color: var(--sufm-muted-2);
+	/* The path is the only elastic item in the head's second row, so it has to
+	   be able to shrink. Its own width is what decides whether the selection
+	   hint fits, hence the container query further down. */
+	container-type: inline-size;
+	min-width: 0;
 }
 
 .sufm .sufm-crumbs {
@@ -612,9 +617,13 @@ body.dark-theme .sufm {
 }
 
 .sufm .sufm-select-tip {
+	display: block;
+	min-width: 0;
+	overflow: hidden;
 	color: var(--sufm-muted-2);
 	font-size: 11px;
 	line-height: 1.4;
+	text-overflow: ellipsis;
 	white-space: nowrap;
 }
 
@@ -632,6 +641,18 @@ body.dark-theme .sufm {
 }
 
 @media (max-width: 1199px) {
+	.sufm .sufm-select-tip {
+		display: none;
+	}
+}
+
+/* The hint costs ~190px the action cluster cannot spare. Hide it on the
+   path's own width rather than the viewport's: in themes with a sidebar the
+   workspace column can be half the viewport, and a 15px scrollbar flipping the
+   view mode used to be enough to push the buttons onto their own row.
+   420px is "breadcrumb + count + hint" with room for one deeper folder name;
+   below that the hint truncates into an ellipsis without saying anything. */
+@container (max-width: 420px) {
 	.sufm .sufm-select-tip {
 		display: none;
 	}
@@ -1150,9 +1171,31 @@ body.dark-theme .sufm .sufm-check {
 	box-shadow: 0 3px 12px rgba(240, 68, 148, 0.07);
 }
 
+/* Kills the 300ms double-tap zoom delay: opening an item is a double-click now,
+ * and on touch the second tap has to arrive promptly. */
+.sufm .sufm-file-card,
+.sufm .sufm-row,
+.sufm .sufm-folder {
+	touch-action: manipulation;
+}
+
+/* Selection is carried by depth of colour, not by a checkbox: the tile itself
+ * turns sakura-soft with a pink ring, which is what a desktop file browser does.
+ * The checkbox still exists in the DOM for keyboard and screen readers (see
+ * "Selection control" at the bottom of this file) but it is not drawn. */
 .sufm .sufm-file-card.is-selected {
 	border-color: var(--sufm-pink);
-	box-shadow: 0 0 0 1px var(--sufm-pink);
+	background: var(--sufm-pink-soft);
+	box-shadow: 0 0 0 1px var(--sufm-pink), 0 6px 16px -12px rgba(240, 68, 148, 0.6);
+}
+
+.sufm .sufm-file-card.is-selected .sufm-grid-preview {
+	background: rgba(255, 255, 255, 0.45);
+}
+
+.sufm .sufm-file-card.is-selected .sufm-grid-name {
+	color: var(--sufm-pink);
+	font-weight: 600;
 }
 
 .sufm .sufm-grid-preview {
@@ -1179,14 +1222,17 @@ body.dark-theme .sufm .sufm-check {
 
 .sufm .sufm-grid-check {
 	position: absolute;
-	top: 15px;
-	left: 15px;
+	top: 12px;
+	left: 12px;
 	z-index: 2;
-	width: 18px;
-	height: 18px;
-	border-radius: 4px;
-	background: rgba(255, 255, 255, 0.9);
-	box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
+	width: 1px;
+	height: 1px;
+	margin: -1px;
+	padding: 0;
+	border: 0;
+	overflow: hidden;
+	clip-path: inset(50%);
+	white-space: nowrap;
 }
 
 .sufm .sufm-grid-more {
@@ -2652,19 +2698,34 @@ body.dark-theme .sufm .sufm-notice-box {
 }
 
 .sufm .sufm-row.is-selected {
-	background: var(--sufm-pink-hover);
+	background: var(--sufm-pink-soft);
+	box-shadow: inset 2px 0 0 var(--sufm-pink);
 }
 
 .sufm .sufm-row.is-menu-open {
 	z-index: 5;
 }
 
+/* The column keeps its width so the table stays aligned with its header, but
+ * the tick itself is not drawn: the row tint is the selection indicator. */
 .sufm .sufm-row-check {
 	display: flex;
 	align-items: center;
 	justify-content: center;
 	width: 18px;
 	flex: none;
+}
+
+.sufm .sufm-row-check .sufm-check {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	margin: -1px;
+	padding: 0;
+	border: 0;
+	overflow: hidden;
+	clip-path: inset(50%);
+	white-space: nowrap;
 }
 
 .sufm .sufm-row .sufm-type {
@@ -2766,39 +2827,9 @@ body.dark-theme .sufm .sufm-notice-box {
 	background: var(--sufm-pink-soft);
 }
 
-/* Grid card: aligned, hover-revealed selection control */
-.sufm .sufm-grid-check {
-	top: 8px;
-	left: 8px;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	width: 22px;
-	height: 22px;
-	padding: 0;
-	border-radius: 7px;
-	background: rgba(255, 255, 255, 0.94);
-	box-shadow: 0 1px 3px rgba(16, 38, 62, 0.16);
-	opacity: 0;
-	transition: opacity 0.15s ease;
-}
-
-.sufm .sufm-grid-check .sufm-check {
-	flex: none;
-	margin: 0;
-}
-
-.sufm .sufm-file-card:hover .sufm-grid-check,
-.sufm .sufm-file-card:focus-within .sufm-grid-check,
-.sufm .sufm-file-card.is-selected .sufm-grid-check {
-	opacity: 1;
-}
-
-.sufm .sufm-grid-check:focus-visible {
-	outline: 2px solid var(--sufm-pink);
-	outline-offset: 1px;
-}
-
+/* Grid card: the tick is clipped away (see the selection block near the top of
+ * this file). Selection is shown as a wash of colour over the whole card, so
+ * the badge that used to sit in the corner is gone. */
 .sufm .sufm-grid-more {
 	top: 8px;
 	right: 8px;
@@ -2918,18 +2949,28 @@ body.dark-theme .sufm .sufm-notice-box {
 		flex: 0 0 auto;
 	}
 
-	/* Row 2: breadcrumb left, toolbar right — same as before the refactor. */
+	/* Row 2: breadcrumb left, toolbar right — same as before the refactor.
+	   The path must give way, not grow: with `flex: 1 1 auto` its content
+	   basis claimed the whole row and the 627px action cluster wrapped onto a
+	   third line whenever the workspace column dipped under ~1500px (which is
+	   what happened for non-admin accounts the moment a scrollbar appeared). */
 	.sufm .sufm-head .sufm-toolbar-main {
 		order: 6;
-		flex: none;
+		flex: 0 0 auto;
 	}
 
 	.sufm .sufm-head .sufm-path {
 		order: 5;
-		flex: 1 1 auto;
+		flex: 1 1 0;
+		min-width: 0;
 		height: 56px;
 		margin-left: 0;
 		border-left: 0;
+	}
+
+	.sufm .sufm-head .sufm-crumbs {
+		flex-wrap: nowrap;
+		overflow: hidden;
 	}
 
 	.sufm .sufm-head .sufm-alert,
@@ -3825,6 +3866,27 @@ body.dark-theme .sufm .sufm-drop {
 	display: none;
 }
 
+/* Multi-selection menu: wider than a single item's menu, with a count header so
+ * the operator knows what the verbs below are about to act on. */
+.sufm-menu-layer .sufm-menu--batch {
+	width: 184px;
+}
+
+.sufm-menu-layer .sufm-menu-head {
+	margin-bottom: 2px;
+	padding: 4px 10px 8px;
+	border-bottom: 1px solid #eef1f5;
+	color: #6b7c8f;
+	font-size: 11.5px;
+	font-weight: 600;
+}
+
+body.dark-theme .sufm-menu-layer .sufm-menu-head,
+.dark-theme .sufm-menu-layer .sufm-menu-head {
+	border-bottom-color: rgba(220, 225, 255, 0.1);
+	color: #a1a3b0;
+}
+
 .sufm-menu-layer .sufm-menu button {
 	display: flex;
 	align-items: center;
@@ -4434,20 +4496,31 @@ body.dark-theme .sufm #sufm-capacity-dialog .sufm-capacity-row[data-kind="gift"]
 	}
 }
 
-/* Folder section toggle (user centre) ---------------------------- */
-.sufm .sufm-fold {
+/* Folder section header -------------------------------------------
+ * It used to be a 12px grey strip whose only affordance was a tooltip, so the
+ * fold went unnoticed. It now reads as a divider with a label, a count and the
+ * verb spelled out ("收起" / "展开") instead of relying on hover text.
+ */
+.sufm .sufm-foldbar {
 	grid-column: 1 / -1;
 	display: flex;
 	align-items: center;
 	gap: 8px;
-	width: 100%;
 	margin: 0 0 10px;
-	padding: 7px 10px;
-	border: 1px solid transparent;
-	border-radius: 8px;
-	background: var(--sufm-soft);
-	color: var(--sufm-muted);
-	font-size: 12px;
+}
+
+.sufm .sufm-fold {
+	display: inline-flex;
+	align-items: center;
+	gap: 7px;
+	min-height: 30px;
+	margin: 0;
+	padding: 4px 11px 4px 9px;
+	border: 1px solid var(--sufm-line);
+	border-radius: 999px;
+	background: var(--sufm-card);
+	color: var(--sufm-text);
+	font-size: 12.5px;
 	font-weight: 600;
 	line-height: 1.4;
 	text-align: left;
@@ -4456,8 +4529,15 @@ body.dark-theme .sufm #sufm-capacity-dialog .sufm-capacity-row[data-kind="gift"]
 
 .sufm .sufm-fold:hover {
 	background: var(--sufm-pink-hover);
-	border-color: rgba(240, 68, 148, 0.24);
-	color: var(--sufm-text);
+	border-color: rgba(240, 68, 148, 0.4);
+	color: var(--sufm-pink);
+}
+
+.sufm .sufm-fold-verb {
+	flex: none;
+	color: var(--sufm-pink);
+	font-size: 11.5px;
+	font-weight: 600;
 }
 
 .sufm .sufm-fold-chev {
@@ -4509,48 +4589,21 @@ body.dark-theme .sufm #sufm-capacity-dialog .sufm-capacity-row[data-kind="gift"]
 	color: var(--sufm-muted);
 }
 
-/* ---------- Selection control on grid cards: one layer, not three ----------
- * Mirrors the editor panel: the control is the circle itself — white with a
- * pink ring when idle, a solid pink dot with a white tick when selected.
+/* ---------- Selection control: tinted tile, hidden tick ----------
+ * A desktop file browser shows selection as a wash of colour over the whole
+ * item, not as a tick box on every item. The inputs stay in the DOM — Tab
+ * reaches them and Space toggles — but they are clipped to 1px, and the focus
+ * ring moves out to the card so the current position stays obvious.
  */
-.sufm .sufm-grid-check {
-	width: auto;
-	height: auto;
-	padding: 0;
-	border-radius: 0;
-	background: none;
-	box-shadow: none;
+.sufm .sufm-file-card:has(.sufm-check:focus-visible),
+.sufm .sufm-row:has(.sufm-check:focus-visible) {
+	outline: 2px solid var(--sufm-pink);
+	outline-offset: 2px;
 }
 
-.sufm .sufm-grid-check .sufm-check {
-	width: 19px;
-	height: 19px;
-	border: 1.5px solid rgba(240, 68, 148, 0.55);
-	border-radius: 50%;
-	background: rgba(255, 255, 255, 0.92);
-	box-shadow: 0 1px 3px rgba(16, 38, 62, 0.2);
-	transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
-}
-
-.sufm .sufm-grid-check:hover .sufm-check {
-	transform: scale(1.08);
-	border-color: var(--sufm-pink);
-	box-shadow: 0 2px 6px rgba(16, 38, 62, 0.26);
-}
-
-.sufm .sufm-grid-check .sufm-check:checked {
-	border-color: var(--sufm-pink);
-	background: var(--sufm-pink);
-	box-shadow: 0 1px 4px rgba(240, 68, 148, 0.45);
-}
-
-.sufm .sufm-grid-check .sufm-check:checked::after {
-	width: 7px;
-	height: 4px;
-	border-left-width: 1.8px;
-	border-bottom-width: 1.8px;
-	border-color: #fff;
-	transform: rotate(-45deg) translateY(-1px);
+.sufm .sufm-grid-check,
+.sufm .sufm-row-check {
+	cursor: pointer;
 }
 
 /* ---------- Move dialog: flat tree + search ---------- */
@@ -4612,18 +4665,16 @@ body.dark-theme .sufm #sufm-capacity-dialog .sufm-capacity-row[data-kind="gift"]
 	color: var(--sufm-muted-2);
 }
 
-/* ---------- List rows always use the square checkbox ----------
- * The round selection dot belongs to grid cards. If a card wrapper class
- * leaks onto a list row (extension, stale markup or a future refactor), the
- * row checkbox must stay the familiar 14px square instead of inheriting the
- * 19px circle.
+/* ---------- List rows: the tick stays hidden ----------
+ * Rows show selection as a tinted band with a pink edge, so the per-row
+ * checkbox is clipped rather than drawn (see .sufm-row-check .sufm-check
+ * above). The header keeps its real checkbox: that one is the master switch
+ * for "select all", not a per-row tick.
  */
 .sufm .sufm-row .sufm-check,
-.sufm .sufm-row-check .sufm-check,
-.sufm .sufm-head-check .sufm-check {
-	width: 14px !important;
-	height: 14px !important;
-	border-radius: 3px !important;
+.sufm .sufm-row-check .sufm-check {
+	width: 1px;
+	height: 1px;
 }
 
 /* -------------------------------------------------------------------------

@@ -171,6 +171,10 @@ final class SpaceStoreReconcileTest extends TestCase {
 		$this->db            = new SpaceReconcileDatabase();
 		$GLOBALS['wpdb']     = $this->db;
 
+		// The grants-table probe is memoised for the whole request; a test is
+		// one request, so it must not inherit the answer of the previous one.
+		Space_Store::forget_grants_table();
+
 		$GLOBALS['sakura_test_options'] = $this->options;
 		unset( $GLOBALS['sakura_test_options'][ Space_Store::RECONCILE_OPTION ] );
 	}

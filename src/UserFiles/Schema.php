@@ -99,6 +99,11 @@ final class Schema {
 			dbDelta( $sql );
 		}
 
+		// A request that probed the grants table before dbDelta ran (activation
+		// and the upgrade guard install on admin_init, then the page renders)
+		// must not stick with "missing" for the rest of that request.
+		\Nboke\UserFiles\Services\Space_Store::forget_grants_table();
+
 		// Derived columns (1.5.0) are filled in bounded batches so an upgrade
 		// on a large cabinet never turns into one long table scan.
 		$remaining = self::backfill_mime_groups();

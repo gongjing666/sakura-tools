@@ -42,13 +42,6 @@ final class Space_Rules {
 	private static array $memo = array();
 
 	/**
-	 * Whether the grants table exists, memoised per request.
-	 *
-	 * @var bool|null
-	 */
-	private static ?bool $has_table = null;
-
-	/**
 	 * Current UTC timestamp in MySQL format.
 	 *
 	 * @return string
@@ -344,27 +337,14 @@ final class Space_Rules {
 	/**
 	 * Memoised existence check for the grants table.
 	 *
+	 * Delegates to the store: the space panel asks the same question through
+	 * `Space_Store` while the quota derivation runs, and two independent memos
+	 * answered it with two `SHOW TABLES` round trips.
+	 *
 	 * @return bool
 	 */
 	private static function has_grants_table(): bool {
-		if ( null !== self::$has_table ) {
-			return self::$has_table;
-		}
-
-		self::$has_table = false;
-
-		global $wpdb;
-
-		if ( ! is_object( $wpdb ) || ! isset( $wpdb->prefix ) ) {
-			return false;
-		}
-
-		$table  = $wpdb->prefix . 'sufm_space_grants';
-		$exists = $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $wpdb->esc_like( $table ) ) );
-
-		self::$has_table = ( $table === $exists );
-
-		return self::$has_table;
+		return Space_Store::grants_table_exists();
 	}
 
 	/**

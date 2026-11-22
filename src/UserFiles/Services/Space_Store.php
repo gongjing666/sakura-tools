@@ -69,11 +69,17 @@ final class Space_Store {
 	private ?array $methods = null;
 
 	/**
-	 * Request cached table existence flag.
+	 * Shared per-request answer for "does the grants table exist?".
+	 *
+	 * Two places ask this while one screen renders (the rules engine derives
+	 * the quota, the store lists the grants), and each probe is a `SHOW TABLES`
+	 * round trip Query Monitor reports as a duplicate. The answer lives on the
+	 * class rather than the instance so every caller — and every store built by
+	 * {@see self::instance()} — sees the same answer.
 	 *
 	 * @var bool|null
 	 */
-	private ?bool $has_table = null;
+	private static ?bool $grants_table = null;
 
 	/**
 	 * Constructor.
@@ -1080,11 +1086,22 @@ final class Space_Store {
 	 * @return bool
 	 */
 	public function has_table(): bool {
-		if ( null !== $this->has_table ) {
-			return $this->has_table;
-		}
+		return self::grants_table_exists();
+	}
 
-		$this->has_table = false;
+	/**
+	 * Whether the grants table exists, memoised for the whole request.
+	 *
+	 * Query Monitor flags a second identical `SHOW TABLES` on the same request
+	 * as a duplicate query, and the space panel and the quota derivation both
+	 * ask while one screen renders — so the probe is answered once here.
+	 *
+	 * @return bool
+	 */
+	public static function grants_table_exists(): bool {
+		if ( null !== self::$grants_table ) {
+			return self::$grants_table;
+		}
 
 		global $wpdb;
 
@@ -1092,12 +1109,22 @@ final class Space_Store {
 			return false;
 		}
 
-		$table  = $this->table();
+		$table  = (string) $wpdb->prefix . 'sufm_space_grants';
 		$exists = $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $wpdb->esc_like( $table ) ) );
 
-		$this->has_table = ( $table === $exists );
+		self::$grants_table = ( $table === $exists );
 
-		return $this->has_table;
+		return self::$grants_table;
+	}
+
+	/**
+	 * Drop the memoised grants-table answer.
+	 *
+	 * The schema installer can create the table inside a request (activation,
+	 * upgrade guard), so a probe that ran before it must not outlive it.
+	 */
+	public static function forget_grants_table(): void {
+		self::$grants_table = null;
 	}
 
 	/**

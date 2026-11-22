@@ -354,10 +354,57 @@ final class Folders {
 				}
 				return $result;
 			};
-			/* translators: %d: user ID */
-			$owners[] = array( 'id' => $uid, 'owner_id' => $uid, 'folder_id' => 0, 'kind' => 'owner', 'name' => $valid ? (string) ( $user->display_name ?: $user->user_login ) : sprintf( __( '已删除或退出本站用户 #%d', 'sakura-imgopt' ), $uid ), 'login' => $valid ? (string) $user->user_login : '', 'deleted' => ! $valid, 'locked' => false, 'can_drop' => (bool) $valid, 'version' => 0, 'files' => $owned[ $uid ] ?? 0, 'unassigned' => $unassigned[ $uid ] ?? 0, 'tree' => $load_tree ? $build( 0, 0, false, array() ) : array(), 'tree_loaded' => $load_tree );
+			$owners[] = array(
+				'id'          => $uid,
+				'owner_id'    => $uid,
+				'folder_id'   => 0,
+				'kind'        => 'owner',
+				/* translators: %d: user ID */
+				'name'        => $valid ? (string) ( $user->display_name ?: $user->user_login ) : sprintf( __( '已删除或退出本站用户 #%d', 'sakura-imgopt' ), $uid ),
+				'login'       => $valid ? (string) $user->user_login : '',
+				'deleted'     => ! $valid,
+				'locked'      => false,
+				'can_drop'    => (bool) $valid,
+				'version'     => 0,
+				'files'       => $owned[ $uid ] ?? 0,
+				'unassigned'  => $unassigned[ $uid ] ?? 0,
+				/* Filled by the REST layer, which owns the sanctions repository.
+				 * Declared here so every consumer of a tree row sees the key and
+				 * does not have to know whether sanctions are wired. */
+				'sanction'    => null,
+				'tree'        => $load_tree ? $build( 0, 0, false, array() ) : array(),
+				'tree_loaded' => $load_tree,
+			);
 		}
+
 		return $owners;
+	}
+
+	/**
+	 * Owner of one live folder, or 0 when it does not exist.
+	 *
+	 * The media manager may address a folder without naming its owner (opening a
+	 * link, reloading). Folder ids are globally unique, so the owner can be read
+	 * from the row instead of being demanded from the caller.
+	 *
+	 * @param int $folder_id Folder id.
+	 * @return int
+	 */
+	public function owner_of( int $folder_id ): int {
+		global $wpdb;
+
+		if ( $folder_id <= 0 ) {
+			return 0;
+		}
+
+		$table = Schema::table( 'folders' );
+
+		return (int) $this->db_get_var(
+			$wpdb->prepare(
+				"SELECT owner_id FROM {$table} WHERE id=%d AND lifecycle='active'", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				$folder_id
+			)
+		);
 	}
 
 	/**

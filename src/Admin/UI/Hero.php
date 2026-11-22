@@ -47,6 +47,7 @@ final class Hero {
 			'storage-cost'        => __( '<em>先算清楚再上传</em>：存储、流量、请求与图片处理，按官方定价横向比。', 'sakura-imgopt' ),
 			'system-settings'     => __( '<em>先把底盘照清楚</em>：运行参数、图像引擎与版式外观，都在这里定。', 'sakura-imgopt' ),
 			'files-settings'      => __( '<em>空间长什么样由你定</em>：主题色、限额与审核策略。', 'sakura-imgopt' ),
+			'files-media'         => __( '<em>一眼看到谁传了什么</em>：左边账户、右边文件，勾选即可下架。', 'sakura-imgopt' ),
 			'files-users'         => __( '<em>每个人的那一份</em>：容量、已用与归属，一屏对清。', 'sakura-imgopt' ),
 			'files-queue'         => __( '<em>该批的批，该查的查</em>：申请排进这里，按策略逐条执行。', 'sakura-imgopt' ),
 			'files-log'           => __( '<em>动过什么都留痕</em>：最近的操作记录按时间倒序。', 'sakura-imgopt' ),

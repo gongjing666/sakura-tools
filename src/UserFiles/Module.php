@@ -23,6 +23,7 @@ use Nboke\UserFiles\Services\Quota;
 use Nboke\UserFiles\Services\Rate_Limiter;
 use Nboke\UserFiles\Services\Sanction_Service;
 use Nboke\UserFiles\Services\Sync_Service;
+use Nboke\UserFiles\Services\Takedown;
 use Nboke\UserFiles\Services\Theme_Limits;
 use Nboke\UserFiles\Services\Uploader;
 use Sakura\ImageOptimizer\Contracts\Module as Module_Contract;
@@ -87,6 +88,10 @@ final class Module implements Module_Contract {
 
 		if ( is_admin() && class_exists( 'Nboke\\UserFiles\\Admin\\Space_Page' ) ) {
 			( new Admin\Space_Page() )->register_hooks( $hooks );
+		}
+
+		if ( is_admin() && class_exists( 'Nboke\\UserFiles\\Admin\\Media_Manager' ) ) {
+			( new Admin\Media_Manager() )->register_hooks( $hooks );
 		}
 
 		// The delete guards must stay armed even while the feature is off, or
@@ -235,6 +240,7 @@ final class Module implements Module_Contract {
 		$sanctioning = new Sanction_Service( $sanctions, $events, $outbox, $notifier );
 		$uploader    = new Uploader( $files, $folders, $quota, $limiter, $events, $sanctioning );
 		$deletion    = new Deletion( $files, $quota, $events );
+		$takedown    = new Takedown( $deletion, $events, $outbox, $sanctioning );
 		$executor    = new Executor( $files, $folders, $requests, $quota, $notifier, $deletion );
 		$sync        = new Sync_Service( $files, $quota );
 
@@ -251,6 +257,7 @@ final class Module implements Module_Contract {
 			'sanctioning' => $sanctioning,
 			'uploader'    => $uploader,
 			'deletion'    => $deletion,
+			'takedown'    => $takedown,
 			'executor'    => $executor,
 			'sync'        => $sync,
 		);
@@ -292,7 +299,8 @@ final class Module implements Module_Contract {
 			$services['events'],
 			$services['notifier'],
 			$services['sync'],
-			$services['sanctioning']
+			$services['sanctioning'],
+			$services['takedown']
 		) )->register();
 	}
 

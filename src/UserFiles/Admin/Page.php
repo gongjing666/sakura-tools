@@ -87,8 +87,10 @@ final class Page {
 	 */
 	public function register_renderers(): void {
 		foreach ( Registry::tabs( 'files' ) as $sufm_tab_id ) {
-			// The Zibll tab registers its own renderer (Nboke\UserFiles\Admin\Space_Page).
-			if ( 'zibll' === (string) $sufm_tab_id ) {
+			/* Two tabs own their screen instead of sharing this one: Zibll has its
+			 * own controller (Space_Page) and the media manager paints a full
+			 * two-pane browser that has nothing in common with these cards. */
+			if ( in_array( (string) $sufm_tab_id, array( 'zibll', 'media' ), true ) ) {
 				continue;
 			}
 

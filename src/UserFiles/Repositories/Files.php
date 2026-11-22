@@ -619,6 +619,67 @@ final class Files {
 	}
 
 	/**
+	 * List managed files across owners, for the media manager.
+	 *
+	 * Same row shape as {@see self::query()} so the two screens render one model,
+	 * but the owner predicate becomes a filter instead of a constant: the media
+	 * manager browses the whole cabinet and narrows by owner, while the front-end
+	 * space only ever shows the signed-in user's own files.
+	 *
+	 * @param array<string, mixed> $args owner_id, folder_id, all_folders, type, search, cursor, per_page.
+	 * @return array<int, object>
+	 */
+	public function admin_query( array $args ): array {
+		global $wpdb;
+
+		$table    = Schema::table( 'files' );
+		$owner    = (int) ( $args['owner_id'] ?? 0 );
+		$folder   = (int) ( $args['folder_id'] ?? 0 );
+		$type     = (string) ( $args['type'] ?? '' );
+		$search   = trim( (string) ( $args['search'] ?? '' ) );
+		$cursor   = (int) ( $args['cursor'] ?? 0 );
+		$per_page = max( 1, min( 200, (int) ( $args['per_page'] ?? 60 ) ) );
+
+		$where  = array( "f.lifecycle = 'active'" );
+		$params = array();
+
+		if ( $owner > 0 ) {
+			$where[]  = 'f.owner_id = %d';
+			$params[] = $owner;
+		}
+
+		if ( empty( $args['all_folders'] ) ) {
+			$where[]  = 'f.folder_id = %d';
+			$params[] = $folder;
+		}
+
+		if ( '' !== $search ) {
+			$where[]  = 'f.display_name LIKE %s';
+			$params[] = '%' . $wpdb->esc_like( $search ) . '%';
+		}
+
+		$type_clause = $this->type_clause( $type, $params );
+
+		if ( '' !== $type_clause ) {
+			$where[] = $type_clause;
+		}
+
+		if ( $cursor > 0 ) {
+			$where[]  = 'f.id < %d';
+			$params[] = $cursor;
+		}
+
+		$folders = Schema::table( 'folders' );
+		$columns = 'f.id,f.owner_id,f.folder_id,f.display_name,f.charged_bytes,f.pending_request_id,f.created_at,fd.name AS folder_name';
+		$sql     = "SELECT {$columns}, p.post_mime_type, p.guid FROM {$table} f INNER JOIN {$wpdb->posts} p ON p.ID = f.attachment_id LEFT JOIN {$folders} fd ON fd.id = f.folder_id WHERE " . implode( ' AND ', $where ) . ' ORDER BY f.id DESC LIMIT %d';
+
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Placeholders match $params plus the LIMIT.
+		$rows = $wpdb->get_results( $wpdb->prepare( $sql, array_merge( $params, array( $per_page ) ) ) );
+
+		return is_array( $rows ) ? $rows : array();
+	}
+
+	/**
 	 * Count live files for a user.
 	 *
 	 * @param int $owner_id Owner.

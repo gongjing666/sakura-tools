@@ -31,6 +31,7 @@ final class ViewManifestTest extends TestCase {
 		'settings-stats.php',
 		'thumb-settings.php',
 		'userfiles-admin.php',
+		'userfiles-media.php',
 		'userfiles-space-admin.php',
 		'userfiles-space-panel.php',
 		'userfiles-tab.php',

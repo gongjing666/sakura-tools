@@ -19,13 +19,11 @@ use Nboke\UserFiles\Repositories\Files;
 use Nboke\UserFiles\Repositories\Folders;
 use Nboke\UserFiles\Repositories\Notifications;
 use Nboke\UserFiles\Repositories\Requests;
-use Nboke\UserFiles\Repositories\Sanctions;
 use Nboke\UserFiles\Services\Deletion;
-use Nboke\UserFiles\Services\Deletion_Context;
-use Nboke\UserFiles\Services\Deletion_Result;
 use Nboke\UserFiles\Services\Media_Adoption;
 use Nboke\UserFiles\Services\Quota;
 use Nboke\UserFiles\Services\Sanction_Service;
+use Nboke\UserFiles\Services\Takedown;
 use Nboke\UserFiles\Services\Sync_Service;
 use Nboke\UserFiles\Services\Uploader;
 use Nboke\UserFiles\Schema;
@@ -66,14 +64,7 @@ final class Media_Hooks {
 	 * @return array<string, string>
 	 */
 	private static function takedown_reasons(): array {
-		return array(
-			'copyright' => __( '侵犯版权', 'sakura-imgopt' ),
-			'illegal'   => __( '违法违规内容', 'sakura-imgopt' ),
-			'abuse'     => __( '辱骂或骚扰', 'sakura-imgopt' ),
-			'privacy'   => __( '泄露他人隐私', 'sakura-imgopt' ),
-			'policy'    => __( '违反站点规则', 'sakura-imgopt' ),
-			'other'     => __( '其他', 'sakura-imgopt' ),
-		);
+		return Takedown::reasons();
 	}
 
 	private Files $files;
@@ -890,12 +881,9 @@ final class Media_Hooks {
 	/**
 	 * Take selected files down from the site and the bucket, with an audit trail.
 	 *
-	 * The removal itself goes through the deletion kernel, so the local file,
-	 * the attachment row, the remote-delete queue and the ledger settlement run
-	 * in the same order as every other plugin-initiated delete. What this
-	 * action adds is the reason — the context carries the moderation reason, so
-	 * the audit row reads moderation + the chosen reason instead of an anonymous
-	 * operator delete — and the owner-facing notification.
+	 * The rules live in {@see Takedown}: this callback only maps the list table's
+	 * GET submission onto it. The media manager page calls the same service, so a
+	 * takedown means the same thing whichever screen started it.
 	 *
 	 * @param string $redirect_to Redirect URL from core.
 	 * @param array  $post_ids    Selected attachment IDs.
@@ -908,287 +896,58 @@ final class Media_Hooks {
 			return add_query_arg( 'sufm_takedown_denied', 1, $fallback );
 		}
 
-		/* The list table submits with GET — core reads the bulk action from
-		 * $_REQUEST — so the reason arrives in the query string, not in $_POST. */
-		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Core verifies bulk-media before this filter runs.
+		/* The list table submits with GET - core reads the bulk action from
+		 * $_REQUEST - so the reason arrives in the query string, not in $_POST. */
+		// phpcs:disable WordPress.Security.NonceVerification.Recommended -- Core verifies bulk-media before this filter runs.
 		$reason = isset( $_REQUEST['sufm_takedown_reason'] ) && is_scalar( $_REQUEST['sufm_takedown_reason'] ) ? sanitize_key( wp_unslash( (string) $_REQUEST['sufm_takedown_reason'] ) ) : '';
 
 		/* A takedown without a recorded reason is exactly the anonymous delete
 		 * this action exists to replace, so refuse instead of guessing one. */
-		$reasons = self::takedown_reasons();
-
-		if ( ! isset( $reasons[ $reason ] ) ) {
+		if ( ! Takedown::is_reason( $reason ) ) {
 			return add_query_arg( 'sufm_takedown_reason_missing', 1, $fallback );
 		}
 
-		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Core verifies bulk-media before this filter runs.
-		$note   = isset( $_REQUEST['sufm_takedown_note'] ) && is_scalar( $_REQUEST['sufm_takedown_note'] ) ? sanitize_text_field( wp_unslash( (string) $_REQUEST['sufm_takedown_note'] ) ) : '';
-		$note   = mb_substr( trim( $note ), 0, 120 );
-		$label  = $reasons[ $reason ];
-		$detail = '' !== $note ? $label . '：' . $note : $label;
-		$actor  = get_current_user_id();
-		$ids    = $this->normalize_ids( (array) $post_ids );
-
-		/* A takedown is a batch, and a batch needs a name: the same string goes
-		 * on every delete event, every sanction event and the outbox keys, so one
-		 * query can reconstruct "this decision removed these files and punished
-		 * these people". It is deliberately not `batch_id` — that column belongs
-		 * to the review-execution batches. */
-		$operation_id = 'takedown:' . gmdate( 'YmdHis' ) . '-' . $actor;
+		$note = isset( $_REQUEST['sufm_takedown_note'] ) && is_scalar( $_REQUEST['sufm_takedown_note'] ) ? sanitize_text_field( wp_unslash( (string) $_REQUEST['sufm_takedown_note'] ) ) : '';
 
 		/* Sanctioning is opt-in and never implied by a takedown: a copyright
 		 * complaint can arrive before anyone knows who was right, and a deletion
 		 * cannot be undone, so treating every takedown as a verdict would make
 		 * the plugin the judge of the uploader's intent. */
-		// phpcs:disable WordPress.Security.NonceVerification.Recommended -- Core verifies bulk-media before this filter runs.
-		$punish  = isset( $_REQUEST['sufm_takedown_sanction'] ) && '1' === (string) wp_unslash( (string) $_REQUEST['sufm_takedown_sanction'] );
-		$ban     = isset( $_REQUEST['sufm_takedown_sanction_type'] ) && is_scalar( $_REQUEST['sufm_takedown_sanction_type'] ) ? sanitize_key( wp_unslash( (string) $_REQUEST['sufm_takedown_sanction_type'] ) ) : '';
+		$punish   = isset( $_REQUEST['sufm_takedown_sanction'] ) && '1' === (string) wp_unslash( (string) $_REQUEST['sufm_takedown_sanction'] );
+		$ban      = isset( $_REQUEST['sufm_takedown_sanction_type'] ) && is_scalar( $_REQUEST['sufm_takedown_sanction_type'] ) ? sanitize_key( wp_unslash( (string) $_REQUEST['sufm_takedown_sanction_type'] ) ) : '';
 		$ban_days = isset( $_REQUEST['sufm_takedown_sanction_days'] ) ? (int) wp_unslash( (string) $_REQUEST['sufm_takedown_sanction_days'] ) : 0;
 		// phpcs:enable WordPress.Security.NonceVerification.Recommended
 
-		if ( ! in_array( $ban, array( Sanctions::TYPE_WARN, Sanctions::TYPE_UPLOAD_BAN ), true ) ) {
-			$ban = Sanctions::TYPE_WARN;
-		}
-
-		/* The dialog only ever offers a finite window: it knows attachment IDs but
-		 * not who owns them, so it cannot ask for the typed username a permanent
-		 * ban requires. Permanent bans live on the users tab, where the target is
-		 * known before the button is pressed.
-		 *
-		 * `days = 0` therefore means "the dialog did not send a window" (a warning,
-		 * or a tampered query string), never "forever": in Sanction_Service a zero
-		 * day window is what a permanent row looks like. Clamping from below keeps
-		 * a hand-crafted `?sufm_takedown_sanction_days=0` from turning one bulk
-		 * action into an endless ban. */
-		if ( Sanctions::TYPE_WARN === $ban ) {
-			$ban_days = 0;
-		} else {
-			$ban_days = max( 1, min( 30, $ban_days ) );
-		}
-
-		if ( ! $ids ) {
-			return add_query_arg(
-				array(
-					'sufm_takedown_done'    => 0,
-					'sufm_takedown_partial' => 0,
-					'sufm_takedown_skipped' => 0,
-				),
-				$fallback
-			);
-		}
-
-		$this->prime_summaries( $ids );
-
-		$done    = 0;
-		$partial = 0;
-		$skipped = 0;
-		$targets = array();
-		$sanctioned = 0;
-
-		foreach ( $ids as $id ) {
-			$post = get_post( $id );
-
-			if ( ! $post instanceof WP_Post || 'attachment' !== $post->post_type ) {
-				$skipped++;
-				continue;
-			}
-
-			$summary = $this->summaries[ $id ] ?? null;
-
-			/* An executor already owns this row; the kernel would answer
-			 * in_progress, so do not hand it over just to be told that. */
-			if ( is_array( $summary ) && Files::LIFECYCLE_DELETING === (string) ( $summary['lifecycle'] ?? '' ) ) {
-				$skipped++;
-				continue;
-			}
-
-			$targets[] = $id;
-		}
-
-		if ( $targets ) {
-			$ctx = new Deletion_Context(
-				Deletion_Context::MODE_TAKEDOWN,
-				$actor,
-				Deletion::REASON_MODERATION,
-				false,
-				true,
-				Deletion::VIA_PLUGIN,
-				false,
-				$detail,
-				$operation_id
-			);
-
-			$result = $this->deletion()->delete( $targets, $ctx );
-
-			/* One takedown batch can touch files owned by several people, so the
-			 * outcome is collected per owner first and turned into one message
-			 * (and at most one sanction) each. Enqueueing per attachment would
-			 * put 200 rows in the outbox for one decision. */
-			$by_owner = array();
-
-			foreach ( $result->items() as $item ) {
-				$status = (string) ( $item['status'] ?? '' );
-
-				/* PARTIAL means the local file and the attachment row are gone but
-				 * the bucket still holds the object: the kernel queued a retry, so
-				 * the file is off the site already. Count it apart from DELETED so
-				 * the result message can say the cloud copy is still pending. */
-				if ( Deletion_Result::DELETED !== $status && Deletion_Result::PARTIAL !== $status ) {
-					$skipped++;
-					continue;
-				}
-
-				$id      = (int) ( $item['attachment_id'] ?? 0 );
-				$summary = $this->summaries[ $id ] ?? null;
-
-				if ( Deletion_Result::PARTIAL === $status ) {
-					$partial++;
-				} else {
-					$done++;
-				}
-
-				$owner_id = is_array( $summary )
-					? (int) ( $summary['owner_id'] ?? 0 )
-					: (int) get_post_field( 'post_author', $id );
-
-				if ( ! is_array( $summary ) ) {
-					// No ledger row: the settlement observer writes nothing, so
-					// the removal still needs its own audit line.
-					$this->log_takedown( $id, $detail, $operation_id );
-				}
-
-				if ( $owner_id <= 0 ) {
-					continue;
-				}
-
-				if ( ! isset( $by_owner[ $owner_id ] ) ) {
-					$by_owner[ $owner_id ] = 0;
-				}
-
-				/* Only a completed removal counts as the incident: a file whose
-				 * bucket copy is still pending was not taken down yet, and a
-				 * skipped one was not touched at all. */
-				if ( Deletion_Result::DELETED === $status ) {
-					++$by_owner[ $owner_id ];
-				}
-			}
-
-			$sanctioned = $this->settle_batch( $by_owner, $detail, $reason, $note, $operation_id, $punish, $ban, $ban_days );
-		}
+		$outcome = $this->takedown()->run(
+			(array) $post_ids,
+			array(
+				'reason'   => $reason,
+				'note'     => $note,
+				'punish'   => $punish,
+				'type'     => $ban,
+				'days'     => $ban_days,
+				'actor_id' => (int) get_current_user_id(),
+			)
+		);
 
 		return add_query_arg(
 			array(
-				'sufm_takedown_done'      => $done,
-				'sufm_takedown_partial'   => $partial,
-				'sufm_takedown_skipped'   => $skipped,
-				'sufm_takedown_sanctioned' => $sanctioned,
+				'sufm_takedown_done'       => (int) $outcome['done'],
+				'sufm_takedown_partial'    => (int) $outcome['partial'],
+				'sufm_takedown_skipped'    => (int) $outcome['skipped'],
+				'sufm_takedown_sanctioned' => (int) $outcome['sanctioned'],
 			),
 			$fallback
 		);
 	}
 
 	/**
-	 * Notify every affected owner once, then apply the opt-in sanction.
+	 * Takedown service bound to this screen's collaborators.
 	 *
-	 * @param array<int, int> $by_owner     Owner id => removed file count.
-	 * @param string          $detail       Reason label and note.
-	 * @param string          $reason       Reason key.
-	 * @param string          $note         Operator note.
-	 * @param string          $operation_id Batch reference.
-	 * @param bool            $punish       Whether the operator ticked the box.
-	 * @param string          $type         Sanction type.
-	 * @param int             $days         Duration; 0 means permanent.
-	 * @return int Owners that received a new sanction.
+	 * @return Takedown
 	 */
-	private function settle_batch( array $by_owner, string $detail, string $reason, string $note, string $operation_id, bool $punish, string $type, int $days ): int {
-		$sanctioned = 0;
-
-		foreach ( $by_owner as $owner_id => $count ) {
-			$owner_id = (int) $owner_id;
-
-			$this->notify_takedown( $owner_id, $count, $detail, $operation_id );
-
-			if ( ! $punish || $count <= 0 || ! $this->sanctions ) {
-				continue;
-			}
-
-			$result = $this->sanctions->apply(
-				array(
-					'owner_id'     => $owner_id,
-					'actor_id'     => get_current_user_id(),
-					'type'         => $type,
-					'scope'        => Sanctions::SCOPE_PLUGIN,
-					'reason_code'  => $reason,
-					'note'         => $note,
-					'days'         => Sanctions::TYPE_WARN === $type ? 0 : $days,
-					'operation_id' => $operation_id,
-					'source'       => 'manual',
-				)
-			);
-
-			if ( ! is_wp_error( $result ) ) {
-				++$sanctioned;
-			}
-		}
-
-		return $sanctioned;
-	}
-
-	/**
-	 * Tell one owner how many of their files this batch removed.
-	 *
-	 * @param int    $owner_id     Owner.
-	 * @param int    $count        Removed files.
-	 * @param string $detail       Reason label and note.
-	 * @param string $operation_id Batch reference.
-	 * @return void
-	 */
-	private function notify_takedown( int $owner_id, int $count, string $detail, string $operation_id ): void {
-		if ( ! $this->outbox || $owner_id <= 0 || $count <= 0 ) {
-			return;
-		}
-
-		/* Keyed by the batch, not the attachment: re-running the same batch
-		 * (double submit, back button) must not queue a second message. */
-		$this->outbox->enqueue(
-			$owner_id,
-			0,
-			'moderation',
-			array(
-				'count'  => $count,
-				'reason' => $detail,
-			),
-			'takedown:' . get_current_blog_id() . ':' . $owner_id . ':' . substr( $operation_id, 9, 40 )
-		);
-	}
-
-	/**
-	 * Audit a takedown of a file that never had a ledger row.
-	 *
-	 * Without a ledger the settlement observer writes nothing, but the action
-	 * still removed a public file and must leave the same kind of record.
-	 *
-	 * @param int    $attachment_id Attachment ID.
-	 * @param string $detail        Reason label and note.
-	 * @param string $operation_id  Batch reference.
-	 * @return void
-	 */
-	private function log_takedown( int $attachment_id, string $detail, string $operation_id = '' ): void {
-		if ( ! $this->events ) {
-			return;
-		}
-
-		$this->events->log(
-			array(
-				'actor_id'     => get_current_user_id(),
-				'owner_id'     => (int) get_post_field( 'post_author', $attachment_id ),
-				'subject_id'   => $attachment_id,
-				'operation_id' => $operation_id,
-				'action'       => 'delete',
-				'result'       => 'purged',
-				'safe_detail'  => Deletion::VIA_PLUGIN . ':' . Deletion::REASON_MODERATION . '|' . mb_substr( $detail, 0, 80 ),
-			)
-		);
+	private function takedown(): Takedown {
+		return new Takedown( $this->deletion(), $this->events, $this->outbox, $this->sanctions );
 	}
 
 

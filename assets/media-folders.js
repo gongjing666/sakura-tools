@@ -87,8 +87,26 @@
 		return fetch( location.href, { credentials: 'same-origin' } ).then( function ( r ) { if ( ! r.ok ) { throw new Error( t( 'refreshFailed' ) ); } return r.text(); } ).then( function ( html ) {
 			var doc = new DOMParser().parseFromString( html, 'text/html' );
 			[ '#posts-filter .wp-list-table', '#posts-filter .tablenav.top', '#posts-filter .tablenav.bottom' ].forEach( function ( selector ) { var old = document.querySelector( selector ), next = doc.querySelector( selector ); if ( old && next ) { old.replaceWith( next ); } } );
-			decorateRows(); window.scrollTo( 0, scroll );
+			marryBulkControls(); decorateRows(); window.scrollTo( 0, scroll );
 		} );
+	}
+	/* Re-arm the top/bottom bulk-action pairing after a list refresh.
+	 *
+	 * Core marries the two selects in common.js (marryControls) exactly once, at
+	 * DOM ready, against the nodes that were on the page then. refreshMedia()
+	 * swaps `.tablenav.top` / `.tablenav.bottom` wholesale, so those nodes — and
+	 * their bindings — are gone; the replacements are inert. The visible effect
+	 * is that picking a bulk action in the top toolbar leaves the bottom mirror
+	 * on "-1", and anything reading the bottom one (our takedown guard included)
+	 * sees the placeholder. Rebinding on each refresh restores core's contract. */
+	function marryBulkControls() {
+		var form = takedownForm();
+		if ( ! form ) { return; }
+		var top = form.querySelector( 'select[name="action"]' ), bottom = form.querySelector( 'select[name="action2"]' );
+		if ( ! top || ! bottom || top.dataset.sufmMarried ) { return; }
+		top.dataset.sufmMarried = '1'; bottom.dataset.sufmMarried = '1';
+		top.addEventListener( 'change', function () { bottom.value = top.value; } );
+		bottom.addEventListener( 'change', function () { top.value = bottom.value; } );
 	}
 	function go( params ) {
 		var u = new URL( location.href ); Object.keys( params ).forEach( function ( k ) { if ( params[ k ] === '' || params[ k ] === null ) { u.searchParams.delete( k ); } else { u.searchParams.set( k, params[ k ] ); } } ); u.searchParams.delete( 'paged' );
@@ -586,10 +604,24 @@
 	 * (form.submit() skips this handler, which keeps the guard re-entrant). */
 	var takedownBypass = false;
 	function takedownForm() { return document.getElementById( 'posts-filter' ); }
+	/* Which bulk action is pending?
+	 *
+	 * `action` is the one the server reads (`WP_List_Table::current_action()`),
+	 * so it decides when both are filled. `action2` is only the bottom toolbar's
+	 * mirror, kept in sync by core's marryControls() in common.js — and that
+	 * binding dies the moment we replace `.tablenav.top` / `.tablenav.bottom` in
+	 * refreshMedia(), because the selects are new nodes. Reading `action2` first
+	 * therefore worked only until the first tree navigation, after which it sat
+	 * at "-1" and this guard silently let the form post without a reason.
+	 *
+	 * So: prefer `action`, fall back to `action2` (a submission triggered from
+	 * the bottom toolbar on a page where only that one moved), and treat either
+	 * as "pending" when the other is still the "-1" placeholder. */
 	function takedownAction( form ) {
-		var second = form.querySelector( 'select[name="action2"]' ), first = form.querySelector( 'select[name="action"]' );
-		var value = second && second.value ? second.value : ( first && first.value ? first.value : '' );
-		return String( value || '' );
+		var first = form.querySelector( 'select[name="action"]' ), second = form.querySelector( 'select[name="action2"]' );
+		var top = first ? String( first.value || '' ) : '', bottom = second ? String( second.value || '' ) : '';
+		if ( 'sufm_takedown' === top || 'sufm_takedown' === bottom ) { return 'sufm_takedown'; }
+		return top && '-1' !== top ? top : ( bottom && '-1' !== bottom ? bottom : top || bottom || '' );
 	}
 	function askTakedown( form ) {
 		var boxes = form.querySelectorAll( '.wp-list-table input[name="media[]"]:checked' ), count = boxes.length;
@@ -648,6 +680,15 @@
 			pairs.forEach( function ( pair ) {
 				var field = document.createElement( 'input' ); field.type = 'hidden'; field.name = pair[ 0 ]; field.value = pair[ 1 ]; form.appendChild( field );
 			} );
+			/* The server reads `action` only (`current_action()`), and a form
+			 * submission sends both selects. If the operator picked the action in
+			 * the bottom toolbar and the mirror never synced (see marryBulkControls),
+			 * `action` would still be "-1" and the takedown would be silently
+			 * dropped. Pin both to the value the dialog was opened for. */
+			[ 'select[name="action"]', 'select[name="action2"]' ].forEach( function ( selector ) {
+				var picker = form.querySelector( selector );
+				if ( picker ) { picker.value = 'sufm_takedown'; }
+			} );
 			d.el.close(); takedownBypass = true; form.submit();
 		}, 'button button-primary' );
 		d.footer.appendChild( confirm );
@@ -659,7 +700,7 @@
 		if ( ! form || form.id !== 'posts-filter' || 'sufm_takedown' !== takedownAction( form ) ) { return; }
 		event.preventDefault(); askTakedown( form );
 	}, true );
-	document.body.classList.add( 'sufm-tree-active', 'sufm-tree-open' ); makeToolbar(); load( false ); decorateRows(); syncUploadTarget();
+	document.body.classList.add( 'sufm-tree-active', 'sufm-tree-open' ); marryBulkControls(); makeToolbar(); load( false ); decorateRows(); syncUploadTarget();
 	var queued = false; new MutationObserver( function () { if ( queued ) { return; } queued = true; requestAnimationFrame( function () { queued = false; decorateRows(); uploadPicker(); } ); } ).observe( document.body, { subtree: true, childList: true } );
 	if ( window.jQuery ) { jQuery( document ).ajaxComplete( function ( event, xhr, settings ) { if ( settings && String( settings.data || '' ).includes( 'action=upload-attachment' ) ) { load( false ); } } ); }
 } )();

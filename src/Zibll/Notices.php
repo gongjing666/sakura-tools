@@ -82,7 +82,47 @@ final class Notices {
 	}
 
 	/**
-	 * Print a pending notice as a WordPress admin notice.
+	 * Load the alert skin before the notice is printed.
+	 *
+	 * `render()` runs on `admin_notices`, which fires after
+	 * `admin_enqueue_scripts` and on screens that do not load the plugin UI
+	 * stack. This hook is the last chance to enqueue the styles the alert
+	 * needs.
+	 *
+	 * @return void
+	 */
+	public static function enqueue_style(): void {
+		if ( ! self::pending() || ! class_exists( '\Sakura\ImageOptimizer\Admin\Page_Assets' ) ) {
+			return;
+		}
+
+		\Sakura\ImageOptimizer\Admin\Page_Assets::enqueue_notice_style();
+	}
+
+	/**
+	 * Whether a notice is waiting for this user, without consuming it.
+	 *
+	 * @return bool
+	 */
+	private static function pending(): bool {
+		$user = self::user_id();
+
+		if ( $user <= 0 || ! function_exists( 'get_transient' ) ) {
+			return false;
+		}
+
+		$notice = get_transient( self::PREFIX . $user );
+
+		return is_array( $notice ) && isset( $notice['message'] ) && '' !== (string) $notice['message'];
+	}
+
+	/**
+	 * Print a pending notice in the plugin's own alert skin.
+	 *
+	 * The message is waiting for this page load, but it still has to look like
+	 * every other plugin notice: `Feedback::admin_notice_html()` wraps it in the
+	 * `.sakura-admin` root so the tokens and alert styles apply, instead of the
+	 * bare WordPress `notice notice-*` markup this used to emit.
 	 *
 	 * @return void
 	 */
@@ -97,11 +137,21 @@ final class Notices {
 			return;
 		}
 
-		printf(
-			'<div class="notice notice-%1$s is-dismissible"><p>%2$s</p></div>',
-			esc_attr( $notice['tone'] ),
-			esc_html( $notice['message'] )
+		$tones = array(
+			'error'   => 'bad',
+			'warning' => 'warn',
+			'success' => 'ok',
+			'info'    => 'info',
 		);
+
+		$tone = $tones[ (string) $notice['tone'] ] ?? 'info';
+
+		$html = \Sakura\ImageOptimizer\Admin\UI\Feedback::admin_notice_html(
+			esc_html( (string) $notice['message'] ),
+			$tone
+		);
+
+		echo $html; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Component escapes internally.
 	}
 
 	/**

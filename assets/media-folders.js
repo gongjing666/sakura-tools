@@ -31,7 +31,7 @@
 		notify( data.notice.message, !! data.notice.error, 15000 );
 		if ( window.history && window.history.replaceState ) {
 			var flashUrl = new URL( location.href );
-			[ 'sufm_takedown_done', 'sufm_takedown_skipped', 'sufm_takedown_reason_missing', 'sufm_takedown_denied' ].forEach( function ( key ) { flashUrl.searchParams.delete( key ); } );
+			[ 'sufm_takedown_done', 'sufm_takedown_partial', 'sufm_takedown_skipped', 'sufm_takedown_reason_missing', 'sufm_takedown_denied' ].forEach( function ( key ) { flashUrl.searchParams.delete( key ); } );
 			window.history.replaceState( null, '', flashUrl.href );
 		}
 	}

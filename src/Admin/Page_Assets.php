@@ -189,6 +189,40 @@ final class Page_Assets {
 	}
 
 	/**
+	 * Enqueue just the pieces a cross-page admin notice needs.
+	 *
+	 * `Feedback::admin_notice_html()` is rendered from `admin_notices`, which
+	 * fires on screens that never load the plugin UI stack (media library,
+	 * dashboard, users). Those notices used to arrive as bare text and read
+	 * like a native WordPress notice. Tokens and components are enough for the
+	 * alert skin; base.css owns the page canvas and must stay off those
+	 * screens, so it is deliberately not a dependency here.
+	 *
+	 * @return void
+	 */
+	public static function enqueue_notice_style(): void {
+		$base = 'sakura-admin';
+
+		if ( wp_style_is( $base . '-components', 'enqueued' ) ) {
+			return;
+		}
+
+		wp_enqueue_style(
+			$base . '-tokens',
+			SAKURA_TOOLS_URL . 'assets/ui/tokens.css',
+			array(),
+			self::group_version( array( 'assets/ui/tokens.css' ) )
+		);
+
+		wp_enqueue_style(
+			$base . '-components',
+			SAKURA_TOOLS_URL . 'assets/ui/components.css',
+			array( $base . '-tokens' ),
+			self::group_version( array( 'assets/ui/components.css' ) )
+		);
+	}
+
+	/**
 	 * Cache-busting version from mtime and size.
 	 *
 	 * @param array<int, string> $relative Plugin-relative paths.

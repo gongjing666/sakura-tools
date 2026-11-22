@@ -920,6 +920,7 @@ final class Media_Hooks {
 			return add_query_arg(
 				array(
 					'sufm_takedown_done'    => 0,
+					'sufm_takedown_partial' => 0,
 					'sufm_takedown_skipped' => 0,
 				),
 				$fallback
@@ -929,6 +930,7 @@ final class Media_Hooks {
 		$this->prime_summaries( $ids );
 
 		$done    = 0;
+		$partial = 0;
 		$skipped = 0;
 		$targets = array();
 
@@ -967,13 +969,24 @@ final class Media_Hooks {
 			$result = $this->deletion()->delete( $targets, $ctx );
 
 			foreach ( $result->items() as $item ) {
-				if ( Deletion_Result::DELETED !== (string) ( $item['status'] ?? '' ) ) {
+				$status = (string) ( $item['status'] ?? '' );
+
+				/* PARTIAL means the local file and the attachment row are gone but
+				 * the bucket still holds the object: the kernel queued a retry, so
+				 * the file is off the site already. Count it apart from DELETED so
+				 * the result message can say the cloud copy is still pending. */
+				if ( Deletion_Result::DELETED !== $status && Deletion_Result::PARTIAL !== $status ) {
 					$skipped++;
 					continue;
 				}
 
-				$id  = (int) ( $item['attachment_id'] ?? 0 );
-				$done++;
+				$id = (int) ( $item['attachment_id'] ?? 0 );
+
+				if ( Deletion_Result::PARTIAL === $status ) {
+					$partial++;
+				} else {
+					$done++;
+				}
 
 				$summary = $this->summaries[ $id ] ?? null;
 
@@ -988,6 +1001,7 @@ final class Media_Hooks {
 		return add_query_arg(
 			array(
 				'sufm_takedown_done'    => $done,
+				'sufm_takedown_partial' => $partial,
 				'sufm_takedown_skipped' => $skipped,
 			),
 			$fallback
@@ -1629,20 +1643,48 @@ final class Media_Hooks {
 				? absint( wp_unslash( (string) $_GET['sufm_takedown_skipped'] ) )
 				: 0;
 
-			$message = $done > 0
-				? sprintf(
-					/* translators: 1: taken down count, 2: skipped count */
-					__( '已下架 %1$d 个文件（本地与云端），跳过 %2$d 个。', 'sakura-imgopt' ),
-					$done,
-					$skipped
-				)
-				: sprintf(
-					/* translators: %d: skipped count */
-					__( '没有文件被下架，跳过 %d 个（多为无权限、已在删除流程中或不是附件）。', 'sakura-imgopt' ),
+			// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only result flag.
+			$partial = isset( $_GET['sufm_takedown_partial'] ) && is_scalar( $_GET['sufm_takedown_partial'] )
+				? absint( wp_unslash( (string) $_GET['sufm_takedown_partial'] ) )
+				: 0;
+
+			$bits = array();
+
+			if ( $done > 0 ) {
+				$bits[] = sprintf(
+					/* translators: %d: files removed locally and remotely. */
+					__( '已下架 %d 个文件（本地与云端）', 'sakura-imgopt' ),
+					$done
+				);
+			}
+
+			if ( $partial > 0 ) {
+				$bits[] = sprintf(
+					/* translators: %d: files whose cloud object is still pending. */
+					__( '%d 个已删除本地副本，云端对象已排入删除队列自动补删', 'sakura-imgopt' ),
+					$partial
+				);
+			}
+
+			if ( $skipped > 0 ) {
+				$bits[] = sprintf(
+					/* translators: %d: files skipped. */
+					__( '跳过 %d 个', 'sakura-imgopt' ),
 					$skipped
 				);
+			}
 
-			return array( 'message' => $message, 'error' => $done < 1 );
+			if ( array() === $bits ) {
+				$bits[] = __( '本次没有文件被下架', 'sakura-imgopt' );
+			}
+
+			$message = implode( '，', $bits ) . '。';
+
+			if ( 0 === $done + $partial && $skipped > 0 ) {
+				$message .= __( '（多为无权限、已在删除流程中或不是附件）', 'sakura-imgopt' );
+			}
+
+			return array( 'message' => $message, 'error' => $done + $partial < 1 );
 		}
 
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only result flag.

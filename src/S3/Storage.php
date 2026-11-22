@@ -96,6 +96,17 @@ final class Storage implements Module {
 	private Bucket_Confirmation $confirmation;
 
 	/**
+	 * Failure counts the admin notice needs, read once per request.
+	 *
+	 * `enqueue_notice_assets()` decides whether a non-plugin screen needs the
+	 * alert skin and `render_failed_notice()` builds the text; both ask the
+	 * same four questions, so the answers are read once here.
+	 *
+	 * @var array{failed:int,orphans:int,stale:int,drifted:int}|null
+	 */
+	private ?array $failed_notice_counts = null;
+
+	/**
 	 * Constructor.
 	 *
 	 * @param Options|null         $options Optional options for tests.
@@ -129,6 +140,7 @@ final class Storage implements Module {
 			// the media library cannot silently diverge from the configured store.
 			Upload_URL::restore( (string) $this->options->get( 'upload_url_path', '' ) );
 			$hooks->add_action( 'admin_notices', array( $this, 'render_incomplete_config_notice' ) );
+			$hooks->add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_notice_assets' ), 99 );
 			$hooks->add_filter( 'wp_handle_upload_prefilter', array( $this, 'block_incomplete_upload' ), PHP_INT_MAX, 1 );
 			$hooks->add_filter( 'wp_handle_sideload_prefilter', array( $this, 'block_incomplete_upload' ), PHP_INT_MAX, 1 );
 			return;
@@ -155,6 +167,7 @@ final class Storage implements Module {
 		$hooks->add_filter( 'wp_generate_attachment_metadata', array( $this->uploader, 'note_generation_done' ), PHP_INT_MAX, 2 );
 		$hooks->add_action( 'delete_attachment', array( $this, 'delete_remote_attachment' ), 20, 1 );
 		$hooks->add_action( 'admin_notices', array( $this, 'render_failed_notice' ) );
+		$hooks->add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_notice_assets' ), 99 );
 		$hooks->add_action( 'admin_init', array( $this, 'maybe_migrate' ) );
 
 		// A restore rewrites the local file set. Reconcile the bucket afterwards
@@ -610,14 +623,16 @@ final class Storage implements Module {
 			return;
 		}
 
-		$failed  = $this->status->failed_attachments( 1 );
-		$orphans = $this->deletes->failure_count();
-		$stale   = $this->deletes->stale_count();
-		$drifted = $this->drifted_target_count();
+		$counts = $this->failed_notice_counts();
 
-		if ( ! $failed && 0 === $orphans && 0 === $stale && 0 === $drifted ) {
+		if ( 0 === $counts['failed'] + $counts['orphans'] + $counts['stale'] + $counts['drifted'] ) {
 			return;
 		}
+
+		$failed  = $counts['failed'];
+		$orphans = $counts['orphans'];
+		$stale   = $counts['stale'];
+		$drifted = $counts['drifted'];
 
 		$messages = array();
 		if ( $failed ) {
@@ -651,8 +666,8 @@ final class Storage implements Module {
 		$html = \Sakura\ImageOptimizer\Admin\UI\Feedback::admin_notice_html(
 			implode( ' ', $messages ),
 			'warn',
-			\Sakura\ImageOptimizer\Admin\Registry::url( 'storage', 'connection' ),
-			esc_html__( '查看并重试', 'sakura-imgopt' )
+			\Sakura\ImageOptimizer\Admin\Registry::url( 'storage', 'deletes' ),
+			esc_html__( '查看删除队列', 'sakura-imgopt' )
 		);
 		echo $html; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Built from escaped fragments.
 	}
@@ -673,6 +688,50 @@ final class Storage implements Module {
 		}
 
 		return $drifted;
+	}
+
+	/**
+	 * Counts the failure notice needs, read once per request.
+	 *
+	 * @return array{failed:int,orphans:int,stale:int,drifted:int}
+	 */
+	private function failed_notice_counts(): array {
+		if ( null !== $this->failed_notice_counts ) {
+			return $this->failed_notice_counts;
+		}
+
+		$this->failed_notice_counts = array(
+			'failed'  => (int) $this->status->failed_attachments( 1 ),
+			'orphans' => (int) $this->deletes->failure_count(),
+			'stale'   => (int) $this->deletes->stale_count(),
+			'drifted' => $this->drifted_target_count(),
+		);
+
+		return $this->failed_notice_counts;
+	}
+
+	/**
+	 * Load the alert skin on a screen that will show a storage notice.
+	 *
+	 * `admin_notices` fires on every admin screen, including ones that never
+	 * load the plugin UI stack (media library, dashboard, users). Without
+	 * tokens and components the notice renders as bare text and reads like a
+	 * native WordPress notice — exactly what the design rules forbid.
+	 */
+	public function enqueue_notice_assets(): void {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			return;
+		}
+
+		if ( $this->options->is_configured() ) {
+			$counts = $this->failed_notice_counts();
+
+			if ( 0 === $counts['failed'] + $counts['orphans'] + $counts['stale'] + $counts['drifted'] ) {
+				return;
+			}
+		}
+
+		\Sakura\ImageOptimizer\Admin\Page_Assets::enqueue_notice_style();
 	}
 
 	/**

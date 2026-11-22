@@ -43,6 +43,7 @@ final class Admin_Module implements Module {
 		$hooks->add_action( 'admin_init', array( $this, 'register_settings' ) );
 		$hooks->add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_admin_assets' ) );
 		$hooks->add_action( 'admin_notices', array( Notices::class, 'render' ) );
+		$hooks->add_action( 'admin_enqueue_scripts', array( Notices::class, 'enqueue_style' ), 99 );
 		$hooks->add_action( 'wp_ajax_' . self::ACTION, array( $this, 'ajax_warm' ) );
 	}
 

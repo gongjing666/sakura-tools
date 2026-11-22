@@ -69,7 +69,7 @@ final class Deletion {
 	/**
 	 * Per-attachment moderation context for the next delete.
 	 *
-	 * @var array<int, array{reason: string, note: string, actor_id: int, via: string}>
+	 * @var array<int, array{reason: string, note: string, actor_id: int, via: string, operation_id: string}>
 	 */
 	private static array $flagged = array();
 
@@ -120,12 +120,13 @@ final class Deletion {
 		$note   = is_array( $flag ) ? $flag['note'] : '';
 		$actor  = is_array( $flag ) ? $flag['actor_id'] : (int) get_current_user_id();
 		$via    = is_array( $flag ) && '' !== $flag['via'] ? $flag['via'] : self::VIA_WORDPRESS;
+		$op_id  = is_array( $flag ) ? (string) ( $flag['operation_id'] ?? '' ) : '';
 
 		if ( ! $file || 'purged' === (string) $file->lifecycle ) {
 			return;
 		}
 
-		$this->settle( (int) $file->id, $via, $actor, $reason, $note );
+		$this->settle( (int) $file->id, $via, $actor, $reason, $note, $op_id );
 	}
 
 	/**
@@ -220,7 +221,7 @@ final class Deletion {
 		}
 
 		if ( $file ) {
-			$this->settle( $file_id, $ctx->via(), $ctx->actor_id, $ctx->reason, '' );
+			$this->settle( $file_id, $ctx->via(), $ctx->actor_id, $ctx->reason, '', $ctx->operation_id );
 
 			$fresh = $this->files->get_by_id( $file_id );
 
@@ -351,7 +352,7 @@ final class Deletion {
 	 * @return bool True when the attachment is gone.
 	 */
 	private function remove_attachment( int $attachment_id, Deletion_Context $ctx ): bool {
-		self::flag( array( $attachment_id ), $ctx->reason, $ctx->note, $ctx->actor_id, $ctx->via() );
+		self::flag( array( $attachment_id ), $ctx->reason, $ctx->note, $ctx->actor_id, $ctx->via(), $ctx->operation_id );
 
 		$allow = static function () {
 			return true;
@@ -628,9 +629,10 @@ final class Deletion {
 	 * @param int    $actor_id Acting user id (0 for cron or CLI).
 	 * @param string $reason   operator|request|moderation|cleanup.
 	 * @param string $note     Short operator/moderator note for the audit row.
+	 * @param string $operation_id Batch reference copied onto the audit row.
 	 * @return bool True when this call was the one that settled the row.
 	 */
-	public function settle( int $file_id, string $via, int $actor_id = 0, string $reason = self::REASON_OPERATOR, string $note = '' ): bool {
+	public function settle( int $file_id, string $via, int $actor_id = 0, string $reason = self::REASON_OPERATOR, string $note = '', string $operation_id = '' ): bool {
 		global $wpdb;
 
 		if ( $file_id <= 0 ) {
@@ -669,14 +671,14 @@ final class Deletion {
 		if ( ! $charged_ok ) {
 			Db_Transaction::rollback();
 
-			$this->record( $subject_id, $owner_id, $actor_id, $via, $reason, 'failed', $note );
+			$this->record( $subject_id, $owner_id, $actor_id, $via, $reason, 'failed', $note, $operation_id );
 
 			return false;
 		}
 
 		Db_Transaction::commit();
 
-		$this->record( $subject_id, $owner_id, $actor_id, $via, $reason, 'purged', $note );
+		$this->record( $subject_id, $owner_id, $actor_id, $via, $reason, 'purged', $note, $operation_id );
 
 		return true;
 	}
@@ -705,7 +707,8 @@ final class Deletion {
 			$ctx->via(),
 			$ctx->reason,
 			$result,
-			$ctx->note
+			$ctx->note,
+			$ctx->operation_id
 		);
 	}
 
@@ -723,9 +726,10 @@ final class Deletion {
 	 * @param string          $note           Short human note (already-sanitized label).
 	 * @param int             $actor_id       Acting user id.
 	 * @param string          $via            Audit origin; empty means the WordPress observer path.
+	 * @param string          $operation_id   Batch reference for the audit row.
 	 * @return void
 	 */
-	public static function flag( array $attachment_ids, string $reason, string $note = '', int $actor_id = 0, string $via = '' ): void {
+	public static function flag( array $attachment_ids, string $reason, string $note = '', int $actor_id = 0, string $via = '', string $operation_id = '' ): void {
 		$reason = sanitize_key( $reason );
 		$note   = trim( sanitize_text_field( $note ) );
 
@@ -743,10 +747,11 @@ final class Deletion {
 			}
 
 			self::$flagged[ $attachment_id ] = array(
-				'reason'   => $reason,
-				'note'     => $note,
-				'actor_id' => max( 0, $actor_id ),
-				'via'      => $via,
+				'reason'       => $reason,
+				'note'         => $note,
+				'actor_id'     => max( 0, $actor_id ),
+				'via'          => $via,
+				'operation_id' => substr( trim( $operation_id ), 0, 64 ),
 			);
 		}
 	}
@@ -765,7 +770,7 @@ final class Deletion {
 	 * Read and clear the flag for one attachment.
 	 *
 	 * @param int $attachment_id Attachment id.
-	 * @return array{reason: string, note: string, actor_id: int, via: string}|null
+	 * @return array{reason: string, note: string, actor_id: int, via: string, operation_id: string}|null
 	 */
 	private static function take_flag( int $attachment_id ): ?array {
 		$attachment_id = (int) $attachment_id;
@@ -793,9 +798,10 @@ final class Deletion {
 	 * @param string $reason     Reason.
 	 * @param string $result     purged|failed.
 	 * @param string $note       Short human note, already sanitized.
+	 * @param string $operation_id Batch reference, empty when this call is not part of one.
 	 * @return void
 	 */
-	private function record( int $subject_id, int $owner_id, int $actor_id, string $via, string $reason, string $result, string $note = '' ): void {
+	private function record( int $subject_id, int $owner_id, int $actor_id, string $via, string $reason, string $result, string $note = '', string $operation_id = '' ): void {
 		if ( ! $this->events ) {
 			return;
 		}
@@ -804,10 +810,11 @@ final class Deletion {
 			array(
 				'actor_id'    => $actor_id,
 				'owner_id'    => $owner_id,
-				'subject_id'  => $subject_id,
-				'action'      => 'delete',
-				'result'      => $result,
-				'safe_detail' => $via . ':' . $reason . ( '' !== $note ? '|' . mb_substr( $note, 0, self::NOTE_LIMIT ) : '' ),
+				'subject_id'   => $subject_id,
+				'operation_id' => $operation_id,
+				'action'       => 'delete',
+				'result'       => $result,
+				'safe_detail'  => $via . ':' . $reason . ( '' !== $note ? '|' . mb_substr( $note, 0, self::NOTE_LIMIT ) : '' ),
 			)
 		);
 	}

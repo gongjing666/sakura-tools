@@ -753,10 +753,11 @@ UI::page(
 										<th scope="col"><?php echo esc_html__( '容量使用', 'sakura-imgopt' ); ?></th>
 										<th scope="col"><?php echo esc_html__( '文件', 'sakura-imgopt' ); ?></th>
 										<th scope="col"><?php echo esc_html__( '单独容量（MB）', 'sakura-imgopt' ); ?></th>
+										<th scope="col"><?php echo esc_html__( '处罚', 'sakura-imgopt' ); ?></th>
 									</tr>
 								</thead>
 								<tbody id="sufm-users-body">
-									<tr class="is-loading"><td colspan="4" data-label=""><?php echo esc_html__( '正在读取…', 'sakura-imgopt' ); ?></td></tr>
+									<tr class="is-loading"><td colspan="5" data-label=""><?php echo esc_html__( '正在读取…', 'sakura-imgopt' ); ?></td></tr>
 								</tbody>
 							</table>
 						</div>

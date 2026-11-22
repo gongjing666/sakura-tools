@@ -325,10 +325,331 @@
 				quotaCell.appendChild( quotaWrap );
 				tr.appendChild( quotaCell );
 
+				tr.appendChild( sanctionCell( row ) );
+
 				body.appendChild( tr );
 			} );
 
 			admin.ui.labelTables( body.closest( 'table' ) || document );
+		}
+
+		/*
+		 * The sanction column. A badge when something is in force, a button
+		 * either way — the button opens the same dialog in both cases and the
+		 * dialog itself decides whether to offer "apply" or "revoke".
+		 *
+		 * `can_sanction` is decided by the server (self, administrators and the
+		 * capability are all checked there), so a disabled button here is only
+		 * the visible half of a refusal that would happen anyway.
+		 */
+		function sanctionCell( row ) {
+			var cell = document.createElement( 'td' );
+			var wrap = el( 'div', 'sanction-cell' );
+
+			if ( row.sanction && row.sanction.badge ) {
+				var badge = el( 'span', 'badge badge--warn', row.sanction.badge );
+				badge.title = row.sanction.ends ? row.sanction.ends : ( strings.sanctionForever || '' );
+				wrap.appendChild( badge );
+			}
+
+			var open = el( 'button', 'btn btn--small btn--ghost', strings.sanction || '处罚' );
+			open.type = 'button';
+
+			if ( false === row.can_sanction ) {
+				open.disabled = true;
+				open.title = Number( row.id ) === 0 ? ( strings.sanctionSelf || '' ) : ( strings.sanctionAdmin || '' );
+			} else {
+				open.addEventListener( 'click', function () {
+					openSanction( row, open );
+				} );
+			}
+
+			wrap.appendChild( open );
+			cell.appendChild( wrap );
+			return cell;
+		}
+
+		/*
+		 * The closed reason list is the same one the takedown dialog uses. It is
+		 * sent by the server so the two paths can never drift apart.
+		 */
+		function reasonOptions( data ) {
+			if ( data && Array.isArray( data.reasons ) && data.reasons.length ) {
+				return data.reasons.map( function ( entry ) {
+					return [ String( entry.value ), String( entry.label ) ];
+				} );
+			}
+			return [ [ 'other', strings.sanctionReason || '' ] ];
+		}
+
+		function field( labelText, control, wide ) {
+			var wrap = el( 'label', 'field' + ( wide ? ' field--full' : '' ) );
+			var main = el( 'span', 'field__main' );
+			main.appendChild( el( 'span', 'field__label', labelText ) );
+			wrap.appendChild( main );
+			var box = el( 'span', 'field__control' );
+			box.appendChild( control );
+			wrap.appendChild( box );
+			return wrap;
+		}
+
+		/**
+		 * Sanction dialog: current state, ladder suggestion, apply or revoke.
+		 *
+		 * Everything factual (the ladder, whether the target may be sanctioned)
+		 * comes from GET /admin/users/{id}/sanction so this file never encodes
+		 * policy. The one decision that needs the login name — a permanent ban —
+		 * is gated here and re-checked by the server.
+		 */
+		function openSanction( row, trigger ) {
+			get( 'admin/users/' + encodeURIComponent( row.id ) + '/sanction' ).then( function ( data ) {
+				buildSanctionDialog( row, data || {}, trigger );
+			} ).catch( function ( error ) {
+				admin.ui.toast( strings.sanctionLoadFailed || errorText( error ), 'bad' );
+			} );
+		}
+
+		function buildSanctionDialog( row, data, trigger ) {
+			if ( ! data.can_sanction ) {
+				admin.ui.toast( strings.sanctionAdmin || '', 'bad' );
+				return;
+			}
+
+			var dialog = document.createElement( 'dialog' );
+			dialog.className = 'sakura-dialog';
+
+			var form = document.createElement( 'form' );
+			form.className = 'sakura-dialog__form';
+			form.method = 'dialog';
+
+			var head = el( 'div', 'dialog__body' );
+			head.appendChild( el( 'h2', 'dialog__title', fill( strings.sanctionTitle || '', { name: displayName( row ) } ) ) );
+
+			if ( data.active ) {
+				head.appendChild( el( 'p', 'dialog__message', fill( strings.sanctionActive || '', { label: data.active.label || '' } ) ) );
+			} else {
+				head.appendChild( el( 'p', 'dialog__message', strings.sanctionNone || '' ) );
+			}
+
+			form.appendChild( head );
+
+			var grid = el( 'div', 'field-list sanction-form' );
+			var types = data.types || [];
+			var durations = data.durations || [];
+
+			var typeSelect = document.createElement( 'select' );
+			types.forEach( function ( option ) {
+				var node = document.createElement( 'option' );
+				node.value = String( option.value );
+				node.textContent = String( option.label );
+				typeSelect.appendChild( node );
+			} );
+
+			var daysSelect = document.createElement( 'select' );
+			durations.forEach( function ( option ) {
+				var node = document.createElement( 'option' );
+				node.value = String( option.value );
+				node.textContent = String( option.label );
+				daysSelect.appendChild( node );
+			} );
+			/* Default to the shortest finite window rather than to whatever the
+			 * server lists first: a decision made by reflex should expire. */
+			var firstFinite = durations.filter( function ( option ) {
+				return Number( option.value ) > 0;
+			} )[ 0 ];
+			if ( firstFinite ) {
+				daysSelect.value = String( firstFinite.value );
+			}
+
+			var reasonSelect = document.createElement( 'select' );
+			reasonOptions( data ).forEach( function ( pair ) {
+				var node = document.createElement( 'option' );
+				node.value = pair[ 0 ];
+				node.textContent = pair[ 1 ];
+				reasonSelect.appendChild( node );
+			} );
+
+			var noteInput = document.createElement( 'input' );
+			noteInput.type = 'text';
+			noteInput.maxLength = 120;
+			noteInput.placeholder = strings.sanctionNote || '';
+
+			/* The ladder suggestion only ever pre-fills; the operator can override
+			 * every field. Nothing here decides anything on its own. */
+			var suggestion = data.suggestion || null;
+			if ( suggestion && suggestion.type ) {
+				typeSelect.value = String( suggestion.type );
+			}
+			/* A warning has no duration by definition, so its suggested 0 must
+			 * never reach the select — 0 reads as "permanent" there. */
+			if ( suggestion && suggestion.days !== undefined && suggestion.days !== null && 'warn' !== String( typeSelect.value ) ) {
+				daysSelect.value = String( suggestion.days );
+			}
+
+			var hint = el( 'p', 'field__hint', suggestion && suggestion.reason ? fill( strings.sanctionSuggest || '', { reason: suggestion.reason } ) : '' );
+
+			grid.appendChild( field( strings.sanctionType || '', typeSelect ) );
+			grid.appendChild( field( strings.sanctionDuration || '', daysSelect ) );
+			grid.appendChild( field( strings.sanctionReason || '', reasonSelect ) );
+			grid.appendChild( field( strings.sanctionNote || '', noteInput ) );
+			grid.appendChild( hint );
+			form.appendChild( grid );
+
+			/* A zero-day upload ban means "permanent", so it needs the login name
+			 * typed back. Warn has no end date by definition and skips the gate. */
+			var gateWrap = el( 'div', 'dialog__gate' );
+			var gateLabel = el( 'label', 'dialog__gate-label', fill( strings.sanctionForeverLabel || '', { login: data.user ? data.user.login : '' } ) );
+			var gateInput = document.createElement( 'input' );
+			gateInput.type = 'text';
+			gateInput.className = 'dialog__gate-input';
+			gateInput.autocomplete = 'off';
+			gateInput.spellcheck = false;
+			gateLabel.appendChild( gateInput );
+			gateWrap.appendChild( gateLabel );
+			gateWrap.hidden = true;
+			form.appendChild( gateWrap );
+
+			var actions = el( 'div', 'dialog__actions' );
+
+			var cancel = el( 'button', 'btn btn--ghost', strings.cancel || '取消' );
+			cancel.type = 'button';
+			cancel.addEventListener( 'click', function () {
+				closeSanctionDialog( dialog, null );
+			} );
+			actions.appendChild( cancel );
+
+			var apply = el( 'button', 'btn btn--primary', strings.sanctionApply || '确认处罚' );
+			apply.type = 'button';
+			actions.appendChild( apply );
+
+			var revoke = null;
+			if ( data.active ) {
+				revoke = el( 'button', 'btn btn--danger', strings.sanctionRevoke || '撤销处罚' );
+				revoke.type = 'button';
+				actions.appendChild( revoke );
+			}
+
+			form.appendChild( actions );
+			dialog.appendChild( form );
+
+			function syncGate() {
+				var warn = 'warn' === String( typeSelect.value );
+				/* A warning carries no window, so its duration control is noise —
+				 * leaving it live invites "7 天警告" which the row never stores. */
+				daysSelect.disabled = warn;
+				var permanent = '0' === String( daysSelect.value ) && ! warn;
+				gateWrap.hidden = ! permanent;
+				if ( ! permanent ) {
+					apply.disabled = false;
+					return;
+				}
+				var typed = gateInput.value.trim();
+				apply.disabled = typed !== String( data.user ? data.user.login : '' );
+			}
+
+			typeSelect.addEventListener( 'change', syncGate );
+			daysSelect.addEventListener( 'change', syncGate );
+			gateInput.addEventListener( 'input', syncGate );
+			syncGate();
+
+			dialog.addEventListener( 'cancel', function ( event ) {
+				event.preventDefault();
+				settle( null );
+			} );
+			/* Escape inside a method="dialog" form, or a stray native close, must
+			 * not leave the node behind — settle() is idempotent. */
+			dialog.addEventListener( 'close', function () {
+				settle( null );
+			} );
+
+			var settled = false;
+
+			function settle( outcome ) {
+				if ( settled ) {
+					return;
+				}
+				settled = true;
+
+				if ( typeof dialog.close === 'function' ) {
+					dialog.close();
+				}
+				if ( dialog.parentNode ) {
+					dialog.parentNode.removeChild( dialog );
+				}
+				if ( trigger && trigger.isConnected ) {
+					trigger.focus();
+				}
+				if ( ! outcome ) {
+					return;
+				}
+				var name = displayName( row );
+				if ( 'applied' === outcome ) {
+					admin.ui.toast( fill( strings.sanctionApplied || '', { name: name } ), 'ok' );
+				} else {
+					admin.ui.toast( fill( strings.sanctionRevoked || '', { name: name } ), 'ok' );
+				}
+				loadUsers( pager.page() );
+			}
+
+			apply.addEventListener( 'click', function () {
+				var body = {
+					type: typeSelect.value,
+					/* warn stores no window at all; sending its stale 7 would be a
+					 * lie the row cannot express anyway. */
+					days: 'warn' === typeSelect.value ? 0 : Number( daysSelect.value ),
+					reason_code: reasonSelect.value,
+					note: noteInput.value.trim()
+				};
+
+				if ( body.days === 0 && body.type !== 'warn' ) {
+					body.confirm = gateInput.value.trim();
+				}
+
+				admin.ui.busy( apply, true );
+				request( 'admin/users/' + encodeURIComponent( row.id ) + '/sanction', {
+					method: 'POST',
+					body: body
+				} ).then( function () {
+					settle( 'applied' );
+				} ).catch( function ( error ) {
+					admin.ui.toast( errorText( error ), 'bad' );
+				} ).finally( function () {
+					admin.ui.busy( apply, false );
+				} );
+			} );
+
+			if ( revoke ) {
+				revoke.addEventListener( 'click', function () {
+					admin.ui.confirm( strings.sanctionRevokeMessage || '', {
+						title: fill( strings.sanctionRevokeTitle || '', { name: displayName( row ) } ),
+						note: strings.sanctionRevokeNote || '',
+						tone: 'danger',
+						danger: true,
+						confirmText: strings.sanctionRevoke || '撤销处罚',
+						cancelText: strings.cancel || '取消'
+					} ).then( function ( confirmed ) {
+						if ( ! confirmed ) {
+							return;
+						}
+						request( 'admin/sanctions/' + encodeURIComponent( data.active.id ) + '/revoke', {
+							method: 'POST',
+							body: {}
+						} ).then( function () {
+							settle( 'revoked' );
+						} ).catch( function ( error ) {
+							admin.ui.toast( strings.sanctionRevokeFailed || errorText( error ), 'bad' );
+						} );
+					} );
+				} );
+			}
+
+			( admin.root() || document.body ).appendChild( dialog );
+			if ( typeof dialog.showModal === 'function' ) {
+				dialog.showModal();
+			} else {
+				dialog.setAttribute( 'open', '' );
+			}
+			typeSelect.focus();
 		}
 
 		function loadUsers( page ) {
@@ -337,7 +658,7 @@
 			var loading = document.createElement( 'tr' );
 			loading.className = 'is-loading';
 			var cell = document.createElement( 'td' );
-			cell.colSpan = 4;
+			cell.colSpan = 5;
 			cell.setAttribute( 'data-label', '' );
 			cell.textContent = strings.loading || '正在读取…';
 			loading.appendChild( cell );

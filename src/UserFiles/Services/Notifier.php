@@ -67,6 +67,12 @@ final class Notifier {
 				return __( '删除执行中', 'sakura-imgopt' );
 			case 'moderation':
 				return __( '文件已被管理员下架', 'sakura-imgopt' );
+			case 'sanctioned':
+				return __( '账号已被限制上传', 'sakura-imgopt' );
+			case 'sanction_revoked':
+				return __( '账号处罚已撤销', 'sakura-imgopt' );
+			case 'sanction_expired':
+				return __( '账号处罚已到期', 'sakura-imgopt' );
 			default:
 				return __( '文件管理通知', 'sakura-imgopt' );
 		}
@@ -111,6 +117,23 @@ final class Notifier {
 					__( '管理员已下架您文件空间中的 %d 个文件，占用容量已相应释放。如有疑问请联系站点管理员。', 'sakura-imgopt' ),
 					$count
 				) . $reason;
+			case 'sanctioned':
+				/* The sanction row is the authority for the type and the window;
+				 * the outbox only carries the sentence the operator's decision
+				 * produced, so the copy lives with the decision, not here. */
+				$custom = trim( (string) ( $summary['body'] ?? '' ) );
+
+				return '' !== $custom
+					? $custom
+					: __( '管理员已对您的账号作出处罚，处罚期间不能上传新文件，已有文件仍可自行删除。', 'sakura-imgopt' );
+			case 'sanction_revoked':
+				$custom = trim( (string) ( $summary['body'] ?? '' ) );
+
+				return '' !== $custom
+					? $custom
+					: __( '管理员已撤销对您账号的处罚。此前下架的文件不会恢复。', 'sakura-imgopt' );
+			case 'sanction_expired':
+				return __( '您账号的处罚已到期，上传功能已恢复。', 'sakura-imgopt' );
 			default:
 				return __( '您的文件空间有新的状态更新。', 'sakura-imgopt' );
 		}
@@ -234,13 +257,16 @@ final class Notifier {
 			return 0;
 		}
 
+		$title  = trim( (string) ( $summary['title'] ?? '' ) );
+		$body   = trim( (string) ( $summary['body'] ?? '' ) );
+
 		$message_id = call_user_func(
 			array( $class, $method ),
 			array(
 				'receive_user' => $owner,
 				'type'         => 'system',
-				'title'        => self::title( $status ),
-				'content'      => self::body( $status, $summary ),
+				'title'        => '' !== $title ? $title : self::title( $status ),
+				'content'      => '' !== $body ? $body : self::body( $status, $summary ),
 			)
 		);
 

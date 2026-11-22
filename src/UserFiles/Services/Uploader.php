@@ -81,20 +81,32 @@ final class Uploader {
 	private Events $events;
 
 	/**
+	 * Sanction decisions: read here, never written.
+	 *
+	 * Optional so tests can build the uploader without the sanction graph; when
+	 * absent the guard is simply not armed.
+	 *
+	 * @var Sanction_Service|null
+	 */
+	private ?Sanction_Service $sanctions;
+
+	/**
 	 * Wire dependencies.
 	 *
-	 * @param Files        $files   Files.
-	 * @param Folders      $folders Folders.
-	 * @param Quota        $quota   Quota.
-	 * @param Rate_Limiter $limiter Limiter.
-	 * @param Events       $events  Events.
+	 * @param Files                 $files     Files.
+	 * @param Folders               $folders   Folders.
+	 * @param Quota                 $quota     Quota.
+	 * @param Rate_Limiter          $limiter   Limiter.
+	 * @param Events                $events    Events.
+	 * @param Sanction_Service|null $sanctions Sanction decisions.
 	 */
-	public function __construct( Files $files, Folders $folders, Quota $quota, Rate_Limiter $limiter, Events $events ) {
-		$this->files   = $files;
-		$this->folders = $folders;
-		$this->quota   = $quota;
-		$this->limiter = $limiter;
-		$this->events  = $events;
+	public function __construct( Files $files, Folders $folders, Quota $quota, Rate_Limiter $limiter, Events $events, ?Sanction_Service $sanctions = null ) {
+		$this->files     = $files;
+		$this->folders   = $folders;
+		$this->quota     = $quota;
+		$this->limiter   = $limiter;
+		$this->events    = $events;
+		$this->sanctions = $sanctions;
 	}
 
 	/**
@@ -108,6 +120,18 @@ final class Uploader {
 	 */
 	public function handle( int $owner_id, int $folder_id, array $file, string $key ) {
 		$settings = Settings::get();
+
+		/* Sanctions are judged before anything else: a banned account must not
+		 * learn the shape of the quota, and the message has to say that deleting
+		 * existing files still works — a blocked uploader who thinks the whole
+		 * account is dead stops cleaning up. */
+		if ( $this->sanctions && $this->sanctions->blocks_upload( $owner_id ) ) {
+			return new WP_Error(
+				'sufm_sanction_upload',
+				__( '账号当前处于处罚期，暂时不能上传新文件。你仍可删除已有文件。', 'sakura-imgopt' ),
+				array( 'status' => 403 )
+			);
+		}
 
 		if ( Settings::quota_for( $owner_id ) <= 0 ) {
 			return new WP_Error( 'sufm_quota_blocked', __( '当前账号未分配文件空间，暂时不能上传。', 'sakura-imgopt' ), array( 'status' => 403 ) );

@@ -1256,3 +1256,72 @@
 		width: 30%;
 	}
 }
+
+/* ============================================================
+ * Sanction column (files-users)
+ *
+ * One badge and one button per row. The badge is the visible half of a
+ * decision the server already made: the button opens the same dialog whether
+ * or not a sanction is in force, and the dialog offers "apply" or "revoke"
+ * depending on the active row it fetched.
+ * ============================================================ */
+
+.sakura-admin[data-sakura-page="files-users"] .sakura-files-table th:nth-child(5) {
+	width: 168px;
+}
+
+.sakura-admin[data-sakura-page="files-users"] .sanction-cell {
+	display: flex;
+	align-items: center;
+	justify-content: flex-end;
+	gap: 8px;
+	min-width: 0;
+}
+
+.sakura-admin[data-sakura-page="files-users"] .sanction-cell .badge {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.sakura-admin[data-sakura-page="files-users"] .sanction-cell .btn {
+	flex: none;
+	min-height: 30px;
+	padding-inline: 10px;
+	font-size: 12px;
+}
+
+/* The dialog form: two fields per row on wide screens, one per row in the
+ * narrow dialog and on phones. Mirrors .field-list without inheriting the
+ * page card's narrower gutter. */
+.sakura-admin .sanction-form {
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 14px 18px;
+	margin: 0;
+	padding: 0 26px 6px;
+}
+
+.sakura-admin .sanction-form .field__hint {
+	margin: 0;
+	padding: 4px 0 0;
+}
+
+.sakura-admin .sanction-form .field__control select,
+.sakura-admin .sanction-form .field__control input[type="text"] {
+	width: 100%;
+}
+
+@media (max-width: 782px) {
+	.sakura-admin[data-sakura-page="files-users"] .sakura-files-table th:nth-child(5) {
+		width: auto;
+	}
+
+	.sakura-admin[data-sakura-page="files-users"] .sanction-cell {
+		justify-content: flex-start;
+	}
+
+	.sakura-admin .sanction-form {
+		grid-template-columns: minmax(0, 1fr);
+		padding-inline: 18px;
+	}
+}

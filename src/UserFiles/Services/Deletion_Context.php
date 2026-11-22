@@ -98,6 +98,20 @@ final class Deletion_Context {
 	public string $note;
 
 	/**
+	 * Batch reference shared by every audit row of one decision.
+	 *
+	 * A bulk takedown removes files belonging to several people in one click,
+	 * and the sanction written for each of them has to be joinable back to the
+	 * deletions that justified it. `batch_id` cannot hold this: that column
+	 * belongs to review-execution batches (`Executor`), so two unrelated kinds
+	 * of batch would share one integer field. An empty string means "this call
+	 * is not part of a named batch", and the audit rows simply carry no id.
+	 *
+	 * @var string
+	 */
+	public string $operation_id;
+
+	/**
 	 * Constructor.
 	 *
 	 * @param string $mode         One of the MODE_* constants.
@@ -108,8 +122,9 @@ final class Deletion_Context {
 	 * @param string $via          Audit origin, empty to derive.
 	 * @param bool   $keep_request Keep the caller's request items untouched.
 	 * @param string $note         Audit note.
+	 * @param string $operation_id Batch reference for the audit trail.
 	 */
-	public function __construct( string $mode = self::MODE_FULL, int $actor_id = 0, string $reason = Deletion::REASON_OPERATOR, bool $sync_remote = false, bool $notify_owner = false, string $via = '', bool $keep_request = false, string $note = '' ) {
+	public function __construct( string $mode = self::MODE_FULL, int $actor_id = 0, string $reason = Deletion::REASON_OPERATOR, bool $sync_remote = false, bool $notify_owner = false, string $via = '', bool $keep_request = false, string $note = '', string $operation_id = '' ) {
 		$this->mode         = in_array( $mode, array( self::MODE_FULL, self::MODE_REMOTE_ONLY, self::MODE_TAKEDOWN ), true ) ? $mode : self::MODE_FULL;
 		$this->actor_id     = max( 0, $actor_id );
 		$this->reason       = in_array( $reason, array( Deletion::REASON_OPERATOR, Deletion::REASON_REQUEST, Deletion::REASON_MODERATION, Deletion::REASON_CLEANUP ), true ) ? $reason : Deletion::REASON_OPERATOR;
@@ -118,6 +133,7 @@ final class Deletion_Context {
 		$this->via          = in_array( $via, array( Deletion::VIA_WORDPRESS, Deletion::VIA_PLUGIN, Deletion::VIA_EXECUTOR, Deletion::VIA_CLI ), true ) ? $via : '';
 		$this->keep_request = $keep_request;
 		$this->note         = $note;
+		$this->operation_id = substr( trim( $operation_id ), 0, 64 );
 	}
 
 	/**

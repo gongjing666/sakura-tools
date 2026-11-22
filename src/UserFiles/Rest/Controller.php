@@ -14,11 +14,13 @@ use Nboke\UserFiles\Repositories\Events;
 use Nboke\UserFiles\Repositories\Files;
 use Nboke\UserFiles\Repositories\Folders;
 use Nboke\UserFiles\Repositories\Requests;
+use Nboke\UserFiles\Repositories\Sanctions;
 use Nboke\UserFiles\Schema;
 use Nboke\UserFiles\Services\Executor;
 use Nboke\UserFiles\Services\Notifier;
 use Nboke\UserFiles\Services\Sync_Service;
 use Nboke\UserFiles\Services\Quota;
+use Nboke\UserFiles\Services\Sanction_Service;
 use Nboke\UserFiles\Services\Uploader;
 use Nboke\UserFiles\Settings;
 use Nboke\UserFiles\Support\Time;
@@ -520,26 +522,37 @@ final class Controller {
 	private ?Sync_Service $sync;
 
 	/**
+	 * Sanction decisions.
+	 *
+	 * @var Sanction_Service|null
+	 */
+	private ?Sanction_Service $sanctions;
+
+	/**
 	 * Wire dependencies.
 	 *
-	 * @param Files    $files    Files.
-	 * @param Folders  $folders  Folders.
-	 * @param Requests $requests Requests.
-	 * @param Quota    $quota    Quota.
-	 * @param Uploader $uploader Uploader.
-	 * @param Executor $executor Executor.
-	 * @param Events   $events   Events.
+	 * @param Files                 $files     Files.
+	 * @param Folders               $folders   Folders.
+	 * @param Requests              $requests  Requests.
+	 * @param Quota                 $quota     Quota.
+	 * @param Uploader              $uploader  Uploader.
+	 * @param Executor              $executor  Executor.
+	 * @param Events                $events    Events.
+	 * @param Notifier|null         $notifier  Notifier.
+	 * @param Sync_Service|null     $sync      Scan.
+	 * @param Sanction_Service|null $sanctions Sanction decisions.
 	 */
-	public function __construct( Files $files, Folders $folders, Requests $requests, Quota $quota, Uploader $uploader, Executor $executor, Events $events, ?Notifier $notifier = null, ?Sync_Service $sync = null ) {
-		$this->files    = $files;
-		$this->folders  = $folders;
-		$this->requests = $requests;
-		$this->quota    = $quota;
-		$this->uploader = $uploader;
-		$this->executor = $executor;
-		$this->events   = $events;
-		$this->notifier = $notifier;
-		$this->sync     = $sync;
+	public function __construct( Files $files, Folders $folders, Requests $requests, Quota $quota, Uploader $uploader, Executor $executor, Events $events, ?Notifier $notifier = null, ?Sync_Service $sync = null, ?Sanction_Service $sanctions = null ) {
+		$this->files     = $files;
+		$this->folders   = $folders;
+		$this->requests  = $requests;
+		$this->quota     = $quota;
+		$this->uploader  = $uploader;
+		$this->executor  = $executor;
+		$this->events    = $events;
+		$this->notifier  = $notifier;
+		$this->sync      = $sync;
+		$this->sanctions = $sanctions;
 	}
 
 	/**
@@ -579,6 +592,9 @@ final class Controller {
 			array( '/admin/users', 'GET', 'admin_users', $execute ),
 			array( '/admin/events', 'GET', 'admin_events', $execute ),
 			array( '/admin/users/(?P<id>\d+)/quota', 'PATCH', 'admin_quota', $execute ),
+			array( '/admin/users/(?P<id>\d+)/sanction', 'GET', 'admin_sanction_get', array( $this, 'can_sanction_users' ) ),
+			array( '/admin/users/(?P<id>\d+)/sanction', 'POST', 'admin_sanction_create', array( $this, 'can_sanction_users' ) ),
+			array( '/admin/sanctions/(?P<id>\d+)/revoke', 'POST', 'admin_sanction_revoke', array( $this, 'can_sanction_users' ) ),
 			array( '/admin/reconcile', 'POST', 'admin_reconcile', $execute ),
 			array( '/admin/reset-quotas', 'POST', 'admin_reset_quotas', $execute ),
 			array( '/admin/sync', 'POST', 'admin_sync_start', $execute ),
@@ -637,6 +653,20 @@ final class Controller {
 	 */
 	public function can_execute(): bool {
 		return Capabilities::can_execute();
+	}
+
+	/**
+	 * Capability: decide a sanction against an uploader.
+	 *
+	 * Deliberately separate from `can_execute`: deleting a file and banning a
+	 * person carry different risks, so an operator can hold one without the
+	 * other. The per-target rules (self, administrators) live in
+	 * `Sanction_Service::can_sanction()`, which this cannot answer on its own.
+	 *
+	 * @return bool
+	 */
+	public function can_sanction_users(): bool {
+		return current_user_can( Capabilities::SANCTION_USERS );
 	}
 
 	/**
@@ -2073,10 +2103,11 @@ final class Controller {
 
 		// Four aggregates for the whole page instead of four queries per row
 		// (audit A08): 40 queries at per_page=10, 100+ at per_page=25.
-		$usage   = $this->quota->snapshots( $ids );
-		$files   = $this->files->counts_by_owner( $ids );
-		$folders = $this->folders->counts_by_owner( $ids );
-		$pending = $this->requests->pending_counts_by_owner( $ids );
+		$usage    = $this->quota->snapshots( $ids );
+		$files    = $this->files->counts_by_owner( $ids );
+		$folders  = $this->folders->counts_by_owner( $ids );
+		$pending  = $this->requests->pending_counts_by_owner( $ids );
+		$active   = $this->sanctions ? $this->sanctions->repo()->active_map( $ids ) : array();
 
 		$rows = array();
 
@@ -2087,6 +2118,8 @@ final class Controller {
 				'used'     => 0,
 				'reserved' => 0,
 			);
+
+			$sanction = isset( $active[ $id ] ) ? $active[ $id ] : null;
 
 			$rows[] = array(
 				'id'       => $id,
@@ -2099,6 +2132,15 @@ final class Controller {
 				'files'    => isset( $files[ $id ] ) ? (int) $files[ $id ] : 0,
 				'folders'  => isset( $folders[ $id ] ) ? (int) $folders[ $id ] : 0,
 				'pending'  => isset( $pending[ $id ] ) ? (int) $pending[ $id ] : 0,
+				'sanction'  => null === $sanction ? null : array(
+					'id'    => (int) $sanction->id,
+					'type'  => (string) $sanction->type,
+					'badge' => Sanction_Service::badge( $sanction ),
+					'ends'  => (string) ( $sanction->ends_at ?? '' ),
+				),
+				// Server-side decision so the UI never offers a button the
+				// endpoint would reject anyway.
+				'can_sanction' => $this->sanctions ? $this->sanctions->can_sanction( $id ) : false,
 			);
 		}
 
@@ -2246,6 +2288,195 @@ final class Controller {
 		);
 
 		return rest_ensure_response( array( 'quota' => Settings::quota_for( $user_id ) ) );
+	}
+
+	/**
+	 * Current sanction for one user, plus what the ladder would suggest.
+	 *
+	 * The dialog needs both: the active row (to offer "revoke") and the
+	 * suggestion (to pre-select type and duration) — and the suggestion must be
+	 * computed server-side so the client never has to know the ladder.
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return WP_REST_Response|WP_Error
+	 */
+	public function admin_sanction_get( WP_REST_Request $request ) {
+		if ( ! $this->sanctions ) {
+			return new WP_Error( 'sufm_no_sanctions', __( '处罚服务未初始化。', 'sakura-imgopt' ), array( 'status' => 500 ) );
+		}
+
+		$user_id = (int) $request['id'];
+		$user    = get_user_by( 'id', $user_id );
+
+		if ( ! $user ) {
+			return new WP_Error( 'sufm_user_missing', __( '用户不存在。', 'sakura-imgopt' ), array( 'status' => 404 ) );
+		}
+
+		$repo   = $this->sanctions->repo();
+		$active = $repo->active_for( $user_id, 1 );
+		$active = $active ? $active[0] : null;
+
+		return rest_ensure_response(
+			array(
+				'user'         => array(
+					'id'    => $user_id,
+					'name'  => (string) $user->display_name,
+					'login' => (string) $user->user_login,
+				),
+				'active'       => null === $active ? null : $this->sanction_row( $active ),
+				'suggestion'   => $this->sanctions->suggest( $user_id, '' ),
+				'can_sanction' => $this->sanctions->can_sanction( $user_id ),
+				'types'        => array(
+					array( 'value' => Sanctions::TYPE_WARN, 'label' => __( '仅警告（只通知，不限制上传）', 'sakura-imgopt' ) ),
+					array( 'value' => Sanctions::TYPE_UPLOAD_BAN, 'label' => __( '禁止上传（仍可登录、仍可删除自己文件）', 'sakura-imgopt' ) ),
+				),
+				'durations'    => array(
+					array( 'value' => 7, 'label' => __( '7 天', 'sakura-imgopt' ) ),
+					array( 'value' => 30, 'label' => __( '30 天', 'sakura-imgopt' ) ),
+					array( 'value' => 0, 'label' => __( '永久（需输入用户名确认）', 'sakura-imgopt' ) ),
+				),
+				'reasons'      => $this->sanction_reasons(),
+			)
+		);
+	}
+
+	/**
+	 * The closed reason list, shared with the takedown action.
+	 *
+	 * Same six keys the media library offers, because both paths write the same
+	 * `reason_code` and the audit table must stay comparable across them.
+	 *
+	 * @return array<int, array{value:string,label:string}>
+	 */
+	private function sanction_reasons(): array {
+		return array(
+			array( 'value' => 'copyright', 'label' => __( '侵犯版权', 'sakura-imgopt' ) ),
+			array( 'value' => 'illegal', 'label' => __( '违法违规内容', 'sakura-imgopt' ) ),
+			array( 'value' => 'abuse', 'label' => __( '辱骂或骚扰', 'sakura-imgopt' ) ),
+			array( 'value' => 'privacy', 'label' => __( '泄露他人隐私', 'sakura-imgopt' ) ),
+			array( 'value' => 'policy', 'label' => __( '违反站点规则', 'sakura-imgopt' ) ),
+			array( 'value' => 'other', 'label' => __( '其他', 'sakura-imgopt' ) ),
+		);
+	}
+
+	/**
+	 * Apply a sanction to one uploader.
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return WP_REST_Response|WP_Error
+	 */
+	public function admin_sanction_create( WP_REST_Request $request ) {
+		if ( ! $this->sanctions ) {
+			return new WP_Error( 'sufm_no_sanctions', __( '处罚服务未初始化。', 'sakura-imgopt' ), array( 'status' => 500 ) );
+		}
+
+		$user_id = (int) $request['id'];
+		$user    = get_user_by( 'id', $user_id );
+
+		if ( ! $user ) {
+			return new WP_Error( 'sufm_user_missing', __( '用户不存在。', 'sakura-imgopt' ), array( 'status' => 404 ) );
+		}
+
+		$type = sanitize_key( (string) $request->get_param( 'type' ) );
+		$days = (int) $request->get_param( 'days' );
+
+		if ( ! Sanctions::is_type( $type ) ) {
+			return new WP_Error( 'sufm_sanction_type', __( '处罚类型不合法。', 'sakura-imgopt' ), array( 'status' => 400 ) );
+		}
+
+		/* Permanent means "no end date", so it is the one decision that cannot
+		 * be walked back by time. Requiring the login name typed back makes an
+		 * accidental permanent ban impossible from a mis-click. */
+		if ( 0 === $days && Sanctions::TYPE_WARN !== $type ) {
+			$typed = sanitize_user( (string) $request->get_param( 'confirm' ), true );
+
+			if ( $typed !== (string) $user->user_login ) {
+				return new WP_Error(
+					'sufm_sanction_confirm',
+					__( '永久处罚需要输入该用户的登录名确认。', 'sakura-imgopt' ),
+					array( 'status' => 400 )
+				);
+			}
+		}
+
+		$result = $this->sanctions->apply(
+			array(
+				'owner_id'    => $user_id,
+				'actor_id'    => get_current_user_id(),
+				'type'        => $type,
+				'scope'       => Sanctions::TYPE_UPLOAD_BAN === $type ? Sanctions::SCOPE_PLUGIN : Sanctions::SCOPE_SITE,
+				'reason_code' => sanitize_key( (string) $request->get_param( 'reason_code' ) ),
+				'note'        => sanitize_text_field( (string) $request->get_param( 'note' ) ),
+				'days'        => $days,
+				'source'      => 'manual',
+			)
+		);
+
+		if ( is_wp_error( $result ) ) {
+			return $result;
+		}
+
+		$row = $this->sanctions->repo()->get( $result );
+
+		return rest_ensure_response(
+			array(
+				'ok'      => true,
+				'sanction' => null === $row ? null : $this->sanction_row( $row ),
+			)
+		);
+	}
+
+	/**
+	 * Lift a sanction early.
+	 *
+	 * The files it was about are already gone — deleting is not undone by
+	 * clearing the decision — so the flag travels with the response and the
+	 * client is expected to keep saying so.
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return WP_REST_Response|WP_Error
+	 */
+	public function admin_sanction_revoke( WP_REST_Request $request ) {
+		if ( ! $this->sanctions ) {
+			return new WP_Error( 'sufm_no_sanctions', __( '处罚服务未初始化。', 'sakura-imgopt' ), array( 'status' => 500 ) );
+		}
+
+		$id     = (int) $request['id'];
+		$result = $this->sanctions->revoke( $id, get_current_user_id() );
+
+		if ( is_wp_error( $result ) ) {
+			return $result;
+		}
+
+		return rest_ensure_response(
+			array(
+				'ok'              => true,
+				'content_restored' => false,
+			)
+		);
+	}
+
+	/**
+	 * Wire shape of one sanction row.
+	 *
+	 * @param object $row Row.
+	 * @return array<string, mixed>
+	 */
+	private function sanction_row( object $row ): array {
+		return array(
+			'id'          => (int) $row->id,
+			'owner_id'    => (int) $row->owner_id,
+			'type'        => (string) $row->type,
+			'scope'       => (string) $row->scope,
+			'reason_code' => (string) $row->reason_code,
+			'note'        => (string) $row->note,
+			'starts_at'   => (string) $row->starts_at,
+			'ends_at'     => (string) ( $row->ends_at ?? '' ),
+			'permanent'   => null === $row->ends_at || '' === (string) $row->ends_at,
+			'state'       => (string) $row->state,
+			'label'       => Sanction_Service::describe( $row ),
+			'badge'       => Sanction_Service::badge( $row ),
+		);
 	}
 
 	/**

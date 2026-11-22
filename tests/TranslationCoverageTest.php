@@ -27,8 +27,13 @@ final class TranslationCoverageTest extends TestCase {
 	 * Every Chinese PHP string literal must be passed to a translation function.
 	 */
 	public function test_no_untranslated_chinese_literals(): void {
-		$root    = dirname( __DIR__ );
-		$skip    = array( '/vendor/', '/tests/', '/languages/', '/stubs/', '/.git/' );
+		$root = dirname( __DIR__ );
+		/* `docs/验收脚本/` holds one-off `wp eval-file` assertions. Their Chinese
+		 * strings are check labels printed to a terminal by an operator, never
+		 * shown to a site user, so translating them would only make the output
+		 * harder to read. They also never ship: `docs/` is stripped from the
+		 * release zip. */
+		$skip    = array( '/vendor/', '/tests/', '/languages/', '/stubs/', '/.git/', '/docs/验收脚本/' );
 		$funcs   = array( '__', '_e', 'esc_html__', 'esc_attr__', 'esc_html_e', 'esc_attr_e', '_x', '_ex', '_n', 'esc_html_x', 'esc_attr_x' );
 		$raw     = array();
 		$iterator = new RecursiveIteratorIterator( new RecursiveDirectoryIterator( $root ) );

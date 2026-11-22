@@ -62,6 +62,13 @@ body.upload-php.sufm-tree-active .sufm-transfer-summary{display:grid;grid-templa
 body.upload-php.sufm-tree-active .sufm-transfer-summary dd{margin:0;font-variant-numeric:tabular-nums}
 body.upload-php.sufm-tree-active .sufm-target-path{font-weight:600;overflow-wrap:anywhere}
 body.upload-php.sufm-tree-active .sufm-transfer-note{color:var(--sufm-muted)}
+/* Sanction block inside the takedown dialog: collapsed until the operator
+   ticks "also punish the uploader", so the default stays "remove + notify". */
+body.upload-php.sufm-tree-active .sufm-takedown-sanction{margin-top:14px;padding-top:12px;border-top:1px solid var(--sufm-line)}
+body.upload-php.sufm-tree-active .sufm-takedown-sanction-fields{display:grid;gap:8px}
+body.upload-php.sufm-tree-active .sufm-takedown-sanction-fields[hidden]{display:none}
+body.upload-php.sufm-tree-active .sufm-takedown-sanction-fields select{max-width:100%}
+@media(max-width:600px){body.upload-php.sufm-tree-active .sufm-takedown-sanction-fields{gap:6px}}
 body.upload-php.sufm-tree-active .sufm-feedback{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);z-index:160200;max-width:min(560px,calc(100vw - 32px));padding:12px 18px;border-radius:10px;background:#242a34;color:#fff;box-shadow:0 8px 30px #0002;white-space:normal;overflow-wrap:anywhere}
 body.upload-php.sufm-tree-active .sufm-feedback.is-error{background:#8e232d}
 body.upload-php.sufm-tree-active .sufm-drag-ghost{position:fixed;left:-9999px;padding:12px 18px;border-radius:8px;background:#3858e9;color:#fff}

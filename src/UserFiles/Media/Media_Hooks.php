@@ -19,11 +19,13 @@ use Nboke\UserFiles\Repositories\Files;
 use Nboke\UserFiles\Repositories\Folders;
 use Nboke\UserFiles\Repositories\Notifications;
 use Nboke\UserFiles\Repositories\Requests;
+use Nboke\UserFiles\Repositories\Sanctions;
 use Nboke\UserFiles\Services\Deletion;
 use Nboke\UserFiles\Services\Deletion_Context;
 use Nboke\UserFiles\Services\Deletion_Result;
 use Nboke\UserFiles\Services\Media_Adoption;
 use Nboke\UserFiles\Services\Quota;
+use Nboke\UserFiles\Services\Sanction_Service;
 use Nboke\UserFiles\Services\Sync_Service;
 use Nboke\UserFiles\Services\Uploader;
 use Nboke\UserFiles\Schema;
@@ -169,14 +171,25 @@ final class Media_Hooks {
 	 */
 	private ?Delete_Jobs $delete_jobs = null;
 
-	public function __construct( Files $files, Folders $folders, Requests $requests, ?Sync_Service $sync = null, ?Quota $quota = null, ?Events $events = null, ?Notifications $outbox = null ) {
-		$this->files    = $files;
-		$this->folders  = $folders;
-		$this->requests = $requests;
-		$this->sync     = $sync;
-		$this->quota    = $quota;
-		$this->events   = $events;
-		$this->outbox   = $outbox;
+	/**
+	 * Sanction decisions for the moderation surfaces (upload guard, takedown).
+	 *
+	 * Optional so the media hooks can be built without the sanction graph; the
+	 * delete guards must stay armed even then.
+	 *
+	 * @var Sanction_Service|null
+	 */
+	private ?Sanction_Service $sanctions;
+
+	public function __construct( Files $files, Folders $folders, Requests $requests, ?Sync_Service $sync = null, ?Quota $quota = null, ?Events $events = null, ?Notifications $outbox = null, ?Sanction_Service $sanctions = null ) {
+		$this->files     = $files;
+		$this->folders   = $folders;
+		$this->requests  = $requests;
+		$this->sync      = $sync;
+		$this->quota     = $quota;
+		$this->events    = $events;
+		$this->outbox    = $outbox;
+		$this->sanctions = $sanctions;
 	}
 
 	/**
@@ -916,6 +929,43 @@ final class Media_Hooks {
 		$actor  = get_current_user_id();
 		$ids    = $this->normalize_ids( (array) $post_ids );
 
+		/* A takedown is a batch, and a batch needs a name: the same string goes
+		 * on every delete event, every sanction event and the outbox keys, so one
+		 * query can reconstruct "this decision removed these files and punished
+		 * these people". It is deliberately not `batch_id` — that column belongs
+		 * to the review-execution batches. */
+		$operation_id = 'takedown:' . gmdate( 'YmdHis' ) . '-' . $actor;
+
+		/* Sanctioning is opt-in and never implied by a takedown: a copyright
+		 * complaint can arrive before anyone knows who was right, and a deletion
+		 * cannot be undone, so treating every takedown as a verdict would make
+		 * the plugin the judge of the uploader's intent. */
+		// phpcs:disable WordPress.Security.NonceVerification.Recommended -- Core verifies bulk-media before this filter runs.
+		$punish  = isset( $_REQUEST['sufm_takedown_sanction'] ) && '1' === (string) wp_unslash( (string) $_REQUEST['sufm_takedown_sanction'] );
+		$ban     = isset( $_REQUEST['sufm_takedown_sanction_type'] ) && is_scalar( $_REQUEST['sufm_takedown_sanction_type'] ) ? sanitize_key( wp_unslash( (string) $_REQUEST['sufm_takedown_sanction_type'] ) ) : '';
+		$ban_days = isset( $_REQUEST['sufm_takedown_sanction_days'] ) ? (int) wp_unslash( (string) $_REQUEST['sufm_takedown_sanction_days'] ) : 0;
+		// phpcs:enable WordPress.Security.NonceVerification.Recommended
+
+		if ( ! in_array( $ban, array( Sanctions::TYPE_WARN, Sanctions::TYPE_UPLOAD_BAN ), true ) ) {
+			$ban = Sanctions::TYPE_WARN;
+		}
+
+		/* The dialog only ever offers a finite window: it knows attachment IDs but
+		 * not who owns them, so it cannot ask for the typed username a permanent
+		 * ban requires. Permanent bans live on the users tab, where the target is
+		 * known before the button is pressed.
+		 *
+		 * `days = 0` therefore means "the dialog did not send a window" (a warning,
+		 * or a tampered query string), never "forever": in Sanction_Service a zero
+		 * day window is what a permanent row looks like. Clamping from below keeps
+		 * a hand-crafted `?sufm_takedown_sanction_days=0` from turning one bulk
+		 * action into an endless ban. */
+		if ( Sanctions::TYPE_WARN === $ban ) {
+			$ban_days = 0;
+		} else {
+			$ban_days = max( 1, min( 30, $ban_days ) );
+		}
+
 		if ( ! $ids ) {
 			return add_query_arg(
 				array(
@@ -933,6 +983,7 @@ final class Media_Hooks {
 		$partial = 0;
 		$skipped = 0;
 		$targets = array();
+		$sanctioned = 0;
 
 		foreach ( $ids as $id ) {
 			$post = get_post( $id );
@@ -963,10 +1014,17 @@ final class Media_Hooks {
 				true,
 				Deletion::VIA_PLUGIN,
 				false,
-				$detail
+				$detail,
+				$operation_id
 			);
 
 			$result = $this->deletion()->delete( $targets, $ctx );
+
+			/* One takedown batch can touch files owned by several people, so the
+			 * outcome is collected per owner first and turned into one message
+			 * (and at most one sanction) each. Enqueueing per attachment would
+			 * put 200 rows in the outbox for one decision. */
+			$by_owner = array();
 
 			foreach ( $result->items() as $item ) {
 				$status = (string) ( $item['status'] ?? '' );
@@ -980,7 +1038,8 @@ final class Media_Hooks {
 					continue;
 				}
 
-				$id = (int) ( $item['attachment_id'] ?? 0 );
+				$id      = (int) ( $item['attachment_id'] ?? 0 );
+				$summary = $this->summaries[ $id ] ?? null;
 
 				if ( Deletion_Result::PARTIAL === $status ) {
 					$partial++;
@@ -988,54 +1047,118 @@ final class Media_Hooks {
 					$done++;
 				}
 
-				$summary = $this->summaries[ $id ] ?? null;
+				$owner_id = is_array( $summary )
+					? (int) ( $summary['owner_id'] ?? 0 )
+					: (int) get_post_field( 'post_author', $id );
 
-				if ( is_array( $summary ) ) {
-					$this->notify_takedown( $id, $summary, $detail );
-				} else {
-					$this->log_takedown( $id, $detail );
+				if ( ! is_array( $summary ) ) {
+					// No ledger row: the settlement observer writes nothing, so
+					// the removal still needs its own audit line.
+					$this->log_takedown( $id, $detail, $operation_id );
+				}
+
+				if ( $owner_id <= 0 ) {
+					continue;
+				}
+
+				if ( ! isset( $by_owner[ $owner_id ] ) ) {
+					$by_owner[ $owner_id ] = 0;
+				}
+
+				/* Only a completed removal counts as the incident: a file whose
+				 * bucket copy is still pending was not taken down yet, and a
+				 * skipped one was not touched at all. */
+				if ( Deletion_Result::DELETED === $status ) {
+					++$by_owner[ $owner_id ];
 				}
 			}
+
+			$sanctioned = $this->settle_batch( $by_owner, $detail, $reason, $note, $operation_id, $punish, $ban, $ban_days );
 		}
 
 		return add_query_arg(
 			array(
-				'sufm_takedown_done'    => $done,
-				'sufm_takedown_partial' => $partial,
-				'sufm_takedown_skipped' => $skipped,
+				'sufm_takedown_done'      => $done,
+				'sufm_takedown_partial'   => $partial,
+				'sufm_takedown_skipped'   => $skipped,
+				'sufm_takedown_sanctioned' => $sanctioned,
 			),
 			$fallback
 		);
 	}
 
 	/**
-	 * Tell the owner once per file that it was taken down.
+	 * Notify every affected owner once, then apply the opt-in sanction.
 	 *
-	 * @param int                  $attachment_id Attachment ID.
-	 * @param array<string, mixed> $summary       Ledger summary.
-	 * @param string               $detail        Reason label and note.
+	 * @param array<int, int> $by_owner     Owner id => removed file count.
+	 * @param string          $detail       Reason label and note.
+	 * @param string          $reason       Reason key.
+	 * @param string          $note         Operator note.
+	 * @param string          $operation_id Batch reference.
+	 * @param bool            $punish       Whether the operator ticked the box.
+	 * @param string          $type         Sanction type.
+	 * @param int             $days         Duration; 0 means permanent.
+	 * @return int Owners that received a new sanction.
+	 */
+	private function settle_batch( array $by_owner, string $detail, string $reason, string $note, string $operation_id, bool $punish, string $type, int $days ): int {
+		$sanctioned = 0;
+
+		foreach ( $by_owner as $owner_id => $count ) {
+			$owner_id = (int) $owner_id;
+
+			$this->notify_takedown( $owner_id, $count, $detail, $operation_id );
+
+			if ( ! $punish || $count <= 0 || ! $this->sanctions ) {
+				continue;
+			}
+
+			$result = $this->sanctions->apply(
+				array(
+					'owner_id'     => $owner_id,
+					'actor_id'     => get_current_user_id(),
+					'type'         => $type,
+					'scope'        => Sanctions::SCOPE_PLUGIN,
+					'reason_code'  => $reason,
+					'note'         => $note,
+					'days'         => Sanctions::TYPE_WARN === $type ? 0 : $days,
+					'operation_id' => $operation_id,
+					'source'       => 'manual',
+				)
+			);
+
+			if ( ! is_wp_error( $result ) ) {
+				++$sanctioned;
+			}
+		}
+
+		return $sanctioned;
+	}
+
+	/**
+	 * Tell one owner how many of their files this batch removed.
+	 *
+	 * @param int    $owner_id     Owner.
+	 * @param int    $count        Removed files.
+	 * @param string $detail       Reason label and note.
+	 * @param string $operation_id Batch reference.
 	 * @return void
 	 */
-	private function notify_takedown( int $attachment_id, array $summary, string $detail ): void {
-		if ( ! $this->outbox ) {
+	private function notify_takedown( int $owner_id, int $count, string $detail, string $operation_id ): void {
+		if ( ! $this->outbox || $owner_id <= 0 || $count <= 0 ) {
 			return;
 		}
 
-		$owner_id = (int) ( $summary['owner_id'] ?? 0 );
-
-		if ( $owner_id <= 0 ) {
-			return;
-		}
-
+		/* Keyed by the batch, not the attachment: re-running the same batch
+		 * (double submit, back button) must not queue a second message. */
 		$this->outbox->enqueue(
 			$owner_id,
 			0,
 			'moderation',
 			array(
-				'count'  => 1,
+				'count'  => $count,
 				'reason' => $detail,
 			),
-			'sufm-moderation:' . get_current_blog_id() . ':' . $attachment_id
+			'takedown:' . get_current_blog_id() . ':' . $owner_id . ':' . substr( $operation_id, 9, 40 )
 		);
 	}
 
@@ -1047,21 +1170,23 @@ final class Media_Hooks {
 	 *
 	 * @param int    $attachment_id Attachment ID.
 	 * @param string $detail        Reason label and note.
+	 * @param string $operation_id  Batch reference.
 	 * @return void
 	 */
-	private function log_takedown( int $attachment_id, string $detail ): void {
+	private function log_takedown( int $attachment_id, string $detail, string $operation_id = '' ): void {
 		if ( ! $this->events ) {
 			return;
 		}
 
 		$this->events->log(
 			array(
-				'actor_id'    => get_current_user_id(),
-				'owner_id'    => (int) get_post_field( 'post_author', $attachment_id ),
-				'subject_id'  => $attachment_id,
-				'action'      => 'delete',
-				'result'      => 'purged',
-				'safe_detail' => Deletion::VIA_PLUGIN . ':' . Deletion::REASON_MODERATION . '|' . mb_substr( $detail, 0, 80 ),
+				'actor_id'     => get_current_user_id(),
+				'owner_id'     => (int) get_post_field( 'post_author', $attachment_id ),
+				'subject_id'   => $attachment_id,
+				'operation_id' => $operation_id,
+				'action'       => 'delete',
+				'result'       => 'purged',
+				'safe_detail'  => Deletion::VIA_PLUGIN . ':' . Deletion::REASON_MODERATION . '|' . mb_substr( $detail, 0, 80 ),
 			)
 		);
 	}
@@ -1140,6 +1265,18 @@ final class Media_Hooks {
 		}
 
 		if ( ! empty( $file['error'] ) ) {
+			return $file;
+		}
+
+		/* A sanctioned uploader is refused before any policy is judged: the
+		 * allow list and the quota are not the reason they are here, and a
+		 * "file too large" message would hide the actual one. Placed after the
+		 * capability gate on purpose — accounts without `upload_files` (most
+		 * subscribers) never reach this, so a plugin-scoped ban never touches
+		 * their avatar uploads. */
+		if ( $this->sanctions && $this->sanctions->blocks_upload( (int) $owner ) ) {
+			$file['error'] = __( '账号当前处于处罚期，暂时不能上传新文件。你仍可删除已有文件。', 'sakura-imgopt' );
+
 			return $file;
 		}
 
@@ -1499,6 +1636,15 @@ final class Media_Hooks {
 					'takedownConfirm' => __( '确认下架', 'sakura-imgopt' ),
 					'takedownCancel' => __( '取消', 'sakura-imgopt' ),
 					'takedownNeedReason' => __( '请选择下架理由。', 'sakura-imgopt' ),
+					'takedownSanction' => __( '同时处罚上传者（可选）', 'sakura-imgopt' ),
+					'takedownSanctionHint' => __( '下架本身不代表上传者一定违规（例如版权投诉可能是误传）。勾选后会对本次每个上传者各记一条处罚，并发送通知。', 'sakura-imgopt' ),
+					'takedownSanctionType' => __( '处罚方式', 'sakura-imgopt' ),
+					'takedownSanctionWarn' => __( '仅警告（只通知，不限制上传）', 'sakura-imgopt' ),
+					'takedownSanctionUpload' => __( '禁止上传（仍可登录、仍可删除自己文件）', 'sakura-imgopt' ),
+					'takedownSanctionDays' => __( '处罚期限', 'sakura-imgopt' ),
+					/* translators: %d: number of days */
+					'takedownSanctionDaysOption' => __( '%d 天', 'sakura-imgopt' ),
+					'takedownSanctionForeverTip' => __( '永久处罚只能在该用户的「处罚」按钮里操作，需要输入登录名确认。', 'sakura-imgopt' ),
 					'needSelection' => __( '请先选择要处理的文件。', 'sakura-imgopt' ),
 					'takedownReasons' => self::takedown_reasons(),
 					/* translators: %d: number of selected files */
@@ -1671,6 +1817,19 @@ final class Media_Hooks {
 					/* translators: %d: files skipped. */
 					__( '跳过 %d 个', 'sakura-imgopt' ),
 					$skipped
+				);
+			}
+
+			// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only result flag.
+			$sanctioned = isset( $_GET['sufm_takedown_sanctioned'] ) && is_scalar( $_GET['sufm_takedown_sanctioned'] )
+				? absint( wp_unslash( (string) $_GET['sufm_takedown_sanctioned'] ) )
+				: 0;
+
+			if ( $sanctioned > 0 ) {
+				$bits[] = sprintf(
+					/* translators: %d: uploaders the batch sanctioned. */
+					__( '已处罚 %d 名上传者', 'sakura-imgopt' ),
+					$sanctioned
 				);
 			}
 

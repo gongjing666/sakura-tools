@@ -43,6 +43,15 @@ final class Capabilities {
 	public const DELETE_FILES = 'sufm_admin_delete_files';
 
 	/**
+	 * Decide that an uploader is sanctioned (warn, block uploads, block login).
+	 *
+	 * Kept apart from DELETE_FILES on purpose: removing a file and judging the
+	 * person who uploaded it are different risks, so an operator can be trusted
+	 * with one and not the other.
+	 */
+	public const SANCTION_USERS = 'sufm_admin_sanction_users';
+
+	/**
 	 * The two user-facing capabilities granted to every role.
 	 *
 	 * @return array<int, string>
@@ -57,7 +66,7 @@ final class Capabilities {
 	 * @return array<int, string>
 	 */
 	public static function admin_caps(): array {
-		return array( self::REVIEW, self::DELETE_FILES, self::MANAGE_MEDIA, self::TRANSFER );
+		return array( self::REVIEW, self::DELETE_FILES, self::MANAGE_MEDIA, self::TRANSFER, self::SANCTION_USERS );
 	}
 
 	/**
@@ -149,6 +158,28 @@ final class Capabilities {
 	 */
 	public static function mark_managed(): void {
 		update_option( self::SEED_OPTION, '1', false );
+	}
+
+	/**
+	 * Grant the sanction capability once, on sites that predate it.
+	 *
+	 * Runs on the same admin_init pass as the schema upgrade. `grant_defaults()`
+	 * cannot carry this one: on an existing site it is already a no-op because
+	 * the operator has edited the matrix, so a capability added later would
+	 * never reach the administrator role.
+	 */
+	public static function upgrade_sanction_caps(): void {
+		if ( '1' === (string) get_option( 'sufm_sanction_caps_version', '' ) ) {
+			return;
+		}
+
+		$role = get_role( 'administrator' );
+
+		if ( $role ) {
+			$role->add_cap( self::SANCTION_USERS );
+		}
+
+		update_option( 'sufm_sanction_caps_version', '1', false );
 	}
 
 	/** Grant only the newly introduced caps once during upgrade, not on each request. */

@@ -37,7 +37,7 @@ namespace Sakura\ImageOptimizer\Tests {
 			parent::tearDown();
 		}
 
-		public function test_caps_are_exactly_the_six_plugin_capabilities(): void {
+		public function test_caps_are_exactly_the_seven_plugin_capabilities(): void {
 			$this->assertSame(
 				array(
 					Capabilities::MANAGE_OWN,
@@ -46,6 +46,7 @@ namespace Sakura\ImageOptimizer\Tests {
 					Capabilities::DELETE_FILES,
 					Capabilities::MANAGE_MEDIA,
 					Capabilities::TRANSFER,
+					Capabilities::SANCTION_USERS,
 				),
 				array_keys( Capability_Matrix::caps() )
 			);

@@ -26,7 +26,7 @@ final class Schema {
 	/**
 	 * Current schema version.
 	 */
-	public const VERSION = '1.6.0';
+	public const VERSION = '1.7.0';
 
 	/**
 	 * Option holding the installed schema version.
@@ -55,6 +55,7 @@ final class Schema {
 			'notifications',
 			'rate_limits',
 			'space_grants',
+			'sanctions',
 		);
 	}
 
@@ -200,6 +201,7 @@ final class Schema {
 		$notifications = self::table( 'notifications' );
 		$rate_limits  = self::table( 'rate_limits' );
 		$space_grants = self::table( 'space_grants' );
+		$sanctions    = self::table( 'sanctions' );
 
 		$operations = self::table( 'media_operations' );
 		return array(
@@ -475,6 +477,39 @@ final class Schema {
 				KEY order_lookup (order_id),
 				KEY order_num (order_num),
 				KEY state_updated (state,updated_at)
+			) {$charset};",
+			"CREATE TABLE {$sanctions} (
+				id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+				blog_id bigint(20) unsigned NOT NULL DEFAULT 0,
+				owner_id bigint(20) unsigned NOT NULL DEFAULT 0,
+				actor_id bigint(20) unsigned NOT NULL DEFAULT 0,
+				operation_id varchar(64) NOT NULL DEFAULT '',
+				type varchar(20) NOT NULL DEFAULT '',
+				scope varchar(20) NOT NULL DEFAULT 'plugin',
+				reason_code varchar(32) NOT NULL DEFAULT '',
+				note text NOT NULL,
+				starts_at datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
+				ends_at datetime NULL DEFAULT NULL,
+				state varchar(20) NOT NULL DEFAULT 'active',
+				source varchar(20) NOT NULL DEFAULT 'manual',
+				enforcer varchar(20) NOT NULL DEFAULT 'native',
+				adapter_ref varchar(64) NOT NULL DEFAULT '',
+				appeal_state varchar(20) NOT NULL DEFAULT 'none',
+				appeal_note text NOT NULL,
+				appeal_at datetime NULL DEFAULT NULL,
+				appeal_decided_by bigint(20) unsigned NOT NULL DEFAULT 0,
+				appeal_decided_at datetime NULL DEFAULT NULL,
+				notified_at datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
+				expired_notified_at datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
+				created_at datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
+				updated_at datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
+				revoked_at datetime NULL DEFAULT NULL,
+				revoked_by bigint(20) unsigned NOT NULL DEFAULT 0,
+				meta longtext NOT NULL,
+				PRIMARY KEY  (id),
+				KEY owner_state (owner_id,state,ends_at),
+				KEY state_ends (state,ends_at),
+				KEY operation (operation_id)
 			) {$charset};",
 		);
 	}

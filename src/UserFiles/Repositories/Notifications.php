@@ -45,6 +45,11 @@ final class Notifications {
 				'count'      => (int) ( $summary['count'] ?? 0 ),
 				'bytes'      => (int) ( $summary['bytes'] ?? 0 ),
 				'reason'     => isset( $summary['reason'] ) ? mb_substr( (string) $summary['reason'], 0, 120 ) : '',
+				// Decisions carry their own sentence: the type and the window are
+				// on the sanction row, so the copy must travel with the event
+				// instead of being re-derived from a status string here.
+				'title'      => isset( $summary['title'] ) ? mb_substr( (string) $summary['title'], 0, 120 ) : '',
+				'body'       => isset( $summary['body'] ) ? mb_substr( (string) $summary['body'], 0, 500 ) : '',
 			)
 		);
 

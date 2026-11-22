@@ -14,12 +14,14 @@ use Nboke\UserFiles\Repositories\Files;
 use Nboke\UserFiles\Repositories\Folders;
 use Nboke\UserFiles\Repositories\Notifications;
 use Nboke\UserFiles\Repositories\Requests;
+use Nboke\UserFiles\Repositories\Sanctions;
 use Nboke\UserFiles\Rest\Controller;
 use Nboke\UserFiles\Services\Deletion;
 use Nboke\UserFiles\Services\Executor;
 use Nboke\UserFiles\Services\Notifier;
 use Nboke\UserFiles\Services\Quota;
 use Nboke\UserFiles\Services\Rate_Limiter;
+use Nboke\UserFiles\Services\Sanction_Service;
 use Nboke\UserFiles\Services\Sync_Service;
 use Nboke\UserFiles\Services\Theme_Limits;
 use Nboke\UserFiles\Services\Uploader;
@@ -90,7 +92,7 @@ final class Module implements Module_Contract {
 		// The delete guards must stay armed even while the feature is off, or
 		// managed attachments become deletable straight from the media library.
 		if ( class_exists( 'Nboke\\UserFiles\\Media\\Media_Hooks' ) ) {
-			( new Media\Media_Hooks( $services['files'], $services['folders'], $services['requests'], $services['sync'], $services['quota'], $services['events'], $services['outbox'] ) )->register_hooks( $hooks );
+			( new Media\Media_Hooks( $services['files'], $services['folders'], $services['requests'], $services['sync'], $services['quota'], $services['events'], $services['outbox'], $services['sanctioning'] ) )->register_hooks( $hooks );
 		}
 
 		// The REST surface carries the media library folder tree and transfer
@@ -229,24 +231,28 @@ final class Module implements Module_Contract {
 		$outbox      = new Notifications();
 		$notifier    = new Notifier( $outbox );
 		$limiter     = new Rate_Limiter();
-		$uploader    = new Uploader( $files, $folders, $quota, $limiter, $events );
+		$sanctions   = new Sanctions();
+		$sanctioning = new Sanction_Service( $sanctions, $events, $outbox, $notifier );
+		$uploader    = new Uploader( $files, $folders, $quota, $limiter, $events, $sanctioning );
 		$deletion    = new Deletion( $files, $quota, $events );
 		$executor    = new Executor( $files, $folders, $requests, $quota, $notifier, $deletion );
 		$sync        = new Sync_Service( $files, $quota );
 
 		$this->services = array(
-			'events'   => $events,
-			'files'    => $files,
-			'folders'  => $folders,
-			'requests' => $requests,
-			'quota'    => $quota,
-			'outbox'   => $outbox,
-			'notifier' => $notifier,
-			'limiter'  => $limiter,
-			'uploader' => $uploader,
-			'deletion' => $deletion,
-			'executor' => $executor,
-			'sync'     => $sync,
+			'events'      => $events,
+			'files'       => $files,
+			'folders'     => $folders,
+			'requests'    => $requests,
+			'quota'       => $quota,
+			'outbox'      => $outbox,
+			'notifier'    => $notifier,
+			'limiter'     => $limiter,
+			'sanctions'   => $sanctions,
+			'sanctioning' => $sanctioning,
+			'uploader'    => $uploader,
+			'deletion'    => $deletion,
+			'executor'    => $executor,
+			'sync'        => $sync,
 		);
 
 		return $this->services;
@@ -260,6 +266,7 @@ final class Module implements Module_Contract {
 	public function maybe_install(): void {
 		Schema::maybe_install();
 		Capabilities::upgrade_media_caps();
+		Capabilities::upgrade_sanction_caps();
 		// Roles are a per-site option, not a schema version: grant the defaults
 		// once on sites that installed the module before those capabilities
 		// existed. After that the matrix card owns them, so a per-request grant
@@ -284,7 +291,8 @@ final class Module implements Module_Contract {
 			$services['executor'],
 			$services['events'],
 			$services['notifier'],
-			$services['sync']
+			$services['sync'],
+			$services['sanctioning']
 		) )->register();
 	}
 
@@ -334,6 +342,11 @@ final class Module implements Module_Contract {
 		$services['notifier']->deliver_due( 20 );
 		( new \Nboke\UserFiles\Services\Media_Notifications() )->deliver_due( 10 );
 		$services['sync']->tick( 600 );
+
+		// Sanctions stop applying the moment `ends_at` passes (every reader
+		// checks the window), so this only closes the rows and sends the
+		// closing notice. It never decides whether a user is blocked.
+		$services['sanctioning']->expire_due( 50 );
 
 		// 1.5.0 leftovers: keep filling mime_group in the background until the
 		// install-time batches are done, then drop the marker.

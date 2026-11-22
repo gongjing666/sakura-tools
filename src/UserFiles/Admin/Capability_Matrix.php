@@ -81,6 +81,11 @@ final class Capability_Matrix {
 				'label' => __( '转移归属', 'sakura-imgopt' ),
 				'hint'  => __( '把媒体库文件转给另一个用户。', 'sakura-imgopt' ),
 			),
+			Capabilities::SANCTION_USERS => array(
+				'abbr'  => __( '罚', 'sakura-imgopt' ),
+				'label' => __( '处罚用户', 'sakura-imgopt' ),
+				'hint'  => __( '对违规上传者发出警告、限制上传、撤销处罚。删文件不等于能罚人，这两项刻意分开。', 'sakura-imgopt' ),
+			),
 		);
 	}
 

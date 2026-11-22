@@ -604,9 +604,48 @@
 		selectLabel.appendChild( select ); d.body.appendChild( selectLabel );
 		var noteLabel = text( 'label', 'sufm-modal-folder', t( 'takedownNote' ) ), note = document.createElement( 'textarea' );
 		note.rows = 3; note.maxLength = 120; noteLabel.appendChild( note ); d.body.appendChild( noteLabel );
+
+		/* The punish block is opt-in: a takedown is a removal, not a verdict.
+		 * A copyright complaint can be an honest mistake, so the default must
+		 * stay "remove the file, tell the uploader". */
+		var punishWrap = text( 'div', 'sufm-takedown-sanction' );
+		var punishLabel = text( 'label', 'sufm-modal-check' );
+		var punish = document.createElement( 'input' ); punish.type = 'checkbox';
+		punishLabel.appendChild( punish ); punishLabel.appendChild( document.createTextNode( ' ' + t( 'takedownSanction' ) ) );
+		punishWrap.appendChild( punishLabel );
+		punishWrap.appendChild( text( 'p', 'sufm-transfer-note', t( 'takedownSanctionHint' ) ) );
+
+		var fields = text( 'div', 'sufm-takedown-sanction-fields' ); fields.hidden = true;
+		var typeLabel = text( 'label', 'sufm-modal-folder', t( 'takedownSanctionType' ) ), typeSelect = document.createElement( 'select' );
+		typeSelect.setAttribute( 'aria-label', t( 'takedownSanctionType' ) );
+		[ [ 'warn', t( 'takedownSanctionWarn' ) ], [ 'upload_ban', t( 'takedownSanctionUpload' ) ] ].forEach( function ( pair ) {
+			var option = text( 'option', '', pair[ 1 ] ); option.value = pair[ 0 ]; typeSelect.appendChild( option );
+		} );
+		typeSelect.value = 'warn';
+		typeLabel.appendChild( typeSelect ); fields.appendChild( typeLabel );
+
+		var daysLabel = text( 'label', 'sufm-modal-folder', t( 'takedownSanctionDays' ) ), daysSelect = document.createElement( 'select' );
+		daysSelect.setAttribute( 'aria-label', t( 'takedownSanctionDays' ) );
+		[ 7, 30 ].forEach( function ( days ) {
+			var option = text( 'option', '', t( 'takedownSanctionDaysOption' ).replace( '%d', days ) ); option.value = String( days ); daysSelect.appendChild( option );
+		} );
+		daysLabel.appendChild( daysSelect ); fields.appendChild( daysLabel );
+		daysSelect.disabled = true;
+		typeSelect.addEventListener( 'change', function () { daysSelect.disabled = 'warn' === typeSelect.value; } );
+		fields.appendChild( text( 'p', 'sufm-transfer-note', t( 'takedownSanctionForeverTip' ) ) );
+		punishWrap.appendChild( fields );
+		punish.addEventListener( 'change', function () { fields.hidden = ! punish.checked; } );
+		d.body.appendChild( punishWrap );
+
 		var confirm = button( t( 'takedownConfirm' ), function () {
 			if ( ! select.value ) { notify( t( 'takedownNeedReason' ), true ); select.focus(); return; }
-			[ [ 'sufm_takedown_reason', select.value ], [ 'sufm_takedown_note', note.value.trim() ] ].forEach( function ( pair ) {
+			var pairs = [ [ 'sufm_takedown_reason', select.value ], [ 'sufm_takedown_note', note.value.trim() ] ];
+			if ( punish.checked ) {
+				pairs.push( [ 'sufm_takedown_sanction', '1' ] );
+				pairs.push( [ 'sufm_takedown_sanction_type', typeSelect.value ] );
+				pairs.push( [ 'sufm_takedown_sanction_days', daysSelect.disabled ? '0' : daysSelect.value ] );
+			}
+			pairs.forEach( function ( pair ) {
 				var field = document.createElement( 'input' ); field.type = 'hidden'; field.name = pair[ 0 ]; field.value = pair[ 1 ]; form.appendChild( field );
 			} );
 			d.el.close(); takedownBypass = true; form.submit();

@@ -56,6 +56,18 @@ final class Index_Repository {
 	private ?bool $recent_ready = null;
 
 	/**
+	 * Latest scan row per profile, memoised per instance.
+	 *
+	 * A single page load asks twice — the sync centre snapshot and the "last
+	 * scan failed" admin notice — and Query Monitor reports the second read as
+	 * a duplicate query. Only this class writes the scans table, so every write
+	 * below drops the memo rather than trusting a TTL.
+	 *
+	 * @var array<string,object|null>
+	 */
+	private array $latest_scans = array();
+
+	/**
 	 * Bucket identity resolved for a profile, memoised per instance.
 	 *
 	 * @var array<string,string>
@@ -286,6 +298,8 @@ final class Index_Repository {
 			return new \WP_Error( 'sio_scan_insert_failed', __( '无法创建对账任务。', 'sakura-imgopt' ) );
 		}
 
+		$this->flush_latest_scans();
+
 		return (int) $wpdb->insert_id;
 	}
 
@@ -330,6 +344,8 @@ final class Index_Repository {
 			array( '%d' )
 		);
 
+		$this->flush_latest_scans();
+
 		return (int) $scan->id;
 	}
 
@@ -369,6 +385,7 @@ final class Index_Repository {
 				array( '%s', '%s', '%s', '%s', '%s' ),
 				array( '%d' )
 			);
+			$this->flush_latest_scans();
 			return null;
 		}
 
@@ -418,9 +435,16 @@ final class Index_Repository {
 	/**
 	 * Latest scan for a profile.
 	 *
+	 * Memoised per instance: the sync centre builds its snapshot and its
+	 * notices during the same request, and both need the same row.
+	 *
 	 * @param string $profile_id Profile.
 	 */
 	public function latest_scan( string $profile_id ): ?object {
+		if ( array_key_exists( $profile_id, $this->latest_scans ) ) {
+			return $this->latest_scans[ $profile_id ];
+		}
+
 		global $wpdb;
 		$row = $wpdb->get_row(
 			$wpdb->prepare(
@@ -428,7 +452,20 @@ final class Index_Repository {
 				$profile_id
 			)
 		);
-		return $row ?: null;
+
+		$this->latest_scans[ $profile_id ] = $row ?: null;
+
+		return $this->latest_scans[ $profile_id ];
+	}
+
+	/**
+	 * Drop the memoised latest scan rows after a write to the scans table.
+	 *
+	 * Without this a scan started, resumed, finished or failed earlier in the
+	 * same request would still be read back in its previous state.
+	 */
+	private function flush_latest_scans(): void {
+		$this->latest_scans = array();
 	}
 
 	/**
@@ -482,6 +519,7 @@ final class Index_Repository {
 			$formats[] = in_array( $key, self::SCAN_INTEGERS, true ) ? '%d' : '%s';
 		}
 		$wpdb->update( $this->scans, $fields, array( 'id' => $scan_id ), $formats, array( '%d' ) );
+		$this->flush_latest_scans();
 	}
 
 	/**
@@ -504,6 +542,7 @@ final class Index_Repository {
 				$scan_id
 			)
 		);
+		$this->flush_latest_scans();
 		$this->release_scan_lock( $scan_id );
 	}
 
@@ -529,6 +568,7 @@ final class Index_Repository {
 				$scan_id
 			)
 		);
+		$this->flush_latest_scans();
 		$this->release_scan_lock( $scan_id );
 	}
 
@@ -551,6 +591,7 @@ final class Index_Repository {
 				$scan_id
 			)
 		);
+		$this->flush_latest_scans();
 		return (int) $ok > 0;
 	}
 
@@ -1136,6 +1177,7 @@ final class Index_Repository {
 				$scan_id
 			)
 		);
+		$this->flush_latest_scans();
 		$attempts = (int) $wpdb->get_var( $wpdb->prepare( "SELECT attempts FROM {$this->scans} WHERE id = %d", $scan_id ) );
 		$this->event(
 			(string) $scan->profile_id,
@@ -2299,6 +2341,8 @@ final class Index_Repository {
 			)
 		);
 
+		$this->flush_latest_scans();
+
 		return array( 'events' => $events, 'scans' => $scans, 'jobs' => $jobs );
 	}
 
@@ -2333,6 +2377,7 @@ final class Index_Repository {
 		}
 		$wpdb->query( $wpdb->prepare( "DELETE FROM {$this->jobs} WHERE profile_id=%s", $profile_id ) );
 		$wpdb->query( $wpdb->prepare( "DELETE FROM {$this->scans} WHERE profile_id=%s", $profile_id ) );
+		$this->flush_latest_scans();
 		$wpdb->query( $wpdb->prepare( "DELETE FROM {$this->events} WHERE profile_id=%s", $profile_id ) );
 	}
 

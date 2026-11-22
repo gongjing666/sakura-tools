@@ -63,6 +63,19 @@ final class Url_Rewrite_Repository {
 	private const INSERT_BYTES = 1048576;
 
 	/**
+	 * Ledger aggregates already read in this request, keyed by limit.
+	 *
+	 * The rewrite screen asks for the same `runs()` aggregate twice in one page
+	 * load — once for the JS config, once for the server-rendered table — and
+	 * Query Monitor reports the second SELECT as a duplicate. Every ledger write
+	 * below clears the memo, so a scan, a run, a revert or a reset started in the
+	 * same request still reads the numbers it just wrote.
+	 *
+	 * @var array<int,array<int,array<string,mixed>>>
+	 */
+	private static array $runs_cache = array();
+
+	/**
 	 * Fully qualified ledger table name.
 	 */
 	public static function table_name(): string {
@@ -205,6 +218,8 @@ final class Url_Rewrite_Repository {
 			array( '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%d', '%s' )
 		);
 
+		self::flush_runs_cache();
+
 		return false === $inserted ? 0 : (int) $wpdb->insert_id;
 	}
 
@@ -267,11 +282,15 @@ final class Url_Rewrite_Repository {
 			$sql = 'INSERT INTO ' . $table . ' ( run_id, from_host, to_host, table_name, pk_column, pk_value, column_name, old_value, new_value, state, created_at ) VALUES ' . implode( ', ', $chunk );
 
 			if ( false === $wpdb->query( $sql ) || '' !== $wpdb->last_error ) {
+				self::flush_runs_cache();
+
 				return 0;
 			}
 
 			$inserted += count( $chunk );
 		}
+
+		self::flush_runs_cache();
 
 		return $inserted;
 	}
@@ -299,6 +318,8 @@ final class Url_Rewrite_Repository {
 			),
 			array( '%s', '%s', '%s', '%s', '%s' )
 		);
+
+		self::flush_runs_cache();
 	}
 
 	/**
@@ -310,6 +331,8 @@ final class Url_Rewrite_Repository {
 		global $wpdb;
 
 		$wpdb->delete( self::table_name(), array( 'id' => $id ), array( '%d' ) );
+
+		self::flush_runs_cache();
 	}
 
 	/**
@@ -364,6 +387,8 @@ final class Url_Rewrite_Repository {
 			)
 		);
 
+		self::flush_runs_cache();
+
 		return false !== $result;
 	}
 
@@ -383,6 +408,8 @@ final class Url_Rewrite_Repository {
 			array( '%d' ),
 			array( '%d' )
 		);
+
+		self::flush_runs_cache();
 	}
 
 	/**
@@ -428,6 +455,12 @@ final class Url_Rewrite_Repository {
 	 * @return array<int,array<string,mixed>>
 	 */
 	public static function runs( int $limit = 10 ): array {
+		$limit = max( 1, $limit );
+
+		if ( isset( self::$runs_cache[ $limit ] ) ) {
+			return self::$runs_cache[ $limit ];
+		}
+
 		global $wpdb;
 
 		$rows = $wpdb->get_results(
@@ -442,12 +475,25 @@ final class Url_Rewrite_Repository {
 				ORDER BY MIN(id) DESC
 				LIMIT %d',
 				self::table_name(),
-				max( 1, $limit )
+				$limit
 			),
 			ARRAY_A
 		);
 
-		return is_array( $rows ) ? $rows : array();
+		self::$runs_cache[ $limit ] = is_array( $rows ) ? $rows : array();
+
+		return self::$runs_cache[ $limit ];
+	}
+
+	/**
+	 * Drop the memoised run aggregates after a ledger write.
+	 *
+	 * Every method below that inserts, updates or deletes a ledger row must call
+	 * this, otherwise the second half of a request would report the numbers from
+	 * before its own write.
+	 */
+	private static function flush_runs_cache(): void {
+		self::$runs_cache = array();
 	}
 
 	/**
@@ -459,6 +505,10 @@ final class Url_Rewrite_Repository {
 	public static function delete_run( string $run_id ): int {
 		global $wpdb;
 
-		return (int) $wpdb->delete( self::table_name(), array( 'run_id' => $run_id ), array( '%s' ) );
+		$deleted = (int) $wpdb->delete( self::table_name(), array( 'run_id' => $run_id ), array( '%s' ) );
+
+		self::flush_runs_cache();
+
+		return $deleted;
 	}
 }

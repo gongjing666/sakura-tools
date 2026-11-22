@@ -26,11 +26,11 @@ final class Remote_Operation_Guard {
 			if ( ! class_exists( '\\wpdb' ) || ! defined( 'DB_USER' ) || ! defined( 'DB_PASSWORD' ) || ! defined( 'DB_NAME' ) || ! defined( 'DB_HOST' ) ) {
 				throw new \RuntimeException( 'Remote admission requires an independent WordPress database connection.' );
 			}
-			if ( defined( 'WP_CONTENT_DIR' ) && is_file( WP_CONTENT_DIR . '/db.php' ) ) {
-				throw new \RuntimeException( 'Remote admission requires a verified shared ledger; custom db.php routing is unsupported.' );
-			}
 			$this->db = new \wpdb( DB_USER, DB_PASSWORD, DB_NAME, DB_HOST );
 			$this->db->suppress_errors( true );
+			if ( ! self::shares_ledger( $this->db, $wpdb ) ) {
+				throw new \RuntimeException( 'Remote admission requires a verified shared ledger; this request is routed to a different database server.' );
+			}
 			if ( false === $this->db->query( 'SET SESSION autocommit = 1' ) || '1' !== (string) $this->db->get_var( 'SELECT @@session.autocommit' ) ) {
 				throw new \RuntimeException( 'Remote admission could not enable durable autocommit.' );
 			}
@@ -39,6 +39,41 @@ final class Remote_Operation_Guard {
 		$this->table = $this->db->prefix . 'sio_sync_operations';
 		$this->scope = $scope;
 		$this->target = $target;
+	}
+
+	/**
+	 * Whether both connections read the same database on the same MySQL server.
+	 *
+	 * A `wp-content/db.php` drop-in is not by itself a reason to refuse remote
+	 * writes: Query Monitor installs one to profile queries and still talks to
+	 * the same database. What must not happen is the dedicated admission
+	 * connection writing a ledger the request connection — and therefore the
+	 * operator's queue screen and the CLI — cannot see. Comparing the database
+	 * name with `@@server_id` proves both connections land on one server; a
+	 * drop-in that routes reads to a replica or to another host fails it.
+	 *
+	 * @param object $guard_db   Dedicated admission connection.
+	 * @param object $request_db Connection the request uses (usually `$wpdb`).
+	 * @return bool
+	 */
+	public static function shares_ledger( object $guard_db, object $request_db ): bool {
+		$identity = static function ( object $db ): string {
+			if ( ! method_exists( $db, 'get_var' ) ) {
+				return '';
+			}
+
+			$value = $db->get_var( "SELECT CONCAT( DATABASE(), ' @ ', @@server_id )" );
+
+			return is_string( $value ) ? trim( $value ) : '';
+		};
+
+		$guard = $identity( $guard_db );
+
+		if ( '' === $guard ) {
+			return false;
+		}
+
+		return $guard === $identity( $request_db );
 	}
 
 	/** Same physical object must conflict even across saved profile aliases. */

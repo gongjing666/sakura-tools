@@ -198,4 +198,53 @@ final class RemoteOperationGuardTest extends TestCase {
 		$result = ( new Remote_Operation_Guard( 'scope', $db ) )->execute( array( 'image' ), 'upload', function () { $this->fail( 'No reservation means no remote mutation.' ); } );
 		$this->assertSame( 'sio_remote_busy', $result['image']->get_error_code() );
 	}
+
+	/** A profiling drop-in that still talks to one database is admitted. */
+	public function test_a_profiling_dropin_on_the_same_server_shares_the_ledger(): void {
+		$guard   = new class() {
+			public function get_var( $sql ) {
+				return 'www_nboke_com @ 42';
+			}
+		};
+		$request = new class() {
+			public function get_var( $sql ) {
+				return 'www_nboke_com @ 42';
+			}
+		};
+
+		$this->assertTrue( Remote_Operation_Guard::shares_ledger( $guard, $request ) );
+	}
+
+	/** A drop-in that routes queries to another server is refused. */
+	public function test_a_routed_connection_does_not_share_the_ledger(): void {
+		$guard   = new class() {
+			public function get_var( $sql ) {
+				return 'www_nboke_com @ 42';
+			}
+		};
+		$request = new class() {
+			public function get_var( $sql ) {
+				return 'www_nboke_com @ 7';
+			}
+		};
+
+		$this->assertFalse( Remote_Operation_Guard::shares_ledger( $guard, $request ) );
+	}
+
+	/** An unverifiable connection fails closed. */
+	public function test_an_unverifiable_connection_is_refused(): void {
+		$guard   = new class() {
+			public function get_var( $sql ) {
+				return null;
+			}
+		};
+		$request = new class() {
+			public function get_var( $sql ) {
+				return 'www_nboke_com @ 42';
+			}
+		};
+
+		$this->assertFalse( Remote_Operation_Guard::shares_ledger( $guard, $request ) );
+		$this->assertFalse( Remote_Operation_Guard::shares_ledger( $request, $guard ) );
+	}
 }

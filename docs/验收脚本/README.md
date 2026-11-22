@@ -79,5 +79,15 @@ wp eval-file p1-lifecycle.php --allow-root | grep -E "FAIL|===="
 | `p1-lifecycle.php` | 懒到期（读时翻状态、立刻解除拦截）、`sufm_tick` 收尾（审计 + 到期通知 + 水位 + 幂等）、`Schema::VERSION`、卸载清单、`warn` 不写 `ends_at`、撤销后立刻放行 | 23 |
 | `p1-prod.php` | 生产专用版：上面两组的关键项 + `Uploader::handle()` 真实返回 + 下架批量端到端（含 `operation_id` 串联与按 owner 聚合）+ 不能罚管理员 | 50 |
 | `p1-prod-cleanup.php` | `p1-prod.php` 的收尾：删两个探针账号与一切键到它们的行，默认空跑 | — |
+| `p3-media.php` | 媒体管理页（`t=media`）与共享的 `Takedown` 服务：两个 REST 端点的形状与校验分支、两层权限（能浏览 ≠ 能下架）、下架走 REST 而不是列表表格时的端到端（每 owner 一条处罚、delete 与 sanction 事件共用 `operation_id`、通知按 owner 聚合）、树行徽标、不存在的附件/文件夹 | 70 |
 
-前三份都对应 `docs/开发规则/11-违规处置与用户处罚.md` 的 §11 验收清单；P1 的其余条目是浏览器点出来的（下架弹窗、用户页签、权限矩阵第 7 列、1440/390），没有脚本化。
+前四份对应 `docs/开发规则/11-违规处置与用户处罚.md` 的 §11 验收清单；`p3-media.php` 对应同一篇的 §10.4 与 §11 的 21a–21j。其余条目是浏览器点出来的（下架弹窗、用户页签、权限矩阵第 7 列、1440/390），没有脚本化。
+
+## `p3-media.php`
+
+它**自己建探针**（两个 `sufm_mm_probe_*` 订阅者 + 一个 `sufm_mm_probe_editor` + 两个附件），跑完自己删，所以实验站和生产都能跑；不过它在生产上会真的创建再删除账号，中途 PHP fatal 会留下账号——**默认在实验站跑**，生产上只在需要复现页面相关问题时才用，跑完按上面 `p1-prod-cleanup.php` 的思路核对一遍。
+
+## `p3-media.php` 自己踩过的两个坑
+
+1. **台账 id 与附件 id 是两个空间。** `/admin/media` 的行里 `id` 是 `nb_sufm_files.id`，`attachment` 才是 `wp_posts.ID`；`/admin/media/takedown` 收的是**附件 id**。脚本一开始把 `id` 传给下架端点，`get_post()` 拿不到东西，于是每一项都落进 `skipped`，结果是 `done=0 / sanctioned=0` 而 HTTP 仍是 200——看起来像「功能没生效」，其实是调用方给错了 id 空间。前端的 `selectedAttachments()` 就是专门做这个映射的。
+2. **`GET /admin/folders` 返回的是分页信封，不是裸数组**（`{owners, page, per_page, total_users, has_more, next_page, total, unassigned_count}`），而且每页 50 个账户。断言 owner 相关的事要么带 `owner_id` 收窄，要么分页遍历，否则在账户多的站点上会「偶发失败」。

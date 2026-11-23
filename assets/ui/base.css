@@ -110,6 +110,26 @@
 	justify-self: end;
 }
 
+/*
+ * Ghost bar for the first paint of an island page: PHP prints it so the page
+ * already starts where it will end up, and React swaps it for the real bar
+ * without moving anything. It reads the same token the real bar settles at, so
+ * a mismatch only appears if the bar itself grows.
+ */
+.sakura-admin > .sakura-topbar--boot {
+	min-block-size: var(--g-topbar-block);
+}
+
+/*
+ * The tab strip is the bar's sibling, not its child, and it carries its own
+ * margins — so the first paint has to reserve it too, or the island mounting
+ * drops the content by its height. Borderless and empty on purpose: it should
+ * read as blank paper, not as a line.
+ */
+.sakura-admin > .sakura-tabs--boot {
+	min-block-size: var(--g-tabs-block);
+}
+
 .sakura-admin .brand {
 	display: flex;
 	align-items: center;
@@ -639,6 +659,67 @@
 	border-color: var(--g-select-border-hover);
 	background: var(--g-wash);
 	color: var(--g-ink);
+}
+
+/*
+ * First paint of an island page: the server prints a small status marker at the
+ * end of the page actions while the bundle loads. It lives in the action row on
+ * purpose — a bare line at the top of the content area reads as a rendering bug,
+ * whereas a dot beside the buttons reads as "this page is still being read".
+ * The delay keeps it out of warm loads; the dot's halo is the only motion, and
+ * it stops under prefers-reduced-motion.
+ */
+.sakura-admin .page-head__actions .sakura-boot {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	margin-left: 2px;
+	color: var(--g-muted);
+	font-size: 12.5px;
+	line-height: 1.4;
+	opacity: 0;
+	animation: sakura-boot-in 180ms var(--g-ease) 180ms forwards;
+}
+
+.sakura-admin .page-head__actions .sakura-boot__dot {
+	inline-size: 6px;
+	block-size: 6px;
+	border-radius: 50%;
+	background: var(--g-accent);
+	box-shadow: 0 0 0 3px color-mix(in oklab, var(--g-accent) 16%, transparent);
+	animation: sakura-boot-pulse 1.6s var(--g-ease) infinite;
+}
+
+.sakura-admin .page-head__actions .sakura-boot.is-failed {
+	color: var(--g-bad);
+}
+
+.sakura-admin .page-head__actions .sakura-boot.is-failed .sakura-boot__dot {
+	background: var(--g-bad);
+	box-shadow: 0 0 0 3px color-mix(in oklab, var(--g-bad) 16%, transparent);
+	animation: none;
+}
+
+@keyframes sakura-boot-in {
+	to {
+		opacity: 1;
+	}
+}
+
+@keyframes sakura-boot-pulse {
+	50% {
+		box-shadow: 0 0 0 5px color-mix(in oklab, var(--g-accent) 0%, transparent);
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.sakura-admin .page-head__actions .sakura-boot {
+		animation: sakura-boot-in 1ms linear 180ms forwards;
+	}
+
+	.sakura-admin .page-head__actions .sakura-boot__dot {
+		animation: none;
+	}
 }
 
 /* ============================================================

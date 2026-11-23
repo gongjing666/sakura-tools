@@ -18,9 +18,46 @@ use PHPUnit\Framework\TestCase;
 use Sakura\ImageOptimizer\Admin\UI\Page;
 
 require_once dirname( __DIR__, 2 ) . '/src/Admin/UI/Hero.php';
+require_once dirname( __DIR__, 2 ) . '/src/Admin/Appearance.php';
 require_once dirname( __DIR__, 2 ) . '/src/Admin/UI/Page.php';
 
 final class PageHeadTest extends TestCase {
+
+	/**
+	 * An island's first paint still has to look like a page: ghost top bar for
+	 * height, the real head, and the boot marker inside the action row.
+	 *
+	 * @return void
+	 */
+	public function test_island_first_paint_draws_the_head_and_the_boot_marker(): void {
+		ob_start();
+		Page::render(
+			array(
+				'id'     => 'system-settings',
+				'module' => 'system',
+				'tab'    => 'settings',
+				'title'  => '系统设置',
+				'island' => true,
+				'actions' => array(
+					array(
+						'label' => '重新检测',
+						'url'   => 'https://example.test/admin.php?page=sakura-tools',
+					),
+				),
+			),
+			static function (): void {
+			}
+		);
+		$html = (string) ob_get_clean();
+
+		self::assertStringContainsString( 'class="sakura-topbar sakura-topbar--boot"', $html );
+		self::assertStringContainsString( 'class="sakura-tabs sakura-tabs--boot"', $html );
+		self::assertStringContainsString( 'class="sakura-admin__main"', $html );
+		self::assertStringContainsString( 'id="sakura-page-title"', $html );
+		self::assertMatchesRegularExpression( '/page-head__actions.*?sakura-boot.*?<\/div>/s', $html );
+		self::assertStringContainsString( '正在读取页面信息…', $html );
+		self::assertStringNotContainsString( 'system-boot', $html );
+	}
 
 	/**
 	 * The four text parts travel unchanged when a view sets them.

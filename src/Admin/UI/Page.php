@@ -55,7 +55,24 @@ final class Page {
 		echo '>';
 
 		if ( $island ) {
+			/*
+			 * First paint. React replaces every child of this node, so the server
+			 * prints the smallest frame that keeps the page from being blank: a
+			 * ghost top bar holding the real bar's height (so the swap moves
+			 * nothing) and the page head itself — head_data() is the single source
+			 * both renderers read, so this is the same head React is about to
+			 * draw, not a second copy of the copy. The boot marker rides at the end
+			 * of the action row.
+			 */
+			self::boot_frame();
+
+			echo '<main class="sakura-admin__main">';
+			self::head( $args, self::boot_chip() );
+			echo '<div class="page-body">';
 			$body();
+			echo '</div>';
+			echo '</main>';
+
 			self::settings_feedback();
 			echo '</div>';
 
@@ -255,9 +272,12 @@ final class Page {
 	 * Page heading.
 	 *
 	 * @param array<string,mixed> $args Page arguments.
+	 * @param array<string,mixed> $args  Page arguments.
+	 * @param string              $slot  Markup appended to the action row (used by
+	 *                                   the island's first paint).
 	 * @return void
 	 */
-	private static function head( array $args ): void {
+	private static function head( array $args, string $slot = '' ): void {
 		$head = self::head_data( $args );
 
 		echo '<header class="page-head">';
@@ -274,7 +294,7 @@ final class Page {
 		if ( '' !== $head['lede'] ) {
 			echo '<p class="page-head__lede">' . esc_html( $head['lede'] ) . '</p>';
 		}
-		self::actions( $head['actions'] );
+		self::actions( $head['actions'], $slot );
 		/*
 		 * The stamp belongs to the copy column: as a third child of the header
 		 * grid it would claim the "auto" column and push the status card onto a
@@ -394,9 +414,10 @@ final class Page {
 	 * Page-level actions.
 	 *
 	 * @param array<int,mixed> $actions Action list.
+	 * @param string           $slot    Markup printed at the end of the row.
 	 * @return void
 	 */
-	private static function actions( array $actions ): void {
+	private static function actions( array $actions, string $slot = '' ): void {
 		$valid = array();
 		foreach ( $actions as $action ) {
 			if ( is_array( $action ) && ! empty( $action['label'] ) && ! empty( $action['url'] ) ) {
@@ -404,7 +425,7 @@ final class Page {
 			}
 		}
 
-		if ( empty( $valid ) ) {
+		if ( empty( $valid ) && '' === $slot ) {
 			return;
 		}
 
@@ -428,6 +449,38 @@ final class Page {
 			}
 			echo '>' . esc_html( (string) $action['label'] ) . '</a>';
 		}
+		echo $slot; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Caller-built markup (boot_chip()).
 		echo '</div>';
+	}
+
+	/**
+	 * Boot marker for an island's first paint.
+	 *
+	 * Sits at the end of the page action row and disappears with the rest of the
+	 * server frame when React mounts. Deliberately the same copy the operator
+	 * sees when something is slow, so a stalled bundle is not silent.
+	 *
+	 * @return string
+	 */
+	public static function boot_chip(): string {
+		return '<span class="sakura-boot" role="status">'
+			. '<span class="sakura-boot__dot" aria-hidden="true"></span>'
+			. '<span class="sakura-boot__text">' . esc_html__( '正在读取页面信息…', 'sakura-imgopt' ) . '</span>'
+			. '</span>';
+	}
+
+	/**
+	 * Empty top bar and tab strip that reserve the real ones' height.
+	 *
+	 * Both are needed: the tab strip is a sibling of the bar, not a child, and the
+	 * pair carries its own margins (11px above, -9px below at wide widths). Without
+	 * them the island mounting would push the whole page down by the height of the
+	 * frame — a jump the operator reads as the page reloading.
+	 *
+	 * @return void
+	 */
+	private static function boot_frame(): void {
+		echo '<div class="sakura-topbar sakura-topbar--boot" aria-hidden="true"></div>';
+		echo '<nav class="sakura-tabs sakura-tabs--boot" aria-hidden="true"></nav>';
 	}
 }

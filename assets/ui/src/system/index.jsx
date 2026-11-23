@@ -21,14 +21,16 @@ if ( mount ) {
 	if ( boot ) {
 		createRoot( mount ).render( <App boot={ boot } /> );
 	} else {
-		const block = mount.querySelector( '.system-boot' );
-		const line = mount.querySelector( '.system-boot__text' );
+		const chip = mount.querySelector( '.sakura-boot' );
+		const line = mount.querySelector( '.sakura-boot__text' );
 
-		// The line fades in late on purpose; a broken payload has to be
-		// readable right away, so the delay is cancelled here.
-		if ( block ) {
-			block.style.animation = 'none';
-			block.style.opacity = '1';
+		// The marker fades in late on purpose; a broken payload has to be
+		// readable right away.
+		if ( chip ) {
+			chip.style.opacity = '1';
+			chip.style.animation = 'none';
+			chip.classList.add( 'is-failed' );
+			chip.setAttribute( 'role', 'alert' );
 		}
 
 		if ( line ) {

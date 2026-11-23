@@ -33,10 +33,10 @@ echo '</script>';
 UI::page(
 	$payload['page'],
 	static function () {
-		?>
-		<div class="system-boot" role="status">
-			<span class="system-boot__text"><?php echo esc_html__( '正在读取环境信息…', 'sakura-imgopt' ); ?></span>
-		</div>
-		<?php
+		/*
+		 * Nothing to print. Page::render() already draws the ghost top bar, the
+		 * page head and the boot marker beside the actions; this body exists so the
+		 * island has an empty .page-body to fill.
+		 */
 	}
 );

@@ -193,6 +193,11 @@
 	--g-gutter: clamp(16px, 2.4vw, 30px);
 	--g-page-max: 1480px;
 	--g-app-top: clamp(14px, 1.7vw, 22px);
+	/* Heights the chrome settles at. Only the first-paint ghosts read them, but
+	 * they have to match the real bar and tab strip, or the island mounting would
+	 * push the page down by exactly that much. */
+	--g-topbar-block: 58px;
+	--g-tabs-block: 50px;
 	--g-app-bottom: clamp(56px, 5vw, 80px);
 	--g-grid-gap-x: 20px;
 	--g-grid-gap-y: 20px;
@@ -216,4 +221,12 @@
 	/* Motion */
 	--g-ease: cubic-bezier(.2, .8, .2, 1);
 	--g-dur: .16s;
+}
+
+/* Below 782px the module pills wrap to a second row, so the bar is taller.
+ * The ghost follows the same breakpoint. */
+@media (max-width: 782px) {
+	:root {
+		--g-topbar-block: 92px;
+	}
 }

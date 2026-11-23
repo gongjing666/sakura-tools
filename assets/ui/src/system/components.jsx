@@ -73,7 +73,7 @@ export function RuntimeTable( { card } ) {
 	return (
 		<>
 			<div className="table-scroll">
-				<table className="table table--compact table--responsive">
+				<table className="table table--compact table--records">
 					<thead>
 						<tr>
 							{ card.columns.map( ( label ) => (
@@ -109,7 +109,7 @@ export function RuntimeTable( { card } ) {
 export function ChecksTable( { card } ) {
 	return (
 		<div className="table-scroll">
-			<table className="table table--compact table--responsive">
+			<table className="table table--compact table--checks">
 				<thead>
 					<tr>
 						{ card.columns.map( ( label ) => (
@@ -130,7 +130,7 @@ export function ChecksTable( { card } ) {
 							</td>
 							<td data-label={ card.columns[ 2 ] }>{ row.value || '—' }</td>
 							<td data-label={ card.columns[ 3 ] } className="system-check-note">
-								{ row.note || '—' }
+								{ row.note && '—' !== row.note ? row.note : '' }
 							</td>
 						</tr>
 					) ) }

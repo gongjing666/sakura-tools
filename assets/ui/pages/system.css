@@ -161,4 +161,124 @@
 		margin-inline-start: 0;
 		margin-top: 2px;
 	}
+
+	/*
+	 * 窄屏记录模式（2026-11-23）：共享的 .table--responsive 会把每个 td 拆成
+	 * 「标签 | 值」，两列的键值表因此每行都重复一遍「项目 / 当前值 / 状态」，
+	 * 行高被撑到 86–119px。这两张表改回「一条记录一行」：左列是行名，右列是
+	 * 值（徽章与补充说明跟值同一行），过长的说明单独占下一行并对齐到值列。
+	 * 数据仍是同一张表，表头只在窄屏隐藏。
+	 */
+	.sakura-admin[data-sakura-page="system-settings"] .table--records,
+	.sakura-admin[data-sakura-page="system-settings"] .table--records tbody {
+		display: block;
+	}
+
+	.sakura-admin[data-sakura-page="system-settings"] .table--records thead {
+		display: none;
+	}
+
+	.sakura-admin[data-sakura-page="system-settings"] .table--records tr {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: baseline;
+		gap: 2px 12px;
+		padding: 9px 0;
+		border-top: 1px solid var(--g-line-soft);
+	}
+
+	.sakura-admin[data-sakura-page="system-settings"] .table--records tbody tr:first-child {
+		padding-top: 2px;
+		border-top: 0;
+	}
+
+	.sakura-admin[data-sakura-page="system-settings"] .table--records td {
+		display: block;
+		padding: 0;
+		border: 0;
+		text-align: left;
+	}
+
+	.sakura-admin[data-sakura-page="system-settings"] .table--records td::before {
+		display: none;
+	}
+
+	.sakura-admin[data-sakura-page="system-settings"] .table--records td:first-child {
+		flex: 0 0 92px;
+		color: var(--g-muted);
+		font-size: 12.5px;
+	}
+
+	.sakura-admin[data-sakura-page="system-settings"] .table--records td:last-child {
+		flex: 1 1 0;
+		min-width: 0;
+	}
+
+	.sakura-admin[data-sakura-page="system-settings"] .table--records .system-muted {
+		display: inline;
+		margin-top: 0;
+		margin-inline-start: 6px;
+	}
+
+	.sakura-admin[data-sakura-page="system-settings"] .table--checks,
+	.sakura-admin[data-sakura-page="system-settings"] .table--checks tbody {
+		display: block;
+	}
+
+	.sakura-admin[data-sakura-page="system-settings"] .table--checks thead {
+		display: none;
+	}
+
+	.sakura-admin[data-sakura-page="system-settings"] .table--checks tr {
+		display: grid;
+		grid-template-columns: 92px minmax(0, 1fr) auto;
+		column-gap: 10px;
+		row-gap: 2px;
+		align-items: baseline;
+		padding: 9px 0;
+		border-top: 1px solid var(--g-line-soft);
+	}
+
+	.sakura-admin[data-sakura-page="system-settings"] .table--checks tbody tr:first-child {
+		padding-top: 2px;
+		border-top: 0;
+	}
+
+	.sakura-admin[data-sakura-page="system-settings"] .table--checks td {
+		display: block;
+		padding: 0;
+		border: 0;
+		text-align: left;
+	}
+
+	.sakura-admin[data-sakura-page="system-settings"] .table--checks td::before {
+		display: none;
+	}
+
+	.sakura-admin[data-sakura-page="system-settings"] .table--checks td:first-child {
+		grid-row: 1 / span 2;
+		grid-column: 1;
+		color: var(--g-muted);
+		font-size: 12.5px;
+	}
+
+	.sakura-admin[data-sakura-page="system-settings"] .table--checks td:nth-child(2) {
+		grid-row: 1;
+		grid-column: 3;
+		justify-self: end;
+	}
+
+	.sakura-admin[data-sakura-page="system-settings"] .table--checks td:nth-child(3) {
+		grid-row: 1;
+		grid-column: 2;
+	}
+
+	.sakura-admin[data-sakura-page="system-settings"] .table--checks td:nth-child(4) {
+		grid-row: 2;
+		grid-column: 2 / span 2;
+	}
+
+	.sakura-admin[data-sakura-page="system-settings"] .table--checks td:nth-child(4):empty {
+		display: none;
+	}
 }

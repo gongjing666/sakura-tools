@@ -3,6 +3,7 @@ namespace Sakura\ImageOptimizer;
 
 use Sakura\ImageOptimizer\Admin\Assets;
 use Sakura\ImageOptimizer\Admin\Card_Form;
+use Sakura\ImageOptimizer\Admin\Image_Payload;
 use Sakura\ImageOptimizer\Admin\Page_Assets;
 use Sakura\ImageOptimizer\Backup\Backup_Repository;
 use Sakura\ImageOptimizer\Contracts\Backup_Repository_Interface;
@@ -267,7 +268,9 @@ class Image_Optimizer_Module implements Module {
 			array(
 				'type'              => 'array',
 				'sanitize_callback' => array( $this, 'sanitize_source_formats' ),
-				'default'           => array( 'jpg', 'jpeg', 'png', 'gif', 'webp', 'avif', 'svg', 'apng' ),
+				// 与 Settings_Repository::DEFAULT_SOURCE_FORMATS 同一份，避免
+				// get_option() 拿注册默认（8 项）与仓储回落（7 项）不一致。
+				'default'           => \Sakura\ImageOptimizer\Settings\Settings_Repository::DEFAULT_SOURCE_FORMATS,
 			)
 		);
 		add_settings_field(
@@ -1193,10 +1196,18 @@ class Image_Optimizer_Module implements Module {
 
 	// ── 渲染设置页面 ────────────────────────────────
 	public function render_page() {
-		$engine       = $this->detect_best_engine();
-		$option_group = $this->option_group;
-		$menu_slug    = $this->menu_slug;
-		require __DIR__ . '/views/settings-main.php';
+		$payload = ( new Image_Payload() )->build( 'rules' );
+
+		if ( ! is_readable( SAKURA_TOOLS_PATH . 'assets/ui/dist/image.js' ) ) {
+			// 构建产物缺失时退回服务端表单：页面还能保存，不至于只剩空壳。
+			$engine       = $this->detect_best_engine();
+			$option_group = $this->option_group;
+			$menu_slug    = $this->menu_slug;
+			require __DIR__ . '/views/settings-main.php';
+			return;
+		}
+
+		require __DIR__ . '/views/settings-island.php';
 	}
 
 	// ── 备份清理策略：section 说明 ───────────────────
@@ -1409,6 +1420,18 @@ class Image_Optimizer_Module implements Module {
 		}
 
 		Assets::enqueue_page();
+
+		// 整页 React 的产物：脚本在页脚，PHP 只留根节点与引导数据。
+		$bundle = 'assets/ui/dist/image.js';
+		if ( is_readable( SAKURA_TOOLS_PATH . $bundle ) ) {
+			wp_enqueue_script(
+				'sakura-admin-image',
+				SAKURA_TOOLS_URL . $bundle,
+				array( 'sakura-admin-core' ),
+				Page_Assets::asset_version( $bundle ),
+				true
+			);
+		}
 	}
 
 	// ── 处理「扫描裁剪配置」AJAX 请求 ─────────────────

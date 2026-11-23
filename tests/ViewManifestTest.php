@@ -27,6 +27,7 @@ final class ViewManifestTest extends TestCase {
 		'storage-url-rewrite.php',
 		'storage-cost.php',
 		'settings-backup.php',
+		'settings-island.php',
 		'settings-main.php',
 		'settings-stats.php',
 		'thumb-settings.php',

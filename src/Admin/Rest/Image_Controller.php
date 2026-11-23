@@ -1,0 +1,164 @@
+<?php
+/**
+ * REST endpoints for the image screens.
+ *
+ * @package Sakura_Image_Optimizer
+ */
+
+declare( strict_types=1 );
+
+namespace Sakura\ImageOptimizer\Admin\Rest;
+
+use Sakura\ImageOptimizer\Admin\Image_Payload;
+use Sakura\ImageOptimizer\Admin\Image_Report;
+use Sakura\ImageOptimizer\Admin\Image_Settings;
+use Sakura\ImageOptimizer\Image\Crop_Config_Scanner;
+use Sakura\ImageOptimizer\Settings\Settings_Repository;
+use WP_REST_Request;
+use WP_REST_Response;
+use WP_REST_Server;
+
+defined( 'ABSPATH' ) || exit;
+
+/**
+ * Reads and writes the image screens over /wp-json instead of options.php.
+ *
+ * Each write is scoped to one card, the same boundary guard_options() gave the
+ * form path, and every value still runs through the sanitizers WordPress knows
+ * from register_setting().
+ */
+final class Image_Controller {
+
+	/**
+	 * Namespace shared by the plugin's REST routes.
+	 */
+	public const NS = 'sakura-tools/v1';
+
+	/**
+	 * Cards the rules tab can save.
+	 */
+	private const RULES_CARDS = array( 'thumbs', 'rename', 'compress', 'bulk' );
+
+	/**
+	 * Register the routes.
+	 */
+	public static function register(): void {
+		register_rest_route(
+			self::NS,
+			'/image/rules',
+			array(
+				'methods'             => WP_REST_Server::READABLE,
+				'callback'            => array( self::class, 'read_rules' ),
+				'permission_callback' => array( self::class, 'can_manage' ),
+			)
+		);
+
+		register_rest_route(
+			self::NS,
+			'/image/rules/scan',
+			array(
+				'methods'             => WP_REST_Server::CREATABLE,
+				'callback'            => array( self::class, 'scan_rules' ),
+				'permission_callback' => array( self::class, 'can_manage' ),
+			)
+		);
+
+		register_rest_route(
+			self::NS,
+			'/image/rules/cards/(?P<card>[a-z]+)',
+			array(
+				'methods'             => WP_REST_Server::CREATABLE,
+				'callback'            => array( self::class, 'save_rules_card' ),
+				'permission_callback' => array( self::class, 'can_manage' ),
+				'args'                => array(
+					'card' => array(
+						'type'     => 'string',
+						'required' => true,
+						'enum'     => self::RULES_CARDS,
+					),
+				),
+			)
+		);
+	}
+
+	/**
+	 * Permission callback.
+	 *
+	 * @return bool
+	 */
+	public static function can_manage(): bool {
+		return current_user_can( 'manage_options' );
+	}
+
+	/**
+	 * GET /image/rules.
+	 *
+	 * @return WP_REST_Response
+	 */
+	public static function read_rules(): WP_REST_Response {
+		return rest_ensure_response( ( new Image_Payload() )->build( 'rules' ) );
+	}
+
+	/**
+	 * POST /image/rules/scan — re-read the theme, plugins and wp-config.php.
+	 *
+	 * @return WP_REST_Response
+	 */
+	public static function scan_rules(): WP_REST_Response {
+		( new Crop_Config_Scanner() )->scan_and_store();
+		$scan = Crop_Config_Scanner::stored();
+
+		if ( null === $scan ) {
+			return new WP_REST_Response(
+				array( 'message' => __( '扫描结果保存失败，请检查数据库写入权限。', 'sakura-imgopt' ) ),
+				500
+			);
+		}
+
+		$settings = new Settings_Repository();
+
+		$warnings = array();
+		if ( isset( $scan['warnings'] ) && is_array( $scan['warnings'] ) ) {
+			foreach ( $scan['warnings'] as $warning ) {
+				if ( is_array( $warning ) ) {
+					$warnings[] = (string) ( $warning['message'] ?? '' );
+				}
+			}
+		}
+
+		return rest_ensure_response(
+			array(
+				'rows'         => Image_Report::size_rows( $settings->disabled_sizes(), $scan ),
+				'scan_summary' => Image_Report::scan_summary_text( $scan ),
+				'wp_config'    => Image_Report::wp_config_text( $scan ),
+				'warnings'     => array_values( array_filter( $warnings ) ),
+			)
+		);
+	}
+
+	/**
+	 * POST /image/rules/cards/{card}.
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return WP_REST_Response
+	 */
+	public static function save_rules_card( WP_REST_Request $request ): WP_REST_Response {
+		$card   = (string) $request->get_param( 'card' );
+		$fields = $request->get_param( 'fields' );
+
+		if ( ! is_array( $fields ) ) {
+			$fields = array();
+		}
+
+		$settings = new Image_Settings( new Settings_Repository() );
+		$result   = $settings->save_rules_card( $card, $fields );
+
+		return rest_ensure_response(
+			array(
+				'card'   => $result['card'],
+				'values' => $result['values'],
+				'notice' => $result['notice'],
+			)
+		);
+	}
+}

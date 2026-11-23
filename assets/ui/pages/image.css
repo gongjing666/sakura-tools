@@ -658,3 +658,22 @@
 	color: var(--g-ink);
 	font-size: 12px;
 }
+
+/* ── 整页主页（React 岛）：旧表单里靠内联样式撑起来的几处 ───────── */
+
+.sakura-admin[data-sakura-page="image-rules"] .field--limits .field__inline {
+	display: flex;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: 8px;
+	color: var(--g-ink-soft);
+}
+
+.sakura-admin[data-sakura-page="image-rules"] .field--limits input {
+	width: 80px;
+}
+
+.sakura-admin[data-sakura-page="image-rules"] .field__inline .small-text {
+	color: var(--g-muted);
+	font-size: 12.5px;
+}

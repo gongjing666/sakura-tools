@@ -82,7 +82,7 @@ final class System_Payload {
 			? __( '需要处理', 'sakura-imgopt' )
 			: ( (int) $summary['warn'] > 0 ? __( '有建议', 'sakura-imgopt' ) : __( '环境可用', 'sakura-imgopt' ) );
 
-		return array(
+		$payload = array(
 			'version' => defined( 'SAKURA_TOOLS_VERSION' ) ? (string) SAKURA_TOOLS_VERSION : '',
 			'status'  => array(
 				'label' => __( '环境自检', 'sakura-imgopt' ),
@@ -209,6 +209,49 @@ final class System_Payload {
 					'message' => __( '保存失败，请稍后重试。', 'sakura-imgopt' ),
 				),
 			),
+		);
+
+		/*
+		 * The island draws the chrome and the page head itself: both renderers
+		 * read the same description, so handing the island this data and telling
+		 * UI::page() not to print the regions keeps the page at exactly one of
+		 * each without the markup belonging to two places.
+		 */
+		$payload['page']   = self::page_args( $payload );
+		$payload['head']   = UI\Page::head_data( $payload['page'] );
+		$payload['chrome'] = Shell::header_data( 'system', 'settings' );
+
+		return $payload;
+	}
+
+	/**
+	 * The UI::page() arguments for this island.
+	 *
+	 * @param array<string,mixed> $payload Payload built so far.
+	 * @return array<string,mixed>
+	 */
+	public static function page_args( array $payload ): array {
+		return array(
+			'id'      => 'system-settings',
+			'module'  => 'system',
+			'tab'     => 'settings',
+			'eyebrow' => 'SYSTEM READOUT / ' . ( isset( $payload['version'] ) ? (string) $payload['version'] : '' ),
+			'title'   => __( '系统设置', 'sakura-imgopt' ),
+			'lede'    => __( '服务器运行参数、PHP 扩展与图像引擎能力在这里核对；卡片间隔、页面宽度与卡片样式也在这里统一设置。', 'sakura-imgopt' ),
+			'status'  => isset( $payload['status'] ) && is_array( $payload['status'] ) ? $payload['status'] : array(),
+			'actions' => array(
+				array(
+					'label'   => __( '进入图像优化', 'sakura-imgopt' ),
+					'url'     => admin_url( 'admin.php?page=sakura-tools-optimize' ),
+					'variant' => 'primary',
+				),
+				array(
+					'label'   => __( '重新检测', 'sakura-imgopt' ),
+					'url'     => admin_url( 'admin.php?page=sakura-tools' ),
+					'variant' => 'ghost',
+				),
+			),
+			'island'  => true,
 		);
 	}
 

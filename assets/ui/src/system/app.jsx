@@ -1,10 +1,10 @@
 /**
- * System settings island.
+ * System settings page.
  *
- * The page shell (eyebrow, title, status, actions) stays server-rendered; this
- * component owns the readout and the one writable card. Saving goes through the
- * REST route instead of options.php, so the document is never rebuilt and the
- * prompt cannot arrive after a scroll reset.
+ * Owns the whole screen: top bar, tab strip, page head, readouts and the one
+ * writable card. Saving goes through the REST route instead of options.php, so
+ * the document is never rebuilt and the prompt cannot arrive after a scroll
+ * reset. The server keeps the mount node and the fallback note only.
  */
 import { Fragment, useCallback, useEffect, useRef, useState } from 'react';
 
@@ -15,8 +15,11 @@ import {
 	ExtensionGrid,
 	Field,
 	KpiBoard,
+	PageHead,
 	Prompt,
 	RuntimeTable,
+	Tabs,
+	Topbar,
 } from './components.jsx';
 import { applyCanvas, draftFromFields, normalizeLayout, saveLayout } from './boot.js';
 
@@ -58,7 +61,7 @@ export default function App( { boot } ) {
 			setSaved( next );
 			setDraft( next );
 			// ui.js records the offset on every options.php submit in case the
-			// browser navigates. This island never navigates, so the record would
+			// browser navigates. This page never navigates, so the record would
 			// only linger and be replayed by some later reload of this screen.
 			sessionStorage.removeItem( 'sakuraAdminSaveScroll' );
 			setNotice( {
@@ -90,62 +93,71 @@ export default function App( { boot } ) {
 
 	return (
 		<Fragment>
-			<KpiBoard score={ boot.score } kpis={ boot.kpis } />
+			<Topbar chrome={ boot.chrome } />
+			<Tabs chrome={ boot.chrome } />
 
-			<div className="card-grid" data-sakura-layout="system-settings" data-sakura-group="main">
-				<Card card={ boot.cards.runtime }>
-					<RuntimeTable card={ boot.cards.runtime } />
-				</Card>
+			<main className="sakura-admin__main">
+				<PageHead head={ boot.head } />
 
-				<Card card={ boot.cards.engine }>
-					<RuntimeTable card={ boot.cards.engine } />
-				</Card>
+				<div className="page-body">
+					<KpiBoard score={ boot.score } kpis={ boot.kpis } />
 
-				<Card card={ boot.cards.checks }>
-					<ChecksTable card={ boot.cards.checks } />
-				</Card>
+					<div className="card-grid" data-sakura-layout="system-settings" data-sakura-group="main">
+						<Card card={ boot.cards.runtime }>
+							<RuntimeTable card={ boot.cards.runtime } />
+						</Card>
 
-				<Card card={ boot.cards.extensions }>
-					<ExtensionGrid card={ boot.cards.extensions } />
-				</Card>
+						<Card card={ boot.cards.engine }>
+							<RuntimeTable card={ boot.cards.engine } />
+						</Card>
 
-				<Card card={ layoutCard }
-					titleProps={ { tabIndex: -1, 'data-sakura-return-target': '' } }
-				>
-					<form className="card__form" id="sakura-card-form-layout" onSubmit={ submit }>
-						<div className="field-list">
-							{ layoutCard.fields.map( ( field ) => (
-								<Fragment key={ field.id }>
-									{ field.group ? <p className="system-field-group">{ field.group }</p> : null }
-									<Field
-										field={ field }
-										value={ draft[ field.key ] }
-										onChange={ changeField }
-										disabled={ saving }
-									/>
-								</Fragment>
-							) ) }
-						</div>
-						<p className="system-note">{ layoutCard.note }</p>
-						<div className="card__savebar">
-							<button
-								type="submit"
-								className="btn btn--primary"
-								ref={ saveRef }
-								disabled={ ! dirty }
-								aria-busy={ saving ? 'true' : undefined }
-								aria-disabled={ saving ? 'true' : undefined }
-							>
-								<BusyLabel
-									idle={ layoutCard.save }
-									active={ boot.strings.saving }
-									busy={ saving }
-								/>
-							</button>
-						</div>
-					</form>
-				</Card>
-			</div>
+						<Card card={ boot.cards.checks }>
+							<ChecksTable card={ boot.cards.checks } />
+						</Card>
+
+						<Card card={ boot.cards.extensions }>
+							<ExtensionGrid card={ boot.cards.extensions } />
+						</Card>
+
+						<Card card={ layoutCard } titleProps={ { tabIndex: -1, 'data-sakura-return-target': '' } }>
+							<form className="card__form" id="sakura-card-form-layout" onSubmit={ submit }>
+								<div className="field-list">
+									{ layoutCard.fields.map( ( field ) => (
+										<Fragment key={ field.id }>
+											{ field.group ? (
+												<p className="system-field-group">{ field.group }</p>
+											) : null }
+											<Field
+												field={ field }
+												value={ draft[ field.key ] }
+												onChange={ changeField }
+												disabled={ saving }
+											/>
+										</Fragment>
+									) ) }
+								</div>
+								<p className="system-note">{ layoutCard.note }</p>
+								<div className="card__savebar">
+									<button
+										type="submit"
+										className="btn btn--primary"
+										ref={ saveRef }
+										disabled={ ! dirty }
+										aria-busy={ saving ? 'true' : undefined }
+										aria-disabled={ saving ? 'true' : undefined }
+									>
+										<BusyLabel
+											idle={ layoutCard.save }
+											active={ boot.strings.saving }
+											busy={ saving }
+										/>
+									</button>
+								</div>
+							</form>
+						</Card>
+					</div>
+				</div>
+			</main>
 
 			{ notice ? (
 				<Prompt

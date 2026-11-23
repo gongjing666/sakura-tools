@@ -1669,6 +1669,25 @@ if ( ! function_exists( 'esc_url' ) ) {
 	}
 }
 
+if ( ! function_exists( 'wp_kses' ) ) {
+	/**
+	 * Minimal kses shim: keep the allowed tags, drop everything else.
+	 *
+	 * @param string                            $content Content.
+	 * @param array<string,array<string,mixed>> $allowed Allowed tags.
+	 * @return string
+	 */
+	function wp_kses( $content, $allowed ) {
+		$tags = array();
+
+		foreach ( array_keys( (array) $allowed ) as $tag ) {
+			$tags[] = '<' . (string) $tag . '>';
+		}
+
+		return strip_tags( (string) $content, implode( '', $tags ) );
+	}
+}
+
 if ( ! function_exists( 'esc_html__' ) ) {
 	/**
 	 * Escaped translation shim.

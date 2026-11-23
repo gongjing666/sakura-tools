@@ -14,6 +14,205 @@ export function Badge( { tone = 'neutral', children } ) {
 }
 
 /**
+ * The shared top bar: brand, module pills, status pill and extra actions.
+ *
+ * Mirrors Shell::header() from the same description, so the pages that are
+ * still server-rendered and this island print one chrome, not two.
+ */
+export function Topbar( { chrome } ) {
+	if ( ! chrome || ! chrome.brand ) {
+		return null;
+	}
+
+	return (
+		<header className="topbar sakura-topbar">
+			<div className="brand">
+				<span className="brand-mark" aria-hidden="true" dangerouslySetInnerHTML={ { __html: chrome.brand.mark } } />
+				<strong>{ chrome.brand.label }</strong>
+				<span className="path">
+					<span className="slash">/</span> { chrome.brand.path }
+				</span>
+			</div>
+
+			<nav className="sakura-mods" aria-label={ chrome.labels.mods }>
+				{ chrome.mods.map( ( mod ) => (
+					<a
+						key={ mod.id }
+						className={ mod.active ? 'sakura-mod is-active' : 'sakura-mod' }
+						href={ mod.url }
+						aria-current={ mod.active ? 'page' : undefined }
+					>
+						{ mod.label }
+					</a>
+				) ) }
+			</nav>
+
+			<div className="top-actions">
+				{ chrome.status && chrome.status.text ? (
+					<span
+						className={ chrome.status.tone ? `conn-pill is-${ chrome.status.tone }` : 'conn-pill' }
+						id={ chrome.status.id || undefined }
+					>
+						<span className="dot" />
+						<span>{ chrome.status.text }</span>
+					</span>
+				) : null }
+				{ chrome.actions.map( ( action ) => (
+					<a key={ action.url } className="btn btn--small" href={ action.url }>
+						{ action.label }
+					</a>
+				) ) }
+			</div>
+		</header>
+	);
+}
+
+/**
+ * The module's tab strip. A tab that cannot be opened renders as a disabled
+ * pill with its note, exactly like Shell::header() does.
+ */
+export function Tabs( { chrome } ) {
+	if ( ! chrome || ! chrome.tabs || ! chrome.tabs.length ) {
+		return null;
+	}
+
+	return (
+		<nav className="sakura-tabs" aria-label={ chrome.labels.tabs }>
+			{ chrome.tabs.map( ( tab ) =>
+				tab.enabled ? (
+					<a
+						key={ tab.id }
+						className={ tab.active ? 'sakura-tab is-active' : 'sakura-tab' }
+						href={ tab.url }
+						aria-current={ tab.active ? 'page' : undefined }
+					>
+						{ tab.label }
+					</a>
+				) : (
+					<span
+						key={ tab.id }
+						className={ tab.active ? 'sakura-tab is-disabled is-active' : 'sakura-tab is-disabled' }
+						aria-disabled="true"
+						tabIndex={ -1 }
+						title={ tab.note }
+					>
+						{ tab.label }
+						<span className="sakura-tab-lock" aria-hidden="true" />
+						<span className="screen-reader-text">{ tab.note }</span>
+					</span>
+				)
+			) }
+		</nav>
+	);
+}
+
+/**
+ * The page head: eyebrow, title, tagline, lede, actions, seal and status card.
+ *
+ * Mirrors Page::head() from Page::head_data().
+ */
+export function PageHead( { head } ) {
+	if ( ! head ) {
+		return null;
+	}
+
+	const stampInAside = head.stamp && 'aside' === head.stamp.place;
+	const hasStatus = head.status && ( head.status.label || head.status.value );
+
+	return (
+		<header className="page-head">
+			<div className="page-head__copy">
+				{ head.eyebrow ? <p className="page-head__eyebrow">{ head.eyebrow }</p> : null }
+				{ head.title ? <h1 id="sakura-page-title">{ head.title }</h1> : null }
+				{ head.tagline ? (
+					<span className="page-head__tag" dangerouslySetInnerHTML={ { __html: head.tagline } } />
+				) : null }
+				{ head.lede ? <p className="page-head__lede">{ head.lede }</p> : null }
+				{ head.actions && head.actions.length ? (
+					<div className="page-head__actions">
+						{ head.actions.map( ( action ) => (
+							<a
+								key={ `${ action.label }|${ action.url }` }
+								className={ `btn btn--${ action.variant || 'ghost' }` }
+								href={ action.url }
+								id={ action.id || undefined }
+							>
+								{ action.label }
+							</a>
+						) ) }
+					</div>
+				) : null }
+				{ stampInAside ? null : <Stamp stamp={ head.stamp } /> }
+			</div>
+
+			{ hasStatus || ( stampInAside && head.stamp && head.stamp.zh ) ? (
+				<aside className="page-head__aside">
+					{ hasStatus ? <StatusCard status={ head.status } /> : null }
+					{ stampInAside ? <Stamp stamp={ head.stamp } /> : null }
+				</aside>
+			) : null }
+		</header>
+	);
+}
+
+/** The seal that names the page, drawn the same way Page::stamp() draws it. */
+function Stamp( { stamp } ) {
+	if ( ! stamp || ! stamp.zh ) {
+		return null;
+	}
+
+	return (
+		<svg className="page-head__stamp" viewBox="0 0 120 120" aria-hidden="true" focusable="false">
+			<circle cx="60" cy="60" r="53" fill="rgba(255,255,255,.72)" stroke="currentColor" strokeOpacity=".34" strokeWidth="1.6" strokeDasharray="4 6" />
+			<circle cx="60" cy="60" r="43" fill="none" stroke="currentColor" strokeOpacity=".22" strokeWidth="1" />
+			<text x="60" y="62" textAnchor="middle" fontSize="35" fontWeight="800" fill="currentColor">
+				{ stamp.zh }
+			</text>
+			{ stamp.en ? (
+				<text x="60" y="82" textAnchor="middle" fontSize="8.5" letterSpacing="2.4" fill="var(--g-faint)">
+					{ stamp.en }
+				</text>
+			) : null }
+		</svg>
+	);
+}
+
+/** Small status card, same parts and the same data-* hooks as Page::status(). */
+function StatusCard( { status } ) {
+	return (
+		<div className={ `status-card status-card--${ status.tone || 'neutral' }` }>
+			{ status.label ? <span className="status-card__label">{ status.label }</span> : null }
+			<span className="status-card__line">
+				<strong className="status-card__value" id={ status.id || undefined } title={ status.title || undefined }>
+					{ status.value }
+				</strong>
+				{ status.unit ? <span className="status-card__unit">{ status.unit }</span> : null }
+			</span>
+			{ status.sub ? (
+				<span className="status-card__sub" id={ status.sub_id || undefined }>
+					{ status.sub }
+				</span>
+			) : null }
+			{ status.ping ? (
+				<span className="status-card__ping" data-sakura-ping data-state="checking">
+					<i className="status-card__dot" aria-hidden="true" />
+					{ status.ping_name ? (
+						<>
+							<span className="status-card__ping-name">{ status.ping_name }</span>
+							<span className="status-card__ping-sep" aria-hidden="true">
+								·
+							</span>
+						</>
+					) : null }
+					<span className="status-card__ping-text">检测中…</span>
+					<b className="status-card__ping-ms" data-sakura-ping-ms />
+				</span>
+			) : null }
+		</div>
+	);
+}
+
+/**
  * A button label that swaps to a shorter one while saving without changing the
  * button's width: both labels sit in the same grid cell, so the cell is as wide
  * as the longer one and the right-aligned savebar never reflows.

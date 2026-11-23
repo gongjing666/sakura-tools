@@ -19,6 +19,93 @@ defined( 'ABSPATH' ) || exit;
 final class Shell {
 
 	/**
+	 * Describe the chrome as data.
+	 *
+	 * The React island renders the same top bar and tab strip from this
+	 * description, so the two renderers cannot drift: header() below is built
+	 * from exactly the same array.
+	 *
+	 * @param string              $module Active module id.
+	 * @param string              $tab    Active tab id.
+	 * @param array<string,mixed> $args   Same arguments as header().
+	 * @return array<string,mixed>|null Null when the module is unknown.
+	 */
+	public static function header_data( string $module, string $tab = '', array $args = array() ): ?array {
+		$modules = Registry::modules();
+
+		if ( ! isset( $modules[ $module ] ) ) {
+			return null;
+		}
+
+		$current = $modules[ $module ];
+
+		$status      = isset( $args['status'] ) ? (string) $args['status'] : '';
+		$status_id   = isset( $args['status_id'] ) ? (string) $args['status_id'] : '';
+		$status_tone = isset( $args['status_tone'] ) ? (string) $args['status_tone'] : '';
+		$status_tone = in_array( $status_tone, array( 'ok', 'off', 'warn', 'error' ), true ) ? $status_tone : '';
+
+		$mods = array();
+		foreach ( $modules as $id => $definition ) {
+			$mods[] = array(
+				'id'     => (string) $id,
+				'label'  => (string) $definition['label'],
+				'url'    => Registry::url( (string) $id ),
+				'active' => (string) $id === $module,
+			);
+		}
+
+		$tabs = array();
+		foreach ( (array) $current['tabs'] as $id => $definition ) {
+			$gate = Registry::tab_gate( (string) $module, (string) $id );
+
+			// Capability missing: leave it out entirely, so the page never leaks.
+			if ( empty( $gate['capable'] ) ) {
+				continue;
+			}
+
+			$tabs[] = array(
+				'id'      => (string) $id,
+				'label'   => (string) $definition['label'],
+				'url'     => Registry::url( $module, (string) $id ),
+				'active'  => (string) $id === $tab,
+				'enabled' => ! empty( $gate['enabled'] ),
+				'note'    => isset( $gate['note'] ) ? (string) $gate['note'] : '',
+			);
+		}
+
+		$actions = array();
+		foreach ( isset( $args['actions'] ) && is_array( $args['actions'] ) ? $args['actions'] : array() as $action ) {
+			if ( empty( $action['label'] ) || empty( $action['url'] ) ) {
+				continue;
+			}
+			$actions[] = array(
+				'label' => (string) $action['label'],
+				'url'   => (string) $action['url'],
+			);
+		}
+
+		return array(
+			'brand'  => array(
+				'label' => __( '樱花工具箱', 'sakura-imgopt' ),
+				'mark'  => self::mark_svg(),
+				'path'  => (string) $current['label'],
+			),
+			'mods'   => $mods,
+			'tabs'   => $tabs,
+			'status' => array(
+				'text' => $status,
+				'tone' => $status_tone,
+				'id'   => $status_id,
+			),
+			'actions' => $actions,
+			'labels' => array(
+				'mods' => __( '功能模块', 'sakura-imgopt' ),
+				'tabs' => __( '模块页面', 'sakura-imgopt' ),
+			),
+		);
+	}
+
+	/**
 	 * Print the top bar and the module's tab strip.
 	 *
 	 * One tab is shown as well: a module that starts with a single screen still
@@ -35,31 +122,28 @@ final class Shell {
 	 * @return void
 	 */
 	public static function header( string $module, string $tab = '', array $args = array() ): void {
-		$modules = Registry::modules();
+		$data = self::header_data( $module, $tab, $args );
 
-		if ( ! isset( $modules[ $module ] ) ) {
+		if ( null === $data ) {
 			return;
 		}
 
-		$current     = $modules[ $module ];
-		$status      = isset( $args['status'] ) ? (string) $args['status'] : '';
-		$status_id   = isset( $args['status_id'] ) ? (string) $args['status_id'] : '';
-		$status_tone = isset( $args['status_tone'] ) ? (string) $args['status_tone'] : '';
-		$status_tone = in_array( $status_tone, array( 'ok', 'off', 'warn', 'error' ), true ) ? $status_tone : '';
-		$actions     = isset( $args['actions'] ) && is_array( $args['actions'] ) ? $args['actions'] : array();
+		$status = $data['status']['text'];
+		$status_tone = $data['status']['tone'];
+		$status_id   = $data['status']['id'];
 		?>
 		<header class="topbar sakura-topbar">
 			<div class="brand">
-				<span class="brand-mark" aria-hidden="true"><?php echo self::mark_svg(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Static SVG. ?></span>
-				<strong><?php esc_html_e( '樱花工具箱', 'sakura-imgopt' ); ?></strong>
-				<span class="path"><span class="slash">/</span> <?php echo esc_html( (string) $current['label'] ); ?></span>
+				<span class="brand-mark" aria-hidden="true"><?php echo $data['brand']['mark']; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Static SVG. ?></span>
+				<strong><?php echo esc_html( $data['brand']['label'] ); ?></strong>
+				<span class="path"><span class="slash">/</span> <?php echo esc_html( $data['brand']['path'] ); ?></span>
 			</div>
 
-			<nav class="sakura-mods" aria-label="<?php esc_attr_e( '功能模块', 'sakura-imgopt' ); ?>">
-				<?php foreach ( $modules as $id => $definition ) : ?>
-					<a class="sakura-mod<?php echo $id === $module ? ' is-active' : ''; ?>"
-						href="<?php echo esc_url( Registry::url( (string) $id ) ); ?>"
-						<?php echo $id === $module ? ' aria-current="page"' : ''; ?>><?php echo esc_html( (string) $definition['label'] ); ?></a>
+			<nav class="sakura-mods" aria-label="<?php echo esc_attr( $data['labels']['mods'] ); ?>">
+				<?php foreach ( $data['mods'] as $mod ) : ?>
+					<a class="sakura-mod<?php echo $mod['active'] ? ' is-active' : ''; ?>"
+						href="<?php echo esc_url( $mod['url'] ); ?>"
+						<?php echo $mod['active'] ? ' aria-current="page"' : ''; ?>><?php echo esc_html( $mod['label'] ); ?></a>
 				<?php endforeach; ?>
 			</nav>
 
@@ -67,35 +151,24 @@ final class Shell {
 				<?php if ( '' !== $status ) : ?>
 					<span class="conn-pill<?php echo '' !== $status_tone ? ' is-' . esc_attr( $status_tone ) : ''; ?>"<?php echo '' !== $status_id ? ' id="' . esc_attr( $status_id ) . '"' : ''; ?>><span class="dot"></span><span><?php echo wp_kses_post( $status ); ?></span></span>
 				<?php endif; ?>
-				<?php foreach ( $actions as $action ) : ?>
-					<?php if ( empty( $action['label'] ) || empty( $action['url'] ) ) : ?>
-						<?php continue; ?>
-					<?php endif; ?>
-					<a class="btn btn--small" href="<?php echo esc_url( (string) $action['url'] ); ?>"><?php echo esc_html( (string) $action['label'] ); ?></a>
+				<?php foreach ( $data['actions'] as $action ) : ?>
+					<a class="btn btn--small" href="<?php echo esc_url( $action['url'] ); ?>"><?php echo esc_html( $action['label'] ); ?></a>
 				<?php endforeach; ?>
 			</div>
 		</header>
 
-		<?php if ( count( (array) $current['tabs'] ) >= 1 ) : ?>
-			<nav class="sakura-tabs" aria-label="<?php esc_attr_e( '模块页面', 'sakura-imgopt' ); ?>">
-				<?php foreach ( (array) $current['tabs'] as $id => $definition ) : ?>
-					<?php
-					$sakura_tab_gate = Registry::tab_gate( (string) $module, (string) $id );
-
-					// Capability missing: render nothing at all, so the page never leaks.
-					if ( ! $sakura_tab_gate['capable'] ) {
-						continue;
-					}
-					?>
-					<?php if ( $sakura_tab_gate['enabled'] ) : ?>
-					<a class="sakura-tab<?php echo $id === $tab ? ' is-active' : ''; ?>"
-						href="<?php echo esc_url( Registry::url( $module, (string) $id ) ); ?>"
-						<?php echo $id === $tab ? ' aria-current="page"' : ''; ?>><?php echo esc_html( (string) $definition['label'] ); ?></a>
+		<?php if ( count( $data['tabs'] ) >= 1 ) : ?>
+			<nav class="sakura-tabs" aria-label="<?php echo esc_attr( $data['labels']['tabs'] ); ?>">
+				<?php foreach ( $data['tabs'] as $tab_data ) : ?>
+					<?php if ( $tab_data['enabled'] ) : ?>
+					<a class="sakura-tab<?php echo $tab_data['active'] ? ' is-active' : ''; ?>"
+						href="<?php echo esc_url( $tab_data['url'] ); ?>"
+						<?php echo $tab_data['active'] ? ' aria-current="page"' : ''; ?>><?php echo esc_html( $tab_data['label'] ); ?></a>
 					<?php else : ?>
-					<span class="sakura-tab is-disabled<?php echo $id === $tab ? ' is-active' : ''; ?>"
+					<span class="sakura-tab is-disabled<?php echo $tab_data['active'] ? ' is-active' : ''; ?>"
 						aria-disabled="true"
 						tabindex="-1"
-						title="<?php echo esc_attr( $sakura_tab_gate['note'] ); ?>"><?php echo esc_html( (string) $definition['label'] ); ?><span class="sakura-tab-lock" aria-hidden="true"></span><span class="screen-reader-text"><?php echo esc_html( $sakura_tab_gate['note'] ); ?></span></span>
+						title="<?php echo esc_attr( $tab_data['note'] ); ?>"><?php echo esc_html( $tab_data['label'] ); ?><span class="sakura-tab-lock" aria-hidden="true"></span><span class="screen-reader-text"><?php echo esc_html( $tab_data['note'] ); ?></span></span>
 					<?php endif; ?>
 				<?php endforeach; ?>
 			</nav>

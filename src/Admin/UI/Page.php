@@ -32,6 +32,15 @@ final class Page {
 		$tab    = isset( $args['tab'] ) ? sanitize_key( (string) $args['tab'] ) : '';
 		$chrome = isset( $args['chrome'] ) && is_array( $args['chrome'] ) ? $args['chrome'] : array();
 
+		/*
+		 * A page rendered by a React island passes `island => true`: the island
+		 * draws the top bar, the tab strip and the page head itself from
+		 * Shell::header_data() / Page::head_data(), and React mounts on the
+		 * .sakura-admin node itself so the `>` selectors in base.css keep
+		 * matching. The server keeps only the node and the fallback note.
+		 */
+		$island = ! empty( $args['island'] );
+
 		$classes = 'sakura-admin';
 
 		$style = Appearance::inline_style();
@@ -44,6 +53,14 @@ final class Page {
 			echo ' style="' . esc_attr( $style ) . '"';
 		}
 		echo '>';
+
+		if ( $island ) {
+			$body();
+			self::settings_feedback();
+			echo '</div>';
+
+			return;
+		}
 
 		if ( '' !== $module ) {
 			Shell::header( $module, $tab, $chrome );
@@ -129,12 +146,16 @@ final class Page {
 	}
 
 	/**
-	 * Page heading.
+	 * Describe the page head as data.
+	 *
+	 * The React island renders the same header from this description and head()
+	 * below is built from it, so the PHP markup and the island cannot disagree
+	 * about what a head is.
 	 *
 	 * @param array<string,mixed> $args Page arguments.
-	 * @return void
+	 * @return array<string,mixed>
 	 */
-	private static function head( array $args ): void {
+	public static function head_data( array $args ): array {
 		$id      = isset( $args['id'] ) ? sanitize_key( (string) $args['id'] ) : '';
 		$eyebrow = isset( $args['eyebrow'] ) ? (string) $args['eyebrow'] : '';
 		$title   = isset( $args['title'] ) ? (string) $args['title'] : '';
@@ -144,10 +165,8 @@ final class Page {
 
 		/*
 		 * V2 hero: a page that does not describe its own hero still gets the
-		 * shared one. Without this every screen except the sync centre falls
-		 * back to a bare title, and the heads stop looking like one product.
-		 * An explicit argument always wins, so a view can still stay plain by
-		 * passing an empty string.
+		 * shared one. An explicit argument always wins, so a view can still stay
+		 * plain by passing an empty string.
 		 */
 		if ( ! isset( $args['tagline'] ) ) {
 			$tagline = Hero::tagline( $id );
@@ -155,47 +174,125 @@ final class Page {
 		if ( array() === $stamp ) {
 			$stamp = Hero::stamp();
 		}
-		$status  = isset( $args['status'] ) && is_array( $args['status'] ) ? $args['status'] : array();
-		$actions = isset( $args['actions'] ) && is_array( $args['actions'] ) ? $args['actions'] : array();
 
-		echo '<header class="page-head">';
-		echo '<div class="page-head__copy">';
-		if ( '' !== $eyebrow ) {
-			echo '<p class="page-head__eyebrow">' . esc_html( $eyebrow ) . '</p>';
-		}
-		if ( '' !== $title ) {
-			echo '<h1 id="sakura-page-title">' . esc_html( $title ) . '</h1>';
-		}
-		if ( '' !== $tagline ) {
+		return array(
+			'id'      => $id,
+			'eyebrow' => $eyebrow,
+			'title'   => $title,
+			'lede'    => $lede,
 			/*
 			 * The tagline is the one place a page may use inline emphasis: V2
 			 * paints the <em> with the accent gradient. Anything beyond em /
 			 * strong / span is stripped, so a view cannot smuggle layout in.
 			 */
-			echo '<span class="page-head__tag">' . wp_kses( $tagline, array( 'em' => array(), 'strong' => array(), 'span' => array() ) ) . '</span>';
+			'tagline' => '' === $tagline ? '' : wp_kses( $tagline, array( 'em' => array(), 'strong' => array(), 'span' => array() ) ),
+			'status'  => self::status_data( isset( $args['status'] ) && is_array( $args['status'] ) ? $args['status'] : array() ),
+			'actions' => self::actions_data( isset( $args['actions'] ) && is_array( $args['actions'] ) ? $args['actions'] : array() ),
+			'stamp'   => array(
+				'zh'    => isset( $stamp['zh'] ) ? (string) $stamp['zh'] : '',
+				'en'    => isset( $stamp['en'] ) ? (string) $stamp['en'] : '',
+				'place' => isset( $stamp['place'] ) && 'aside' === $stamp['place'] ? 'aside' : 'copy',
+			),
+		);
+	}
+
+	/**
+	 * Normalise the status card arguments.
+	 *
+	 * @param array<string,mixed> $status Status arguments.
+	 * @return array<string,mixed>
+	 */
+	private static function status_data( array $status ): array {
+		if ( array() === $status ) {
+			return array();
 		}
-		if ( '' !== $lede ) {
-			echo '<p class="page-head__lede">' . esc_html( $lede ) . '</p>';
+
+		$tone = isset( $status['tone'] ) ? sanitize_key( (string) $status['tone'] ) : 'neutral';
+
+		return array(
+			'label'     => isset( $status['label'] ) ? (string) $status['label'] : '',
+			'value'     => isset( $status['value'] ) ? (string) $status['value'] : '',
+			'unit'      => isset( $status['unit'] ) ? (string) $status['unit'] : '',
+			'sub'       => isset( $status['sub'] ) ? (string) $status['sub'] : '',
+			'tone'      => in_array( $tone, array( 'ok', 'warn', 'bad', 'neutral' ), true ) ? $tone : 'neutral',
+			'id'        => isset( $status['id'] ) ? sanitize_key( (string) $status['id'] ) : '',
+			'sub_id'    => isset( $status['sub_id'] ) ? sanitize_key( (string) $status['sub_id'] ) : '',
+			'title'     => isset( $status['title'] ) ? (string) $status['title'] : '',
+			'ping'      => ! empty( $status['ping'] ),
+			'ping_name' => isset( $status['ping_name'] ) ? (string) $status['ping_name'] : '',
+		);
+	}
+
+	/**
+	 * Normalise the page action list.
+	 *
+	 * @param array<int,mixed> $actions Action list.
+	 * @return array<int,array<string,mixed>>
+	 */
+	private static function actions_data( array $actions ): array {
+		$valid = array();
+
+		foreach ( $actions as $action ) {
+			if ( ! is_array( $action ) || empty( $action['label'] ) || empty( $action['url'] ) ) {
+				continue;
+			}
+
+			$variant = isset( $action['variant'] ) ? sanitize_key( (string) $action['variant'] ) : 'ghost';
+
+			$valid[] = array(
+				'label'   => (string) $action['label'],
+				'url'     => (string) $action['url'],
+				'variant' => in_array( $variant, array( 'primary', 'ghost', 'quiet', 'danger' ), true ) ? $variant : 'ghost',
+				'id'      => isset( $action['id'] ) ? sanitize_key( (string) $action['id'] ) : '',
+				'attrs'   => isset( $action['attrs'] ) && is_array( $action['attrs'] ) ? $action['attrs'] : array(),
+			);
 		}
-		self::actions( $actions );
+
+		return $valid;
+	}
+
+	/**
+	 * Page heading.
+	 *
+	 * @param array<string,mixed> $args Page arguments.
+	 * @return void
+	 */
+	private static function head( array $args ): void {
+		$head = self::head_data( $args );
+
+		echo '<header class="page-head">';
+		echo '<div class="page-head__copy">';
+		if ( '' !== $head['eyebrow'] ) {
+			echo '<p class="page-head__eyebrow">' . esc_html( $head['eyebrow'] ) . '</p>';
+		}
+		if ( '' !== $head['title'] ) {
+			echo '<h1 id="sakura-page-title">' . esc_html( $head['title'] ) . '</h1>';
+		}
+		if ( '' !== $head['tagline'] ) {
+			echo '<span class="page-head__tag">' . $head['tagline'] . '</span>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- wp_kses() in head_data().
+		}
+		if ( '' !== $head['lede'] ) {
+			echo '<p class="page-head__lede">' . esc_html( $head['lede'] ) . '</p>';
+		}
+		self::actions( $head['actions'] );
 		/*
 		 * The stamp belongs to the copy column: as a third child of the header
 		 * grid it would claim the "auto" column and push the status card onto a
 		 * second row, stretching both across the full width.
 		 */
-		$stamp_in_aside = isset( $stamp['place'] ) && 'aside' === $stamp['place'];
+		$stamp_in_aside = 'aside' === $head['stamp']['place'];
 		if ( ! $stamp_in_aside ) {
-			self::stamp( $stamp );
+			self::stamp( $head['stamp'] );
 		}
 		echo '</div>';
 
-		if ( ! empty( $status ) || ( $stamp_in_aside && ! empty( $stamp['zh'] ) ) ) {
+		if ( ! empty( $head['status'] ) || ( $stamp_in_aside && ! empty( $head['stamp']['zh'] ) ) ) {
 			echo '<aside class="page-head__aside">';
-			if ( ! empty( $status ) ) {
-				self::status( $status );
+			if ( ! empty( $head['status'] ) ) {
+				self::status( $head['status'] );
 			}
 			if ( $stamp_in_aside ) {
-				self::stamp( $stamp );
+				self::stamp( $head['stamp'] );
 			}
 			echo '</aside>';
 		}

@@ -237,10 +237,6 @@
 	border-color: var(--g-bad);
 }
 
-.sakura-admin[data-sakura-page="files-queue"] .queue-empty {
-	color: var(--g-muted);
-}
-
 .sakura-admin[data-sakura-page="files-users"] .user-cell {
 	display: grid;
 	gap: 2px;
@@ -322,13 +318,6 @@
 	min-height: 30px;
 	padding-inline: 10px;
 	font-size: 12px;
-}
-
-.sakura-admin[data-sakura-page="files-users"] .quota-hint {
-	display: block;
-	margin-top: 3px;
-	font-size: 11px;
-	color: var(--g-faint);
 }
 
 .sakura-admin[data-sakura-page="files-users"] .live-note {

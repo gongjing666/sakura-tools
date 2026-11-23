@@ -18,10 +18,6 @@
 
 /* ---------------------------------------------------------------- connection */
 
-.sakura-admin[data-sakura-page="storage-connection"] .profile-toolbar {
-	justify-content: flex-end;
-}
-
 .sakura-admin[data-sakura-page="storage-connection"] .profile-grid {
 	display: grid;
 	grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));

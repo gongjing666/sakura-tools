@@ -97,6 +97,10 @@
 	--g-select-focus: rgba(199, 51, 91, .18);
 	--g-check-fill: #ffaaca;
 	--g-check-line: #f59bc0;
+	/* Text beside a checkbox, radio or switch. One value, one place:
+	 * every control that pairs a tick with a word reads this token, so the
+	 * gap cannot drift to 8px here and 9px there (developer request 2026-11-23). */
+	--g-check-gap: 10px;
 
 	/* Switch track. Off is rice white, on is the sakura petal pink — both by
 	 * request, and both pale enough that the ring and the knob shadow, not the

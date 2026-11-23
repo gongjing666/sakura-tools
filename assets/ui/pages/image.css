@@ -30,13 +30,6 @@
 	font-size: 12.5px;
 }
 
-.sakura-admin .sakura-imgopt-sizing-note {
-	margin: 0 0 14px;
-	color: var(--g-muted);
-	font-size: 12.5px;
-	line-height: 1.7;
-}
-
 .sakura-admin .sakura-imgopt-scan-warnings {
 	margin: 0 0 16px;
 	padding: 12px 14px;
@@ -295,28 +288,6 @@
 	max-width: 100%;
 }
 
-.sakura-admin .field.is-disabled,
-.sakura-admin .sakura-imgopt-field-disabled {
-	opacity: .55;
-}
-
-.sakura-admin .field.is-disabled .field__control,
-.sakura-admin .sakura-imgopt-field-disabled td {
-	pointer-events: none;
-}
-
-.sakura-admin .card--thumbs .card__body {
-	gap: 18px;
-}
-
-.sakura-admin .card--thumbs .field-list {
-	grid-template-columns: minmax(0, 1fr);
-}
-
-.sakura-admin .card--thumbs .sakura-imgopt-scan-bar .button {
-	flex: 0 0 auto;
-}
-
 @media (max-width: 782px) {
 	.sakura-admin .sakura-imgopt-size-scroll {
 		margin-right: calc(var(--g-gutter) * -1);
@@ -402,17 +373,6 @@
 
 .sakura-admin .sakura-thumb-readonly + .sakura-thumb-readonly {
 	margin-top: 8px;
-}
-
-.sakura-admin .sakura-thumb-evidence {
-	margin: 12px 0 0;
-	padding: 10px 12px;
-	border: 1px solid var(--g-line-soft);
-	border-radius: var(--g-radius-sm);
-	background: var(--g-wash);
-	color: var(--g-muted);
-	font-size: 12.5px;
-	line-height: 1.65;
 }
 
 @media (max-width: 782px) {

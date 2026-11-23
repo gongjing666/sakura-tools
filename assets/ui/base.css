@@ -674,16 +674,18 @@
 	align-items: center;
 	gap: 8px;
 	margin-left: 2px;
-	color: var(--g-muted);
-	font-size: 12.5px;
-	line-height: 1.4;
+	/* Reads next to the buttons, so it has to hold its own against them: ink-soft
+	 * instead of muted, one size up from the card footnotes. */
+	color: var(--g-ink-soft);
+	font-size: 14px;
+	line-height: 1.35;
 	opacity: 0;
 	animation: sakura-boot-in 180ms var(--g-ease) 180ms forwards;
 }
 
 .sakura-admin .page-head__actions .sakura-boot__dot {
-	inline-size: 6px;
-	block-size: 6px;
+	inline-size: 7px;
+	block-size: 7px;
 	border-radius: 50%;
 	background: var(--g-accent);
 	box-shadow: 0 0 0 3px color-mix(in oklab, var(--g-accent) 16%, transparent);

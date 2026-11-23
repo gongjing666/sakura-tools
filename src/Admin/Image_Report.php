@@ -173,6 +173,14 @@ final class Image_Report {
 			} elseif ( is_array( $scan_row ) ) {
 				$status       = (string) ( $scan_row['status'] ?? 'unknown' );
 				$status_label = (string) ( $scan_row['status_label'] ?? $status_label );
+
+				if ( 'disabled_by_plugin' === $status ) {
+					// Same staleness as the big row: the snapshot remembered our
+					// own checkbox, which has since been cleared.
+					$status       = 'enabled';
+					$status_label = __( '正常生成', 'sakura-imgopt' );
+					$reason       = '';
+				}
 			}
 
 			$rows[] = array(
@@ -195,8 +203,19 @@ final class Image_Report {
 		if ( is_array( $scan ) && isset( $scan['big_threshold'] ) && is_array( $scan['big_threshold'] ) ) {
 			$big = $scan['big_threshold'];
 		}
-		$big_disabled = in_array( '_big_threshold', $disabled, true ) || ! empty( $big['disabled'] );
-		$big_status   = in_array( '_big_threshold', $disabled, true ) ? 'disabled_by_plugin' : (string) ( $big['status'] ?? 'enabled' );
+
+		// The scan is a snapshot: its big_threshold.disabled was captured when the
+		// operator last pressed 扫描裁剪配置, so using it here would make a fresh
+		// save read back as its old value until the next scan. Our own switch is
+		// the live option; the snapshot only tells us how WordPress itself behaves.
+		$big_ours     = in_array( '_big_threshold', $disabled, true );
+		$big_disabled = $big_ours;
+		$big_status   = $big_ours ? 'disabled_by_plugin' : 'enabled';
+		$big_label    = $big_ours
+			? __( '已禁止', 'sakura-imgopt' )
+			: ( 'enabled' === (string) ( $big['status'] ?? '' ) && ! empty( $big['status_label'] )
+				? (string) $big['status_label']
+				: __( '正常启用', 'sakura-imgopt' ) );
 
 		$rows[] = array(
 			'name'         => '_big_threshold',
@@ -207,8 +226,8 @@ final class Image_Report {
 			'disabled'     => $big_disabled,
 			'status'       => $big_status,
 			'tone'         => self::tone( $big_status ),
-			'status_label' => (string) ( $big['status_label'] ?? ( $big_disabled ? __( '已禁止', 'sakura-imgopt' ) : __( '正常启用', 'sakura-imgopt' ) ) ),
-			'reason'       => (string) ( $big['reason'] ?? '' ),
+			'status_label' => $big_label,
+			'reason'       => $big_ours ? '' : (string) ( $big['reason'] ?? '' ),
 			'sources'      => array(
 				array(
 					'label'  => __( 'WordPress 自带规则', 'sakura-imgopt' ),

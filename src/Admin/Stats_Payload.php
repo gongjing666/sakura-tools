@@ -279,6 +279,8 @@ final class Stats_Payload {
 			'saved'        => __( '已保存', 'sakura-imgopt' ),
 			'dismiss'      => __( '知道了', 'sakura-imgopt' ),
 			'close'        => __( '关闭', 'sakura-imgopt' ),
+			'closeIcon' => \Sakura\ImageOptimizer\Admin\UI\Modal::close_icon(),
+			'mascot'    => \Sakura\ImageOptimizer\Admin\UI\Modal::mascot(),
 			'working'      => __( '处理中…', 'sakura-imgopt' ),
 			'failed'       => __( '操作未完成，请稍后重试。', 'sakura-imgopt' ),
 			'network'      => __( '网络请求失败，服务器没有响应。', 'sakura-imgopt' ),

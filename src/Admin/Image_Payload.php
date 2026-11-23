@@ -47,6 +47,18 @@ final class Image_Payload {
 	}
 
 	/**
+	 * The thumbnails section, recomputed from the current options.
+	 *
+	 * The save endpoint returns this so the size table's status column reflects
+	 * what was just written instead of the values captured at first paint.
+	 *
+	 * @return array<string,mixed>
+	 */
+	public function thumbs(): array {
+		return $this->thumbs_section();
+	}
+
+	/**
 	 * Build the payload for one tab.
 	 *
 	 * @param string $tab One of TABS.
@@ -496,6 +508,8 @@ final class Image_Payload {
 			'saved'     => __( '已保存', 'sakura-imgopt' ),
 			'dismiss'   => __( '知道了', 'sakura-imgopt' ),
 			'close'     => __( '关闭', 'sakura-imgopt' ),
+			'closeIcon' => \Sakura\ImageOptimizer\Admin\UI\Modal::close_icon(),
+			'mascot'    => \Sakura\ImageOptimizer\Admin\UI\Modal::mascot(),
 			'scanning'  => __( '正在扫描…', 'sakura-imgopt' ),
 			'scan'      => __( '扫描裁剪配置', 'sakura-imgopt' ),
 			'scanFail'  => __( '扫描失败，请稍后重试。', 'sakura-imgopt' ),

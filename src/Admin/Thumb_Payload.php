@@ -667,6 +667,8 @@ final class Thumb_Payload {
 			'saved'    => __( '已保存', 'sakura-imgopt' ),
 			'dismiss'  => __( '知道了', 'sakura-imgopt' ),
 			'close'    => __( '关闭', 'sakura-imgopt' ),
+			'closeIcon' => \Sakura\ImageOptimizer\Admin\UI\Modal::close_icon(),
+			'mascot'    => \Sakura\ImageOptimizer\Admin\UI\Modal::mascot(),
 			'failed'   => __( '设置未保存，请稍后重试。', 'sakura-imgopt' ),
 			'network'  => __( '网络请求失败，服务器没有响应。', 'sakura-imgopt' ),
 		);

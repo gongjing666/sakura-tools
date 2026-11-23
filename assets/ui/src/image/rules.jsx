@@ -13,7 +13,7 @@ import { call, same } from './transport.js';
  * @param {Object} props Card, transport and callbacks.
  * @return {JSX.Element} Card.
  */
-function SettingsCard( { card, rest, strings, sections, scanned, scan, scanning, onError, onNotice } ) {
+function SettingsCard( { card, rest, strings, sections, scanned, scan, scanning, onError, onNotice, onSection } ) {
 	const [ draft, setDraft ] = useState( card.values );
 	const [ saved, setSaved ] = useState( card.values );
 	const [ saving, setSaving ] = useState( false );
@@ -42,6 +42,12 @@ function SettingsCard( { card, rest, strings, sections, scanned, scan, scanning,
 
 			setSaved( next );
 			setDraft( next );
+
+			if ( payload.section && onSection ) {
+				// The thumbs table's 生成状态 comes from a server-side report, so
+				// it has to be replaced with the freshly computed one.
+				onSection( payload.section );
+			}
 
 			if ( payload.notice ) {
 				onNotice( payload.notice );
@@ -130,7 +136,7 @@ function SettingsCard( { card, rest, strings, sections, scanned, scan, scanning,
  */
 export default function RulesPage( { boot, onError, onNotice } ) {
 	const { strings, rest } = boot;
-	const sections = boot.sections || {};
+	const [ sections, setSections ] = useState( boot.sections || {} );
 	const cards = boot.cards || [];
 	const [ scanned, setScanned ] = useState( null );
 	const [ scanning, setScanning ] = useState( false );
@@ -162,6 +168,7 @@ export default function RulesPage( { boot, onError, onNotice } ) {
 					scanning={ scanning }
 					onError={ onError }
 					onNotice={ onNotice }
+					onSection={ ( next ) => setSections( ( current ) => ( { ...current, thumbs: next } ) ) }
 				/>
 			) ) }
 		</div>

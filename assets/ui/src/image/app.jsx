@@ -26,6 +26,18 @@ export default function App( { boot } ) {
 	const [ notice, setNotice ] = useState( null );
 	const [ error, setError ] = useState( '' );
 
+	// Every page hands over { tone, kicker, title, message }; the icon, the close
+	// label and the dismiss label only exist in strings, so merge them once here
+	// instead of repeating the same four fields in four payloads.
+	const showNotice = ( next ) =>
+		setNotice( {
+			closeIcon: boot.strings.closeIcon,
+			mascot: boot.strings.mascot,
+			closeLabel: boot.strings.close,
+			button: boot.strings.dismiss,
+			...next,
+		} );
+
 	let body = null;
 
 	if ( 'rules' === boot.tab ) {
@@ -33,7 +45,7 @@ export default function App( { boot } ) {
 			<RulesPage
 				boot={ boot }
 				onError={ setError }
-				onNotice={ setNotice }
+				onNotice={ showNotice }
 			/>
 		);
 	}
@@ -43,7 +55,7 @@ export default function App( { boot } ) {
 			<ThumbPage
 				boot={ boot }
 				onError={ setError }
-				onNotice={ setNotice }
+				onNotice={ showNotice }
 			/>
 		);
 	}
@@ -53,7 +65,7 @@ export default function App( { boot } ) {
 			<BackupPage
 				boot={ boot }
 				onError={ setError }
-				onNotice={ setNotice }
+				onNotice={ showNotice }
 				onUsage={ ( usage ) =>
 					setHead( ( current ) => ( {
 						...current,
@@ -73,7 +85,7 @@ export default function App( { boot } ) {
 			<StatsPage
 				boot={ boot }
 				onError={ setError }
-				onNotice={ setNotice }
+				onNotice={ showNotice }
 				onHead={ setHead }
 			/>
 		);

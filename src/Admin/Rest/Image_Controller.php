@@ -287,13 +287,20 @@ final class Image_Controller {
 		$settings = new Image_Settings( new Settings_Repository() );
 		$result   = $settings->save_rules_card( $card, $fields );
 
-		return rest_ensure_response(
-			array(
-				'card'   => $result['card'],
-				'values' => $result['values'],
-				'notice' => $result['notice'],
-			)
+		$payload = array(
+			'card'   => $result['card'],
+			'values' => $result['values'],
+			'notice' => $result['notice'],
 		);
+
+		if ( 'thumbs' === $result['card'] ) {
+			// The size table's 生成状态 column comes from the scan report, so it
+			// has to be recomputed after the write — otherwise a freshly ticked
+			// row keeps saying 正常生成 until the next page load.
+			$payload['section'] = ( new Image_Payload( new Settings_Repository() ) )->thumbs();
+		}
+
+		return rest_ensure_response( $payload );
 	}
 
 	/**

@@ -5,6 +5,12 @@
  * primitives come from assets/ui/components.css.
  */
 
+/* 岛内没有 .page-body 的自动间距（React 根只是一个子节点），KPI 票根与
+ * 卡片网格之间要自己补：沿用「卡片间隔」这个设置，改它两处一起变。 */
+.sakura-admin[data-sakura-page="system-settings"] #sakura-system-root .kpis--ticket + .card-grid {
+	margin-top: var(--g-grid-gap-y);
+}
+
 .sakura-admin[data-sakura-page="system-settings"] .system-value {
 	color: var(--g-ink);
 	font-variant-numeric: tabular-nums;

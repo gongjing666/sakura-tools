@@ -71,6 +71,17 @@ function Unit( { children } ) {
 }
 
 /**
+ * Truthiness for option-backed flags.
+ *
+ * The option table stores `"0"` / `"1"` strings, and `Boolean("0")` is true — a
+ * switch bound that way renders as ticked while its feature is off. Everything
+ * that binds a flag reads through here instead.
+ */
+export function isOn( value ) {
+	return true === value || 1 === value || '1' === value;
+}
+
+/**
  * One field of the rules tab.
  *
  * `value` is the raw option value: booleans for switches, arrays for the size
@@ -87,7 +98,7 @@ export function ImageField( { field, value, values, onChange, group } ) {
 							className="is-switch"
 							id={ field.for }
 							name={ field.name }
-							checked={ Boolean( value ) }
+							checked={ isOn( value ) }
 							onChange={ ( event ) => onChange( field.name, event.target.checked ) }
 						/>
 						<span>{ field.text || field.label }</span>
@@ -237,6 +248,13 @@ export function ImageField( { field, value, values, onChange, group } ) {
 						step={ field.step }
 						value={ value ?? '' }
 						onChange={ ( event ) => onChange( field.name, event.target.value ) }
+						onBlur={ ( event ) => {
+							const number = Number( event.target.value );
+
+							if ( '' !== event.target.value && Number.isFinite( number ) && ! Number.isInteger( number ) ) {
+								onChange( field.name, Math.round( number ) );
+							}
+						} }
 					/>
 					<Unit>{ field.unit }</Unit>
 				</FieldShell>

@@ -165,8 +165,12 @@ final class Image_Settings {
 		$values = array();
 
 		foreach ( self::rules_options( $card ) as $option ) {
-			$key            = substr( $option, strlen( Settings_Repository::PREFIX ) );
-			$values[ $key ] = $this->settings->get( $option );
+			$key  = substr( $option, strlen( Settings_Repository::PREFIX ) );
+			$raw  = $this->settings->get( $option );
+			// Flags must reach the island as numbers: the option stores the string
+			// "0", and a checkbox bound with Boolean("0") shows as ticked while the
+			// feature is off (rename was rendered on while rename_enabled was 0).
+			$values[ $key ] = in_array( $option, self::FLAG_OPTIONS, true ) ? (int) $raw : $raw;
 		}
 
 		return $values;

@@ -4,6 +4,7 @@
 
 import { useEffect, useState } from 'react';
 import { BusyLabel, Card } from '../shared/ui.jsx';
+import { isOn } from './fields.jsx';
 import { call, same } from './transport.js';
 
 /**
@@ -20,7 +21,7 @@ function Checkbox( { id, label, checked, onChange } ) {
 				id={ id }
 				type="checkbox"
 				className="is-switch"
-				checked={ Boolean( checked ) }
+				checked={ isOn( checked ) }
 				onChange={ ( event ) => onChange( event.target.checked ? 1 : 0 ) }
 			/>
 			<span>{ label }</span>
@@ -160,6 +161,7 @@ function CardFields( { card, draft, setDraft } ) {
 							</div>
 							<div className="field__control">
 								<Checkbox
+									id={ field.id || 'sakura_imgopt_' + key }
 									label={ field.text }
 									checked={ draft[ key ] }
 									onChange={ ( value ) => set( key, value ) }
@@ -222,6 +224,7 @@ function CardFields( { card, draft, setDraft } ) {
 								{ field.items.map( ( item ) => (
 									<Checkbox
 										key={ item.key }
+										id={ ( field.id || 'sakura_imgopt_' + key ) + '_' + item.key }
 										label={ item.label }
 										checked={ ( draft[ key ] || {} )[ item.key ] }
 										onChange={ ( value ) =>

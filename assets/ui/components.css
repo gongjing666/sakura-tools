@@ -705,6 +705,17 @@
 	transform: none;
 }
 
+/* 保存条里的按钮不做 1px 抬升，只换颜色与投影。
+ * 原因是这一处必然会在指针下面改状态：按下（:active 回落）→ 松开（hover 抬起）
+ * → 保存完成、提示框遮罩盖住指针（hover 断开，抬升消失）——三次 1px 位移叠在
+ * 300ms 里，页面上别的都不动，就显得卡片在抖。投影深一点已经够说明「指尖碰到了」。 */
+.sakura-admin .card__savebar .btn,
+.sakura-admin .card__savebar .btn:hover:not(:disabled),
+.sakura-admin .card__savebar .btn--primary:hover:not(:disabled),
+.sakura-admin .card__savebar .btn:active {
+	transform: none;
+}
+
 /* 保存中的文案切换（「保存布局设置」→「保存中…」）会让按钮变窄，右对齐的
  * 保存条于是回缩一次再弹回来——看起来就是卡片在抖。两层文案叠在同一格里，
  * 宽度取较宽的那一个，切换时几何不变。 */
@@ -1650,13 +1661,13 @@
  * painted frame and any animation there would be the flash.
  */
 @keyframes sakura-modal-fade-in {
-	from { opacity: 0; transform: translateY(8px) scale(.96); }
-	to   { opacity: 1; transform: translateY(0) scale(1); }
+	from { opacity: 0; }
+	to   { opacity: 1; }
 }
 
 @keyframes sakura-modal-fade-out {
-	from { opacity: 1; transform: translateY(0) scale(1); }
-	to   { opacity: 0; transform: translateY(-4px) scale(.985); }
+	from { opacity: 1; }
+	to   { opacity: 0; }
 }
 
 /* 卡片按视觉稿（docs/设计稿/s3-sync-center-sakura.html 的 .modal__card）：

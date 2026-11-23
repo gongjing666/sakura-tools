@@ -130,10 +130,11 @@ export default function App( { boot } ) {
 						<div className="card__savebar">
 							<button
 								type="submit"
-								className={ saving ? 'btn btn--primary is-busy' : 'btn btn--primary' }
+								className="btn btn--primary"
 								ref={ saveRef }
-								disabled={ saving || ! dirty }
+								disabled={ ! dirty }
 								aria-busy={ saving ? 'true' : undefined }
+								aria-disabled={ saving ? 'true' : undefined }
 							>
 								<BusyLabel
 									idle={ layoutCard.save }

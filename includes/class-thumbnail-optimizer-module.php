@@ -386,6 +386,12 @@ class Thumbnail_Optimizer_Module implements Module {
 			return;
 		}
 
+		if ( is_readable( SAKURA_TOOLS_PATH . 'assets/ui/dist/image.js' ) ) {
+			$payload = ( new \Sakura\ImageOptimizer\Admin\Thumb_Payload() )->build();
+			require __DIR__ . '/views/settings-island.php';
+			return;
+		}
+
 		$options  = Settings::get();
 		$is_zibll = $this->is_zibll_theme();
 		$mode     = Settings::effective_mode();

@@ -164,4 +164,17 @@ final class LayoutTest extends TestCase {
 
 		$this->assertSame( $declared, $rendered, 'assets/ui/src/system/app.jsx must render the cards in Layout order.' );
 	}
+
+	/**
+	 * The thumbnail tab renders its cards from the payload, so the payload order
+	 * is the only thing that can drift from the Layout table.
+	 */
+	public function test_thumb_payload_matches_the_declared_card_order(): void {
+		require_once dirname( __DIR__ ) . '/src/Admin/Thumb_Payload.php';
+
+		$this->assertSame(
+			Layout::PAGES['thumb']['order'],
+			\Sakura\ImageOptimizer\Admin\Thumb_Payload::card_ids()
+		);
+	}
 }

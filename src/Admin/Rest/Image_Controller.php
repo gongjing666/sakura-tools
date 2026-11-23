@@ -12,6 +12,8 @@ namespace Sakura\ImageOptimizer\Admin\Rest;
 use Sakura\ImageOptimizer\Admin\Image_Payload;
 use Sakura\ImageOptimizer\Admin\Image_Report;
 use Sakura\ImageOptimizer\Admin\Image_Settings;
+use Sakura\ImageOptimizer\Admin\Thumb_Payload;
+use Sakura\ImageOptimizer\Admin\Thumb_Settings;
 use Sakura\ImageOptimizer\Image\Crop_Config_Scanner;
 use Sakura\ImageOptimizer\Settings\Settings_Repository;
 use WP_REST_Request;
@@ -79,6 +81,33 @@ final class Image_Controller {
 				),
 			)
 		);
+
+		register_rest_route(
+			self::NS,
+			'/image/thumb',
+			array(
+				'methods'             => WP_REST_Server::READABLE,
+				'callback'            => array( self::class, 'read_thumb' ),
+				'permission_callback' => array( self::class, 'can_manage' ),
+			)
+		);
+
+		register_rest_route(
+			self::NS,
+			'/image/thumb/cards/(?P<card>[a-z]+)',
+			array(
+				'methods'             => WP_REST_Server::CREATABLE,
+				'callback'            => array( self::class, 'save_thumb_card' ),
+				'permission_callback' => array( self::class, 'can_manage' ),
+				'args'                => array(
+					'card' => array(
+						'type'     => 'string',
+						'required' => true,
+						'enum'     => Thumb_Settings::CARDS,
+					),
+				),
+			)
+		);
 	}
 
 	/**
@@ -132,6 +161,41 @@ final class Image_Controller {
 				'scan_summary' => Image_Report::scan_summary_text( $scan ),
 				'wp_config'    => Image_Report::wp_config_text( $scan ),
 				'warnings'     => array_values( array_filter( $warnings ) ),
+			)
+		);
+	}
+
+	/**
+	 * GET /image/thumb.
+	 *
+	 * @return WP_REST_Response
+	 */
+	public static function read_thumb(): WP_REST_Response {
+		return rest_ensure_response( ( new Thumb_Payload() )->build() );
+	}
+
+	/**
+	 * POST /image/thumb/cards/{card}.
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return WP_REST_Response
+	 */
+	public static function save_thumb_card( WP_REST_Request $request ): WP_REST_Response {
+		$card   = (string) $request->get_param( 'card' );
+		$fields = $request->get_param( 'fields' );
+
+		if ( ! is_array( $fields ) ) {
+			$fields = array();
+		}
+
+		$settings = new Thumb_Settings();
+		$result   = $settings->save( $card, $fields );
+
+		return rest_ensure_response(
+			array(
+				'card'   => $result['card'],
+				'values' => $result['values'],
+				'notice' => $result['notice'],
 			)
 		);
 	}

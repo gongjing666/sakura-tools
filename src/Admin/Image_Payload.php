@@ -59,7 +59,7 @@ final class Image_Payload {
 			'chrome'  => Shell::header_data( 'image', $tab ),
 			'strings' => $this->strings(),
 			'rest'    => array(
-				'url'   => esc_url_raw( rest_url( Image_Controller::NS . '/image/rules' ) ),
+				'url'   => esc_url_raw( rest_url( Image_Controller::NS . '/image/' . $tab ) ),
 				'nonce' => wp_create_nonce( 'wp_rest' ),
 			),
 		);

@@ -987,3 +987,18 @@ body.upload-php.sufm-tree-active.folded { --sufm-tree-left: 56px; }
 **顺手修正**：`sakura_imgopt_source_formats` 的注册默认原来是 8 项（含 `svg`），而 `Settings_Repository::DEFAULT_SOURCE_FORMATS` 是 7 项——`get_option()` 用注册默认、仓储显式回落，两边对不上；注册默认改为引用仓储常量。
 
 **验收**：`composer test` 890 tests / 3794 assertions / 6 skipped、`phpstan` 无错误、`phpcs` 8/8、`git diff --check` 干净。实验站（1.28.8-beta-15）：rules 页首屏四卡渲染（thumbs 满宽 + 尺寸表 + 扫描摘要、rename 规则编辑器、compress 两列、bulk 满宽），改质量 88 保存 → 弹窗「设置已保存」、`scrollY` 不动、无导航；直连 REST 传 `{fields:{quality:500, compression_mode:'bogus'}}` → 200，落库 `quality=100` / `compression_mode=compress_only`、notice 变 warn；`disabled_sizes` 传白名单外的名字被丢弃。测试后把实验站的 quality / batch / delay / 模式 / 格式 / 源格式 / 禁用尺寸全部还原。
+
+## 缩略图页签迁到整页 React（2026-11-23，1.28.8-beta-16）
+
+**背景**：图像优化页的 rules 页签已在 beta-15 改成整页 React（见上一条）。剩下 thumb（`admin.php?page=sakura-tools-image&t=thumb`，旧视图 `includes/views/thumb-settings.php`，447 行、8 张卡、由 `Thumbnail_Optimizer_Module` 单独渲染）继续用服务端表单。
+
+**决策**：① 复用 rules 的接线——`Page::render([...'island' => true])` 画空壳与页头、`includes/views/settings-island.php` 输出引导 JSON、`assets/ui/dist/image.js` 一个 bundle 管四个页签（`index.jsx` 按 `.sakura-admin[data-sakura-page^="image-"]` 找挂载点）。② thumb 的渲染入口在另一个模块，`Thumbnail_Optimizer_Module::render_page()` 里 `is_readable( assets/ui/dist/image.js )` 时走岛、否则回落旧视图（与 rules 的兜底一致）。③ 服务端新增 `Thumb_Settings`（按卡保存 + sizes 合并 + 提示）与 `Thumb_Payload`（页头、8 张卡、告警、一次性提示），REST 仍是 `Rest\Image_Controller` 里加 `GET /image/thumb` 与 `POST /image/thumb/cards/{card}`。④ 前端把 rules 从 `app.jsx` 拆成 `rules.jsx`，`app.jsx` 只做外壳（顶栏 + 页签 + 页头 + 区块切换 + 弹窗），新增 `thumb.jsx` 与 `transport.js`。
+
+**踩到的三个真问题**：
+1. **整页白屏**：`Card` 用 `const [row, col, span] = card.placement` 解构，而 `Thumb_Payload` 先给的是 `{row:…, col:…, span:…}` 对象 → `object is not iterable`，React 首个渲染就抛错、根节点被清空。payload 一律给三元数组，和 `Image_Payload` 对齐。
+2. **尺寸表保存后按钮一直灰**：dirty 判定写成 `!same(rows, card.rows)`，而 `card.rows` 根本不存在（行在 `fields[0].rows` 里），比较永远相等。改成用 `baseline` 状态承接初始行、保存成功后更新基线。
+3. **每次保存都报「部分数值按规则调整」**：`notice()` 拿落库后的整行去比保存前的整行，而落库行多了 `format: auto`、`style` 又被搬进 `style_map` → 永远不等。改成只比可编辑的六项（宽 / 高 / 模式 / 位置 / 质量 / 命名样式），且与「本次请求提交的值」比，不是与旧值比。
+
+**保存标记**：`Thumbnail\Settings::sanitize()` 依赖 `_sakura_card` + `_sakura_partial` 判断本次提交拥有哪张卡，缺了会把整表覆盖、把 `enabled` 与没提交的高级开关写成 0。`Thumb_Settings::save()` 在 `sanitize()` 之前补这两个标记与 `schema`，前端只发 `{fields:{…}}`。
+
+**验收**：`composer test` 890 tests / 3794 assertions / 6 skipped（新增 `LayoutTest::test_thumb_payload_matches_the_declared_card_order`）、`phpstan` 无错误、`phpcs` 8/8、`git diff --check` 干净。实验站（1.28.8-beta-16）：8 张卡按 Layout 顺序渲染（switches → cache），1440 / 390 均无横向溢出、无 console 报错；切「生效位置」保存后不导航、`singular` 生效而 `enabled` / `advanced` / `sizes` / `style_map` 全部保持原样；尺寸表把 medium 改 480 / 85 再改回 500 / 82，`format` 始终是 `auto`、命名样式仍在 `style_map`；提示「设置已保存」与「已保存，部分数值按规则调整」两态都对；测试后实验站的 `oss_thumb` 已还原（scopes 只剩 archive、sizes 回到 250/500/800/640 与质量 82）。

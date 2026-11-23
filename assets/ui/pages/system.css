@@ -152,6 +152,38 @@
 	line-height: 1.6;
 }
 
+/*
+ * First paint of the island. PHP prints this before the bundle runs, so it must
+ * not read as a stray line in the corner: it is centred in the content area and
+ * held invisible for a moment, which means a warm load (bundle cached, boots in
+ * well under 200ms) never shows it at all — it only appears if the script is
+ * genuinely slow or never arrives.
+ */
+.sakura-admin[data-sakura-page="system-settings"] .system-boot {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	min-height: 40vh;
+	padding: 24px 0;
+	color: var(--g-muted);
+	font-size: 13px;
+	letter-spacing: .02em;
+	opacity: 0;
+	animation: sakura-system-boot-in 160ms var(--g-ease) 220ms forwards;
+}
+
+@keyframes sakura-system-boot-in {
+	to {
+		opacity: 1;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.sakura-admin[data-sakura-page="system-settings"] .system-boot {
+		animation: sakura-system-boot-in 1ms linear 220ms forwards;
+	}
+}
+
 @media (max-width: 900px) {
 	/*
 	 * The ticket strip keeps auto-fit down to 782px: forcing two columns while

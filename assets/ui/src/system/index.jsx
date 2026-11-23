@@ -21,10 +21,18 @@ if ( mount ) {
 	if ( boot ) {
 		createRoot( mount ).render( <App boot={ boot } /> );
 	} else {
-		const note = mount.querySelector( '.system-note' );
+		const block = mount.querySelector( '.system-boot' );
+		const line = mount.querySelector( '.system-boot__text' );
 
-		if ( note ) {
-			note.textContent = '页面数据加载失败，请刷新重试。';
+		// The line fades in late on purpose; a broken payload has to be
+		// readable right away, so the delay is cancelled here.
+		if ( block ) {
+			block.style.animation = 'none';
+			block.style.opacity = '1';
+		}
+
+		if ( line ) {
+			line.textContent = '页面数据加载失败，请刷新重试。';
 		}
 	}
 }

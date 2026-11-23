@@ -34,7 +34,9 @@ UI::page(
 	$payload['page'],
 	static function () {
 		?>
-		<p class="system-note"><?php echo esc_html__( '正在读取环境信息…', 'sakura-imgopt' ); ?></p>
+		<div class="system-boot" role="status">
+			<span class="system-boot__text"><?php echo esc_html__( '正在读取环境信息…', 'sakura-imgopt' ); ?></span>
+		</div>
 		<?php
 	}
 );

@@ -28,9 +28,16 @@
 	vertical-align: baseline;
 }
 
+/* 值与胶囊共用一条基线、固定 8px 间隙。胶囊靠 vertical-align: middle
+ * 对齐时，pill 外框比文字高，看起来浮在字上面还紧贴着字。 */
 .sakura-admin[data-sakura-page="system-settings"] .table td .badge {
-	margin: 2px 6px 2px 0;
-	vertical-align: middle;
+	margin: 0 0 0 8px;
+	vertical-align: baseline;
+}
+
+/* 状态列只有一颗胶囊时它自己就是行首，不要再缩进。 */
+.sakura-admin[data-sakura-page="system-settings"] .table--checks td:nth-child(2) .badge {
+	margin-inline-start: 0;
 }
 
 .sakura-admin[data-sakura-page="system-settings"] .table td:first-child {
@@ -224,10 +231,10 @@
 		min-width: 0;
 	}
 
-	/* 值与徽章用同一条基线对齐，并且留出固定间隙：徽章靠 vertical-align
-	 * 对齐时，pill 的外框会比文字高，看起来「浮」在字的上面。 */
+	/* 胶囊贴行尾：值的长短只改变左边的文字，胶囊的位置不再跟着跳，
+	 * 与「环境检查」卡的状态列对齐到同一条右边界。 */
 	.sakura-admin[data-sakura-page="system-settings"] .table--records td:last-child .badge {
-		margin: 0;
+		margin-inline: auto 0;
 		vertical-align: baseline;
 	}
 

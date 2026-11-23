@@ -43,6 +43,11 @@
 	line-height: 1.55;
 }
 
+/* 窄屏专用：说明并进值的行内副本，桌面宽度下由第 4 列负责显示。 */
+.sakura-admin[data-sakura-page="system-settings"] .system-check-note--inline {
+	display: none;
+}
+
 .sakura-admin[data-sakura-page="system-settings"] .system-ext-grid {
 	display: flex;
 	flex-wrap: wrap;
@@ -232,9 +237,8 @@
 	.sakura-admin[data-sakura-page="system-settings"] .table--checks tr {
 		display: grid;
 		grid-template-columns: 92px minmax(0, 1fr) auto;
-		column-gap: 10px;
-		row-gap: 2px;
 		align-items: baseline;
+		column-gap: 10px;
 		padding: 9px 0;
 		border-top: 1px solid var(--g-line-soft);
 	}
@@ -256,29 +260,40 @@
 	}
 
 	.sakura-admin[data-sakura-page="system-settings"] .table--checks td:first-child {
-		grid-row: 1 / span 2;
 		grid-column: 1;
+		grid-row: 1;
 		color: var(--g-muted);
 		font-size: 12.5px;
 	}
 
-	.sakura-admin[data-sakura-page="system-settings"] .table--checks td:nth-child(2) {
-		grid-row: 1;
-		grid-column: 3;
-		justify-self: end;
-	}
-
+	/* 值在前、说明紧跟其后并用中点分隔（窄屏把第 4 列藏起来，正文里那份
+	 * inline 副本显形），徽章贴在第 1 行的行尾。用 grid 而不是 flex：
+	 * flex 换行会把整格推到下一行，值就离开了 92px 的标签列。 */
 	.sakura-admin[data-sakura-page="system-settings"] .table--checks td:nth-child(3) {
-		grid-row: 1;
 		grid-column: 2;
+		grid-row: 1;
+		min-width: 0;
 	}
 
 	.sakura-admin[data-sakura-page="system-settings"] .table--checks td:nth-child(4) {
-		grid-row: 2;
-		grid-column: 2 / span 2;
+		display: none;
 	}
 
-	.sakura-admin[data-sakura-page="system-settings"] .table--checks td:nth-child(4):empty {
-		display: none;
+	.sakura-admin[data-sakura-page="system-settings"] .table--checks .system-check-note--inline {
+		display: inline;
+		color: var(--g-muted);
+		font-size: 12.5px;
+	}
+
+	.sakura-admin[data-sakura-page="system-settings"] .table--checks .system-check-note--inline::before {
+		content: "·";
+		margin-inline: 5px;
+		color: var(--g-faint);
+	}
+
+	.sakura-admin[data-sakura-page="system-settings"] .table--checks td:nth-child(2) {
+		grid-column: 3;
+		grid-row: 1;
+		justify-self: end;
 	}
 }

@@ -128,7 +128,12 @@ export function ChecksTable( { card } ) {
 							<td data-label={ card.columns[ 1 ] }>
 								<Badge tone={ row.tone }>{ row.stateLabel }</Badge>
 							</td>
-							<td data-label={ card.columns[ 2 ] }>{ row.value || '—' }</td>
+							<td data-label={ card.columns[ 2 ] } className="system-check-value">
+								{ row.value || '—' }
+								{ row.note && '—' !== row.note ? (
+									<span className="system-check-note system-check-note--inline">{ row.note }</span>
+								) : null }
+							</td>
 							<td data-label={ card.columns[ 3 ] } className="system-check-note">
 								{ row.note && '—' !== row.note ? row.note : '' }
 							</td>

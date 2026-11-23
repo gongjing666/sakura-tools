@@ -36,12 +36,13 @@ function Hint( { hint } ) {
  */
 export function FieldShell( { field, children } ) {
 	const wide =
-		field.full || [ 'size-table', 'limits', 'rule-composer', 'checkgrid' ].includes( field.type );
+		field.full || [ 'size-table', 'limits', 'rule-composer', 'checkgrid', 'formats' ].includes( field.type );
 	const after = Boolean( field.hint_after );
 	const classes = [
 		'field',
 		`field--${ field.type }`,
 		field.input ? `field--${ field.input }` : '',
+		field.width ? `field--w-${ field.width }` : '',
 		wide ? 'field--full' : '',
 	]
 		.filter( Boolean )
@@ -143,12 +144,42 @@ export function ImageField( { field, value, values, onChange, group } ) {
 			);
 		}
 
+		case 'formats': {
+			const selected = Array.isArray( value ) ? value.map( String ) : [];
+
+			return (
+				<FieldShell field={ field }>
+					<div className="format-grid">
+						{ field.options.map( ( option ) => (
+							<label className="format-box" key={ option.value }>
+								<input
+									type="checkbox"
+									name={ `${ field.name }[]` }
+									value={ option.value }
+									checked={ selected.includes( option.value ) }
+									onChange={ ( event ) => {
+										const next = event.target.checked
+											? [ ...selected, option.value ]
+											: selected.filter( ( entry ) => entry !== option.value );
+
+										onChange( field.name, next );
+									} }
+								/>
+								<span>{ option.label }</span>
+							</label>
+						) ) }
+					</div>
+				</FieldShell>
+			);
+		}
+
 		case 'limits':
 			return (
 				<FieldShell field={ field }>
-					<div className="field__inline">
+					<div className="field__inline field__inline--limits">
 						{ field.parts.map( ( part ) => (
-							<span key={ part.name }>
+							<span className="field__inline-part" key={ part.name }>
+								{ part.label ? <span className="field__inline-label">{ part.label }</span> : null }
 								<input
 									type="number"
 									className="small-text"
@@ -157,10 +188,18 @@ export function ImageField( { field, value, values, onChange, group } ) {
 									max={ part.max }
 									step={ part.step }
 									value={ values ? values[ part.name ] ?? '' : '' }
-									aria-label={ part.name }
+									aria-label={ part.label || part.name }
 									onChange={ ( event ) => onChange( part.name, event.target.value ) }
+									onBlur={ ( event ) => {
+										const number = Number( event.target.value );
+
+										if ( '' !== event.target.value && Number.isFinite( number ) && ! Number.isInteger( number ) ) {
+											onChange( part.name, Math.round( number ) );
+										}
+									} }
 								/>
-								<Unit>{ part.unit }</Unit>
+								{ part.unit ? <Unit>{ part.unit }</Unit> : null }
+								{ part.join ? <span className="field__inline-join">{ part.join }</span> : null }
 							</span>
 						) ) }
 					</div>

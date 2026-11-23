@@ -11,6 +11,7 @@ import { useState } from 'react';
 import { PageHead, Prompt, Tabs, Topbar } from '../shared/ui.jsx';
 import BackupPage from './backup.jsx';
 import RulesPage from './rules.jsx';
+import StatsPage from './stats.jsx';
 import ThumbPage from './thumb.jsx';
 
 /**
@@ -63,6 +64,17 @@ export default function App( { boot } ) {
 						},
 					} ) )
 				}
+			/>
+		);
+	}
+
+	if ( 'stats' === boot.tab ) {
+		body = (
+			<StatsPage
+				boot={ boot }
+				onError={ setError }
+				onNotice={ setNotice }
+				onHead={ setHead }
 			/>
 		);
 	}

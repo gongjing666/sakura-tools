@@ -677,3 +677,10 @@
 	color: var(--g-muted);
 	font-size: 12.5px;
 }
+
+/* 整页动作条：按钮靠右，与卡片底部保存条保持同一视觉节奏 */
+.sakura-admin[data-sakura-page^="image-"] .page-savebar {
+	display: flex;
+	justify-content: flex-end;
+	margin-top: var(--g-stack);
+}

@@ -1019,3 +1019,17 @@ body.upload-php.sufm-tree-active.folded { --sufm-tree-left: 56px; }
 3. 一次编辑失误把 `max_mb` / `delete_data` 两个字段描述符复制成两份（两个同 id 输入框），页面照旧渲染但 `label[for]` 只认第一个。清理重复项后恢复正常——这类重复在静态检查里看不出来，只能靠读 payload。
 
 **验收**：`composer test` 891 tests / 3795 assertions / 6 skipped、`phpstan` 无错误、`phpcs` 8/8、`git diff --check` 干净。实验站（1.28.8-beta-17）：三张卡按 Layout placement（`usage` 1/1/8、`policy` 1/9/4、`access` 2/1/8）渲染，控制台 0 error；把保留天数改成 15 保存 → 不导航（`performance` navigation 条目仍 1、`window.__alive` 存活）、逐帧位移扫描 `moves = []`、`scrollY` 643 不变、弹窗「设置已保存 / 清理策略已保存，下一次计划任务会按新规则执行。」、值回写 15；探测按钮返回「已保护：服务器拒绝访问备份目录（HTTP 403…）」，提示转 ok、KPI「目录保护」同步变成「已拦截」；清理按钮返回「已清理 0 个过期备份，释放 0.00 B。」并把页头状态卡与 KPI 一起刷新；390 宽下三张卡各 358px、按钮不越界（右边界 356）、Nginx 片段在 `.code-block` 内横向滚动、`scrollWidth = 390 = innerWidth`。测试后实验站保留天数已还原为 10、容量上限 100、卸载删除关闭。
+
+## 统计页签迁到整页 React：分页与重置走 REST，行数据不再拼 HTML（2026-11-23，1.28.8-beta-18）
+
+**背景**：图像优化的 rules（beta-15）、thumb（beta-16）、backup（beta-17）已整页 React；stats（`admin.php?page=sakura-tools-image&t=stats`）仍是 `includes/views/settings-stats.php`（198 行：6 个 KPI + 一张历史表 + 分页 + 重置），分页靠 `wp_ajax_sakura_imgopt_stats_page` 返回拼好的 `<tr>`，重置走 `admin-post.php` 跳转回来。
+
+**决策**：
+1. 新增 `src/Admin/Stats_Payload.php`：`build( int $page = 1, int $per_page = 25 )` 产出 KPI 数组（最后一项带 `progress`）、历史卡（`columns` / `rows` / `pagination` / `wide`）、页头（含「返回图像优化」动作）与字符串；行是结构化的 `{time,name,url,format,engine,source,size,badge:{label,tone,title}}`，不再由 PHP 拼 `<tr>`。
+2. 新增两条路由：`GET /image/stats`（`page` / `per_page`，`enum` 25 / 50 / 100）与 `POST /image/stats/reset`（返回 `{payload, notice}`，只清聚合、明细随附件保留）。
+3. `render_stats_page()` 加与其它三个页签一致的岛分支（`is_readable( assets/ui/dist/image.js )` → `Stats_Payload` + `views/settings-island.php`），否则回落旧视图。
+4. 前端 `assets/ui/src/image/stats.jsx`：`Kpi`（含进度条）、`History`（自己持有 rows / pagination，切每页与翻页都只调 `GET /image/stats`）、重置按钮放在页面底部的 `.page-savebar`，确认后 `POST /reset`，用返回的 `kpis` / `history` / `head` 一次性刷新。
+
+**取舍**：重置不再用 `admin-post.php` 跳转，也不再在 URL 上挂 `?reset=1` 让 PHP 渲染「统计已重置」弹窗——那条路径在整页 React 下会重新加载整页。`handle_reset_stats()` 保留给旧的 `admin-post` 入口做兜底（视图文件也还在），但岛屿不再指向它。
+
+**验收**：`composer test` 892 tests / 3796 assertions / 6 skipped、`phpstan` 无错误、`phpcs` 8/8、`git diff --check` 干净。实验站（1.28.8-beta-18）：1440 下 6 个 KPI（平均压缩率带进度条）、25 行历史、行高 46px、表宽 1168px；切每页 50 → 1 页 33 行、按钮自动禁用；翻到第 2 页 → 8 行、`1 / 2` → `2 / 2`、`performance` navigation 条目仍 1（没有导航）、`scrollY` 不变；点「重置统计」→ 原生 confirm（文案与旧页一致）→ KPI 全归零、页头「已统计 0 / 平均压缩率 0.0%」同步刷新、弹窗「统计已重置」、历史行仍在，关闭后无位移。测试后实验站的 `sakura_imgopt_stats` 已用脚本还原（43 / 19 / 11 / 13 / 6344337 / 1849384）。390 宽：KPI 两列、卡片 358px、表格按 `data-label` 折行、`scrollWidth = 390 = innerWidth`，重置按钮右边界 374 与卡片对齐。

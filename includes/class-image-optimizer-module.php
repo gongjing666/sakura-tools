@@ -1351,6 +1351,12 @@ class Image_Optimizer_Module implements Module {
 
 	// ── 渲染统计看板 ────────────────────────────────
 	public function render_stats_page() {
+		if ( is_readable( SAKURA_TOOLS_PATH . 'assets/ui/dist/image.js' ) ) {
+			$payload = ( new \Sakura\ImageOptimizer\Admin\Stats_Payload( $this->stats ) )->build();
+			require __DIR__ . '/views/settings-island.php';
+			return;
+		}
+
 		$stats = $this->stats;
 		require __DIR__ . '/views/settings-stats.php';
 	}

@@ -14,12 +14,14 @@ use Sakura\ImageOptimizer\Admin\Backup_Settings;
 use Sakura\ImageOptimizer\Admin\Image_Payload;
 use Sakura\ImageOptimizer\Admin\Image_Report;
 use Sakura\ImageOptimizer\Admin\Image_Settings;
+use Sakura\ImageOptimizer\Admin\Stats_Payload;
 use Sakura\ImageOptimizer\Backup\Backup_Repository;
 use Sakura\ImageOptimizer\Backup\Exposure_Probe;
 use Sakura\ImageOptimizer\Admin\Thumb_Payload;
 use Sakura\ImageOptimizer\Admin\Thumb_Settings;
 use Sakura\ImageOptimizer\Image\Crop_Config_Scanner;
 use Sakura\ImageOptimizer\Settings\Settings_Repository;
+use Sakura\ImageOptimizer\Stats\Stats_Repository;
 use WP_REST_Request;
 use WP_REST_Response;
 use WP_REST_Server;
@@ -144,6 +146,38 @@ final class Image_Controller {
 				)
 			);
 		}
+
+		register_rest_route(
+			self::NS,
+			'/image/stats',
+			array(
+				'methods'             => WP_REST_Server::READABLE,
+				'callback'            => array( self::class, 'read_stats' ),
+				'permission_callback' => array( self::class, 'can_manage' ),
+				'args'                => array(
+					'page'     => array(
+						'type'    => 'integer',
+						'default' => 1,
+						'minimum' => 1,
+					),
+					'per_page' => array(
+						'type'    => 'integer',
+						'default' => 25,
+						'enum'    => Stats_Payload::PER_PAGE,
+					),
+				),
+			)
+		);
+
+		register_rest_route(
+			self::NS,
+			'/image/stats/reset',
+			array(
+				'methods'             => WP_REST_Server::CREATABLE,
+				'callback'            => array( self::class, 'reset_stats' ),
+				'permission_callback' => array( self::class, 'can_manage' ),
+			)
+		);
 	}
 
 	/**
@@ -370,6 +404,43 @@ final class Image_Controller {
 			array(
 				'probe' => $probe,
 				'usage' => self::usage( true ),
+			)
+		);
+	}
+
+	/**
+	 * GET /image/stats.
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return WP_REST_Response
+	 */
+	public static function read_stats( WP_REST_Request $request ): WP_REST_Response {
+		$payload = ( new Stats_Payload( new Stats_Repository() ) )->build(
+			(int) $request->get_param( 'page' ),
+			(int) $request->get_param( 'per_page' )
+		);
+
+		return rest_ensure_response( $payload );
+	}
+
+	/**
+	 * POST /image/stats/reset — zero the aggregate totals, keep the history.
+	 *
+	 * @return WP_REST_Response
+	 */
+	public static function reset_stats(): WP_REST_Response {
+		$stats = new Stats_Repository();
+		$stats->reset();
+
+		return rest_ensure_response(
+			array(
+				'payload' => ( new Stats_Payload( $stats ) )->build(),
+				'notice'  => array(
+					'tone'    => 'ok',
+					'kicker'  => 'STATISTICS / RESET',
+					'title'   => __( '统计已重置', 'sakura-imgopt' ),
+					'message' => __( '汇总数字已清零，每张图片的处理记录仍保留在下面的历史里。', 'sakura-imgopt' ),
+				),
 			)
 		);
 	}

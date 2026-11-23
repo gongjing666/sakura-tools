@@ -215,14 +215,26 @@
 	}
 
 	.sakura-admin[data-sakura-page="system-settings"] .table--records td:last-child {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: baseline;
+		column-gap: 8px;
+		row-gap: 3px;
 		flex: 1 1 0;
 		min-width: 0;
+	}
+
+	/* 值与徽章用同一条基线对齐，并且留出固定间隙：徽章靠 vertical-align
+	 * 对齐时，pill 的外框会比文字高，看起来「浮」在字的上面。 */
+	.sakura-admin[data-sakura-page="system-settings"] .table--records td:last-child .badge {
+		margin: 0;
+		vertical-align: baseline;
 	}
 
 	.sakura-admin[data-sakura-page="system-settings"] .table--records .system-muted {
 		display: inline;
 		margin-top: 0;
-		margin-inline-start: 6px;
+		margin-inline-start: 0;
 	}
 
 	.sakura-admin[data-sakura-page="system-settings"] .table--checks,

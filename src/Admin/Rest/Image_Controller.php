@@ -293,11 +293,16 @@ final class Image_Controller {
 			'notice' => $result['notice'],
 		);
 
-		if ( 'thumbs' === $result['card'] ) {
-			// The size table's 生成状态 column comes from the scan report, so it
-			// has to be recomputed after the write — otherwise a freshly ticked
-			// row keeps saying 正常生成 until the next page load.
-			$payload['section'] = ( new Image_Payload( new Settings_Repository() ) )->thumbs();
+		if ( 'thumbs' === $result['card'] || 'rename' === $result['card'] ) {
+			// Both cards render server-derived strings: the size table's 生成状态
+			// column comes from the scan report, and the {fixed} chip spells out
+			// the stored text. Recompute them after the write, or the card keeps
+			// showing the state from page load until the next refresh.
+			$builder = new Image_Payload( new Settings_Repository() );
+
+			$payload['section'] = 'rename' === $result['card']
+				? $builder->rename_section()
+				: $builder->thumbs();
 		}
 
 		return rest_ensure_response( $payload );

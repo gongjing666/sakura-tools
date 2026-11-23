@@ -425,7 +425,15 @@ final class Image_Payload {
 	 *
 	 * @return array<string,mixed>
 	 */
-	private function rename_section(): array {
+	/**
+	 * The rename card's server-derived labels and preview samples.
+	 *
+	 * The {fixed} chip spells out the stored text, so this has to be rebuilt
+	 * after a save — otherwise the chip keeps advertising the previous value.
+	 *
+	 * @return array<string,mixed>
+	 */
+	public function rename_section(): array {
 		$fixed = $this->settings->rename_fixed();
 		$rule  = $this->settings->rename_rule();
 
@@ -463,6 +471,11 @@ final class Image_Payload {
 		return array(
 			'rule'         => $rule,
 			'fixed'        => $fixed,
+			// The island spells the {fixed} chip and the preview out of the live
+			// draft value, so both move while the user is still typing.
+			/* translators: %s: the fixed text the user typed. */
+			'fixed_prefix' => __( '固定文本 · %s', 'sakura-imgopt' ),
+			'fixed_empty'  => __( '固定文本（未填）', 'sakura-imgopt' ),
 			'default_rule' => '{date}-{time}-{rand}',
 			'tokens'       => $this->token_list( $common ),
 			'more_tokens'  => $this->token_list( $more ),

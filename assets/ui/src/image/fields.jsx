@@ -435,6 +435,12 @@ export function RuleComposer( { field, section, rule, fixed, onRule } ) {
 			<div className="rule-composer__tokens" role="group" aria-label="重命名占位符">
 				{ section.tokens.map( ( entry ) => {
 					const active = rule.includes( entry.token );
+					const label =
+						'{fixed}' === entry.token
+							? fixed
+								? ( section.fixed_prefix || '固定文本 · %s' ).replace( '%s', fixed )
+								: section.fixed_empty || entry.label
+							: entry.label;
 
 					return (
 						<button
@@ -448,7 +454,7 @@ export function RuleComposer( { field, section, rule, fixed, onRule } ) {
 							onClick={ () => toggleToken( entry.token ) }
 						>
 							<code>{ entry.token }</code>
-							<span>{ entry.label }</span>
+							<span>{ label }</span>
 						</button>
 					);
 				} ) }
@@ -487,7 +493,9 @@ export function RuleComposer( { field, section, rule, fixed, onRule } ) {
 			</div>
 			<p className="rule-composer__preview">
 				{ section.labels.preview }{ ' ' }
-				<code>{ previewName( rule, section.samples ) }</code>
+				<code>
+					{ previewName( rule, { ...section.samples, '{fixed}': fixed || '' } ) }
+				</code>
 			</p>
 		</div>
 		</FieldShell>

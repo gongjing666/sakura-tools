@@ -44,9 +44,9 @@ function SettingsCard( { card, rest, strings, sections, scanned, scan, scanning,
 			setDraft( next );
 
 			if ( payload.section && onSection ) {
-				// The thumbs table's 生成状态 comes from a server-side report, so
-				// it has to be replaced with the freshly computed one.
-				onSection( payload.section );
+				// 生成状态（thumbs）与「固定文本 · X」标签（rename）都是服务端
+				// 拼好的字符串，保存后必须用刚算出来的那一份替换。
+				onSection( card.id, payload.section );
 			}
 
 			if ( payload.notice ) {
@@ -161,12 +161,15 @@ export default function RulesPage( { boot, onError, onNotice } ) {
 					scanning={ scanning }
 					onError={ onError }
 					onNotice={ onNotice }
-					onSection={ ( next ) => {
+					onSection={ ( cardId, next ) => {
 						// A scan snapshot outranks the payload rows inside SizeTable,
 						// so a save has to retire it; otherwise the table keeps
 						// showing the state as it was when 扫描裁剪配置 was pressed.
-						setScanned( null );
-						setSections( ( current ) => ( { ...current, thumbs: next } ) );
+						if ( 'thumbs' === cardId ) {
+							setScanned( null );
+						}
+
+						setSections( ( current ) => ( { ...current, [ cardId ]: next } ) );
 					} }
 				/>
 			) ) }

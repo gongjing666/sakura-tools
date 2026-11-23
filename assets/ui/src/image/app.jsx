@@ -9,6 +9,7 @@
 
 import { useState } from 'react';
 import { PageHead, Prompt, Tabs, Topbar } from '../shared/ui.jsx';
+import BackupPage from './backup.jsx';
 import RulesPage from './rules.jsx';
 import ThumbPage from './thumb.jsx';
 
@@ -19,7 +20,8 @@ import ThumbPage from './thumb.jsx';
  * @return {JSX.Element} Page.
  */
 export default function App( { boot } ) {
-	const { chrome, head } = boot;
+	const { chrome } = boot;
+	const [ head, setHead ] = useState( boot.head );
 	const [ notice, setNotice ] = useState( null );
 	const [ error, setError ] = useState( '' );
 
@@ -41,6 +43,26 @@ export default function App( { boot } ) {
 				boot={ boot }
 				onError={ setError }
 				onNotice={ setNotice }
+			/>
+		);
+	}
+
+	if ( 'backup' === boot.tab ) {
+		body = (
+			<BackupPage
+				boot={ boot }
+				onError={ setError }
+				onNotice={ setNotice }
+				onUsage={ ( usage ) =>
+					setHead( ( current ) => ( {
+						...current,
+						status: {
+							...current.status,
+							value: usage.count_text,
+							sub: usage.size,
+						},
+					} ) )
+				}
 			/>
 		);
 	}

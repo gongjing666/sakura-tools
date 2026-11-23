@@ -1002,3 +1002,20 @@ body.upload-php.sufm-tree-active.folded { --sufm-tree-left: 56px; }
 **保存标记**：`Thumbnail\Settings::sanitize()` 依赖 `_sakura_card` + `_sakura_partial` 判断本次提交拥有哪张卡，缺了会把整表覆盖、把 `enabled` 与没提交的高级开关写成 0。`Thumb_Settings::save()` 在 `sanitize()` 之前补这两个标记与 `schema`，前端只发 `{fields:{…}}`。
 
 **验收**：`composer test` 890 tests / 3794 assertions / 6 skipped（新增 `LayoutTest::test_thumb_payload_matches_the_declared_card_order`）、`phpstan` 无错误、`phpcs` 8/8、`git diff --check` 干净。实验站（1.28.8-beta-16）：8 张卡按 Layout 顺序渲染（switches → cache），1440 / 390 均无横向溢出、无 console 报错；切「生效位置」保存后不导航、`singular` 生效而 `enabled` / `advanced` / `sizes` / `style_map` 全部保持原样；尺寸表把 medium 改 480 / 85 再改回 500 / 82，`format` 始终是 `auto`、命名样式仍在 `style_map`；提示「设置已保存」与「已保存，部分数值按规则调整」两态都对；测试后实验站的 `oss_thumb` 已还原（scopes 只剩 archive、sizes 回到 250/500/800/640 与质量 82）。
+
+## 备份页签迁到整页 React：动作类按钮回传读数，不整页刷新（2026-11-23，1.28.8-beta-17）
+
+**背景**：图像优化的 rules（beta-15）与 thumb（beta-16）已是整页 React；backup（`admin.php?page=sakura-tools-image&t=backup`）还留在 `includes/views/settings-backup.php`（213 行，三张卡：占用概览 / 备份目录访问保护 / 自动清理策略）。
+
+**决策**：
+1. 复用同一套接线：`render_backup_page()` 在 `assets/ui/dist/image.js` 可读时 `require views/settings-island.php`（与 rules / thumb 的兜底一致），否则回落旧视图。
+2. 服务端新增 `src/Admin/Backup_Payload.php`（页头 + 三张卡：`usage` 的两个 KPI 与两个按钮、`policy` 的探测状态 / Nginx 片段 / 探测按钮、`access` 的表单与三个字段描述符）与 `src/Admin/Backup_Settings.php`（读三个 option、保存时把负数夹到 0、`notice()` 比「提交值 vs 落库值」给 ok / warn）。字段 id 由 payload 给出（`sakura_imgopt_backup_retention_days` 等），前端不再用 `sakura_imgopt_` + `name` 拼，`label[for]` 与 `aria-describedby` 才不会指错。
+3. REST：`GET /image/backup`、`POST /image/backup/cards/access`、`POST /image/backup/{refresh|clean|purge|probe}`。前三个动作都返回 `{ usage, message }`，探测返回 `{ probe, usage }`——**读数由服务端回传**，前端只负责把它写回 KPI 与页头状态卡（`app.jsx` 的 `head` 改成 state，`onUsage` 覆写 `status.value/sub`），不 reload 页面。
+4. 前端 `assets/ui/src/image/backup.jsx`：`usage` / `policy` 是只读卡（`ReadOnlyBody` 渲染 kpis / message / hint / code），按钮行用整行一个 busy 标记；`access` 是 `PolicyCard`（`draft` / `saved` 两份状态、`BusyLabel`、保存后回写服务端 clamp 过的值）。
+
+**踩到的问题**：
+1. **白屏 + 「本网站出现严重错误」**：`Backup_Payload` 把控制器写成 `Sakura\ImageOptimizer\Rest\Image_Controller`（真实位置在 `Admin\Rest` 下），`build()` 直接抛 `Class not found`，页面只剩 die 页；`debug.log` 没有新行。改用 `php /tmp/probe-backup.php`（`wp-load.php` + 直接 `build()`）一次就定位到文件与行号。
+2. **探测完 KPI 还是「待检测」**：`probe` 只改了提示文案，卡片的两个 KPI 是 payload 里的静态值。改成 `shownPolicy` 派生对象，按 `probe.state`（`protected` / `exposed`）覆写第二个 KPI 的文字与 tone，与提示同级更新。
+3. 一次编辑失误把 `max_mb` / `delete_data` 两个字段描述符复制成两份（两个同 id 输入框），页面照旧渲染但 `label[for]` 只认第一个。清理重复项后恢复正常——这类重复在静态检查里看不出来，只能靠读 payload。
+
+**验收**：`composer test` 891 tests / 3795 assertions / 6 skipped、`phpstan` 无错误、`phpcs` 8/8、`git diff --check` 干净。实验站（1.28.8-beta-17）：三张卡按 Layout placement（`usage` 1/1/8、`policy` 1/9/4、`access` 2/1/8）渲染，控制台 0 error；把保留天数改成 15 保存 → 不导航（`performance` navigation 条目仍 1、`window.__alive` 存活）、逐帧位移扫描 `moves = []`、`scrollY` 643 不变、弹窗「设置已保存 / 清理策略已保存，下一次计划任务会按新规则执行。」、值回写 15；探测按钮返回「已保护：服务器拒绝访问备份目录（HTTP 403…）」，提示转 ok、KPI「目录保护」同步变成「已拦截」；清理按钮返回「已清理 0 个过期备份，释放 0.00 B。」并把页头状态卡与 KPI 一起刷新；390 宽下三张卡各 358px、按钮不越界（右边界 356）、Nginx 片段在 `.code-block` 内横向滚动、`scrollWidth = 390 = innerWidth`。测试后实验站保留天数已还原为 10、容量上限 100、卸载删除关闭。

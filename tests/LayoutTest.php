@@ -177,4 +177,16 @@ final class LayoutTest extends TestCase {
 			\Sakura\ImageOptimizer\Admin\Thumb_Payload::card_ids()
 		);
 	}
+
+	/**
+	 * The backup tab is a React island too: the payload decides the order.
+	 */
+	public function test_backup_payload_matches_the_declared_card_order(): void {
+		require_once dirname( __DIR__ ) . '/src/Admin/Backup_Payload.php';
+
+		$this->assertSame(
+			Layout::PAGES['backup']['order'],
+			\Sakura\ImageOptimizer\Admin\Backup_Payload::card_ids()
+		);
+	}
 }

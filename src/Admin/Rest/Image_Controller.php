@@ -9,9 +9,13 @@ declare( strict_types=1 );
 
 namespace Sakura\ImageOptimizer\Admin\Rest;
 
+use Sakura\ImageOptimizer\Admin\Backup_Payload;
+use Sakura\ImageOptimizer\Admin\Backup_Settings;
 use Sakura\ImageOptimizer\Admin\Image_Payload;
 use Sakura\ImageOptimizer\Admin\Image_Report;
 use Sakura\ImageOptimizer\Admin\Image_Settings;
+use Sakura\ImageOptimizer\Backup\Backup_Repository;
+use Sakura\ImageOptimizer\Backup\Exposure_Probe;
 use Sakura\ImageOptimizer\Admin\Thumb_Payload;
 use Sakura\ImageOptimizer\Admin\Thumb_Settings;
 use Sakura\ImageOptimizer\Image\Crop_Config_Scanner;
@@ -108,6 +112,38 @@ final class Image_Controller {
 				),
 			)
 		);
+
+		register_rest_route(
+			self::NS,
+			'/image/backup',
+			array(
+				'methods'             => WP_REST_Server::READABLE,
+				'callback'            => array( self::class, 'read_backup' ),
+				'permission_callback' => array( self::class, 'can_manage' ),
+			)
+		);
+
+		register_rest_route(
+			self::NS,
+			'/image/backup/cards/access',
+			array(
+				'methods'             => WP_REST_Server::CREATABLE,
+				'callback'            => array( self::class, 'save_backup_policy' ),
+				'permission_callback' => array( self::class, 'can_manage' ),
+			)
+		);
+
+		foreach ( array( 'refresh', 'clean', 'purge', 'probe' ) as $backup_action ) {
+			register_rest_route(
+				self::NS,
+				'/image/backup/' . $backup_action,
+				array(
+					'methods'             => WP_REST_Server::CREATABLE,
+					'callback'            => array( self::class, 'backup_' . $backup_action ),
+					'permission_callback' => array( self::class, 'can_manage' ),
+				)
+			);
+		}
 	}
 
 	/**
@@ -223,6 +259,137 @@ final class Image_Controller {
 				'values' => $result['values'],
 				'notice' => $result['notice'],
 			)
+		);
+	}
+
+	/**
+	 * GET /image/backup.
+	 *
+	 * @return WP_REST_Response
+	 */
+	public static function read_backup(): WP_REST_Response {
+		return rest_ensure_response( ( new Backup_Payload() )->build() );
+	}
+
+	/**
+	 * POST /image/backup/cards/access — the cleanup policy card.
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return WP_REST_Response
+	 */
+	public static function save_backup_policy( WP_REST_Request $request ): WP_REST_Response {
+		$fields = $request->get_param( 'fields' );
+
+		if ( ! is_array( $fields ) ) {
+			$fields = array();
+		}
+
+		$result = ( new Backup_Settings() )->save( $fields );
+
+		return rest_ensure_response(
+			array(
+				'card'   => $result['card'],
+				'values' => $result['values'],
+				'notice' => $result['notice'],
+				'usage'  => self::usage(),
+			)
+		);
+	}
+
+	/**
+	 * POST /image/backup/refresh — recount the backup directory.
+	 *
+	 * @return WP_REST_Response
+	 */
+	public static function backup_refresh(): WP_REST_Response {
+		return rest_ensure_response(
+			array(
+				'usage'   => self::usage( true ),
+				'message' => __( '已刷新。', 'sakura-imgopt' ),
+			)
+		);
+	}
+
+	/**
+	 * POST /image/backup/clean — delete the backups past their retention.
+	 *
+	 * @return WP_REST_Response
+	 */
+	public static function backup_clean(): WP_REST_Response {
+		$result = ( new Backup_Repository() )->clean_expired();
+
+		return rest_ensure_response(
+			array(
+				'usage'   => self::usage( true ),
+				'freed'   => size_format( (int) ( $result['bytes'] ?? 0 ), 2 ),
+				'message' => sprintf(
+					/* translators: 1: number of deleted backups, 2: freed space. */
+					__( '已清理 %1$d 个过期备份，释放 %2$s。', 'sakura-imgopt' ),
+					(int) ( $result['count'] ?? 0 ),
+					size_format( (int) ( $result['bytes'] ?? 0 ), 2 )
+				),
+			)
+		);
+	}
+
+	/**
+	 * POST /image/backup/purge — delete every backup.
+	 *
+	 * @return WP_REST_Response
+	 */
+	public static function backup_purge(): WP_REST_Response {
+		$result = ( new Backup_Repository() )->purge_all();
+
+		return rest_ensure_response(
+			array(
+				'usage'   => self::usage( true ),
+				'freed'   => size_format( (int) ( $result['bytes'] ?? 0 ), 2 ),
+				'message' => sprintf(
+					/* translators: 1: number of deleted backups, 2: freed space. */
+					__( '已清空 %1$d 个备份文件，释放 %2$s。', 'sakura-imgopt' ),
+					(int) ( $result['count'] ?? 0 ),
+					size_format( (int) ( $result['bytes'] ?? 0 ), 2 )
+				),
+			)
+		);
+	}
+
+	/**
+	 * POST /image/backup/probe — is the backup directory reachable from outside?
+	 *
+	 * @return WP_REST_Response
+	 */
+	public static function backup_probe(): WP_REST_Response {
+		try {
+			$probe = ( new Exposure_Probe() )->run( true );
+		} catch ( \Exception $exception ) {
+			return new WP_REST_Response( array( 'message' => $exception->getMessage() ), 500 );
+		}
+
+		return rest_ensure_response(
+			array(
+				'probe' => $probe,
+				'usage' => self::usage( true ),
+			)
+		);
+	}
+
+	/**
+	 * Backup usage in the shape the island expects.
+	 *
+	 * @param bool $force Skip the transient cache.
+	 * @return array<string,mixed>
+	 */
+	private static function usage( bool $force = false ): array {
+		$usage = ( new Backup_Repository() )->get_usage( $force );
+		$bytes = (int) ( $usage['bytes'] ?? 0 );
+		$count = (int) ( $usage['count'] ?? 0 );
+
+		return array(
+			'bytes'      => $bytes,
+			'size'       => size_format( $bytes, 2 ),
+			'count'      => $count,
+			'count_text' => number_format_i18n( $count ),
 		);
 	}
 }

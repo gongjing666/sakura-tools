@@ -1251,6 +1251,12 @@ class Image_Optimizer_Module implements Module {
 
 	// ── 渲染备份管理页 ──────────────────────────────
 	public function render_backup_page() {
+		if ( is_readable( SAKURA_TOOLS_PATH . 'assets/ui/dist/image.js' ) ) {
+			$payload = ( new \Sakura\ImageOptimizer\Admin\Backup_Payload() )->build();
+			require __DIR__ . '/views/settings-island.php';
+			return;
+		}
+
 		$backup_group = $this->backup_group;
 		$backup_slug  = $this->backup_slug;
 		$backup       = $this->backup;

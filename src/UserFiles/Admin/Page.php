@@ -87,10 +87,9 @@ final class Page {
 	 */
 	public function register_renderers(): void {
 		foreach ( Registry::tabs( 'files' ) as $sufm_tab_id ) {
-			/* Two tabs own their screen instead of sharing this one: Zibll has its
-			 * own controller (Space_Page) and the media manager paints a full
-			 * two-pane browser that has nothing in common with these cards. */
-			if ( in_array( (string) $sufm_tab_id, array( 'zibll', 'media' ), true ) ) {
+			/* One tab owns its screen instead of sharing this one: Zibll has its
+			 * own controller (Space_Page). */
+			if ( in_array( (string) $sufm_tab_id, array( 'zibll' ), true ) ) {
 				continue;
 			}
 

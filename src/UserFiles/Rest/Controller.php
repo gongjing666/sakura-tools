@@ -530,13 +530,6 @@ final class Controller {
 	private ?Sanction_Service $sanctions;
 
 	/**
-	 * Takedown service; the same instance the media library bulk action uses.
-	 *
-	 * @var Takedown|null
-	 */
-	private ?Takedown $takedown;
-
-	/**
 	 * Wire dependencies.
 	 *
 	 * @param Files                 $files     Files.
@@ -549,9 +542,8 @@ final class Controller {
 	 * @param Notifier|null         $notifier  Notifier.
 	 * @param Sync_Service|null     $sync      Scan.
 	 * @param Sanction_Service|null $sanctions Sanction decisions.
-	 * @param Takedown|null         $takedown  Takedown service.
 	 */
-	public function __construct( Files $files, Folders $folders, Requests $requests, Quota $quota, Uploader $uploader, Executor $executor, Events $events, ?Notifier $notifier = null, ?Sync_Service $sync = null, ?Sanction_Service $sanctions = null, ?Takedown $takedown = null ) {
+	public function __construct( Files $files, Folders $folders, Requests $requests, Quota $quota, Uploader $uploader, Executor $executor, Events $events, ?Notifier $notifier = null, ?Sync_Service $sync = null, ?Sanction_Service $sanctions = null ) {
 		$this->files     = $files;
 		$this->folders   = $folders;
 		$this->requests  = $requests;
@@ -562,7 +554,6 @@ final class Controller {
 		$this->notifier  = $notifier;
 		$this->sync      = $sync;
 		$this->sanctions = $sanctions;
-		$this->takedown  = $takedown;
 	}
 
 	/**
@@ -599,8 +590,6 @@ final class Controller {
 			array( '/admin/delete-batches', 'POST', 'admin_batch', $execute ),
 			array( '/admin/delete-batches/(?P<id>\d+)', 'GET', 'admin_batch_get', $execute ),
 			array( '/admin/delete-batches/(?P<id>\d+)/stop', 'POST', 'admin_batch_stop', $execute ),
-			array( '/admin/media', 'GET', 'admin_media', $review ),
-			array( '/admin/media/takedown', 'POST', 'admin_media_takedown', array( $this, 'can_takedown' ) ),
 			array( '/admin/users', 'GET', 'admin_users', $execute ),
 			array( '/admin/events', 'GET', 'admin_events', $execute ),
 			array( '/admin/users/(?P<id>\d+)/quota', 'PATCH', 'admin_quota', $execute ),
@@ -677,18 +666,6 @@ final class Controller {
 	 *
 	 * @return bool
 	 */
-	/**
-	 * Whether the current user may take files down.
-	 *
-	 * Same two capabilities the media library bulk action demands, so the two
-	 * entry points cannot answer differently for the same person.
-	 *
-	 * @return bool
-	 */
-	public function can_takedown(): bool {
-		return current_user_can( 'upload_files' ) && Capabilities::can_execute();
-	}
-
 	public function can_sanction_users(): bool {
 		return current_user_can( Capabilities::SANCTION_USERS );
 	}
@@ -1497,53 +1474,7 @@ final class Controller {
 			absint( $request->get_param( 'owner_id' ) )
 		);
 
-		return rest_ensure_response( $this->with_sanctions( $payload ) );
-	}
-
-	/**
-	 * Attach the active verdict to each owner row of a tree payload.
-	 *
-	 * One query for the whole page rather than one per owner: the tree is the
-	 * first thing the media manager paints, and a per-row lookup would put the
-	 * owner count in the request's query log.
-	 *
-	 * @param array<string, mixed> $payload Payload from Folders::admin_page().
-	 * @return array<string, mixed>
-	 */
-	private function with_sanctions( array $payload ): array {
-		$owners = isset( $payload['owners'] ) && is_array( $payload['owners'] ) ? $payload['owners'] : array();
-
-		if ( ! $owners || ! $this->sanctions ) {
-			return $payload;
-		}
-
-		$ids = array();
-
-		foreach ( $owners as $owner ) {
-			$id = is_array( $owner ) ? (int) ( $owner['owner_id'] ?? 0 ) : 0;
-
-			if ( $id > 0 ) {
-				$ids[] = $id;
-			}
-		}
-
-		if ( ! $ids ) {
-			return $payload;
-		}
-
-		$active = $this->sanctions->repo()->active_map( $ids );
-
-		foreach ( $payload['owners'] as $index => $owner ) {
-			$id = is_array( $owner ) ? (int) ( $owner['owner_id'] ?? 0 ) : 0;
-
-			if ( ! isset( $active[ $id ] ) ) {
-				continue;
-			}
-
-			$payload['owners'][ $index ]['sanction'] = $this->sanction_row( $active[ $id ] );
-		}
-
-		return $payload;
+		return rest_ensure_response( $payload );
 	}
 
 	/**
@@ -2147,266 +2078,6 @@ final class Controller {
 		}
 
 		return rest_ensure_response( array( 'ok' => true ) );
-	}
-
-	/**
-	 * Browse managed files across owners for the media manager.
-	 *
-	 * The front-end space lists one owner's own files; this endpoint lists the
-	 * cabinet. Both return the same row shape so the two screens can share a
-	 * renderer model, but only this one can narrow by owner.
-	 *
-	 * @param WP_REST_Request $request Request.
-	 * @return WP_REST_Response|WP_Error
-	 */
-	public function admin_media( WP_REST_Request $request ): WP_REST_Response|WP_Error {
-		$owner    = absint( $request->get_param( 'owner_id' ) );
-		$folder   = (int) $request->get_param( 'folder_id' );
-		$type     = sanitize_key( (string) $request->get_param( 'type' ) );
-		$search   = sanitize_text_field( (string) $request->get_param( 'search' ) );
-		$cursor   = absint( $request->get_param( 'cursor' ) );
-		$per_page = min( 200, max( 1, absint( $request->get_param( 'per_page' ) ?: 60 ) ) );
-
-		/* A folder id is only meaningful together with its owner: ids are unique
-		 * across the table, so a stray id from another owner would silently list
-		 * someone else's folder. Resolve the owner from the folder when only the
-		 * folder was sent, and treat a mismatch as "not found". */
-		if ( $folder > 0 ) {
-			$crumb_owner = $this->folders->owner_of( $folder );
-
-			if ( $owner > 0 && $crumb_owner > 0 && $crumb_owner !== $owner ) {
-				return rest_ensure_response( new WP_Error( 'sufm_folder_missing', __( '文件夹不存在。', 'sakura-imgopt' ), array( 'status' => 404 ) ) );
-			}
-
-			if ( $owner <= 0 && $crumb_owner > 0 ) {
-				$owner = $crumb_owner;
-			}
-		}
-
-		/* Search and category tabs span the whole cabinet, exactly as they do on
-		 * the front-end space: a file lives in the folder it was filed in, so
-		 * finding it must not depend on which folder happens to be open. */
-		$scope   = ( '' !== $search || '' !== $type ) ? 'all' : 'folder';
-		$crumbs  = ( 0 === $folder || 'all' === $scope ) ? array() : $this->folders->breadcrumb( $owner, $folder );
-
-		if ( $folder > 0 && 'all' !== $scope && ! $crumbs ) {
-			return rest_ensure_response( new WP_Error( 'sufm_folder_missing', __( '文件夹不存在。', 'sakura-imgopt' ), array( 'status' => 404 ) ) );
-		}
-
-		$rows = $this->files->admin_query(
-			array(
-				'owner_id'    => $owner,
-				'folder_id'   => $folder,
-				'all_folders' => 'all' === $scope,
-				'type'        => $type,
-				'search'      => $search,
-				'cursor'      => $cursor,
-				'per_page'    => $per_page,
-			)
-		);
-
-		$files = array();
-
-		foreach ( $rows as $row ) {
-			$files[] = array(
-				'id'         => (int) $row->id,
-				'attachment' => 0,
-				'owner_id'   => (int) ( $row->owner_id ?? 0 ),
-				'name'       => (string) $row->display_name,
-				'bytes'      => (int) $row->charged_bytes,
-				'mime'       => (string) ( $row->post_mime_type ?? '' ),
-				'url'        => (string) ( $row->guid ?? '' ),
-				'folder_id'  => (int) $row->folder_id,
-				'folder'     => (string) ( $row->folder_name ?? '' ),
-				'created_at' => (string) $row->created_at,
-				'locked'     => (int) $row->pending_request_id > 0,
-			);
-		}
-
-		/* The takedown dialog takes attachment ids, not ledger ids, and the grid
-		 * needs a thumbnail that actually loads. Both are resolved here so the
-		 * browser never addresses the second key or builds a URL itself. */
-		$files = $this->decorate_media_rows( $files );
-
-		$folders = ( 0 === $folder || 'all' === $scope ) ? $this->media_folders( $owner ) : $this->folders->children_with_counts( $owner, $folder );
-		$last    = $rows ? end( $rows ) : null;
-
-		return rest_ensure_response(
-			array(
-				'owner_id'   => $owner,
-				'folder'     => $folder,
-				'scope'      => $scope,
-				'breadcrumb' => array_map(
-					static function ( $row ) {
-						return array(
-							'id'   => (int) $row->id,
-							'name' => (string) $row->name,
-						);
-					},
-					$crumbs
-				),
-				'folders'    => array_map(
-					static function ( $row ) {
-						return array(
-							'id'         => (int) $row->id,
-							'name'       => (string) $row->name,
-							'locked'     => (int) ( $row->pending_request_id ?? 0 ) > 0,
-							'count'      => (int) ( $row->file_count ?? 0 ),
-							'updated_at' => (string) ( $row->updated_at ?? '' ),
-						);
-					},
-					$folders
-				),
-				'files'      => $files,
-				'total'      => ( 0 === $cursor && 0 === $folder && '' === $search && '' === $type )
-					? $this->files->count( $owner, 0 )
-					: 0,
-				'next'       => ( count( $files ) >= $per_page && is_object( $last ) ) ? (int) $last->id : 0,
-				'reasons'    => $this->sanction_reasons(),
-			)
-		);
-	}
-
-	/**
-	 * Take files down from the media manager.
-	 *
-	 * Wraps the same {@see Takedown} service the media library bulk action uses.
-	 * The request is JSON, so unlike the list table there is no GET submission
-	 * carrying the reason in the query string, and no front-end interception:
-	 * the browser asks for the removal explicitly and the answer says what
-	 * happened.
-	 *
-	 * @param WP_REST_Request $request Request.
-	 * @return WP_REST_Response|WP_Error
-	 */
-	public function admin_media_takedown( WP_REST_Request $request ): WP_REST_Response|WP_Error {
-		if ( ! $this->takedown ) {
-			return rest_ensure_response( new WP_Error( 'sufm_takedown_unavailable', __( '下架功能当前不可用。', 'sakura-imgopt' ), array( 'status' => 501 ) ) );
-		}
-
-		$ids  = array_map( 'absint', (array) $request->get_param( 'ids' ) );
-		$ids  = array_values( array_filter( $ids ) );
-		$body = (array) $request->get_json_params();
-
-		if ( ! $ids ) {
-			return rest_ensure_response( new WP_Error( 'sufm_takedown_empty', __( '没有选中任何文件。', 'sakura-imgopt' ), array( 'status' => 400 ) ) );
-		}
-
-		$reason = isset( $body['reason'] ) ? (string) $body['reason'] : (string) $request->get_param( 'reason' );
-
-		if ( ! Takedown::is_reason( $reason ) ) {
-			return rest_ensure_response( new WP_Error( 'sufm_takedown_reason_missing', __( '请先选择下架理由，本次未删除任何文件。', 'sakura-imgopt' ), array( 'status' => 400 ) ) );
-		}
-
-		$outcome = $this->takedown->run(
-			$ids,
-			array(
-				'reason'   => $reason,
-				'note'     => isset( $body['note'] ) ? (string) $body['note'] : (string) $request->get_param( 'note' ),
-				'punish'   => ! empty( $body['punish'] ) || '1' === (string) $request->get_param( 'punish' ),
-				'type'     => isset( $body['sanction_type'] ) ? (string) $body['sanction_type'] : (string) $request->get_param( 'sanction_type' ),
-				'days'     => isset( $body['sanction_days'] ) ? (int) $body['sanction_days'] : (int) $request->get_param( 'sanction_days' ),
-				'actor_id' => (int) get_current_user_id(),
-			)
-		);
-
-		return rest_ensure_response( $outcome );
-	}
-
-	/**
-	 * Fill in the attachment id and the thumbnail URL for each file row.
-	 *
-	 * The attachment id is resolved in one query: the takedown endpoint takes
-	 * attachment ids (they are what the deletion kernel and the media library both
-	 * address) while the listing speaks ledger ids, and the browser should not
-	 * have to know about the second key.
-	 *
-	 * The thumbnail is resolved through `wp_get_attachment_image_url()` rather
-	 * than the stored `guid`. A `guid` is historical: after a bucket switch or a
-	 * domain change it still points at the old host, and the file it names may
-	 * not be the resized copy the grid wants. The WordPress function asks the
-	 * attachment for its current URL, so it follows every rewrite the plugin and
-	 * the storage layer already apply.
-	 *
-	 * @param array<int, array<string, mixed>> $files Rows from the listing.
-	 * @return array<int, array<string, mixed>>
-	 */
-	private function decorate_media_rows( array $files ): array {
-		global $wpdb;
-
-		$ids = array();
-
-		foreach ( $files as $file ) {
-			$id = (int) ( $file['id'] ?? 0 );
-
-			if ( $id > 0 ) {
-				$ids[] = $id;
-			}
-		}
-
-		if ( ! $ids ) {
-			return $files;
-		}
-
-		$table        = Schema::table( 'files' );
-		$placeholders = implode( ',', array_fill( 0, count( $ids ), '%d' ) );
-
-		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare -- Table name from Schema; placeholder list built from the int array above.
-		$sql  = "SELECT id, attachment_id FROM {$table} WHERE id IN ({$placeholders})";
-		$rows = $wpdb->get_results( $wpdb->prepare( $sql, $ids ) );
-		// phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare
-
-		$map = array();
-
-		foreach ( is_array( $rows ) ? $rows : array() as $row ) {
-			$map[ (int) $row->id ] = (int) $row->attachment_id;
-		}
-
-		foreach ( $files as $index => $file ) {
-			$attachment = $map[ (int) ( $file['id'] ?? 0 ) ] ?? 0;
-
-			$files[ $index ]['attachment'] = $attachment;
-			$files[ $index ]['thumb']      = $this->thumb_url( $attachment, (string) ( $file['mime'] ?? '' ) );
-		}
-
-		return $files;
-	}
-
-	/**
-	 * Thumbnail URL for one attachment, or '' when there is nothing to show.
-	 *
-	 * @param int    $attachment Attachment id.
-	 * @param string $mime       Mime type from the listing row.
-	 * @return string
-	 */
-	private function thumb_url( int $attachment, string $mime ): string {
-		if ( $attachment <= 0 || 0 !== strpos( $mime, 'image/' ) ) {
-			return '';
-		}
-
-		$url = function_exists( 'wp_get_attachment_image_url' )
-			? wp_get_attachment_image_url( $attachment, 'thumbnail' )
-			: '';
-
-		return is_string( $url ) ? $url : '';
-	}
-
-	/**
-	 * Root folder list for one owner, or for the whole cabinet.
-	 *
-	 * The cabinet root shows the owners, not their folders: a single flat list of
-	 * every folder in the site would be unreadable and would not answer the
-	 * question the screen exists for ("who uploaded what").
-	 *
-	 * @param int $owner Owner id, 0 for all.
-	 * @return array<int, object>
-	 */
-	private function media_folders( int $owner ): array {
-		if ( $owner > 0 ) {
-			return $this->folders->children_with_counts( $owner, 0 );
-		}
-
-		return array();
 	}
 
 	/**

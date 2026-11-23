@@ -77,10 +77,6 @@ final class Registry {
 				'caps'  => 'review',
 				'tabs'  => array(
 					'settings' => array( 'label' => __( '样式与策略', 'sakura-imgopt' ) ),
-					'media'    => array(
-						'label' => __( '媒体管理', 'sakura-imgopt' ),
-						'gate'  => array( 'caps' => 'review' ),
-					),
 					'users'    => array(
 						'label' => __( '用户容量', 'sakura-imgopt' ),
 						'gate'  => array( 'caps' => 'execute' ),

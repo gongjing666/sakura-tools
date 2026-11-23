@@ -139,10 +139,6 @@ final class Modal {
 	 * Same paths as `assets/ui/js/ui.js` → `mascotSvg()`; keeping the artwork in
 	 * one shape means the two dialog implementations never drift apart.
 	 *
-	 * Public because the media manager paints its own `<dialog>` for takedowns
-	 * (assets/ui/js/pages/files-media.js drives it) and has to show the same
-	 * mascot as every other prompt in the plugin.
-	 *
 	 * @return string SVG markup.
 	 */
 	public static function mascot(): string {

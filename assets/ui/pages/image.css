@@ -684,3 +684,20 @@
 	justify-content: flex-end;
 	margin-top: var(--g-stack);
 }
+
+/* 固定文本：短输入框、等宽字，说明跟在输入框下面（对齐旧版 rule-fixed-input）。 */
+.sakura-admin .field--rule input[type="text"] {
+	width: 220px;
+	max-width: 100%;
+	font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+	font-size: 13px;
+	letter-spacing: .01em;
+}
+
+.sakura-admin .field__notes {
+	margin-top: 8px;
+}
+
+.sakura-admin .field__notes .field__hint {
+	margin-top: 0;
+}

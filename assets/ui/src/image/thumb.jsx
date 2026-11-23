@@ -447,13 +447,6 @@ function ThumbCard( { card, rest, strings, onError, onNotice } ) {
 				) : (
 					<CardFields card={ card } draft={ draft } setDraft={ setDraft } />
 				) }
-				{ card.note && card.note.length ? (
-					<div className="system-note">
-						{ card.note.map( ( line ) => (
-							<p key={ line }>{ line }</p>
-						) ) }
-					</div>
-				) : null }
 				<div className="card__savebar">
 					<button
 						type="submit"

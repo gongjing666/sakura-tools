@@ -37,16 +37,30 @@ function Hint( { hint } ) {
 export function FieldShell( { field, children } ) {
 	const wide =
 		field.full || [ 'size-table', 'limits', 'rule-composer', 'checkgrid' ].includes( field.type );
+	const after = Boolean( field.hint_after );
+	const classes = [
+		'field',
+		`field--${ field.type }`,
+		field.input ? `field--${ field.input }` : '',
+		wide ? 'field--full' : '',
+	]
+		.filter( Boolean )
+		.join( ' ' );
 
 	return (
-		<div className={ `field field--${ field.type }${ wide ? ' field--full' : '' }` }>
+		<div className={ classes }>
 			<div className="field__main">
 				<label className="field__label" htmlFor={ field.for }>
 					{ field.label }
 				</label>
-				<Hint hint={ field.hint } />
+				{ after ? null : <Hint hint={ field.hint } /> }
 			</div>
 			<div className="field__control">{ children }</div>
+			{ after ? (
+				<div className="field__notes">
+					<Hint hint={ field.hint } />
+				</div>
+			) : null }
 		</div>
 	);
 }
@@ -362,16 +376,39 @@ function previewName( rule, samples ) {
 export function RuleComposer( { field, section, rule, fixed, onRule } ) {
 	const [ more, setMore ] = useState( false );
 
-	const toggleToken = ( token ) => {
-		const has = rule.includes( token );
+	// Mirrors assets/ui/js/pages/image-rules.js: every token is joined with a
+	// hyphen ({ext} with a dot) and only inserted once. Appending the bare token
+	// produced names like "{date}{time}" — no separators at all.
+	const insert = ( token ) => {
+		const value = rule.trim();
 
-		if ( has ) {
-			onRule( rule.split( token ).join( '' ).replace( /^[._-]+|[._-]+$/g, '' ) );
+		if ( value.includes( token ) ) {
+			return value;
+		}
+
+		if ( '' === value ) {
+			return token;
+		}
+
+		const separator = '{ext}' === token ? '.' : '-';
+
+		return /[-_.]$/.test( value ) ? value + token : value + separator + token;
+	};
+
+	const toggleToken = ( token ) => {
+		if ( rule.includes( token ) ) {
+			const next = rule
+				.split( token )
+				.join( '' )
+				.replace( /([-_.])[-_.]+/g, '$1' )
+				.replace( /^[-_.]+|[-_.]+$/g, '' );
+
+			onRule( next );
 
 			return;
 		}
 
-		onRule( rule + token );
+		onRule( insert( token ) );
 	};
 
 	return (

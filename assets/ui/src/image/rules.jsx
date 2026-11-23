@@ -105,13 +105,6 @@ function SettingsCard( { card, rest, strings, sections, scanned, scan, scanning,
 						);
 					} ) }
 				</div>
-				{ card.note && card.note.length ? (
-					<div className="system-note">
-						{ card.note.map( ( line, index ) => (
-							<p key={ index }>{ line }</p>
-						) ) }
-					</div>
-				) : null }
 				<div className="card__savebar">
 					<button
 						type="submit"

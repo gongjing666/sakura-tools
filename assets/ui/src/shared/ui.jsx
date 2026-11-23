@@ -269,6 +269,11 @@ export function Card( { card, titleProps, children } ) {
 					{ card.kicker ? <p className="card__kicker">{ card.kicker }</p> : null }
 					<h2 className="card__title" { ...titleProps }>{ card.title }</h2>
 					{ card.description ? <p className="card__desc">{ card.description }</p> : null }
+					{ Array.isArray( card.note )
+						? card.note.map( ( line, index ) => (
+								<p className="card__desc" key={ index }>{ line }</p>
+						  ) )
+						: null }
 				</div>
 			</header>
 			<div className="card__body">{ children }</div>

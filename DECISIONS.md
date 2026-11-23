@@ -945,3 +945,17 @@ body.upload-php.sufm-tree-active.folded { --sufm-tree-left: 56px; }
 **边界**：① 有效期只约束「缓存被信任多久」，不改变授权到期（`post_zat_next`）这个硬条件；② 有效期跨过复验间隔的那一小段时间里，页面请求会先回落主题校验，等 cron 跑完再恢复——这是有意的，宁可慢一点也不放大过期结论；③ WP-Cron 靠访问触发，选「年」只保证不会提前失效，不保证准点复验；④ 「永久」不是不发复验，而是每日复验一次、缓存本身不按时间过期。
 
 **验收**：把时长改成 `6 小时` 并保存，状态卡「缓存有效期」显示 `6 小时` 与具体到期时间，`wp cron event list` 里该钩子下次执行约在 6 小时后；改成「永久」后数量框置灰、状态行显示「不设时间上限，仅受授权到期约束」、下次复验回到每日；把时长缩到比缓存年龄还短时，保存会真的重跑一次校验并刷新 `created_at`。
+
+## 设置卡原地保存：保存后不再整页往返（2026-11-23，1.28.8-beta-2）
+
+**背景**：开发者反复反馈「点系统设置的『保存布局设置』，页面先抖一下再出现弹窗」，并认定现在的 JS 弹窗不该这样。此前的五轮修法（`6ab9b64`、`10369e7`、`70a1ec9`、`5df107b`、`15505c4`）都在优化「POST + 302 + 重载之后把滚动恢复回去」，文档里甚至写下「恢复发生在首帧之前」。
+
+**实测**：在本地实验站（demo.77il.cn，插件与工作树逐字节一致）用 rAF 逐帧采样 + `PerformanceObserver(layout-shift)`：点保存后 first-contentful-paint 在 t≈404 ms，此刻 `scrollY=0`；`readyState` 变 `interactive`（≈449 ms）时仍是 0；到 `complete`（≈473 ms）才变成提交前的 1922。`layout-shift` 为空——不是布局抖动，是**新文档先画了页顶**。页脚脚本最早只能在 `DOMContentLoaded` 执行，所以「首帧前恢复」在该路径上不可能成立，任何修补都只是把跳变推迟几十毫秒。
+
+**决策**：设置卡改走**原地保存**。`Form` 加 `'inplace' => true` → `Card::form_open()` 输出 `data-sakura-inplace="1"` → `ui.js` 的 `initInPlaceSaves()` 在捕获阶段接管 submit，用 `fetch`（`admin.api.post` 新增 `type:'text'`）发同一份 `FormData` 到同一个 `options.php`，服务端、nonce、`Card_Form::guard_options()` 全部不动。拿回整页 HTML 后只抄三样：根节点行内样式 + head 里 `style[id$="-inline-css"]` 的内容（页面宽度、卡片圆角、卡片间隔当场生效）、服务端实际保存的控件值（`sanitize()` 会 clamp，输入 3000 宽回写 1920）、服务端渲染的那份提示弹窗（去掉 `autoshow` 后 `openModal()` 打开）。首个 opt-in 是系统设置的「布局设置」卡。
+
+**理由**：抖动来自「新文档从 0 开始画」，不重载就没有这一帧；而弹窗、焦点、`<main>` 的 180ms 进场都只在导航时才会重来。不做整块 `<main>` 或单卡节点的替换，是因为页面脚本直接绑在节点上（`storage-*`、`files-*`），换节点会让它们变聋；只同步值、样式和弹窗，绑定的东西一个都不动。
+
+**边界**：① 只有「保存结果不影响同页其它卡派生读数」的卡才 opt-in，其它卡（对象存储绑定态、成本估算、重写预览）继续整页提交；② 回退是显式的——fetch 失败、返回的不是本插件页、或重定向到别的 `page=`，就放开按钮让浏览器照常提交，`sessionStorage` 里那份滚动记录此时还在；③ 原地保存成功后必须删掉那份记录，否则下一次加载会被过期偏移拽走；④ `components.css:1616-1622` 的遮罩自 2026-11-20 起存在，本次不动它，只把文档里「不加遮罩」的过时说法改掉；⑤ 顺手修了一个真 bug：`HTMLFormElement` 是 OverrideBuiltIns，卡片表单里 `<input type="hidden" name="action" value="update">` 会把 `form.action` 盖成那个 input，读它拿到的是元素不是 URL（`action.indexOf is not a function`），异常抛在 `preventDefault()` 之前 → 整页提交照旧发生。因此一律读 `getAttribute('action')` / `getAttribute('method')`。
+
+**验收**：实验站注入新脚本后点两次保存：`window.__alive` 哨兵未丢（没有导航）、`__trace` 全程 1922（无一次 0）、`layout-shift` 为空、`admin:saved` 事件触发两次、`.sakura-modal` 始终只有 1 个且 `data-sakura-modal-autoshow` 已被摘掉、根节点 `style` 从 `--g-page-max:1500px;--g-radius-card:22px` 变回空（恢复默认）、输入框回写 1480/18、`sessionStorage.sakuraAdminSaveScroll` 为 null。

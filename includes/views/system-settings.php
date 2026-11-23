@@ -438,11 +438,12 @@ UI::page(
 					'id'          => 'layout',
 					'kicker'      => 'Layout & style',
 					'title'       => __( '布局设置', 'sakura-imgopt' ),
-					'description' => __( '所有插件页面共用页面宽度与卡片样式；背景由插件统一控制，保存后刷新页面生效。', 'sakura-imgopt' ),
+					'description' => __( '所有插件页面共用页面宽度与卡片样式；背景由插件统一控制，保存后立即生效。', 'sakura-imgopt' ),
 					'form'        => array(
 						'option_group' => 'sakura_imgopt_basic',
 						'markers'      => 'fields',
 						'marker_card'  => 'layout',
+						'inplace'      => true,
 					),
 					'save'        => __( '保存布局设置', 'sakura-imgopt' ),
 				),

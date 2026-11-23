@@ -1056,17 +1056,18 @@
 
 
 	/*
-	 * Keep the reader where they were across a save.
+	 * Keep the reader where they were across a save that reloads the page.
 	 *
-	 * Card forms post to options.php, WordPress redirects back, and the browser
-	 * paints a fresh document at scroll 0 — so saving a card near the bottom throws
-	 * the user back to the top even though the dialog itself is careful about
-	 * position. Remember the offset before the POST and restore it on the next
-	 * load of the same screen.
+	 * Cards that opted into initInPlaceSaves() never get here: they post through
+	 * fetch and the document is never replaced. For the rest, a form posts to
+	 * options.php, WordPress redirects back, and the browser paints a fresh
+	 * document at scroll 0 — saving a card near the bottom throws the user back to
+	 * the top even though the dialog itself is careful about position. Remember the
+	 * offset before the POST and restore it on the next load of the same screen.
 	 *
-	 * Scoped per URL (path + page + tab) so a redirect to a different screen does
-	 * not get the previous screen's offset, and cleared on read so a later manual
-	 * refresh starts clean at the top.
+	 * Scoped per URL (path + page) so a redirect to a different screen does not get
+	 * the previous screen's offset, and cleared on read so a later manual refresh
+	 * starts clean at the top.
 	 */
 	var SAVE_SCROLL_KEY = 'sakuraAdminSaveScroll';
 	// The offset this document restored after a save; the prompt mounted on the
@@ -1133,12 +1134,11 @@
 	/**
 	 * Put the viewport back where the save round-trip started.
 	 *
-	 * This runs BEFORE any prompt opens. The previous version deferred to the
-	 * dialog, which opens ~180ms later — long enough for the browser to paint the
-	 * fresh document at scroll 0, so the operator saw the page jump to the top,
-	 * then the dialog, then a second jump back. Restoring first means the very
-	 * first painted frame after reload is already at the saved offset, and the
-	 * dialog simply opens on top of it.
+	 * Fallback only: cards that opted into in-place saving never reload. Kept for
+	 * the forms that still post, where the new document starts at scroll 0 and this
+	 * is the earliest moment a footer script can act — after the first paint, not
+	 * before it. It still beats not restoring at all, but it is a visible jump, and
+	 * that jump is why the in-place path exists.
 	 *
 	 * @return {number|null} The applied offset, or null when there was nothing to do.
 	 */
@@ -1176,6 +1176,312 @@
 
 		restoredOffset = target;
 		return target;
+	}
+
+	/*
+	 * Save an opted-in card form without leaving the screen.
+	 *
+	 * 2026-11-23，实测之后的结论：这条路上的抖动修不掉，只能绕开。
+	 *
+	 * A card form posts to options.php, WordPress redirects back, and the browser
+	 * paints a completely new document at scroll 0. restoreScrollAfterSave() cannot
+	 * run before that frame — footer scripts do not exist until DOMContentLoaded —
+	 * so the first frame is always the top of the page. Measured on the demo site:
+	 * first-contentful-paint at y=0, the offset came back ~70ms later at
+	 * readyState=complete, and the result prompt opened in the same tick on a page
+	 * that had just moved. Every repair on that path is a second jump.
+	 *
+	 * Sending the same POST through fetch keeps the live document: nothing is
+	 * reparsed, nothing scrolls, no entrance animation replays. The HTML WordPress
+	 * would have navigated to is parsed instead, and the parts the operator can see
+	 * are copied over — the prompt it rendered, the page-level variables and inline
+	 * styles it enqueued (page width, card radius, grid gaps), and the control values
+	 * the server actually kept, because it clamps them.
+	 *
+	 * A real navigation still wins whenever fetch cannot do the job: the redirect
+	 * lands on another screen, the answer is not one of our pages, the request fails,
+	 * or the browser lacks FormData / DOMParser. Cards opt in through form.inplace
+	 * (prints data-sakura-inplace); a card whose neighbours print values derived from
+	 * it must stay opted out, because nothing here re-renders them.
+	 */
+	var RESULT_MODAL_ID = 'sakura-settings-result-modal';
+	// The result prompt this document mounted last: a second save replaces it
+	// instead of stacking two dialogs that both answer to Escape.
+	var savePrompt = null;
+	// One save at a time; a second submit while it runs is dropped, not queued.
+	var savingInPlace = false;
+
+	function canSaveInPlace() {
+		return !! admin.api
+			&& typeof admin.api.post === 'function'
+			&& typeof window.FormData === 'function'
+			&& typeof window.DOMParser === 'function';
+	}
+
+	/**
+	 * Action URL when this form opted into in-place saving, otherwise null.
+	 *
+	 * @param {Element} form
+	 * @return {string|null}
+	 */
+	function inPlaceAction( form ) {
+		if ( ! form || 'FORM' !== form.tagName || ! form.hasAttribute( 'data-sakura-inplace' ) ) {
+			return null;
+		}
+		if ( 'post' !== ( form.getAttribute( 'method' ) || '' ).toLowerCase() ) {
+			return null;
+		}
+		if ( ! form.closest || ! form.closest( '.sakura-admin' ) ) {
+			return null;
+		}
+		/*
+		 * 不要读 form.action / form.method：HTMLFormElement 是 OverrideBuiltIns，
+		 * 卡片表单里那个 <input type="hidden" name="action" value="update"> 会把它
+		 * 盖成 input 元素，后续 indexOf 直接抛 "action.indexOf is not a function"，
+		 * 而异常发生在 preventDefault 之前，于是表单照旧整页提交。
+		 */
+		var action = form.getAttribute( 'action' ) || '';
+		// Options API only: admin-post.php savers download files or finish on a
+		// screen of their own, so they keep navigating.
+		if ( -1 === action.indexOf( 'options.php' ) ) {
+			return null;
+		}
+		try {
+			return new URL( action, window.location.href ).href;
+		} catch ( error ) {
+			return null;
+		}
+	}
+
+	/**
+	 * Is this URL the screen the operator is already looking at?
+	 *
+	 * @param {string} url
+	 * @return {boolean}
+	 */
+	function sameScreen( url ) {
+		try {
+			var target = new URL( url, window.location.href );
+			var here = new URLSearchParams( window.location.search );
+			return target.pathname === window.location.pathname
+				&& ( target.searchParams.get( 'page' ) || '' ) === ( here.get( 'page' ) || '' );
+		} catch ( error ) {
+			return false;
+		}
+	}
+
+	function clearPendingScroll() {
+		try {
+			window.sessionStorage.removeItem( SAVE_SCROLL_KEY );
+		} catch ( error ) {}
+	}
+
+	function initInPlaceSaves() {
+		document.addEventListener( 'submit', function ( event ) {
+			if ( event.defaultPrevented ) {
+				return;
+			}
+			var form = event.target;
+			var action = inPlaceAction( form );
+			if ( null === action || ! canSaveInPlace() ) {
+				return;
+			}
+
+			// A save that is already running must not stack a second request.
+			if ( savingInPlace ) {
+				event.preventDefault();
+				return;
+			}
+
+			event.preventDefault();
+			savingInPlace = true;
+
+			var body = new window.FormData( form );
+			var submitter = event.submitter;
+			if ( submitter && submitter.name ) {
+				body.append( submitter.name, submitter.value );
+			}
+
+			var released = busy( form, true );
+
+			function fallback() {
+				// The old path, warts and all — better than a button stuck on busy.
+				savingInPlace = false;
+				released();
+				form.submit();
+			}
+
+			admin.api.post( action, body, {
+				type: 'text',
+				timeout: 30000,
+				headers: { Accept: 'text/html' }
+			} ).then( function ( result ) {
+				if ( ! applySavedResult( form, result ) ) {
+					fallback();
+					return;
+				}
+				// Nothing navigated, so the offset stored for the reload has no
+				// owner; leaving it would move the page on the NEXT load.
+				clearPendingScroll();
+				savingInPlace = false;
+				released();
+			}, function () {
+				fallback();
+			} );
+		}, true );
+	}
+
+	/**
+	 * Apply the document options.php would have navigated to.
+	 *
+	 * @param {Element} form
+	 * @param {Object}  result { text, url } from admin.api with type "text".
+	 * @return {boolean} False when the caller must let the browser navigate.
+	 */
+	function applySavedResult( form, result ) {
+		var html = result && result.text ? result.text : '';
+		if ( ! html || -1 === html.indexOf( 'sakura-admin' ) ) {
+			return false;
+		}
+		// A redirect to another screen (page id changed) is a real move.
+		if ( result.url && ! sameScreen( result.url ) ) {
+			return false;
+		}
+
+		var doc = new window.DOMParser().parseFromString( html, 'text/html' );
+		var fresh = doc.querySelector( '.sakura-admin[data-sakura-page]' ) || doc.querySelector( '.sakura-admin' );
+		var root = document.querySelector( '.sakura-admin[data-sakura-page]' ) || document.querySelector( '.sakura-admin' );
+		if ( ! fresh || ! root ) {
+			return false;
+		}
+
+		// Page-level variables: page width, card radius / border / shadow.
+		if ( fresh.hasAttribute( 'style' ) ) {
+			root.setAttribute( 'style', fresh.getAttribute( 'style' ) );
+		} else {
+			root.removeAttribute( 'style' );
+		}
+
+		// Inline style blocks (grid gaps arrive through wp_add_inline_style).
+		admin.qsa( 'style[id$="-inline-css"]', doc.head ).forEach( function ( block ) {
+			var live = document.getElementById( block.id );
+			if ( live && live.textContent !== block.textContent ) {
+				live.textContent = block.textContent;
+			}
+		} );
+
+		syncFormValues( form, doc );
+		showSavedPrompt( doc, root );
+
+		admin.events.emit( 'saved', { form: form, card: form.closest( '.card' ) } );
+
+		return true;
+	}
+
+	/**
+	 * Copy the stored control values back into the live form.
+	 *
+	 * The server answers with what it kept, not with what was typed: a page width
+	 * of 3000 comes back as 1920, and a field left showing 3000 would describe a
+	 * site that does not exist. Password and file inputs are skipped — a masked
+	 * value would be saved back as the mask next time — and hidden inputs carry
+	 * nonces, which stay valid.
+	 *
+	 * @param {Element} form Live form.
+	 * @param {Document} doc  Parsed response.
+	 */
+	function syncFormValues( form, doc ) {
+		var id = form.getAttribute( 'id' );
+		var fresh = id ? doc.getElementById( id ) : null;
+		if ( ! fresh || 'FORM' !== fresh.tagName ) {
+			return;
+		}
+
+		var byName = {};
+		admin.qsa( 'input[name], select[name], textarea[name]', fresh ).forEach( function ( control ) {
+			var name = control.getAttribute( 'name' );
+			byName[ name ] = byName[ name ] || [];
+			byName[ name ].push( control );
+		} );
+
+		admin.qsa( 'input[name], select[name], textarea[name]', form ).forEach( function ( control ) {
+			var type = ( control.type || '' ).toLowerCase();
+			if ( 'password' === type || 'file' === type || 'hidden' === type ) {
+				return;
+			}
+			var candidates = byName[ control.getAttribute( 'name' ) ] || [];
+			var source = null;
+			candidates.forEach( function ( candidate ) {
+				if ( source ) {
+					return;
+				}
+				if ( ( 'radio' === type || 'checkbox' === type ) && candidate.value !== control.value ) {
+					return;
+				}
+				source = candidate;
+			} );
+			if ( ! source ) {
+				return;
+			}
+			if ( 'checkbox' === type || 'radio' === type ) {
+				control.checked = source.checked;
+				return;
+			}
+			if ( 'select-one' === type || 'select-multiple' === type ) {
+				control.value = source.value;
+				return;
+			}
+			if ( control.value !== source.value ) {
+				control.value = source.value;
+			}
+		} );
+	}
+
+	/**
+	 * Mount the prompt the server printed for this save.
+	 *
+	 * The markup is the real one — tone, copy, focus target — so the in-place path
+	 * cannot drift from what a reload would have shown.
+	 *
+	 * @param {Document} doc  Parsed response.
+	 * @param {Element}  root Live page root.
+	 */
+	function showSavedPrompt( doc, root ) {
+		closeSavedPrompt();
+
+		var fresh = doc.getElementById( RESULT_MODAL_ID );
+		if ( ! fresh ) {
+			// Saved, but the saver wrote no settings error to report.
+			toast( '已保存', 'ok' );
+			return;
+		}
+
+		// A prompt rendered on the previous load may still sit in the DOM closed.
+		var stale = document.getElementById( RESULT_MODAL_ID );
+		if ( stale && stale.parentNode ) {
+			stale.parentNode.removeChild( stale );
+		}
+
+		var node = document.importNode( fresh, true );
+		// Autoshow means "open on page load"; this prompt is already opening, and
+		// keeping the flag would open it a second time on the next initModals().
+		node.removeAttribute( 'data-sakura-modal-autoshow' );
+		root.appendChild( node );
+
+		savePrompt = { node: node, handle: openModal( node, null ) };
+	}
+
+	function closeSavedPrompt() {
+		if ( ! savePrompt ) {
+			return;
+		}
+		if ( savePrompt.handle ) {
+			savePrompt.handle.close();
+		}
+		if ( savePrompt.node && savePrompt.node.parentNode ) {
+			savePrompt.node.parentNode.removeChild( savePrompt.node );
+		}
+		savePrompt = null;
 	}
 
 	/**
@@ -1493,23 +1799,36 @@
 	function initModals() {
 		admin.qsa( '.sakura-modal[data-sakura-modal-autoshow="1"]' ).forEach( function ( modal ) {
 			modal.setAttribute( 'data-sakura-modal-instant', '1' );
-			openModal( modal, null );
+			var handle = openModal( modal, null );
+			if ( RESULT_MODAL_ID === modal.id ) {
+				// Printed by the server after a real navigation; the next in-place
+				// save has to replace this one instead of stacking a second dialog.
+				savePrompt = { node: modal, handle: handle };
+			}
 		} );
 	}
 
 	admin.ready( function () {
 		/*
-		 * Restore the post-save offset FIRST, before anything else can paint or move
-		 * the viewport. A save is a POST plus redirect, so the browser starts the new
-		 * document at scroll 0; putting the offset back here, still before the first
-		 * paint, is what removes the visible "top of page, then prompt, then jump
-		 * back" sequence. initModals() runs last and opens synchronously.
+		 * Restore the post-save offset before anything else can move the viewport.
+		 *
+		 * This is the FALLBACK path. A card that opted into initInPlaceSaves() never
+		 * navigates, so there is nothing to restore; the offset is only here for a
+		 * form that still posts, and it cannot beat the first paint — footer scripts
+		 * run at DOMContentLoaded, after the browser has already drawn the document
+		 * at scroll 0. Measured on the demo site: fcp at y=0, offset applied at
+		 * readyState=complete, ~70ms later. Do not describe this as "before the
+		 * first frame"; it is not, and that is exactly why cards opt into in-place
+		 * saving instead.
 		 */
 		restoreScrollAfterSave();
 
 		labelTables( document );
 		initConfirmations();
+		// Writes the offset first: the in-place path clears it on success and needs
+		// it intact when it falls back to a real submit.
 		rememberScrollOnSave();
+		initInPlaceSaves();
 		initModals();
 
 		/*

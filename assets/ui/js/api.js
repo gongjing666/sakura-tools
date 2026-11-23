@@ -72,16 +72,20 @@
 
 	/**
 	 * @param {string} url
-	 * @param {Object} options fetch options plus { timeout, raw }.
-	 * @return {Promise<any>} Parsed JSON, or the Response when raw is true.
+	 * @param {Object} options fetch options plus { timeout, raw, type }.
+	 *   type "text" answers with { text, url, status, redirected } instead of JSON:
+	 *   a whole-page response (options.php) is HTML, and JSON.parse would throw.
+	 * @return {Promise<any>} Parsed JSON, a text result, or the Response when raw is true.
 	 */
 	function request( url, options ) {
 		var settings = Object.assign( {}, options || {} );
 		var timeout = Number( settings.timeout ) || 20000;
+		var wantText = 'text' === settings.type;
 		var controller = typeof window.AbortController === 'function' ? new window.AbortController() : null;
 		var timer = 0;
 
 		delete settings.timeout;
+		delete settings.type;
 		var raw = !! settings.raw;
 		delete settings.raw;
 
@@ -104,6 +108,17 @@
 
 		return window.fetch( url, settings ).then( function ( response ) {
 			return response.text().then( function ( text ) {
+				if ( wantText ) {
+					if ( ! response.ok ) {
+						throw makeError( response, null );
+					}
+					return {
+						text: text,
+						url: response.url,
+						status: response.status,
+						redirected: response.redirected
+					};
+				}
 				var payload = text ? admin.parseJSON( text, null ) : null;
 				if ( ! response.ok ) {
 					throw makeError( response, payload );

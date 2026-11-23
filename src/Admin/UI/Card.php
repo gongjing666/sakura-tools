@@ -209,7 +209,10 @@ final class Card {
 	/**
 	 * Open the card form and print the shared save markers.
 	 *
-	 * @param array<string,mixed> $form Form arguments.
+	 * @param array<string,mixed> $form Form arguments. inplace = save through fetch
+	 *                                  so the page never reloads; only for a card
+	 *                                  whose neighbours do not print values derived
+	 *                                  from it (see docs/开发规则/03-后台UI.md §4.1).
 	 * @param string              $card Card id.
 	 * @return void
 	 */
@@ -221,8 +224,12 @@ final class Card {
 		$group   = isset( $form['option_group'] ) ? (string) $form['option_group'] : '';
 		$markers = isset( $form['markers'] ) ? (string) $form['markers'] : 'fields';
 		$marker  = isset( $form['marker_card'] ) && '' !== (string) $form['marker_card'] ? sanitize_key( (string) $form['marker_card'] ) : $card;
+		$inplace = ! empty( $form['inplace'] ) && 'POST' === $method;
 
 		echo '<form class="card__form" id="' . esc_attr( $id ) . '" method="' . esc_attr( strtolower( $method ) ) . '" action="' . esc_url( $action ) . '"';
+		if ( $inplace ) {
+			echo ' data-sakura-inplace="1"';
+		}
 		if ( ! empty( $form['enctype'] ) ) {
 			echo ' enctype="' . esc_attr( (string) $form['enctype'] ) . '"';
 		}

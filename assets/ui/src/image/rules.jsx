@@ -168,7 +168,13 @@ export default function RulesPage( { boot, onError, onNotice } ) {
 					scanning={ scanning }
 					onError={ onError }
 					onNotice={ onNotice }
-					onSection={ ( next ) => setSections( ( current ) => ( { ...current, thumbs: next } ) ) }
+					onSection={ ( next ) => {
+						// A scan snapshot outranks the payload rows inside SizeTable,
+						// so a save has to retire it; otherwise the table keeps
+						// showing the state as it was when 扫描裁剪配置 was pressed.
+						setScanned( null );
+						setSections( ( current ) => ( { ...current, thumbs: next } ) );
+					} }
 				/>
 			) ) }
 		</div>

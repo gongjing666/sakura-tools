@@ -705,6 +705,19 @@
 	transform: none;
 }
 
+/* 保存中的文案切换（「保存布局设置」→「保存中…」）会让按钮变窄，右对齐的
+ * 保存条于是回缩一次再弹回来——看起来就是卡片在抖。两层文案叠在同一格里，
+ * 宽度取较宽的那一个，切换时几何不变。 */
+.sakura-admin .btn__stack {
+	display: inline-grid;
+	grid-auto-flow: column;
+}
+
+.sakura-admin .btn__stack > span {
+	grid-area: 1 / 1;
+	white-space: nowrap;
+}
+
 @media (prefers-reduced-motion: reduce) {
 	.sakura-admin .btn {
 		transition: none;

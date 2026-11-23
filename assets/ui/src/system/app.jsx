@@ -9,6 +9,7 @@
 import { Fragment, useCallback, useEffect, useRef, useState } from 'react';
 
 import {
+	BusyLabel,
 	Card,
 	ChecksTable,
 	ExtensionGrid,
@@ -134,7 +135,11 @@ export default function App( { boot } ) {
 								disabled={ saving || ! dirty }
 								aria-busy={ saving ? 'true' : undefined }
 							>
-								{ saving ? boot.strings.saving : layoutCard.save }
+								<BusyLabel
+									idle={ layoutCard.save }
+									active={ boot.strings.saving }
+									busy={ saving }
+								/>
 							</button>
 						</div>
 					</form>

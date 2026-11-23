@@ -13,6 +13,30 @@ export function Badge( { tone = 'neutral', children } ) {
 	return <span className={ `badge badge--${ tone }` }>{ children }</span>;
 }
 
+/**
+ * A button label that swaps to a shorter one while saving without changing the
+ * button's width: both labels sit in the same grid cell, so the cell is as wide
+ * as the longer one and the right-aligned savebar never reflows.
+ */
+export function BusyLabel( { idle, active, busy } ) {
+	return (
+		<span className="btn__stack">
+			<span
+				aria-hidden={ busy ? undefined : 'true' }
+				style={ { visibility: busy ? 'visible' : 'hidden' } }
+			>
+				{ active }
+			</span>
+			<span
+				aria-hidden={ busy ? 'true' : undefined }
+				style={ { visibility: busy ? 'hidden' : 'visible' } }
+			>
+				{ idle }
+			</span>
+		</span>
+	);
+}
+
 export function Card( { card, titleProps, children } ) {
 	const style = {};
 

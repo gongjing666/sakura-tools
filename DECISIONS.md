@@ -959,3 +959,15 @@ body.upload-php.sufm-tree-active.folded { --sufm-tree-left: 56px; }
 **边界**：① 只有「保存结果不影响同页其它卡派生读数」的卡才 opt-in，其它卡（对象存储绑定态、成本估算、重写预览）继续整页提交；② 回退是显式的——fetch 失败、返回的不是本插件页、或重定向到别的 `page=`，就放开按钮让浏览器照常提交，`sessionStorage` 里那份滚动记录此时还在；③ 原地保存成功后必须删掉那份记录，否则下一次加载会被过期偏移拽走；④ `components.css:1616-1622` 的遮罩自 2026-11-20 起存在，本次不动它，只把文档里「不加遮罩」的过时说法改掉；⑤ 顺手修了一个真 bug：`HTMLFormElement` 是 OverrideBuiltIns，卡片表单里 `<input type="hidden" name="action" value="update">` 会把 `form.action` 盖成那个 input，读它拿到的是元素不是 URL（`action.indexOf is not a function`），异常抛在 `preventDefault()` 之前 → 整页提交照旧发生。因此一律读 `getAttribute('action')` / `getAttribute('method')`。
 
 **验收**：实验站注入新脚本后点两次保存：`window.__alive` 哨兵未丢（没有导航）、`__trace` 全程 1922（无一次 0）、`layout-shift` 为空、`admin:saved` 事件触发两次、`.sakura-modal` 始终只有 1 个且 `data-sakura-modal-autoshow` 已被摘掉、根节点 `style` 从 `--g-page-max:1500px;--g-radius-card:22px` 变回空（恢复默认）、输入框回写 1480/18、`sessionStorage.sakuraAdminSaveScroll` 为 null。
+
+## 系统设置改为 React 岛 + REST 保存（2026-11-23，1.28.8-beta-3）
+
+**背景**：开发者决定「换 React 框架和 REST API」，理由是长期看 PHP 整页直出会被淘汰，先拿系统设置做第一个模块（见同日「设置卡原地保存」——抖动本身已经治好，这条讲的是架构）。2026-11-14 曾定过「不引入 Bootstrap / Alpine / Vue」，本次是它的正式翻转，不是悄悄破例。
+
+**决策**：系统设置页拆成三层——① PHP 输出页壳（`UI::page()` 的页头、页签、菜单、翻译、权限照旧）加 `#sakura-system-root` 与 `<script type="application/json" id="sakura-system-bootstrap">`，数据由新增的 `System_Payload::build()` 生成；② 界面由 `assets/ui/src/system/` 的 React 岛渲染（`index.jsx` 挂载、`boot.js` 读引导数据并写 CSS 变量、`components.jsx` 复刻 `card`/`field`/`sakura-modal` 标记、`app.jsx` 持有草稿与保存状态）；③ 保存走 `POST /wp-json/sakura-tools/v1/system/layout`，服务端 `System_Layout_Settings::merge()` 把入参并到现值后 `save()`，响应 `{ layout, notice }`。构建用 `bin/build-ui.mjs`（esbuild，无配置文件依赖），产物 `assets/ui/dist/system.js` 提交进版本库，因为发布包由 `git archive` 只取已跟踪文件。
+
+**理由**：抖动的根因是「保存=导航=重建文档」，不在渲染层，所以 React 本身不解决它——真正换到的是**传输层**：保存只返回受影响的读数和一份提示文案，页面不再重载。REST 的价值是契约（`permission_callback`、参数 schema、返回结构固定、能被 curl 复现），比「解析整页 HTML 挑三样」可测得多。岛屿只接管内容区而不是整页接管，是为了不让菜单、页签、翻译与权限判断跟着重写一遍：那部分没有性能与交互问题，改它只是增加失败面。
+
+**边界**：① **REST 路由不能挂在 `is_admin()` 里装配的模块上**——`/wp-json/` 请求不是 admin 屏幕，那个模块根本不存在，`rest_api_init` 回调也不会注册，症状是保存 404、`/wp-json/` 的 `namespaces` 里没有本插件命名空间。为此单列 `src/Admin/Rest/System_Routes.php`，在 `Plugin::build_modules()` 里无条件加入（`sufm/v1` 之所以一直在，是因为 `\Nboke\UserFiles\Module` 本来就无条件装配）。② 岛屿内弹窗必须 portal 到 `.sakura-admin`：模态选择器带 `.sakura-admin` 前缀，且 `main` 的进场 `transform` 会成为 `fixed` 的包含块。③ 保存成功后按钮因「没有改动」而 `disabled`，关闭弹窗时焦点收不回去，因此回落到卡片标题（`tabIndex="-1"` + `data-sakura-return-target`）。④ 岛屿不导航，但 `ui.js` 仍会在 submit 上写 `sakuraAdminSaveScroll`，保存成功后必须删掉，否则会被之后某次刷新重放。⑤ 首个落地只做系统设置：其余页面（对象存储、文件空间、媒体库）仍是 PHP 渲染 + 整页提交，`form.inplace` 只解决单卡保存，不解决跨卡派生值。
+
+**验收**：`composer test` 878 tests / 3752 assertions（新增 `SystemLayoutTest` 5 例与「岛屿渲染顺序与 `Layout::PAGES` 一致」1 例）、`phpstan` 无错误、`phpcs` 8/8 干净。实验站（1.28.8-beta-3）：1440 与 390 下首屏直接有内容、无横向溢出；保存 `POST /wp-json/sakura-tools/v1/system/layout` 返回 200（173 ms），`window.__alive` 未丢、`navigation` 条目仍为 1、每帧 `scrollY` 恒定、`layout-shift` 为空或仅 0.0002（来源是按钮自身的状态变化）；圆角 22 → 根节点立刻出现 `--g-radius-card: 22px`，改回 18 → 行内样式消失；390 下弹窗卡片 354px 位于 390 视口内（18–372），Esc / 点遮罩 / 按钮均可关闭，关闭后焦点落在卡片标题「布局设置」，`sessionStorage` 已清空；未登录 `GET /wp-json/sakura-tools/v1/system` 返回 401。

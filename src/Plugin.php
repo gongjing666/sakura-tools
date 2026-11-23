@@ -232,6 +232,10 @@ final class Plugin {
 		// 子比增强：请求旁路、缓存失效与每日复验必须在所有请求里存在。
 		$modules[] = new Zibll\Runtime_Module();
 
+		// 后台岛的 REST 路由：/wp-json/ 请求不是 admin 页面，路由不能挂在
+		// is_admin() 里的模块上，否则保存永远 404。
+		$modules[] = new Admin\Rest\System_Routes();
+
 		// 用户文件空间：前台、REST 与后台审核页都挂在这个模块上。
 		$modules[] = new \Nboke\UserFiles\Module();
 

@@ -78,25 +78,16 @@ class System_Settings_Module implements Module {
 
 	/**
 	 * Render the page.
+	 *
+	 * The view keeps the page shell (title, status badge, actions) and prints the
+	 * island mount point plus its bootstrap JSON; React takes over from there.
 	 */
 	public function render_system_settings(): void {
 		if ( ! current_user_can( 'manage_options' ) ) {
 			return;
 		}
 
-		$report = Environment_Report::collect();
-		$gaps   = Layout::gaps();
-
-		$gaps_option = Layout::GAPS_OPTION;
-		$gaps_max    = Layout::MAX_GAP;
-
-		$appearance            = Appearance::get();
-		$appearance_option     = Appearance::OPTION;
-		$appearance_defaults   = Appearance::DEFAULTS;
-		$appearance_width_min  = Appearance::MIN_WIDTH;
-		$appearance_width_max  = Appearance::MAX_WIDTH;
-		$appearance_border_max = Appearance::MAX_BORDER;
-		$appearance_radius_max = Appearance::MAX_RADIUS;
+		$payload = System_Payload::build();
 
 		require SAKURA_TOOLS_INC . 'views/system-settings.php';
 	}
@@ -104,7 +95,8 @@ class System_Settings_Module implements Module {
 	/**
 	 * Load the new admin UI stack on this page only.
 	 *
-	 * The page is deliberately server-rendered: no scan script, no AJAX.
+	 * The bundle is built from `assets/ui/src/system/` by `bin/build-ui.mjs` and
+	 * committed, because the release zip only carries tracked files.
 	 *
 	 * @param string $hook Current admin page hook.
 	 */
@@ -115,5 +107,19 @@ class System_Settings_Module implements Module {
 
 		unset( $hook );
 		Assets::enqueue_page();
+
+		$bundle = 'assets/ui/dist/system.js';
+
+		if ( ! is_readable( SAKURA_TOOLS_PATH . $bundle ) ) {
+			return;
+		}
+
+		wp_enqueue_script(
+			'sakura-admin-system',
+			SAKURA_TOOLS_URL . $bundle,
+			array( 'sakura-admin-core' ),
+			Page_Assets::asset_version( $bundle ),
+			true
+		);
 	}
 }

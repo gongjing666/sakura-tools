@@ -117,11 +117,15 @@ rm -rf \
 	"$PLUGIN/docs" \
 	"$PLUGIN/tests" \
 	"$PLUGIN/stubs" \
-	"$PLUGIN/.phpunit.cache"
+	"$PLUGIN/.phpunit.cache" \
+	"$PLUGIN/node_modules" \
+	"$PLUGIN/assets/ui/src"
 rm -f \
 	"$PLUGIN/.gitignore" \
 	"$PLUGIN/composer.json" \
 	"$PLUGIN/composer.lock" \
+	"$PLUGIN/package.json" \
+	"$PLUGIN/package-lock.json" \
 	"$PLUGIN/phpcs.xml.dist" \
 	"$PLUGIN/phpstan.neon" \
 	"$PLUGIN/phpunit.xml.dist" \

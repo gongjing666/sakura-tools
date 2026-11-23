@@ -17,6 +17,7 @@ namespace Sakura\ImageOptimizer\Tests;
 
 use PHPUnit\Framework\TestCase;
 use Sakura\ImageOptimizer\Admin\Layout;
+use Sakura\ImageOptimizer\Admin\System_Payload;
 
 require_once dirname( __DIR__ ) . '/src/Admin/Layout.php';
 
@@ -132,12 +133,35 @@ final class LayoutTest extends TestCase {
 	 */
 	public static function page_markup_provider(): array {
 		return array(
-			'image'           => array( 'image', array( 'includes/views/settings-main.php' ) ),
-			'thumb'           => array( 'thumb', array( 'includes/views/thumb-settings.php' ) ),
-			's3'              => array( 's3', array( 'src/S3/S3_Storage_Page.php', 'src/S3/Sync_Center_Panel.php', 'src/S3/Monitoring_Panel.php' ) ),
-			'sync'            => array( 'sync', array( 'includes/views/s3-sync-center.php' ) ),
-			'system-settings' => array( 'system-settings', array( 'includes/views/system-settings.php' ) ),
-			'backup'          => array( 'backup', array( 'includes/views/settings-backup.php' ) ),
+			'image'  => array( 'image', array( 'includes/views/settings-main.php' ) ),
+			'thumb'  => array( 'thumb', array( 'includes/views/thumb-settings.php' ) ),
+			's3'     => array( 's3', array( 'src/S3/S3_Storage_Page.php', 'src/S3/Sync_Center_Panel.php', 'src/S3/Monitoring_Panel.php' ) ),
+			'sync'   => array( 'sync', array( 'includes/views/s3-sync-center.php' ) ),
+			'backup' => array( 'backup', array( 'includes/views/settings-backup.php' ) ),
 		);
+	}
+
+	/**
+	 * The system screen is a React island, so its card order left the PHP markup.
+	 *
+	 * Guarding the payload order and the JSX render order separately keeps the
+	 * Layout table authoritative even though no UI::card() call is left to scan.
+	 */
+	public function test_system_island_keeps_the_declared_card_order(): void {
+		require_once dirname( __DIR__ ) . '/src/Admin/System_Payload.php';
+
+		$declared = Layout::PAGES['system-settings']['order'];
+		$this->assertSame( $declared, System_Payload::card_ids() );
+
+		$source = (string) file_get_contents( dirname( __DIR__ ) . '/assets/ui/src/system/app.jsx' );
+		preg_match_all( '/<Card card=\{\s*(?:boot\.cards\.([a-z_]+)|(layoutCard))\s*\}/', $source, $found );
+
+		$rendered = array();
+		foreach ( $found[0] as $index => $markup ) {
+			unset( $markup );
+			$rendered[] = '' !== $found[1][ $index ] ? $found[1][ $index ] : 'layout';
+		}
+
+		$this->assertSame( $declared, $rendered, 'assets/ui/src/system/app.jsx must render the cards in Layout order.' );
 	}
 }

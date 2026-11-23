@@ -19,3 +19,6 @@
 
 # DSH ops panel captures (runtime artifacts written into cwd, never shipped)
 .dsh-ops/
+
+# Node tooling for the admin islands (bin/build-ui.mjs)
+/node_modules/

@@ -127,9 +127,12 @@ final class Modal {
 	/**
 	 * The close glyph in the corner.
 	 *
+	 * Public so the system payload can hand the same glyph to React; the two
+	 * dialog implementations then never drift apart.
+	 *
 	 * @return string SVG markup.
 	 */
-	private static function close_icon(): string {
+	public static function close_icon(): string {
 		return '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M6 6l12 12M18 6 6 18"/></svg>';
 	}
 

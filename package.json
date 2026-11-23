@@ -1,0 +1,18 @@
+{
+	"name": "sakura-tools",
+	"version": "1.28.8",
+	"private": true,
+	"description": "Build tooling for the admin React islands. The bundles in assets/ui/dist/ are committed; node_modules is never shipped.",
+	"license": "GPL-2.0-or-later",
+	"scripts": {
+		"build": "node bin/build-ui.mjs",
+		"watch": "node bin/build-ui.mjs --watch"
+	},
+	"dependencies": {
+		"react": "^19.0.0",
+		"react-dom": "^19.0.0"
+	},
+	"devDependencies": {
+		"esbuild": "^0.25.0"
+	}
+}

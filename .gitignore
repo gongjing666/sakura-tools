@@ -22,3 +22,6 @@
 
 # Node tooling for the admin islands (bin/build-ui.mjs)
 /node_modules/
+
+# local screenshots taken while verifying admin UI
+/dist-shots/

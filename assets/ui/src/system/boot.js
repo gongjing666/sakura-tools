@@ -118,30 +118,38 @@ export function applyCanvas( state ) {
  * @return {Promise<object>} The parsed response.
  */
 export async function saveLayout( rest, draft ) {
-	const response = await fetch( rest.url, {
-		method: 'POST',
-		credentials: 'same-origin',
-		headers: {
-			'Content-Type': 'application/json',
-			'X-WP-Nonce': rest.nonce,
-			Accept: 'application/json',
-		},
-		body: JSON.stringify( {
-			gapX: Number( draft.gapX ),
-			gapY: Number( draft.gapY ),
-			page_width: Number( draft.page_width ),
-			border_width: Number( draft.border_width ),
-			radius: Number( draft.radius ),
-			shadow: String( draft.shadow ),
-		} ),
-	} );
+	let response;
+
+	try {
+		response = await fetch( rest.url, {
+			method: 'POST',
+			credentials: 'same-origin',
+			headers: {
+				'Content-Type': 'application/json',
+				'X-WP-Nonce': rest.nonce,
+				Accept: 'application/json',
+			},
+			body: JSON.stringify( {
+				gapX: Number( draft.gapX ),
+				gapY: Number( draft.gapY ),
+				page_width: Number( draft.page_width ),
+				border_width: Number( draft.border_width ),
+				radius: Number( draft.radius ),
+				shadow: String( draft.shadow ),
+			} ),
+		} );
+	} catch ( error ) {
+		// fetch only rejects on a transport failure; its message ("Failed to fetch")
+		// is developer text, so say what actually happened in the operator's language.
+		throw new Error( '网络请求失败，服务器没有响应。' );
+	}
 
 	const payload = await response.json().catch( () => null );
 
 	if ( ! response.ok || ! payload ) {
 		const message = payload && payload.message ? String( payload.message ) : '';
 
-		throw new Error( message || `HTTP ${ response.status }` );
+		throw new Error( message || `服务器返回 ${ response.status }，请稍后重试。` );
 	}
 
 	return payload;

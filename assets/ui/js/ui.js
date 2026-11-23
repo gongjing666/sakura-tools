@@ -1615,6 +1615,49 @@
 		return !! ( window.matchMedia && window.matchMedia( '(prefers-reduced-motion: reduce)' ).matches );
 	}
 
+	var FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
+	/**
+	 * Keep Tab inside an open prompt.
+	 *
+	 * The scrim blocks the pointer, but nothing stopped a keyboard operator from
+	 * tabbing into the page behind it — the focus ring then travels under the
+	 * blur, which reads as a broken dialog. Cycling first/last keeps the walk
+	 * inside the card without pulling in a focus-trap library.
+	 */
+	function trapTab( event, container ) {
+		if ( ! container ) {
+			return;
+		}
+
+		var nodes = Array.prototype.filter.call( container.querySelectorAll( FOCUSABLE ), function ( element ) {
+			return element.offsetParent !== null || element === document.activeElement;
+		} );
+
+		if ( ! nodes.length ) {
+			event.preventDefault();
+			return;
+		}
+
+		var first  = nodes[ 0 ];
+		var last   = nodes[ nodes.length - 1 ];
+		var active = document.activeElement;
+		var inside = container.contains( active );
+
+		if ( event.shiftKey ) {
+			if ( ! inside || active === first ) {
+				event.preventDefault();
+				last.focus( { preventScroll: true } );
+			}
+			return;
+		}
+
+		if ( ! inside || active === last ) {
+			event.preventDefault();
+			first.focus( { preventScroll: true } );
+		}
+	}
+
 	/**
 	 * Prompt dialog controller (.sakura-modal).
 	 *
@@ -1733,6 +1776,11 @@
 		}
 
 		function onKeydown( event ) {
+			if ( 'Tab' === event.key ) {
+				trapTab( event, modal );
+				return;
+			}
+
 			if ( 'Escape' !== event.key ) {
 				return;
 			}

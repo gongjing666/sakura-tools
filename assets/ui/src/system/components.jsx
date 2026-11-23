@@ -283,6 +283,34 @@ export function Prompt( { notice, onClose, returnFocus } ) {
 		const onKey = ( event ) => {
 			if ( 'Escape' === event.key ) {
 				requestClose();
+				return;
+			}
+
+			// Keep Tab inside the prompt: the scrim blocks the pointer, and a focus
+			// ring travelling under the blur reads as a broken dialog.
+			if ( 'Tab' !== event.key || ! cardRef.current ) {
+				return;
+			}
+
+			const nodes = Array.prototype.filter.call(
+				cardRef.current.querySelectorAll(
+					'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+				),
+				( el ) => el.offsetParent !== null || el === document.activeElement
+			);
+
+			if ( ! nodes.length ) {
+				event.preventDefault();
+				return;
+			}
+
+			const first = nodes[ 0 ];
+			const last = nodes[ nodes.length - 1 ];
+			const inside = cardRef.current.contains( document.activeElement );
+
+			if ( event.shiftKey ? ( ! inside || document.activeElement === first ) : ( ! inside || document.activeElement === last ) ) {
+				event.preventDefault();
+				( event.shiftKey ? last : first ).focus( { preventScroll: true } );
 			}
 		};
 
@@ -324,7 +352,6 @@ export function Prompt( { notice, onClose, returnFocus } ) {
 			<div
 				className="sakura-modal__card"
 				role="dialog"
-				aria-modal="true"
 				aria-labelledby="sakura-system-prompt-title"
 				data-modal-size="compact"
 				tabIndex="-1"

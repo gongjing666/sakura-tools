@@ -1,4 +1,4 @@
-<!-- deep-ptc:project-cards v1 next=R1,F31,Q7,T14 -->
+<!-- deep-ptc:project-cards v1 next=R1,F31,Q7,T15 -->
 # Project cards
 
 > Maintained by Deep PTC in DeepSeek Harness: edit in a Deep PTC conversation, view 特点卡片 / Project cards.
@@ -51,7 +51,7 @@
 
 
 ## Completed tasks / 已完成任务
-<!-- card id=tasks kind=tasks rev=13 updated=2026-11-24T14:28:53.897Z -->
+<!-- card id=tasks kind=tasks rev=14 updated=2026-11-24T15:34:28.782Z -->
 
 - **T1** [done] 为 sakura-tools 插件补一篇 PHP 代码规范文档（docs/开发规则/），以 PHP 8.2–8.4 兼容 (11/24)
 - **T2** [done] 文档中所有描述实验站的地方（AGENTS.md、05 篇、09 篇、11 篇、03 篇、docs/验收脚本/README — 实验站 demo.77il.cn 的新部署（宝塔本机 /www/wwwroot/demo.77il.cn，PHP 8.4.28 + MariaDB 12.3.2）已写进 AGENTS.md 与 05/09/11/03 篇、验收脚本，并写入记忆；文档不含密码，凭据只在 /root/.dsh/secrets/demo-77il-login.txt；本地提交 f343907，未 push。 (11/24)
@@ -66,3 +66,4 @@
 - **T11** [done] 改动要落在测试站 demo.77il.cn 上，让它能正常采集扩展查询信息（组件名与受影响行数）；不破坏站点现有功能与插 — 实验站 demo.77il.cn 的 Query Monitor db.php drop-in 已就位，面板显示组件与行数，提示消失 (11/24)
 - **T12** [done] 确认 includes/class-s3-storage-module.php 里那 12 个旧 admin-post — 13 个旧 S3 处理器逐个查证：仅 retry 有活入口（同步中心 storage-sync.js:552）且承载 R18 闸门，save 被测试断言引用，其余 11 个可安全删除 (11/24)
 - **T13** [done] 把「S3 同步中心」页（对象存储 → 同步中心，模块 slug sakura-tools-storage、页签 sync — 「S3 同步中心」页已迁为 PHP + React 岛（beta-48，f56a221），实验站 1440/390、扫描/续跑/重试与 R18 封存闸门全部实测通过 (11/24)
+- **T14** [done] 本轮只做评估与解释，不擅自改代码、不动版本号；要落地需用户明确选择方案后再按 beta-49 走三道关 — 「忽略规则」卡提示回标签下方、textarea 铺满卡片，并修掉 beta-48 漏传的 ignoredNonce（保存一直 403）；beta-49 提交 86eb24e，1440/390 实测通过 (11/24)

@@ -1,11 +1,11 @@
-<!-- deep-ptc:project-cards v1 next=R1,F16,Q7,T3 -->
+<!-- deep-ptc:project-cards v1 next=R1,F18,Q7,T3 -->
 # Project cards
 
 > Maintained by Deep PTC in DeepSeek Harness: edit in a Deep PTC conversation, view 特点卡片 / Project cards.
 > User-approved settings guide this project. Features and requirements are records that can be checked and corrected.
 
 ## Implemented features / 已实现功能
-<!-- card id=features kind=features rev=2 updated=2026-11-24T04:43:36.613Z -->
+<!-- card id=features kind=features rev=4 updated=2026-11-24T05:40:48.772Z -->
 
 - **F1** 切桶封存与解锁（R18）：切桶时同一次 update_option 写入 s3_options['reconcile_pending'] = {profile_id, at, bucket, from}，同步中心立刻封存；只有跑完 mode=full 或 resume 的完整核对，才由 Scan_Service::finalize() 调 Options::clear_reconcile_pending() 清零。验证：同步中心 #sakura-sync-state 的 data-reconcile-gated=1，refresh / resume / retry 三个端点返回 409 sio_reconcile_required。
 - **F2** 切桶提醒走插件弹窗（#sakura-s3-switch-modal，kicker「OBJECT STORAGE / SWITCHED」）：列出缩略图改写已关、同步中心数据仍是上一个桶的、上传行为两开关仍按原绑定三件事，按钮直达同步中心。刷新后才出现的顶部 WP admin notice 已删除。
@@ -22,6 +22,8 @@
 - **F13** 对账索引批量写入的回归护栏：Index_Repository::upsert() 每个元组自带 profile_id 标签（12 个占位符对 13 列）。tests/IndexPurgeTest.php 的 test_a_batch_upload_carries_one_label_per_row 用 substitute() 把参数填回 SQL 断言每行各带自己的标签——旧 wpdb double 只序列化、抓不到这类错位。
 - **F14** fast-search.php 走 SHORTINIT、没有 autoloader：索引查询必须手写与 Bucket_Identity::hash() 一致的哈希（sha256('v2|provider|bucket|endpoint|upload_path')）并查 target_hash 列。改桶身份算法时这一处必须同步改。
 - **F15** PHP 兼容静态检查（8.2 语法下限 / 8.4 生产运行时）：phpstan.neon 加 phpVersion: 80200；新增 phpcs-compat.xml.dist（PHPCompatibility 10.0.0-alpha2，testVersion 8.2-8.4）与 composer lint:compat 脚本；修掉 7 处未传 $escape 的 fputcsv（includes/class-s3-cli.php 2 处、src/S3/Delete_Queue_Panel.php 2 处、src/S3/Sync_Center_Module.php 3 处，均显式传逗号、双引号、空串）。验证：phpcs --standard=phpcs-compat.xml.dist 0 error / 0 warning；PHPStan [OK] No errors；897 tests / 3816 assertions / 6 skipped；lint:strict 0/0。规则见 docs/开发规则/13-PHP代码规范.md §6 与 05-测试与质量.md 版本兼容小节
+- **F16** F16 全新安装不再打数据库错误、实验站迁到宝塔本机：Sync\Schema::prepare_bucket_partition() 在索引表尚未创建时先跑 SHOW INDEX（WP_DEBUG_DISPLAY 会把 WordPress database error 打进 debug.log），新增 has_table() 守卫，表不存在直接返回让 dbDelta 建表。验证：demo.77il.cn 整站重置（drop 25 张表 + 删全部 sakura_imgopt_* / sufm_* / s3_options 后 activate）→ 25 张表重建、debug.log 0 行、五个页签零弃用零警告；旧站 /root/sio-e2e 与 docker 的 MariaDB/MinIO 已删除，备份 /root/backups/sio-e2e-20261124-1316/。版本 1.28.8-beta-35，提交 2ff2a92（未 push）。
+- **F17** F17 实验站同步完整性与 S3 客户端不读服务器共享配置：① 实验站同步必须带 assets/ui/dist/（system.js / image.js），rsync 排除项写 /dist（锚定根目录）不能写 dist，否则 React 页脚本 404、永远停在「正在读取页面信息…」骨架屏——2026-11-24 实测复现并修好，AGENTS.md §6 与 05 篇已写入命令；② src/S3/Client_Factory.php 的 client config 加 use_aws_shared_config_files => false，避免 SDK 对 ~/.aws/config 调 is_readable 在 open_basedir 下打 PHP Warning 进 debug.log（宝塔站点实测），凭据仍由插件显式给出。验证：demo.77il.cn 五页签零报错零失败请求，wp sakura-sync scan --pages=1 真实扫描 16 对象 / 10.56 MB 后 debug.log 无新增；版本 1.28.8-beta-36。
 
 
 ## User requirements / 用户要求

@@ -145,6 +145,10 @@ final class Client_Factory {
 			// 第三方 S3 兼容服务通常不实现 SDK 默认的 CRC32 校验头；仅在协议要求时计算。
 			'request_checksum_calculation'  => 'when_required',
 			'response_checksum_validation' => 'when_required',
+			// 凭据一律由上面的 $credentials 显式给出，绝不读服务器的 ~/.aws/config：
+			// 一是可能悄悄用上运维机器的默认配置，二是 open_basedir 把家目录挡在外面时
+			// SDK 会对 is_readable() 打 PHP Warning（宝塔站点实测会进 debug.log）。
+			'use_aws_shared_config_files'  => false,
 		);
 		if ( ! empty( $options['endpoint'] ) ) {
 			$config['endpoint'] = (string) $options['endpoint'];

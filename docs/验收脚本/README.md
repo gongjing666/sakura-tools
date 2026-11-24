@@ -8,14 +8,15 @@
 wp eval-file /path/to/this/dir/p1-lifecycle.php --path=/path/to/wordpress --allow-root
 ```
 
-站点根目录取自环境变量 `SUFM_SITE`，缺省是实验站 `/root/sio-e2e/site`。
+站点根目录取自环境变量 `SUFM_SITE`，缺省是实验站 `/www/wwwroot/demo.77il.cn`（宝塔面板托管，见 `docs/开发规则/05-测试与质量.md` §6）。
 
 **`wp` 会拒绝它不认识的参数**（`unknown --apply parameter`），所以脚本的开关一律走环境变量，不要写成 `--flag`。
 
-要一个干净的站点：
+要一个干净的站点：直接用实验站（`https://demo.77il.cn`，不需要自己起服务器）：
 
 ```bash
-cd /root/sio-e2e/site && php -S 127.0.0.1:18080
+SITE=/www/wwwroot/demo.77il.cn
+wp --path=$SITE --allow-root eval-file p1-lifecycle.php | grep -E "FAIL|===="
 ```
 
 ## 实验站 vs 生产站
@@ -23,10 +24,10 @@ cd /root/sio-e2e/site && php -S 127.0.0.1:18080
 | | 实验站（`p1-rest` / `p1-lifecycle`） | 生产站（`p1-prod`） |
 |---|---|---|
 | 前提 | 无，自己建数据自己删 | 必须先手工建两个一次性订阅者 |
-| 作用域 | 账号 37 / 38（实验站的固定探针） | 按登录名查，不认 id |
+| 作用域 | 写死的探针 owner id 37 / 38（旧站遗留常量；新库只有 `yexu`(1)，跑前先建号或改常量） | 按登录名查，不认 id |
 | 收尾 | 脚本内 `$wipe()` + 删附件 | 跑 `p1-prod-cleanup.php` |
 
-**`p1-lifecycle.php` 里写死了实验站的探针 owner id（37/38）**，直接在生产上跑会指向错误对象。生产验收用 `p1-prod.php`，它按登录名解析。
+**`p1-lifecycle.php` 里写死了探针 owner id（37/38，来自旧实验站）**，直接在生产上跑会指向错误对象；新实验库里也只有 `yexu`(1)，这两个 id 不存在，要跑就先按新库建号或改常量。生产验收用 `p1-prod.php`，它按登录名解析。
 
 ## 生产验收的完整流程
 

@@ -170,7 +170,7 @@ chown -R www:www .        # 部署后属主会被 git 改成 root，必须修回
 - `dist/` 被 `.gitignore` 忽略，不进版本库。
 - 打包脚本用 `git archive` 只取**已跟踪文件**，然后删掉 `docs/`、`tests/`、`bin/`、`stubs/`、`.github/` 与各配置文件。`docs/` 下的文档不会进发布包，可以放心写细节；**但根目录新增的 `.md` 会进包**，要加进 `bin/build-plugin-zip.sh` 的 `rm -f` 列表。
 - `.agents/worktrees/` 下可能有多份工作副本（未被 git 跟踪），改之前确认自己在哪个分支，别改错副本。
-- 本地实验站：`/root/sio-e2e/site`（`php -S 127.0.0.1:18080`，域名 demo.77il.cn），装的是同一插件的实体副本，不是符号链接，**同步时要整目录拷**。
+- 实验站：`https://demo.77il.cn`，宝塔面板本机站点，目录 `/www/wwwroot/demo.77il.cn`（PHP 8.4.28、MariaDB 12.3.2、WP 7.1.5，与生产同版本；DB `demo`、前缀 `wp_`，主题子比已授权，管理员 `yexu`，密码不写进仓库）。装的是同一插件的**实体副本**，不是符号链接，**同步时要整目录拷**；当前站上还没装 sakura-tools（只有 Query Monitor），首次验收前先拷一份进 `wp-content/plugins/sakura-tools`。旧的内置服务器实验站 `/root/sio-e2e`（`php -S 127.0.0.1:18080`）还在跑，但**不再作为验收环境**。
 - **代码改动要测，纯文档改动不测。** 改 PHP / JS / CSS 必须跑完 §4 的静态三关（外加 `php -l` / `node --check` / `git diff --check`）；需要真实 WordPress 才看得出的验证（第 10 条的 1440/390、保存与弹窗回流、console）跑在**开发者指定的环境**，他没指定就不要自行部署到实验站或生产站，只把要看的点写进交付说明。**只改 `.md` 的整轮不测**，也不动版本号，直接 push `main`。详见 `05-测试与质量.md` §6。
 - 生产站 `/www/wwwroot/www.nboke.com`，DB 前缀 `nb_`；主题是子比（zibll），部分后台能力与它耦合（`Zibll_Bridge`）。
 

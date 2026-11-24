@@ -18,8 +18,9 @@
 
 /* Run with:  wp eval-file <this file> --path=/path/to/wordpress --allow-root
  * The site path comes from $argv[1] when present, else SUFM_SITE, else the
- * local experiment site. Never point this at production: it wipes rows. */
-$sufm_site = $argv[1] ?? getenv( 'SUFM_SITE' ) ?: '/root/sio-e2e/site';
+ * experiment site (demo.77il.cn). Never point this at production: it wipes
+ * rows. */
+$sufm_site = $argv[1] ?? getenv( 'SUFM_SITE' ) ?: '/www/wwwroot/demo.77il.cn';
 require_once rtrim( $sufm_site, '/' ) . '/wp-load.php';
 
 

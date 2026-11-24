@@ -1,4 +1,4 @@
-<!-- deep-ptc:project-cards v1 next=R1,F34,Q7,T17 -->
+<!-- deep-ptc:project-cards v1 next=R1,F34,Q7,T18 -->
 # Project cards
 
 > Maintained by Deep PTC in DeepSeek Harness: edit in a Deep PTC conversation, view 特点卡片 / Project cards.
@@ -54,7 +54,7 @@
 
 
 ## Completed tasks / 已完成任务
-<!-- card id=tasks kind=tasks rev=16 updated=2026-11-24T16:41:20.257Z -->
+<!-- card id=tasks kind=tasks rev=17 updated=2026-11-24T16:55:24.183Z -->
 
 - **T1** [done] 为 sakura-tools 插件补一篇 PHP 代码规范文档（docs/开发规则/），以 PHP 8.2–8.4 兼容 (11/24)
 - **T2** [done] 文档中所有描述实验站的地方（AGENTS.md、05 篇、09 篇、11 篇、03 篇、docs/验收脚本/README — 实验站 demo.77il.cn 的新部署（宝塔本机 /www/wwwroot/demo.77il.cn，PHP 8.4.28 + MariaDB 12.3.2）已写进 AGENTS.md 与 05/09/11/03 篇、验收脚本，并写入记忆；文档不含密码，凭据只在 /root/.dsh/secrets/demo-77il-login.txt；本地提交 f343907，未 push。 (11/24)
@@ -72,3 +72,4 @@
 - **T14** [done] 本轮只做评估与解释，不擅自改代码、不动版本号；要落地需用户明确选择方案后再按 beta-49 走三道关 — 「忽略规则」卡提示回标签下方、textarea 铺满卡片，并修掉 beta-48 漏传的 ignoredNonce（保存一直 403）；beta-49 提交 86eb24e，1440/390 实测通过 (11/24)
 - **T15** [done] 全量比对 src/Admin/Sync_Payload.php 的 strings() 键与 assets/ui/src — 同步中心文案键全量比对完成并落地修复：补 health.retryQueueCount/queueBreakdown 与 config.labels 两处真漏传、清 20 个死键，beta-50 提交 a10fce6，实验站 1440/390 实测通过 (11/24)
 - **T16** [done] 调整「S3 同步中心 → 文件核对」卡片样式：① PC 端勾选文件后的批量操作条里，左侧提示文字与右侧四个按钮文字没有水 — 文件核对卡三处修复完成：批量条 PC 文字对齐、移动端筛选/按钮重排、搜索后四列异常；文档记 sync/ 硬编码中文待办；beta-51 提交 2d93aad（未 push） (11/25)
+- **T17** [done] 调整「S3 同步中心 → 忽略规则」卡片：右下角「当前 0 条生效」文字与上方 textarea 间隔太近，需按 03- — 忽略规则卡说明行按 8px 间距令牌与 textarea 拉开；beta-52 提交 5167894，1440/390 实测 8px、三道关全过（未 push） (11/25)

@@ -87,6 +87,7 @@ const dirty = !same( draft, saved );
 - 出现「服务端算的字符串」时（标签、摘要、预览名），两条路：
   1. 能由草稿算 → 在渲染时算（`section.fixed_prefix.replace( '%s', fixed )`）；
   2. 算不了 → **保存接口把新的 `section` 一起回传**，前端按卡号存进 `sections[cardId]`。
+- **页面级派生数据也要跟着保存走**：页头状态卡（`head.status`）与卡片上方的告警（`payload.alerts`）都是服务端按 option 算的，`boot` 里那份只是开页时的快照。保存响应要带回重算结果，由 `App` 合并进 `head.status` / `payload.alerts`（缩略图页的 `onServerState`），否则翻开关后卡片还停在旧配色，要刷新才变（1.28.8-beta-39 修的就是这个）。
 - 表格类要留 `baseline`：初始行单独存一份，用户改了再比较，保存成功后把 `baseline` 换成新行。不要拿「渲染用的行」直接比。
 - **开关值不一定是布尔。** WordPress option 里可能是 `"0"`/`"1"`。payload 侧转 `(int)`，前端用 `isOn( value )`，**禁止 `Boolean( value )`**（`Boolean( "0" ) === true`，会显示成已启用而实际关闭）。
 - 派生状态用渲染期算，不用 `useEffect` 同步：`const shownPolicy = probe ? derive( probe ) : savedPolicy`。`useEffect` 只用于外部系统。
@@ -197,7 +198,7 @@ git diff --check
 | `dangerouslySetInnerHTML` | 4 | 全部是服务端字符串（品牌 SVG、tagline、弹窗图标、吉祥物） |
 | 下标作 key | 4 | 全部是静态字符串列表（hint / warning / note / card.desc） |
 | React 19 Actions（`useActionState` / `useOptimistic`） | 0 | 19.3 已具备，现有页签仍是手写 `saving`；按 §5 逐个页签迁移，不批量重写 |
-| 打包产物 | `image.js` 254 KB（260,084 B）/ `system.js` 232 KB（237,162 B） | React 19.3.1 minified；18.3.1 版是 176/153 KB，差 74/80 KB，由开发者决定接受 |
+| 打包产物 | `image.js` 254 KB（260,608 B）/ `system.js` 232 KB（237,162 B） | React 19.3.1 minified；18.3.1 版是 176/153 KB，差 74/80 KB，由开发者决定接受 |
 
 结论：**没有需要立刻返工的旧版写法**；基线与 `package.json` 一致（`^19.0.0` → 19.3.1）。下一步真正有价值的是按 §5 把保存动作迁到 `useActionState`，而不是先加 `memo`。
 

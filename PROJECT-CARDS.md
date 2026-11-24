@@ -1,11 +1,11 @@
-<!-- deep-ptc:project-cards v1 next=R1,F20,Q7,T4 -->
+<!-- deep-ptc:project-cards v1 next=R1,F21,Q7,T5 -->
 # Project cards
 
 > Maintained by Deep PTC in DeepSeek Harness: edit in a Deep PTC conversation, view 特点卡片 / Project cards.
 > User-approved settings guide this project. Features and requirements are records that can be checked and corrected.
 
 ## Implemented features / 已实现功能
-<!-- card id=features kind=features rev=6 updated=2026-11-24T06:22:51.915Z -->
+<!-- card id=features kind=features rev=7 updated=2026-11-24T06:52:13.828Z -->
 
 - **F1** 切桶封存与解锁（R18）：切桶时同一次 update_option 写入 s3_options['reconcile_pending'] = {profile_id, at, bucket, from}，同步中心立刻封存；只有跑完 mode=full 或 resume 的完整核对，才由 Scan_Service::finalize() 调 Options::clear_reconcile_pending() 清零。验证：同步中心 #sakura-sync-state 的 data-reconcile-gated=1，refresh / resume / retry 三个端点返回 409 sio_reconcile_required。
 - **F2** 切桶提醒走插件弹窗（#sakura-s3-switch-modal，kicker「OBJECT STORAGE / SWITCHED」）：列出缩略图改写已关、同步中心数据仍是上一个桶的、上传行为两开关仍按原绑定三件事，按钮直达同步中心。刷新后才出现的顶部 WP admin notice 已删除。
@@ -26,6 +26,7 @@
 - **F17** F17 实验站同步完整性与 S3 客户端不读服务器共享配置：① 实验站同步必须带 assets/ui/dist/（system.js / image.js），rsync 排除项写 /dist（锚定根目录）不能写 dist，否则 React 页脚本 404、永远停在「正在读取页面信息…」骨架屏——2026-11-24 实测复现并修好，AGENTS.md §6 与 05 篇已写入命令；② src/S3/Client_Factory.php 的 client config 加 use_aws_shared_config_files => false，避免 SDK 对 ~/.aws/config 调 is_readable 在 open_basedir 下打 PHP Warning 进 debug.log（宝塔站点实测），凭据仍由插件显式给出。验证：demo.77il.cn 五页签零报错零失败请求，wp sakura-sync scan --pages=1 真实扫描 16 对象 / 10.56 MB 后 debug.log 无新增；版本 1.28.8-beta-36。
 - **F18** 「禁止 WordPress 裁剪」尺寸表窄宽可读：React 版 SizeTable 外层补上 .table-scroll（783–1100px 内部横滚），≤782px 改成逐条记录——thead 视觉隐藏、每行 grid 三行（名称+生成状态 / 宽×高+裁剪方式 / 来源），来源列用 data-label + ::before 补出「来源：」前缀。列只加类名与一个 data-label，表单 name、option 键、data-size、aria-label 未动。验证：实验站 1.28.8-beta-37 上 320/390/768/800/850/900/1024/1440 八档 scrollWidth === clientWidth，「来源」列右边界始终在卡片内（320 下 282 ≤ 304），medium_large 等名称在 390/768 下均单行，390 下复选框可切；console 0 error、无 Deprecated/Warning；composer test 897/3816/6、phpstan [OK]、lint:strict 与 l
 - **F19** 开关与勾选统一走共享组件类：React 的 Checkbox（assets/ui/src/image/thumb.jsx、backup.jsx）原先用自造类 `field__check`，全仓 CSS 里没有这条规则，只在恰好作为 `.field__control` 直接子元素时才被 `>` 选择器兜住；放进 `.check-grid` 两列网格后完全失去样式——「生效位置」4 个、「高级」8 个开关文字贴住开关，长文案还折到开关下方。改用 `label.check` + `<span class="check__text">` 后，13 个开关 computed gap 与实测间距全部 10px（`--g-check-gap`），两列左缘 835/1121、行顶 1160/1211/1262 对齐；1440 与 390 均 `documentElement.scrollWidth === clientWidth`，console 0 error、无 Deprecated/Warning，开关可点击。规则写进 12 篇 §7 与 03 篇开关条目。版本 1.28.8-beta-38。
+- **F20** 缩略图优化页保存「总开关与处理方式」后，右上角状态卡与告警跟着落库值刷新：Thumb_Payload 把 status()/alerts() 提为公开方法，Image_Controller 的 save_thumb_card 响应带回重算结果，React 侧 onServerState 合并进 head.status 与 payload.alerts（1.28.8-beta-39）。
 
 
 ## User requirements / 用户要求
@@ -40,8 +41,9 @@
 
 
 ## Completed tasks / 已完成任务
-<!-- card id=tasks kind=tasks rev=3 updated=2026-11-24T05:50:42.292Z -->
+<!-- card id=tasks kind=tasks rev=4 updated=2026-11-24T06:23:27.293Z -->
 
 - **T1** [done] 为 sakura-tools 插件补一篇 PHP 代码规范文档（docs/开发规则/），以 PHP 8.2–8.4 兼容 (11/24)
 - **T2** [done] 文档中所有描述实验站的地方（AGENTS.md、05 篇、09 篇、11 篇、03 篇、docs/验收脚本/README — 实验站 demo.77il.cn 的新部署（宝塔本机 /www/wwwroot/demo.77il.cn，PHP 8.4.28 + MariaDB 12.3.2）已写进 AGENTS.md 与 05/09/11/03 篇、验收脚本，并写入记忆；文档不含密码，凭据只在 /root/.dsh/secrets/demo-77il-login.txt；本地提交 f343907，未 push。 (11/24)
 - **T3** [done] 修好图片优化页「禁止 WordPress 裁剪」卡片在窄宽下的显示问题：表格各列（禁用 / 尺寸名称 / 宽×高 / 生 (11/24)
+- **T4** [done] 「按位置指定尺寸」卡片的四个下拉框按实际渲染判断：若控件与文字间距同样偏离 10px 规则，本轮一并调整；本来就合规则不 — 开关/勾选改用共享 .check 组件，13 个开关间距恢复 10px；1440/390 实测通过，提交 da518fd (11/24)

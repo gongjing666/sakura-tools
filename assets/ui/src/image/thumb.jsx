@@ -373,7 +373,7 @@ function ReadOnlyBody( { card } ) {
  * @param {Object} props Card and transport.
  * @return {JSX.Element} Card.
  */
-function ThumbCard( { card, rest, strings, onError, onNotice } ) {
+function ThumbCard( { card, rest, strings, onError, onNotice, onServerState } ) {
 	const initialRows = ( card.fields.find( ( f ) => 'size-grid' === f.type ) || {} ).rows || [];
 	const [ draft, setDraft ] = useState( card.values );
 	const [ saved, setSaved ] = useState( card.values );
@@ -428,6 +428,13 @@ function ThumbCard( { card, rest, strings, onError, onNotice } ) {
 				}
 			}
 
+			// The head status card and the alerts are computed from the stored
+			// option: take the values the endpoint just recomputed instead of
+			// leaving the page head on the state it booted with.
+			if ( onServerState && payload.status ) {
+				onServerState( { status: payload.status, alerts: payload.alerts } );
+			}
+
 			if ( payload.notice ) {
 				onNotice( payload.notice );
 			}
@@ -472,7 +479,7 @@ function ThumbCard( { card, rest, strings, onError, onNotice } ) {
  * @param {Object} props Boot payload and callbacks.
  * @return {JSX.Element} Cards.
  */
-export default function ThumbPage( { boot, onError, onNotice } ) {
+export default function ThumbPage( { boot, onError, onNotice, onServerState } ) {
 	const { strings, rest } = boot;
 	const cards = boot.cards || [];
 
@@ -487,6 +494,7 @@ export default function ThumbPage( { boot, onError, onNotice } ) {
 						strings={ strings }
 						onError={ onError }
 						onNotice={ onNotice }
+						onServerState={ onServerState }
 					/>
 				) : (
 					<Card card={ card } key={ card.id }>

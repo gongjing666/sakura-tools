@@ -233,6 +233,18 @@ export default function App( { boot } ) {
 				boot={ payload }
 				onError={ setError }
 				onNotice={ showNotice }
+				onServerState={ ( next ) => {
+					if ( next.status ) {
+						setHead( ( current ) => ( {
+							...current,
+							status: { ...current.status, ...next.status },
+						} ) );
+					}
+
+					if ( Array.isArray( next.alerts ) ) {
+						setPayload( ( current ) => ( { ...current, alerts: next.alerts } ) );
+					}
+				} }
 			/>
 		);
 	}

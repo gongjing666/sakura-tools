@@ -261,11 +261,19 @@ final class Image_Controller {
 		$settings = new Thumb_Settings();
 		$result   = $settings->save( $card, $fields );
 
+		// The head status card and the page alerts are derived from the stored
+		// option, not from the fields the island holds. Hand the recomputed values
+		// back, or the switch that was just flipped keeps the tone from page load
+		// until the next refresh.
+		$builder = new Thumb_Payload();
+
 		return rest_ensure_response(
 			array(
 				'card'   => $result['card'],
 				'values' => $result['values'],
 				'notice' => $result['notice'],
+				'status' => $builder->status(),
+				'alerts' => $builder->alerts(),
 			)
 		);
 	}

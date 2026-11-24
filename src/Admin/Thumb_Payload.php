@@ -53,12 +53,7 @@ final class Thumb_Payload {
 			'eyebrow' => 'THUMBNAIL URL ENGINE / ' . SAKURA_TOOLS_VERSION,
 			'title'   => __( '缩略图优化', 'sakura-imgopt' ),
 			'lede'    => __( '把 WordPress 的图片尺寸换成云存储能识别的命名样式；只按显示位置决定是否启用，不依赖主题的样式名，也不再缓冲整个页面。', 'sakura-imgopt' ),
-			'status'  => array(
-				'label' => __( '缩略图引擎', 'sakura-imgopt' ),
-				'value' => '' === $host ? __( '未找到图片域名', 'sakura-imgopt' ) : $host,
-				'sub'   => $this->mode_label( $mode ),
-				'tone'  => ! empty( $option['enabled'] ) ? 'ok' : 'neutral',
-			),
+			'status'  => $this->status(),
 			'island'  => true,
 			'skeleton' => array(
 				'cards' => self::card_ids(),
@@ -75,10 +70,31 @@ final class Thumb_Payload {
 			),
 			'page'     => $page,
 			'head'     => Page::head_data( $page ),
-			'alerts'   => $this->alerts( $option, $mode ),
+			'alerts'   => $this->alerts(),
 			'cards'    => $this->cards( $option, $host, $mode ),
 			'sections' => $this->sections( $option ),
 			'notice'   => $this->switch_notice( $host ),
+		);
+	}
+
+	/**
+	 * The page-head status card, recomputed from what is stored now.
+	 *
+	 * The save endpoint hands this back after every write: the card is derived
+	 * from the option, so a switch flipped on the page must move it in place
+	 * instead of waiting for the next reload (12-React代码规范 §10「保存后」).
+	 *
+	 * @return array<string,string>
+	 */
+	public function status(): array {
+		$option = Settings::get();
+		$host   = Settings::media_host();
+
+		return array(
+			'label' => __( '缩略图引擎', 'sakura-imgopt' ),
+			'value' => '' === $host ? __( '未找到图片域名', 'sakura-imgopt' ) : $host,
+			'sub'   => $this->mode_label( Settings::effective_mode() ),
+			'tone'  => ! empty( $option['enabled'] ) ? 'ok' : 'neutral',
 		);
 	}
 
@@ -577,11 +593,14 @@ final class Thumb_Payload {
 	/**
 	 * Page-level alerts shown above the cards.
 	 *
-	 * @param array<string,mixed> $option Stored option.
-	 * @param string              $mode   Effective mode.
+	 * Also returned by the save endpoint: one of them depends on `enabled` and
+	 * `engine`, both of which the switches card can change.
+	 *
 	 * @return array<int,array<string,string>>
 	 */
-	private function alerts( array $option, string $mode ): array {
+	public function alerts(): array {
+		$option = Settings::get();
+		$mode   = Settings::effective_mode();
 		$alerts = array();
 
 		if ( ! $this->is_zibll() ) {

@@ -1096,3 +1096,20 @@ body.upload-php.sufm-tree-active.folded { --sufm-tree-left: 56px; }
 - `composer test` 897 tests / 3816 assertions / 6 skipped、`phpstan` 无错误、`phpcs` 退出码 0、`git diff --check` 干净。
 
 **代价**：页头仍有两个实现（`Page::head()` 与岛屿的 `PageHead`），`tests/Admin/PageHeadTest.php` 的 `test_island_first_paint_draws_the_head_and_the_boot_marker` 锁住首帧结构（真实顶栏与页签、页头、按钮行里的标记、`page-body--boot`，且不得出现 `--boot` 空壳）。跨模块跳转（图像优化 → 对象存储）仍是真实导航：那些页是不同 bundle，也确实是不同页面。
+
+## React 版本跟随 WordPress 自带的那一份（2026-11-24，1.28.8-beta-30）
+
+**背景**：后台两个页面（系统设置、图像优化四页签）已经改成 React 岛屿，`package.json` 当时写的是 `react@^19.0.0` / `react-dom@^19.0.0`，实际装到 19.3.1。开发者提出「插件使用的版本尽量与 WordPress 官方的 React 对齐」——担心的是「插件吃最新版、写最新写法，而站点跑的是另一套」。
+
+**核对**：WordPress 7.1.4 的 `wp-includes/js/dist/vendor/react.js` 里 `ReactVersion = '18.3.1'`，`react-dom.js` 同；同目录另有 `react-jsx-runtime-19.js`（19 的 JSX 运行时已预置，说明核心正在向 19 过渡，但默认那份仍是 18.3.1）。
+
+**决策**：
+
+1. `package.json` 两个版本号改成**写死** `18.3.1`（不带 `^`），与核心一致；升级时机由核心决定，不由插件决定。
+2. 19 专属 API（`useActionState` / `useOptimistic` / ref 当普通 prop / `<Ctx value>` / ref 回调清理）在 18.3.1 上**一律不用**，等核心换版本再按 `docs/开发规则/12-React代码规范.md` §1.1 的流程跟进。
+3. 所以保存路径继续手写 `saving` + `try/catch`；`startTransition` 只包同步切换，不包 async。
+4. 版本对齐写进规则文档与 `AGENTS.md` 的入口行，避免下一个人再装 19。
+
+**代价与收益**：失去 19 的 Actions 写法（挂起/错误态还得自己写）；换来的是同页只有一种 React 语义，以及**包体显著变小**——`image.js` 253,935 → 180,083 字节、`system.js` 237,162 → 157,181 字节（19 的产物本身更大，而这一层用不到它的新 API）。
+
+**验收**：`node bin/build-ui.mjs` 后产物内 `O.version="18.3.1"`；实验站 1.28.8-beta-30 上系统设置与图像优化四页签全部正常渲染、控制台 0 error；页签切换 `performance` 导航条目仍为 1；系统设置保存圆角边框 1→2 → 弹窗「设置已保存」、关闭图标/吉祥物/知道了齐全、`scrollY` 不变、无导航，再改回 1 复原；`composer test` 897 / 3816 / 6 skipped、`phpstan` 无错误、`phpcs` 退出码 0、`git diff --check` 干净。

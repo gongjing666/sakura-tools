@@ -1183,3 +1183,22 @@ body.upload-php.sufm-tree-active.folded { --sufm-tree-left: 56px; }
 - 五张卡的数据在同一份 payload 里，页面首屏比旧页多约 40KB JSON；换来的是保存、切换、删除都不再整页刷新。
 
 **验收**（2026-11-24，demo.77il.cn，1.28.8-beta-41）：1440 下五张卡按 Layout 排成四行（profiles / connection 整行，behaviour 与 upload-metrics 各半行，monitoring 整行），reset 后 docW = clientW = 1440；390 下五卡单列、右边界 374 < 390、无横溢；切桶关闭再开启时状态卡徽章「已启用 → 已停用 → 已启用」与 tone 同步变化；行为卡并发数 1→2→1 保存均 200 且落库值回写；新建一份配置出现在列表里、删除弹窗文案与确认按钮正常、删除后列表回到一份；探针、多吉云、监控三张卡的控制台 0 error / 0 warning，debug.log 无新增。
+
+## 「输入框 + 按钮」行收进一个字段列，按钮停在列边界（2026-11-24，1.28.8-beta-42）
+
+**背景**：开发者截图指出「添加存储配置」卡切到多吉云时两行布局不合理——「服务商 + 测试连接」「存储空间名称 + 获取 SDK 参数」。
+
+**根因**（实测，1440）：
+1. React 把 `field__grow` 加在外层 span 上，CSS 的 `select.field__grow { max-width: 360px }` 与 `.field__row .field__grow { flex: 1 1 220px }` 都匹配不到控件本身，服务商下拉被撑到 1075px、铺满整行；旧 PHP 页（`src/S3/S3_Storage_Page.php` 的 select / input）是把类加在控件上的。
+2. 多吉云按钮把整句提示 `strings.dogePick` 当 BusyLabel 的忙碌文案，BusyLabel 的 grid 叠层按最长文案定宽，按钮被撑到 499×38；同时它用的是 `.btn--small`（30px），比旁边 38px 的输入框矮 8px。
+
+**决策**：
+1. `field__grow` 加回控件本身（`<select className="field__grow">` / `<input className="field__grow">`），让既有 CSS 生效。
+2. 忙碌文案换成短句 `strings.dogeBusy`（获取中…），提示整句只留给多空间弹窗标题。
+3. 同一行的按钮统一抬到 `--g-ctl-h`（38px），与输入框同圆角——这条已写进 03 篇 §10.2。
+4. **两行收进一个字段列**：`.s3-provider-row.is-empty .field__row` 与 `.field__row--column` 在 `min-width:1101px` 下设 `max-width: calc((100% - 26px) / 2)`。不收的话按钮被推到卡片最右边（1170px 行的末端），上下两列字段的左缘完全对不上。
+5. 上限**只对没有并列 chips 的行**生效：有已保存配置时，拾取行自己的单元格已经是半行（572px），再按 50% 收一次会压到 273px 并把按钮挤到下一行——第一版就是这样，实测发现后改成 `.s3-provider-row.is-empty` 才正确。
+
+**代价**：多吉云（无已保存配置）时服务商行右半边留白，与「配置名称」等占一格的字段一致；这是有意的，不为了填满而把输入框拉长。
+
+**验收**（2026-11-24，demo.77il.cn，1.28.8-beta-42）：1440 / 1912 下两行都是 572px（1912 下 712px）宽、按钮右缘等于同列字段（region）右缘（1440 是 787、1912 是 1023），间距 10px、控件全部 38px 高；bitiful（带 chips）与 dogecloud（is-empty）两种状态一致；390 下两行换行成「控件整行 + 按钮整行」、竖向间距 10px，docW = clientW = 390 / 1440 / 1912，两行都没有游离文本节点，console 0 error / 0 warning，debug.log 无新增。

@@ -319,9 +319,10 @@
 }
 
 /*
- * Input + button on one line (the 多吉云 SDK resolver next to the bucket field).
- * Inputs stretch to 100% by default, so the row has to give the button back
- * its intrinsic width and let the input take whatever is left.
+ * Input + button on one line: the probe next to the provider picker, the 多吉云
+ * SDK resolver next to the bucket field. Inputs stretch to 100% by default, so
+ * the row has to give the button back its intrinsic width and let the input
+ * take whatever is left.
  */
 .sakura-admin[data-sakura-page^="storage-"] .field__row {
 	display: flex;
@@ -349,11 +350,24 @@
 }
 
 /*
- * The provider picker is a short control: cap it so the probe button sits right
- * next to the select instead of being pushed to the far edge of a wide card.
+ * 这两行只占一个字段列。卡片里其余控件（配置名称、地域、服务地址、密钥……）都是
+ * 两列字段网格里的一格，让「服务商 + 测试连接」「存储空间名称 + 获取 SDK 参数」也
+ * 收在一格里，按钮就停在列右缘，而不是被推到 1170px 行的最右边、把存储桶输入框
+ * 拉成一条 1000px 以上的长条（2026-11-24 实测：两个按钮右缘原本在 669 与 1275）。
+ *
+ * 一格宽 = (100% - 列间距) / 2，列间距 26px 来自 components.css 的 .field-list
+ * （03 篇 §10.2 的字段网格行/列 18px/26px）。字段网格在 ≤1100px 变单列，那时这
+ * 两行要用满宽度，所以上限只放在 min-width 里。
+ *
+ * 只对 is-empty 的服务商行加这个上限：该厂商有已保存配置时，右边的 chips 列本来
+ * 就占掉半行，拾取列已经是 572px，再按 50% 收一次会把下拉压到 273px 并把按钮挤到
+ * 下一行（第一版就是这么错的）；没有配置时 picks 列铺满 1170px，才需要收。
  */
-.sakura-admin[data-sakura-page^="storage-"] .field__row select.field__grow {
-	max-width: 360px;
+@media (min-width: 1101px) {
+	.sakura-admin[data-sakura-page^="storage-"] .s3-provider-row.is-empty .field__row,
+	.sakura-admin[data-sakura-page^="storage-"] .field__row--column {
+		max-width: calc((100% - 26px) / 2);
+	}
 }
 
 /* Narrow screens: the row wraps, so let the button use the line it lands on. */

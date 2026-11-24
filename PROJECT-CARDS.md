@@ -1,11 +1,11 @@
-<!-- deep-ptc:project-cards v1 next=R1,F23,Q7,T8 -->
+<!-- deep-ptc:project-cards v1 next=R1,F24,Q7,T8 -->
 # Project cards
 
 > Maintained by Deep PTC in DeepSeek Harness: edit in a Deep PTC conversation, view 特点卡片 / Project cards.
 > User-approved settings guide this project. Features and requirements are records that can be checked and corrected.
 
 ## Implemented features / 已实现功能
-<!-- card id=features kind=features rev=9 updated=2026-11-24T08:34:29.626Z -->
+<!-- card id=features kind=features rev=10 updated=2026-11-24T09:08:52.055Z -->
 
 - **F1** 切桶封存与解锁（R18）：切桶时同一次 update_option 写入 s3_options['reconcile_pending'] = {profile_id, at, bucket, from}，同步中心立刻封存；只有跑完 mode=full 或 resume 的完整核对，才由 Scan_Service::finalize() 调 Options::clear_reconcile_pending() 清零。验证：同步中心 #sakura-sync-state 的 data-reconcile-gated=1，refresh / resume / retry 三个端点返回 409 sio_reconcile_required。
 - **F2** 切桶提醒走插件弹窗（#sakura-s3-switch-modal，kicker「OBJECT STORAGE / SWITCHED」）：列出缩略图改写已关、同步中心数据仍是上一个桶的、上传行为两开关仍按原绑定三件事，按钮直达同步中心。刷新后才出现的顶部 WP admin notice 已删除。
@@ -29,6 +29,7 @@
 - **F20** 缩略图优化页保存「总开关与处理方式」后，右上角状态卡与告警跟着落库值刷新：Thumb_Payload 把 status()/alerts() 提为公开方法，Image_Controller 的 save_thumb_card 响应带回重算结果，React 侧 onServerState 合并进 head.status 与 payload.alerts（1.28.8-beta-39）。
 - **F21** 缩略图优化页右上角健康卡改用文字徽章表达状态（1.28.8-beta-40）：status 数组新增 badge {text,tone}，Page::status() 与 React StatusCard 都输出 .status-card__top（label 左、徽章右，底 --g-*-bg / 字 --g-* / 11px 胶囊），有徽章时副行回中性色；三态为已停用 neutral / 已启用 ok / 未生效 warn（判据与 alerts() 一致）。同时补上 Page::status_data() 白名单里的 badge 键——漏了它 boot.head.status 丢字段，徽章根本不出现。验证：demo.77il.cn beta-40 上 1440 与 390 徽章「已启用」(47×20.5，右边缘落在卡片内) 点开关保存后立刻变「已停用」--neutral 再变回，页面不横溢；系统设置/图片优化/对象存储/备份/统计/文件空间六处状态卡无徽章、副行仍按 tone 上色、高度仍 84.5–84.6px；903 tests / 3831 assertions / 6 ski
 - **F22** 对象存储模块「S3 存储」页已迁成 React 岛（1.28.8-beta-41）：五张卡（已保存的配置 / 添加存储配置 / 上传行为 / 上传吞吐 / 监控与告警）走 Storage_Payload + Storage REST（GET /storage、POST /storage/cards/{connection|behaviour}、/storage/profile、/storage/profile/delete、/storage/probe、/storage/probe/profile、/storage/doge-buckets），服务端决策抽成 Profile_Actions / Probe_Runner / Save_Refused，旧 admin-post 与 admin-ajax 处理器改为调用同一批服务；实测 1440 排成四行、390 单列不横溢、切桶徽章与 tone 同步、并发数保存与新建/删除配置全 200，console 0 error，debug.log 无新增。
+- **F23** 「添加存储配置」卡的「服务商 + 测试连接」「存储空间名称 + 获取 SDK 参数」两行收进一个字段列（1.28.8-beta-42）：根因是 React 把 field__grow 加在外层 span 上（select 被撑到 1075px 铺满整行），且多吉云按钮拿整句提示当忙碌文案（被撑到 499×38）、还沿用 .btn--small（30px，比 38px 输入框矮一截）；改成把类加回控件本身、忙碌文案换短句「获取中…」、同行按钮统一抬到 --g-ctl-h，并在 min-width:1101px 下给 .s3-provider-row.is-empty .field__row 与 .field__row--column 设 max-width: calc((100% - 26px)/2)。验证：demo.77il.cn beta-42 上 1440 / 1912 两行按钮右缘与同列 region 字段右缘对齐（787 / 1023）、间距 10px、控件全 38px；bitiful（带已保存配置 chips）与 dogecloud（is-empty）两种状态一致；390 换
 
 
 ## User requirements / 用户要求

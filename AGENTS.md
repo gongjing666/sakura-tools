@@ -179,7 +179,7 @@ rsync -a --delete --exclude .git --exclude .agents --exclude .dsh-ops --exclude 
   && chown -R www:www /www/wwwroot/demo.77il.cn/wp-content/plugins/sakura-tools
 ```
 
-站上已装 sakura-tools（`wp-content/plugins/sakura-tools`，整目录拷贝，当前 `1.28.8-beta-41`，25 张表已建、`wp sakura-sync` 可用）。旧的内置服务器实验站 `/root/sio-e2e`（`php -S 127.0.0.1:18080` + docker 的 MariaDB/MinIO）已于 2026-11-24 整体删除，备份在 `/root/backups/sio-e2e-20261124-1316/`（站点文件 tar 524M + 6 个库的 sql.gz），不再作为验收环境。
+站上已装 sakura-tools（`wp-content/plugins/sakura-tools`，整目录拷贝，当前 `1.28.8-beta-42`，25 张表已建、`wp sakura-sync` 可用）。旧的内置服务器实验站 `/root/sio-e2e`（`php -S 127.0.0.1:18080` + docker 的 MariaDB/MinIO）已于 2026-11-24 整体删除，备份在 `/root/backups/sio-e2e-20261124-1316/`（站点文件 tar 524M + 6 个库的 sql.gz），不再作为验收环境。
 - **代码改动要测，纯文档改动不测。** 改 PHP / JS / CSS 必须跑完 §4 的静态三关（外加 `php -l` / `node --check` / `git diff --check`）；需要真实 WordPress 才看得出的验证（第 10 条的 1440/390、保存与弹窗回流、console）跑在**开发者指定的环境**，他没指定就不要自行部署到实验站或生产站，只把要看的点写进交付说明。**只改 `.md` 的整轮不测**，也不动版本号，直接 push `main`。详见 `05-测试与质量.md` §6。
 - 生产站 `/www/wwwroot/www.nboke.com`，DB 前缀 `nb_`；主题是子比（zibll），部分后台能力与它耦合（`Zibll_Bridge`）。
 

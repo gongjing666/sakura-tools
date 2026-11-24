@@ -224,24 +224,23 @@ export default function ConnectionCard( { card, strings, saving, resetToken, onS
 							<div className={ 's3-provider-row' + ( chips.length || editing ? '' : ' is-empty' ) }>
 								<div className="s3-provider-row__pick">
 									<div className="field__row">
-										<span className="field__grow">
-											<select
-												id="sakura-s3-provider"
-												name="provider"
-												value={ draft.provider }
-												onChange={ ( event ) => {
-													change( 'provider', event.target.value );
-													change( 'profileId', '' );
-													change( 'saveAsNew', false );
-												} }
-											>
-												{ card.providers.map( ( option ) => (
-													<option key={ option.value } value={ option.value }>
-														{ option.label }
-													</option>
-												) ) }
-											</select>
-										</span>
+										<select
+											className="field__grow"
+											id="sakura-s3-provider"
+											name="provider"
+											value={ draft.provider }
+											onChange={ ( event ) => {
+												change( 'provider', event.target.value );
+												change( 'profileId', '' );
+												change( 'saveAsNew', false );
+											} }
+										>
+											{ card.providers.map( ( option ) => (
+												<option key={ option.value } value={ option.value }>
+													{ option.label }
+												</option>
+											) ) }
+										</select>
 										<button
 											type="button"
 											className="btn btn--ghost btn--small"
@@ -310,17 +309,16 @@ export default function ConnectionCard( { card, strings, saving, resetToken, onS
 						</div>
 						<div className="field__control">
 							<input type="hidden" name="space" value={ draft.space } readOnly />
-							<div className="field__row">
-								<span className="field__grow">
-									<input
-										id="sakura-s3-bucket"
-										name="bucket"
-										type="text"
-										autoComplete="off"
-										value={ draft.bucket }
-										onChange={ ( event ) => change( 'bucket', event.target.value ) }
-									/>
-								</span>
+							<div className="field__row field__row--column">
+								<input
+									className="field__grow"
+									id="sakura-s3-bucket"
+									name="bucket"
+									type="text"
+									autoComplete="off"
+									value={ draft.bucket }
+									onChange={ ( event ) => change( 'bucket', event.target.value ) }
+								/>
 								{ 'dogecloud' === draft.provider ? (
 									<button
 										type="button"
@@ -328,7 +326,7 @@ export default function ConnectionCard( { card, strings, saving, resetToken, onS
 										disabled={ dodging }
 										onClick={ resolveDoge }
 									>
-										<BusyLabel idle={ card.fields.bucket.doge } active={ strings.dogePick } busy={ dodging } />
+										<BusyLabel idle={ card.fields.bucket.doge } active={ strings.dogeBusy } busy={ dodging } />
 									</button>
 								) : null }
 							</div>

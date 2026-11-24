@@ -236,6 +236,10 @@ final class Storage_Payload {
 			'dogeFilled'          => __( '已填入存储桶名称和服务地址，确认无误后记得保存。', 'sakura-imgopt' ),
 			'dogeFailed'          => __( '获取 SDK 参数失败，请检查 Access Key、Secret Key 和网络后重试。', 'sakura-imgopt' ),
 			'dogePick'            => __( '这个账号下有多个存储空间。选一个，插件会自动填入对应的存储桶名称和服务地址。', 'sakura-imgopt' ),
+			// Busy state of the 获取 SDK 参数 button. It has to be a short phrase: BusyLabel
+			// sizes the button to the wider of its two labels, and dogePick above is a
+			// whole sentence, which blew the button up to 500px next to a 660px input.
+			'dogeBusy'            => __( '获取中…', 'sakura-imgopt' ),
 			'toggledOn'           => __( '已启用这份配置。', 'sakura-imgopt' ),
 			'toggledOff'          => __( '已关闭 S3 存储。新上传的图片不会再同步到云端，媒体地址也回到站点域名；这份配置仍然保留，再点一次卡片即可重新启用。', 'sakura-imgopt' ),
 			'toggleFailed'        => __( '操作没有完成，请稍后重试。', 'sakura-imgopt' ),

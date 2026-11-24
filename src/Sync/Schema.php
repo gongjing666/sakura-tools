@@ -344,7 +344,15 @@ final class Schema {
 
 		$index  = self::table( 'index' );
 		$counts = self::table( 'counts' );
-		$keys   = self::index_names( $index );
+
+		// A fresh install has no index table yet, and SHOW INDEX against a
+		// missing table prints (and logs) a database error before dbDelta gets
+		// a chance to create it. Nothing is partitioned in that case anyway.
+		if ( ! self::has_table( $index ) ) {
+			return '';
+		}
+
+		$keys = self::index_names( $index );
 
 		if ( array() === $keys || isset( $keys['target_object'] ) ) {
 			$wpdb->last_error = '';
@@ -461,6 +469,20 @@ final class Schema {
 				gmdate( 'Y-m-d H:i:s' )
 			)
 		);
+	}
+
+	/**
+	 * Whether a table exists in the current database.
+	 *
+	 * @param string $table Table name.
+	 * @return bool
+	 */
+	private static function has_table( string $table ): bool {
+		global $wpdb;
+
+		$found = $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $wpdb->esc_like( $table ) ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching,WordPress.DB.PreparedSQL.NotPrepared
+
+		return $table === (string) $found;
 	}
 
 	/**

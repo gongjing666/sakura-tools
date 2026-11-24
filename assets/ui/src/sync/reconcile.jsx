@@ -14,6 +14,7 @@ const MAX_SELECT = 100;
 export default function ReconcileCard( { card, view, rows, config, strings, locked, frozen, gated, onScan, onRows, onError } ) {
 	const s = strings.reconcile || {};
 	const uiText = config.strings || {};
+	const labels = config.labels || {};
 	const [ filter, setFilter ] = useState( 'all' );
 	const [ search, setSearch ] = useState( '' );
 	const [ type, setType ] = useState( 'all' );
@@ -636,14 +637,14 @@ export default function ReconcileCard( { card, view, rows, config, strings, lock
 								<td>{ row.date_label }</td>
 								<td>
 									<div className="action-cell">
-										{ rowActionButton( row, s, locked, { rowAction, confirmReplace, confirmDelete } ) }
+										{ rowActionButton( row, labels, locked, { rowAction, confirmReplace, confirmDelete } ) }
 										{ row.cloud ? (
 											<button type="button" className="link-btn link-btn--danger" disabled={ locked } onClick={ () => confirmDelete( row ) }>
-												{ uiText.labels ? uiText.labels.delete : '删除' }
+												{ labels.delete || '删除' }
 											</button>
 										) : null }
 										<button type="button" className="link-btn" onClick={ () => preview( row ) }>
-											{ uiText.labels ? uiText.labels.detail : '详情' }
+											{ labels.detail || '详情' }
 										</button>
 									</div>
 								</td>
@@ -723,11 +724,10 @@ export default function ReconcileCard( { card, view, rows, config, strings, lock
 }
 
 /** One row's primary action, chosen by status the way the classic table did. */
-function rowActionButton( row, s, locked, handlers ) {
-	const labels = s || {};
-	const upload = '上传';
-	const reupload = '重新上传';
-	const download = '下载';
+function rowActionButton( row, labels, locked, handlers ) {
+	const upload = labels.upload || '上传';
+	const reupload = labels.reupload || '重新上传';
+	const download = labels.download || '下载';
 
 	if ( 'failed' === row.status ) {
 		return row.local ? (

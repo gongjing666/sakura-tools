@@ -44,7 +44,11 @@ export default function HealthCard( { card, view, strings, config, frozen, index
 					<div className="health__row">
 						<dt>{ h.retryQueue }</dt>
 						<dd>
-							{ ( h.retryQueueCount || '%d 个任务' ).replace( '%d', String( view.jobs ) ) } · 动作队列 { view.queue.waiting } 待执行 / { view.queue.dead } 死信
+							{ ( h.retryQueueCount || '%d 个任务' ).replace( '%d', String( view.jobs ) ) }
+							{ ' · ' }
+							{ ( h.queueBreakdown || '动作队列 %1$d 待执行 / %2$d 死信' )
+								.replace( '%1$d', String( view.queue.waiting ) )
+								.replace( '%2$d', String( view.queue.dead ) ) }
 						</dd>
 					</div>
 					<div className="health__row">

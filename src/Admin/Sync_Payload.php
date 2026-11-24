@@ -799,7 +799,6 @@ final class Sync_Payload {
 				'ignoredHint'      => __( '支持目录与单个文件，开头结尾的斜杠可省略。清空保存即恢复默认规则。插件默认规则始终生效。', 'sakura-imgopt' ),
 				'ignoredLabel'     => __( '忽略路径', 'sakura-imgopt' ),
 				'ignoredSave'      => __( '保存规则', 'sakura-imgopt' ),
-				'ignoredKicker'    => 'SYNC RULES / SAVED',
 			),
 			'notes' => array(
 				array(
@@ -834,6 +833,10 @@ final class Sync_Payload {
 				'mediaUrl'   => __( '媒体 URL', 'sakura-imgopt' ),
 				'lastScan'   => __( '最近核对', 'sakura-imgopt' ),
 				'retryQueue' => __( '重试队列', 'sakura-imgopt' ),
+				/* translators: %d: queued retry jobs. */
+				'retryQueueCount' => __( '%d 个任务', 'sakura-imgopt' ),
+				/* translators: 1: queued action jobs, 2: dead-letter jobs. */
+				'queueBreakdown' => __( '动作队列 %1$d 待执行 / %2$d 死信', 'sakura-imgopt' ),
 				'metrics'    => __( '本轮指标', 'sakura-imgopt' ),
 				'cron'       => __( '定时任务', 'sakura-imgopt' ),
 				'credentials' => __( '凭据', 'sakura-imgopt' ),
@@ -861,7 +864,6 @@ final class Sync_Payload {
 				/* translators: %d: number of failed attachments. */
 				'retryAll'    => __( '重试失败 (%d)', 'sakura-imgopt' ),
 				'viewLogs'    => __( '查看日志', 'sakura-imgopt' ),
-				'checking'    => __( '正在对账…', 'sakura-imgopt' ),
 				'localFiles'  => __( '本地文件', 'sakura-imgopt' ),
 				'cloudFiles'  => __( '云端文件', 'sakura-imgopt' ),
 				'syncedFiles' => __( '已同步', 'sakura-imgopt' ),
@@ -873,28 +875,6 @@ final class Sync_Payload {
 				'activitySum' => __( '共 %1$s / %2$s 个样本', 'sakura-imgopt' ),
 				'liveRead'    => __( '同步记录表 · 实时读取', 'sakura-imgopt' ),
 				'compatRead'  => __( '兼容模式 · 只读快照', 'sakura-imgopt' ),
-				/* translators: %s: last scan time. */
-				'recentScan'  => __( '最近扫描 %s', 'sakura-imgopt' ),
-				'uploads'     => 'uploads',
-				'byCloud'     => __( '按云存储清单统计', 'sakura-imgopt' ),
-				'kpiLocal'    => __( '本地媒体', 'sakura-imgopt' ),
-				'kpiCloud'    => __( '云端文件', 'sakura-imgopt' ),
-				'kpiSynced'   => __( '已同步', 'sakura-imgopt' ),
-				'kpiDiff'     => __( '待处理差异', 'sakura-imgopt' ),
-				'kpiFailed'   => __( '失败任务', 'sakura-imgopt' ),
-				'filesUnit'   => __( '个文件', 'sakura-imgopt' ),
-				'itemsUnit'   => __( '项', 'sakura-imgopt' ),
-				'jobsUnit'    => __( '个', 'sakura-imgopt' ),
-				/* translators: %s: coverage percentage. */
-				'coverage'    => __( '%s%% 覆盖率', 'sakura-imgopt' ),
-				/* translators: 1: pending, 2: failed, 3: remote-only. */
-				'diffSub'     => __( '%1$d 待上传 · %2$d 失败 · %3$d 仅云端', 'sakura-imgopt' ),
-				/* translators: %d: items needing a manual check. */
-				'diffManual'  => __( '其中 %d 项需人工核对', 'sakura-imgopt' ),
-				/* translators: %d: queued retry jobs. */
-				'retryQueue'  => __( '重试队列 %d 个任务', 'sakura-imgopt' ),
-				'queueSched'  => __( '动作队列已调度', 'sakura-imgopt' ),
-				'queueOnDemand' => __( '动作队列按需调度', 'sakura-imgopt' ),
 			),
 			'storage' => array(
 				'emptyScan'   => __( '开始完整核对', 'sakura-imgopt' ),
@@ -906,7 +886,6 @@ final class Sync_Payload {
 				'cloud'       => __( '云端 %s', 'sakura-imgopt' ),
 				/* translators: %s: formatted size difference. */
 				'diff'        => __( '差 %s', 'sakura-imgopt' ),
-				'files'       => __( '个文件', 'sakura-imgopt' ),
 			),
 			'reconcile' => array(
 				'scanAgain'   => __( '重新核对（本地 + 云端）', 'sakura-imgopt' ),

@@ -1,11 +1,11 @@
-<!-- deep-ptc:project-cards v1 next=R1,F31,Q7,T15 -->
+<!-- deep-ptc:project-cards v1 next=R1,F32,Q7,T15 -->
 # Project cards
 
 > Maintained by Deep PTC in DeepSeek Harness: edit in a Deep PTC conversation, view 特点卡片 / Project cards.
 > User-approved settings guide this project. Features and requirements are records that can be checked and corrected.
 
 ## Implemented features / 已实现功能
-<!-- card id=features kind=features rev=17 updated=2026-11-24T15:33:58.679Z -->
+<!-- card id=features kind=features rev=18 updated=2026-11-24T15:58:34.373Z -->
 
 - **F1** 切桶封存与解锁（R18）：切桶时同一次 update_option 写入 s3_options['reconcile_pending'] = {profile_id, at, bucket, from}，同步中心立刻封存；只有跑完 mode=full 或 resume 的完整核对，才由 Scan_Service::finalize() 调 Options::clear_reconcile_pending() 清零。验证：同步中心 #sakura-sync-state 的 data-reconcile-gated=1，refresh / resume / retry 三个端点返回 409 sio_reconcile_required。
 - **F2** 切桶提醒走插件弹窗（#sakura-s3-switch-modal，kicker「OBJECT STORAGE / SWITCHED」）：列出缩略图改写已关、同步中心数据仍是上一个桶的、上传行为两开关仍按原绑定三件事，按钮直达同步中心。刷新后才出现的顶部 WP admin notice 已删除。
@@ -37,6 +37,7 @@
 - **F28** F28 删除无消费者的 S3 旧处理器与 Connection_Tester（1.28.8-beta-47）：admin_post_sakura_s3_switch 与 admin_post_sakura_s3_test 在主工作区已无任何模板/脚本引用（React 切换走 REST /storage/profile、探测走 /storage/probe），Connection_Tester 全仓仅被 test_connection() 调用，一并删除；同时删掉 S3_Storage_Page 里只服务这两个 action 的 switch/switch_path 错误码与 switched/tested 两个 GET 分支。兜底页（bundle 缺失时的旧 PHP 渲染路径）与其余 11 个处理器保持原样，因为 assets/ui/js/pages/storage-connection.js 与 Monitoring_Panel 仍是它们的活入口。文档同步：07 篇把 preflight 入口从四处改为三处（src/S3/Sync_Center_Module.php:808、src/
 - **F29** 「S3 同步中心」页迁成 React 岛（1.28.8-beta-48，提交 f56a221）：PHP 侧新增 `src/Admin/Sync_Payload.php`（把旧视图 `includes/views/s3-sync-center.php` 的计算层整体搬进 payload：KPI / 樱前线 / 扫描状态 / R18 封存态 / 兼容模式 / 体积分布 / 队列与指标 / 行与日志）与 `includes/views/sync-island.php`（bootstrap JSON + `UI::page` 外壳）；`Sync_Center_Module::render()` 在 `assets/ui/dist/sync.js` 在盘时走岛、否则回落旧视图，`enqueue_assets()` 注册该 bundle；`Page_Assets::ISLAND_BUNDLES` 加 `storage-sync => assets/ui/dist/sync.js`，让 1972 行的旧页脚本 `assets/ui/js/pages/storage-sync.js` 不再入队（它是整
 - **F30** 「忽略规则」卡提示回位与空 nonce 修复（1.28.8-beta-49，提交 86eb24e）：① assets/ui/src/sync/ignored.jsx 把原先并列在 .field-list 里的 label.field__label / p.field__hint / textarea 收进一个 .field.field--full.field--textarea（field__main 内 label + p.field__hint#sufm-ignored-paths-hint，field__control 内 textarea 带 aria-describedby），复用 components.css:209-243 既有网格与 textarea width:100%，未新增任何 CSS；提示回到标签正下方、textarea 由半宽恢复为卡片内容宽。② src/Admin/Sync_Payload.php 的 strings.cards 补上 ignoredNonce => wp_create_nonce('sakura_s3_ignored_save')——bet
+- **F31** 同步中心漏传文案键修复与死键清理（1.28.8-beta-50，提交 a10fce6）：全量比对 Sync_Payload::strings() 与 assets/ui/src/sync/ 实际读取的键，发现两处真漏传——① health.retryQueueCount 与 queueBreakdown 未提供，健康卡「重试队列」行的「N 个任务 · 动作队列 N 待执行 / N 死信」永远走硬编码兜底（与 beta-48 的 ignoredNonce 同类）；② reconcile.jsx 的行内「删除/详情」读 config.strings.labels，而 labels 是 page_config 的顶层兄弟键（src/S3/Sync_Center_Module.php:319），恒为 undefined，同样落到硬编码兜底——改为读 config.labels，rowActionButton 的上传/重新上传/下载也一并改读 labels。同时清掉迁岛后无人读取的 20 个死键（cards.ignoredKicker、tasks 从 36 键精简到 18 键、s
 
 
 ## User requirements / 用户要求

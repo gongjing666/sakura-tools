@@ -282,6 +282,7 @@
 	font-size: 12px;
 }
 
+
 /* Inputs: WordPress core selectors are repeated so core's own rules do not
  * win on source order. */
 .sakura-admin input[type="text"],
@@ -346,6 +347,115 @@
 .sakura-admin input[type="color"]::-moz-color-swatch {
 	border: 1px solid var(--g-line);
 	border-radius: calc(var(--g-radius-sm) - 4px);
+}
+
+/* Field sub-types. These are the shared look of a field *kind* — content-width
+ * controls, an inline limits row, a boxed multi-select — so they live here, not
+ * in a page stylesheet. A page that copies them per-selector is how the two
+ * generations of cards drifted apart; see 03 §10.2 before adding a new one. */
+
+.sakura-admin .field--w-fit .field__control {
+	display: flex;
+	align-items: center;
+	gap: var(--g-check-gap);
+}
+
+.sakura-admin .field--w-fit select,
+.sakura-admin .field--w-fit input[type="number"] {
+	width: auto;
+	min-width: 168px;
+	max-width: 100%;
+}
+
+.sakura-admin .field--w-fit input[type="number"] {
+	min-width: 92px;
+}
+
+.sakura-admin .field--limits .field__inline {
+	display: flex;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: var(--g-check-gap);
+	color: var(--g-ink-soft);
+}
+
+.sakura-admin .field--limits .field__inline-part {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--g-check-gap);
+	min-width: 0;
+}
+
+.sakura-admin .field--limits .field__inline-label {
+	color: var(--g-ink);
+	font-size: 13px;
+	font-weight: 600;
+	white-space: nowrap;
+}
+
+.sakura-admin .field--limits .field__inline-join {
+	color: var(--g-muted);
+	font-size: 13px;
+}
+
+.sakura-admin .field--limits input {
+	width: 80px;
+}
+
+.sakura-admin .field--limits .small-text {
+	color: var(--g-muted);
+	font-size: 12.5px;
+}
+
+.sakura-admin .format-grid {
+	display: grid;
+	grid-template-columns: repeat(4, minmax(0, 1fr));
+	gap: var(--g-grid-gap-x) var(--g-check-gap);
+}
+
+.sakura-admin .format-box {
+	display: flex;
+	align-items: center;
+	gap: var(--g-check-gap);
+	box-sizing: border-box;
+	width: 100%;
+	min-height: 40px;
+	margin: 0;
+	padding: 8px 12px;
+	border: 1px solid var(--g-line);
+	border-radius: var(--g-radius-sm);
+	background: var(--g-wash);
+	color: var(--g-ink-soft);
+	font-size: 13px;
+	line-height: 1.4;
+	cursor: pointer;
+	transition: border-color var(--g-dur) var(--g-ease), background var(--g-dur) var(--g-ease);
+}
+
+.sakura-admin .format-box:hover {
+	border-color: var(--g-line-strong);
+	background: var(--g-card);
+}
+
+.sakura-admin .format-box:has(input:checked) {
+	border-color: var(--g-select-border);
+	background: var(--g-select-surface);
+}
+
+.sakura-admin .format-box input[type="checkbox"] {
+	flex: 0 0 auto;
+	margin: 0;
+}
+
+.sakura-admin .format-box span {
+	min-width: 0;
+	overflow-wrap: anywhere;
+}
+
+@media (max-width: 782px) {
+	.sakura-admin .format-grid {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
 }
 
 .sakura-admin input[type="text"]:hover,

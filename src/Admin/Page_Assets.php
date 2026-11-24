@@ -37,7 +37,11 @@ final class Page_Assets {
 	 * @var array<string, string>
 	 */
 	private const ISLAND_BUNDLES = array(
-		'storage-connection' => 'assets/ui/dist/storage.js',
+		'image-rules'         => 'assets/ui/dist/image.js',
+		'image-thumb'         => 'assets/ui/dist/image.js',
+		'image-backup'        => 'assets/ui/dist/image.js',
+		'image-stats'         => 'assets/ui/dist/image.js',
+		'storage-connection'  => 'assets/ui/dist/storage.js',
 	);
 
 	/**

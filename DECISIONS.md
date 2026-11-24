@@ -1124,7 +1124,7 @@ body.upload-php.sufm-tree-active.folded { --sufm-tree-left: 56px; }
 
 1. `package.json` 回到 `"react": "^19.0.0"` / `"react-dom": "^19.0.0"`（实际解析 19.3.1）；`node bin/build-ui.mjs` 重出 `image.js` 260,084 B / `system.js` 237,162 B。
 2. 19 的能力不再禁用：§1 表格改成「旧 React → React 19」，`useActionState` / `useOptimistic` / `ref` 当 prop / `<Ctx value>` / ref 回调清理都可用。但**「可用」不等于「要用」**：现有四个页签保持手写 `saving`，按页签逐个迁移（§5），不批量重写。
-3. 规范文档新增**附录 A**：把开发者给的那篇文章逐条对照本仓库。核出两个事实——文章正文实际只有 13 条编号技巧（渲染 7 + 加载 4 + 内存 2，标题的「15」把案例重复项与工具清单也算进去了），示例基于 `react-router` / `antd` / `react-window`，与本项目栈无关。结论：5 条已在做、3 条等具体场景再做（`useMemo` / `useReducer` / 预取）、5 条不适用（`memo`、context、虚拟列表、路由懒加载、组件懒加载）。另加两节：A.1「文章没写但我们踩过的六件事」（先测量、位移优先于重渲、服务端是事实来源、可访问性、首帧属于服务端、版本与产物纪律）、A.2「与官方文档不一致的三处」（把 `memo`/`useMemo`/`useCallback` 当默认动作；假设有前端路由；没提 19 的 `useTransition`/`useDeferredValue`/`<Activity>`/`<ViewTransition>`——react.dev 19.3 的 Hooks 与 Components 参考里都已列出）。
+3. 规范文档新增**附录 A**：把开发者给的那篇文章逐条对照本仓库。核出两个事实——文章正文实际只有 13 条编号技巧（渲染 7 + 加载 4 + 内存 2，标题的「15」把案例重复项与工具清单也算进去了），示例基于 `react-router` / `antd` / `react-window`，与本项目栈无关。结论：5 条已在做、3 条等具体场景再做（`useMemo` / `useReducer` / 预取）、5 条不适用（`memo`、context、虚拟列表、路由懒加载、组件懒加载）。A.2 后来换成**有原文出处的对照**（从 `reactjs/react.dev` 的 Markdown 源读到的四段引文，含「coarse interactions：替换一整页/一整块时通常不需要 memoization」——正好命中我们的交互形状），A.3 把官方那五条「让 memo 不必要」的原则逐条对我们代码（其中「状态尽量留在局部」我们没做到：`app.jsx` 持整页 draft，但实测规模内无可感知延迟，因此记为例外而非整改项）。
 4. 开发者给的那篇文章正文是客户端渲染的 SPA，先两次抓取都只拿到 CSS 壳；后来开发者直接提供了本地保存的完整 HTML（177 KB），已读全文并按它的原编号逐条对照，不再依赖二手转述。
 
 **代价**：包体比 18.3.1 版大 74 KB / 80 KB（`image.js` 180,083 → 260,084、`system.js` 157,181 → 237,162）。对后台页面（每页只加载其中一个 bundle，gzip 后约 70 KB）可接受。

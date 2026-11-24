@@ -231,10 +231,48 @@ git diff --check
 5. **首帧属于服务端。** bundle 还没到时 React 不在场，CLS 只能由 PHP 的骨架保证（§附录 B 见 03 文档 §9.4）。
 6. **版本与产物纪律。** 构建产物必须提交、版本三处一致、升级单独一次提交；这三条不遵守，性能问题会被「到底跑的是哪份代码」掩盖。
 
-### A.2 与官方文档不一致的三处（以官方为准）
+### A.2 与官方文档的对照（原文已核，不是转述）
 
-1. **把 `memo` / `useMemo` / `useCallback` 当默认动作。** react.dev 对 `memo` 的定位是「性能优化，不是保证」，对 `useMemo` 明确写了「不要到处加」；React 19 的 Compiler 出现后手工缓存的价值进一步下降。我们的规则是「测量后加」。
-2. **路由懒加载示例依赖 `react-router`。** 我们的页签是服务端路由 + `history.pushState`，没有前端路由库，也就没有它的路由级拆包。
-3. **没提 React 19 的性能相关 API**：`useTransition`、`useDeferredValue`、`<Activity>`、`<ViewTransition>`（react.dev 19.3 的 Hooks 与 Components 参考里都已列出）。我们暂时用不上，但要清楚这是「现在不需要」而不是「不知道」——将来做实时搜索或页签保活时它们是第一顺位。
+那篇文章的结论要拿 react.dev 原文校验。注意 react.dev 的页面是客户端渲染的，直接抓 HTML 只能拿到侧栏；**要读正文得用文档仓库里的 Markdown 源**（`reactjs/react.dev` 的 `src/content/reference/react/*.md`）。以下是核过的原文（2026-11-24 取自 `main` 分支）：
 
-**一句话结论**：13 条里 5 条已经在做、3 条等具体场景再做（判据写在表里）、5 条对我们的规模不适用。这篇当**清单**用可以，当**规范**用会过度设计。
+**① `memo` 的定位是「优化」不是「保证」**（[memo.md](https://github.com/reactjs/react.dev/blob/main/src/content/reference/react/memo.md)）：
+
+> But React may still re-render it: memoization is a performance optimization, not a guarantee.
+>
+> **You should only rely on `memo` as a performance optimization.** If your code doesn't work without it, find the underlying problem and fix it first.
+
+**② 官方直接把我们这类应用归为「不需要到处 memo」**（`memo.md` 与 `useMemo.md` 的 DeepDive *Should you add memo everywhere?*，两处文字几乎相同）：
+
+> If your app is like this site, and most interactions are coarse (like replacing a page or an entire section), memoization is usually unnecessary.
+
+我们的交互正是「替换一整页/一整块」（页签切换、保存一张卡）——这就是附录 A 里 5 条标「不适用」的原文依据，不是我们的主观判断。
+
+**③ 官方给「贵不贵」的量法，和我们的做法一致**（`useMemo.md`）：
+
+> unless you're creating or looping over thousands of objects, it's probably not expensive. […] If the overall logged time adds up to a significant amount (say, `1ms` or more), it might make sense to memoize that calculation.
+
+以及一条容易忽略的：
+
+> `useMemo` won't make the *first* render faster. It only helps you skip unnecessary work on updates.
+
+**④ 19 起的 Compiler 会接管这件事**（`memo.md` 开头 Note）：
+
+> [React Compiler](/learn/react-compiler) automatically applies the equivalent of `memo` to all components, reducing the need for manual memoization.
+
+我们目前没上 Compiler（esbuild 链，需要 Babel/SWC 插件），但这决定了「将来要不要手写 memo」的答案会变成「不用」。
+
+### A.3 官方那五条原则，逐条对照我们的代码
+
+`memo.md` 的 DeepDive 末尾给了五条「让 memo 变得不必要」的原则，比技巧清单有用得多：
+
+| 官方原则（原文摘要） | 我们的现状 | 结论 |
+|---|---|---|
+| 包装型组件接收 JSX 作为 children，这样父组件自身 state 变化时子组件不必重渲 | `Card`、`PageHead`、`Topbar`、`Tabs`、`Prompt` 都收 `children` | **已在做** |
+| 状态尽量留在局部，别把表单、hover 这类瞬时状态提到树顶或全局 | **没做到**：`app.jsx` 持有整个页签的 `draft`，每敲一个字符整页重渲 | 我们的规模（单卡 ≤ 13 个字段、页签 ≤ 8 张卡）实测没有可感知延迟，所以**暂不改**；但如果哪天卡变多，第一件事是把 `draft` 下移到卡内部，而不是加 `memo` |
+| 渲染逻辑保持纯；重渲产生可见异常是 bug，先修 bug | §9 禁止清单第 8 条（effect 里 setState）与「不直接改 React 拥有的 DOM」都在守这条 | **已在做**；唯一例外是 `syncChrome()`（改的是 PHP 拥有的页签条），已在代码注释里写明理由 |
+| 避免「effect 里 setState」形成的更新链——官方称这是 React 应用性能问题的主要来源 | 6 个 `useEffect` 里 0 个调用 setState（全是订阅/定时器/焦点） | **已在做** |
+| 减少 effect 依赖：能用「把对象/函数移进 effect 或移到组件外」解决的，不要用 memo | 同理 | **已在做** |
+
+> 原句（`memo.md`）：*Most performance problems in React apps are caused by chains of updates originating from Effects that cause your components to render over and over.*
+
+这条对我们尤其重要：我们是「保存后整块换 state」的页面，一旦有人在 effect 里 `setState` 同步派生值，就会立刻变成「渲染→effect→setState→渲染」的循环。§9 那条禁止清单就是为此写的。

@@ -101,6 +101,11 @@ final class Stats_Payload {
 					),
 				),
 				'island'  => true,
+				'skeleton' => array(
+					'kpis'  => 6,
+					'kpi'   => 120,
+					'cards' => array( 'history' ),
+				),
 			),
 			'kpis'       => $this->kpis( $stats, $saved, $avg_ratio ),
 			'history'    => array(

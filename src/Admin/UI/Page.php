@@ -10,6 +10,7 @@ declare( strict_types=1 );
 namespace Sakura\ImageOptimizer\Admin\UI;
 
 use Sakura\ImageOptimizer\Admin\Appearance;
+use Sakura\ImageOptimizer\Admin\Layout;
 use Sakura\ImageOptimizer\Admin\Shell;
 
 defined( 'ABSPATH' ) || exit;
@@ -77,8 +78,12 @@ final class Page {
 
 			echo '<main class="sakura-admin__main">';
 			self::head( $args, self::boot_chip() );
-			echo '<div class="page-body">';
-			$body();
+			echo '<div class="page-body page-body--boot">';
+			if ( ! empty( $args['skeleton'] ) && is_array( $args['skeleton'] ) ) {
+				self::boot_skeleton( $args['skeleton'], $id );
+			} else {
+				$body();
+			}
 			echo '</div>';
 			echo '</main>';
 
@@ -489,7 +494,134 @@ final class Page {
 	 * @return void
 	 */
 	private static function boot_frame(): void {
-		echo '<div class="sakura-topbar sakura-topbar--boot" aria-hidden="true"></div>';
-		echo '<nav class="sakura-tabs sakura-tabs--boot" aria-hidden="true"></nav>';
+		echo '<div class="sakura-topbar sakura-topbar--boot" aria-hidden="true">';
+		echo '<span class="boot-line boot-line--mark"></span>';
+		echo '<span class="boot-line boot-line--pill-sm"></span>';
+		echo '<span class="boot-line boot-line--pill-sm"></span>';
+		echo '<span class="boot-line boot-line--pill-sm"></span>';
+		echo '</div>';
+		echo '<nav class="sakura-tabs sakura-tabs--boot" aria-hidden="true">';
+		echo '<span class="boot-line boot-line--tab"></span>';
+		echo '<span class="boot-line boot-line--tab"></span>';
+		echo '<span class="boot-line boot-line--tab"></span>';
+		echo '</nav>';
+	}
+
+	/**
+	 * Grey stand-ins for the cards an island is about to draw.
+	 *
+	 * Sits between the real page head and the arriving cards: the surface, the
+	 * grid placement and roughly the height are the ones the island is going to
+	 * use, so the eye has somewhere to wait instead of watching an empty page.
+	 * Nothing here is announced — `aria-hidden` keeps it out of the reading order
+	 * and the island replaces it wholesale on mount, so no cleanup is needed.
+	 *
+	 * @param array<string,mixed> $spec Skeleton description: `kpis` (count),
+	 *                                  `kpi` (ticket height in px) and `cards`
+	 *                                  (card ids in reading order).
+	 * @param string              $page Page id, for the layout lookup.
+	 * @return void
+	 */
+	private static function boot_skeleton( array $spec, string $page ): void {
+		$kpis   = isset( $spec['kpis'] ) ? max( 0, (int) $spec['kpis'] ) : 0;
+		$kpi_h  = isset( $spec['kpi'] ) ? max( 60, (int) $spec['kpi'] ) : 110;
+		$cards  = isset( $spec['cards'] ) && is_array( $spec['cards'] ) ? $spec['cards'] : array();
+		$layout = Layout::layout_for_page( $page );
+
+		if ( $kpis > 0 ) {
+			echo '<section class="kpis kpis--ticket kpis--boot" aria-hidden="true" style="--boot-kpi:' . esc_attr( (string) $kpi_h ) . 'px">';
+			for ( $i = 0; $i < $kpis; $i++ ) {
+				echo '<article class="kpi kpi--boot' . ( 0 === $i ? ' kpi--boot-lead' : '' ) . '">';
+				echo '<span class="boot-line boot-line--kicker"></span>';
+				echo '<span class="boot-line boot-line--value"></span>';
+				echo '</article>';
+			}
+			echo '</section>';
+		}
+
+		if ( empty( $cards ) ) {
+			return;
+		}
+
+		echo '<div class="card-grid card-grid--boot" aria-hidden="true">';
+		foreach ( $cards as $card ) {
+			$card  = (string) $card;
+			$place = '' === $layout ? null : Layout::card( $layout, $card );
+			$row   = null === $place ? 0 : (int) $place[0];
+			$col   = null === $place ? 0 : (int) $place[1];
+			$span  = null === $place ? 12 : (int) $place[2];
+			$style = '--boot-h:' . self::boot_height( $span, $card ) . 'px';
+			if ( $col > 0 ) {
+				$style .= ';--g-card-col:' . $col . ';--g-card-span:' . $span;
+				if ( $row > 0 ) {
+					$style .= ';--g-card-row:' . $row;
+				}
+			}
+			echo '<div class="card card--boot" style="' . esc_attr( $style ) . '">';
+			echo '<span class="boot-line boot-line--kicker"></span>';
+			echo '<span class="boot-line boot-line--title"></span>';
+			/*
+			 * Ghost content: a short list of label/value pairs. The list stretches
+			 * over the card (space-between), so a tall card reads as "a table is
+			 * coming" instead of "a card with a few scratches at the top".
+			 */
+			$rows = max( 3, min( 10, (int) round( ( self::boot_height( $span, $card ) - 170 ) / 42 ) ) );
+			echo '<div class="boot-rows">';
+			for ( $i = 0; $i < $rows; $i++ ) {
+				echo '<div class="boot-row"><span class="boot-line boot-line--key"></span><span class="boot-line boot-line--mid"></span><span class="boot-line boot-line--val"></span></div>';
+			}
+			echo '</div>';
+			echo '<div class="boot-foot"><span class="boot-line boot-line--pill"></span></div>';
+			echo '</div>';
+		}
+		echo '</div>';
+	}
+
+	/**
+	 * Rough height of a card, for the skeleton only.
+	 *
+	 * Zero risk of being wrong in a way anybody notices: the skeleton is the
+	 * pre-mount frame, and its job is to hold the shape of the first screen, not
+	 * to predict every wrapped line.
+	 *
+	 * @param int    $span Column span from the layout table.
+	 * @param string $card Card id.
+	 * @return int Pixels.
+	 */
+	private static function boot_height( int $span, string $card ): int {
+		$known = array(
+			'thumbs'     => 560,
+			'rename'     => 420,
+			'compress'   => 420,
+			'bulk'       => 220,
+			'switches'   => 320,
+			'scopes'     => 280,
+			'scenes'     => 300,
+			'advanced'   => 320,
+			'sizes'      => 380,
+			'stats'      => 200,
+			'rollback'   => 200,
+			'cache'      => 240,
+			'usage'      => 320,
+			'policy'     => 320,
+			'access'     => 220,
+			'history'    => 520,
+			'runtime'    => 320,
+			'engine'     => 320,
+			'checks'     => 320,
+			'extensions' => 320,
+			'layout'     => 380,
+		);
+
+		if ( isset( $known[ $card ] ) ) {
+			return $known[ $card ];
+		}
+		if ( $span >= 12 ) {
+			return 360;
+		}
+		if ( $span >= 8 ) {
+			return 300;
+		}
+		return 240;
 	}
 }

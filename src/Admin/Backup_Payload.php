@@ -64,6 +64,9 @@ final class Backup_Payload {
 					'tone'  => 'neutral',
 				),
 				'island'  => true,
+				'skeleton' => array(
+					'cards' => self::card_ids(),
+				),
 			),
 		);
 

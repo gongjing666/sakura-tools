@@ -60,6 +60,9 @@ final class Thumb_Payload {
 				'tone'  => ! empty( $option['enabled'] ) ? 'ok' : 'neutral',
 			),
 			'island'  => true,
+			'skeleton' => array(
+				'cards' => self::card_ids(),
+			),
 		);
 
 		return array(

@@ -97,6 +97,9 @@ final class Image_Payload {
 				),
 			),
 			'island'  => true,
+			'skeleton' => array(
+				'cards' => 'rules' === $tab ? array( 'thumbs', 'rename', 'compress', 'bulk' ) : array(),
+			),
 		);
 		$payload['page']   = $page;
 		$payload['head']   = Page::head_data( $page );

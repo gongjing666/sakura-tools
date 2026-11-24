@@ -189,4 +189,37 @@ final class PageHeadTest extends TestCase {
 		self::assertSame( '桜', $head['stamp']['zh'] );
 		self::assertSame( 'aside', $head['stamp']['place'] );
 	}
+
+	/**
+	 * A skeleton is only useful if it lands on the same grid the real cards use:
+	 * one `.card--boot` per declared id, carrying the layout's span.
+	 *
+	 * @return void
+	 */
+	public function test_island_skeleton_uses_the_layout_placement_of_each_card(): void {
+		require_once dirname( __DIR__, 2 ) . '/src/Admin/Layout.php';
+
+		ob_start();
+		Page::render(
+			array(
+				'id'       => 'image-backup',
+				'module'   => 'image',
+				'tab'      => 'backup',
+				'title'    => '备份管理',
+				'island'   => true,
+				'skeleton' => array(
+					'kpis'  => 0,
+					'kpi'   => 0,
+					'cards' => array( 'usage', 'policy' ),
+				),
+			),
+			static function (): void {}
+		);
+		$html = (string) ob_get_clean();
+
+		self::assertSame( 2, substr_count( $html, 'card card--boot' ) );
+		self::assertStringContainsString( 'boot-rows', $html );
+		self::assertStringContainsString( '--g-card-span:8', $html );
+		self::assertStringContainsString( '--g-card-span:4', $html );
+	}
 }

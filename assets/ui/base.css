@@ -117,17 +117,27 @@
  * a mismatch only appears if the bar itself grows.
  */
 .sakura-admin > .sakura-topbar--boot {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	block-size: var(--g-topbar-block);
 	min-block-size: var(--g-topbar-block);
+	overflow: hidden;
 }
 
 /*
  * The tab strip is the bar's sibling, not its child, and it carries its own
  * margins — so the first paint has to reserve it too, or the island mounting
- * drops the content by its height. Borderless and empty on purpose: it should
- * read as blank paper, not as a line.
+ * drops the content by its height. Faint pills instead of an empty band: the
+ * page reads as "still arriving" rather than as a hole.
  */
 .sakura-admin > .sakura-tabs--boot {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	block-size: var(--g-tabs-block);
 	min-block-size: var(--g-tabs-block);
+	overflow: hidden;
 }
 
 .sakura-admin .brand {
@@ -720,6 +730,156 @@
 	}
 
 	.sakura-admin .page-head__actions .sakura-boot__dot {
+		animation: none;
+	}
+}
+
+/* ============================================================
+ * 首帧骨架（island 页）
+ * ============================================================ */
+
+/*
+ * 骨架是服务端画的（Page::boot_skeleton()）：票根行与卡片网格用与岛屿完全相同的
+ * 类名和 CSS 变量定位，所以挂载时换掉的是同一批形状，读者看到的是「内容填进来」
+ * 而不是「页面重新排版」。它只在首帧存在，React 接管 .sakura-admin 时被整体替换，
+ * 不需要任何收尾；`aria-hidden` 保证读屏不会念到这些空条。
+ */
+.sakura-admin[data-sakura-island] .page-body--boot {
+	/* 比视口高：经典滚动条的平台上，卡片到达那一刻页面本来会因为内容变高而
+	 * 多出 15px 的槽，于是整页横向抖一下。先把高度占住就没有这一步。 */
+	min-block-size: 70vh;
+}
+
+.sakura-admin .kpis--boot {
+	margin: 0 0 var(--g-grid-gap-y);
+}
+
+.sakura-admin .kpis--boot > .kpi--boot {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	min-block-size: var(--boot-kpi, 110px);
+}
+
+.sakura-admin .card--boot {
+	position: relative;
+	gap: 12px;
+	min-block-size: var(--boot-h, 240px);
+	padding: 22px;
+}
+
+.sakura-admin .boot-line {
+	display: block;
+	block-size: 10px;
+	border-radius: 999px;
+	background: color-mix(in oklab, var(--g-ink) 9%, transparent);
+}
+
+.sakura-admin .boot-rows {
+	display: flex;
+	flex: 1 1 auto;
+	flex-direction: column;
+	justify-content: space-between;
+	gap: 12px;
+	margin-top: 2px;
+}
+
+.sakura-admin .boot-row {
+	display: flex;
+	align-items: center;
+	gap: 18px;
+}
+
+.sakura-admin .boot-line--key {
+	inline-size: 46%;
+}
+
+.sakura-admin .boot-line--mid {
+	inline-size: 16%;
+}
+
+.sakura-admin .boot-line--val {
+	inline-size: 14%;
+	margin-inline-start: auto;
+}
+
+@media (max-width: 782px) {
+	/* 窄屏一行放不下三段，只留标签与数值，避免糊成一片。 */
+	.sakura-admin .boot-line--mid {
+		display: none;
+	}
+}
+
+.sakura-admin .boot-foot {
+	display: flex;
+	justify-content: flex-end;
+	margin-top: auto;
+	padding-top: 14px;
+}
+
+.sakura-admin .boot-line--kicker {
+	inline-size: 76px;
+	block-size: 8px;
+	opacity: .8;
+}
+
+.sakura-admin .boot-line--title {
+	inline-size: 44%;
+	block-size: 16px;
+	margin-block: 2px 6px;
+}
+
+.sakura-admin .boot-line--value {
+	inline-size: 62%;
+	block-size: 22px;
+}
+
+.sakura-admin .boot-line--pill {
+	inline-size: 116px;
+	block-size: 32px;
+	opacity: .7;
+}
+
+/* 顶栏与页签条里的幽灵：只给形状，不给文字。 */
+.sakura-admin .boot-line--mark {
+	inline-size: 28px;
+	block-size: 28px;
+	border-radius: 50%;
+	flex: 0 0 auto;
+}
+
+.sakura-admin .boot-line--pill-sm {
+	inline-size: 76px;
+	block-size: 24px;
+	flex: 0 0 auto;
+}
+
+.sakura-admin .boot-line--tab {
+	inline-size: 72px;
+	block-size: 26px;
+	border-radius: var(--g-radius-sm, 8px);
+	flex: 0 0 auto;
+}
+
+/* 一道横掠的高光，只动 transform（合成层），reduced-motion 下直接关掉。 */
+.sakura-admin .card--boot::after {
+	content: "";
+	position: absolute;
+	inset: 0;
+	background: linear-gradient(100deg, transparent 38%, rgba(255, 255, 255, .7) 50%, transparent 62%);
+	transform: translateX(-100%);
+	animation: sakura-skeleton-sweep 1.7s var(--g-ease) infinite;
+	pointer-events: none;
+}
+
+@keyframes sakura-skeleton-sweep {
+	to {
+		transform: translateX(100%);
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.sakura-admin .card--boot::after {
 		animation: none;
 	}
 }

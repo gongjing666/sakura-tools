@@ -252,6 +252,17 @@ final class System_Payload {
 				),
 			),
 			'island'  => true,
+			/*
+			 * Shape of the first paint: the ticket row plus the five cards, in the
+			 * order and at the placements the island is about to use. Keeping it here
+			 * (rather than in Page) means a new card shows up in the skeleton as soon
+			 * as it shows up in the page.
+			 */
+			'skeleton' => array(
+				'kpis'  => 4,
+				'kpi'   => 130,
+				'cards' => array( 'runtime', 'engine', 'checks', 'extensions', 'layout' ),
+			),
 		);
 	}
 

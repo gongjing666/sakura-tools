@@ -236,6 +236,16 @@
 	line-height: 1.65;
 }
 
+/* 控件与说明的间距（03 篇「间距与尺寸令牌表」：8px）。说明放在控件下方时用它，
+ * PHP 的 Field::render() 由 hint_after 走这条路径；React 侧把控件后的说明行包进来。 */
+.sakura-admin .field__notes {
+	margin-top: 8px;
+}
+
+.sakura-admin .field__notes .field__hint {
+	margin-top: 0;
+}
+
 .sakura-admin .field__control {
 	min-width: 0;
 	color: var(--g-ink-soft);

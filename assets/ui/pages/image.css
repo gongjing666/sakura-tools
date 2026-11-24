@@ -729,11 +729,3 @@
 	font-size: 13px;
 	letter-spacing: .01em;
 }
-
-.sakura-admin .field__notes {
-	margin-top: 8px;
-}
-
-.sakura-admin .field__notes .field__hint {
-	margin-top: 0;
-}

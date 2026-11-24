@@ -39,7 +39,9 @@ export default function IgnoredCard( { card, view, strings, frozen } ) {
 						</div>
 					</div>
 				</div>
-				<p className="small-text">{ ( copy.ignoredNote || '当前 %d 条生效' ).replace( '%d', String( ( view.ignored_rules || '' ).split( '\n' ).filter( Boolean ).length ) ) }</p>
+				<div className="field__notes">
+					<p className="small-text">{ ( copy.ignoredNote || '当前 %d 条生效' ).replace( '%d', String( ( view.ignored_rules || '' ).split( '\n' ).filter( Boolean ).length ) ) }</p>
+				</div>
 				<div className="card__savebar">
 					<button type="submit" className="btn btn--primary" disabled={ frozen }>
 						{ copy.ignoredSave || '保存规则' }

@@ -24,6 +24,23 @@ final class Page_Assets {
 	private static array $data = array();
 
 	/**
+	 * Pages that a React island has taken over, mapped to the bundle that has
+	 * to exist for the takeover to happen.
+	 *
+	 * The island replaces the whole page body, so the classic page controller
+	 * script that ships beside these tabs has nothing left to bind to — except
+	 * the few ids that both renderers share, which is worse than nothing: the
+	 * click runs twice and the request goes out twice. Skip the legacy script
+	 * while the bundle is there, and keep loading it when the bundle is missing
+	 * so the server-rendered fallback still works.
+	 *
+	 * @var array<string, string>
+	 */
+	private const ISLAND_BUNDLES = array(
+		'storage-connection' => 'assets/ui/dist/storage.js',
+	);
+
+	/**
 	 * Attach data to one page. Must run before Assets::enqueue_page().
 	 *
 	 * @param string              $page Page id.
@@ -138,7 +155,7 @@ final class Page_Assets {
 		}
 
 		$page_js = 'assets/ui/js/pages/' . $page . '.js';
-		if ( is_readable( SAKURA_TOOLS_PATH . $page_js ) ) {
+		if ( is_readable( SAKURA_TOOLS_PATH . $page_js ) && ! self::island_owns( $page ) ) {
 			wp_enqueue_script(
 				$base . '-page-' . $page,
 				SAKURA_TOOLS_URL . $page_js,
@@ -166,6 +183,24 @@ final class Page_Assets {
 
 		wp_localize_script( $base . '-core', 'sakuraPage', $config );
 		wp_set_script_translations( $base . '-core', 'sakura-imgopt', SAKURA_TOOLS_PATH . 'languages' );
+	}
+
+	/**
+	 * Whether a React island has replaced the server-rendered body of one page.
+	 *
+	 * True only when the page is declared in ISLAND_BUNDLES and its bundle is
+	 * actually readable: a missing build means the classic renderer is still
+	 * serving the tab, and that renderer needs its script.
+	 *
+	 * @param string $page Page id.
+	 * @return bool
+	 */
+	private static function island_owns( string $page ): bool {
+		if ( ! isset( self::ISLAND_BUNDLES[ $page ] ) ) {
+			return false;
+		}
+
+		return is_readable( SAKURA_TOOLS_PATH . self::ISLAND_BUNDLES[ $page ] );
 	}
 
 	/**

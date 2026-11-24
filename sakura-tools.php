@@ -3,7 +3,7 @@
  * Plugin Name: 樱花工具箱
  * Plugin URI:  https://www.nboke.com
  * Description: 模块化 WordPress 媒体工具箱：图片压缩、缩略图控制、媒体库整理与 S3 云存储，可按需启用。
- * Version:     1.28.8-beta-44
+ * Version:     1.28.8-beta-45
  * Requires at least: 6.4
  * Requires PHP: 8.2
  * License:     GPL-2.0-or-later
@@ -19,7 +19,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 // ── 常量 ──────────────────────────────────────────────
-define( 'SAKURA_TOOLS_VERSION', '1.28.8-beta-44' );
+define( 'SAKURA_TOOLS_VERSION', '1.28.8-beta-45' );
 
 // Fallback mount for the space expansion module (see PATCH 26).
 add_action(

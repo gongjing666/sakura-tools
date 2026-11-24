@@ -389,8 +389,7 @@
 	font-weight: 650;
 }
 
-.sakura-admin code,
-.sakura-admin .mono {
+.sakura-admin code {
 	font-family: var(--g-font-mono);
 	font-variant-numeric: tabular-nums;
 }

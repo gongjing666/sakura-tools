@@ -1,11 +1,11 @@
-<!-- deep-ptc:project-cards v1 next=R1,F32,Q7,T16 -->
+<!-- deep-ptc:project-cards v1 next=R1,F33,Q7,T17 -->
 # Project cards
 
 > Maintained by Deep PTC in DeepSeek Harness: edit in a Deep PTC conversation, view 特点卡片 / Project cards.
 > User-approved settings guide this project. Features and requirements are records that can be checked and corrected.
 
 ## Implemented features / 已实现功能
-<!-- card id=features kind=features rev=18 updated=2026-11-24T15:58:34.373Z -->
+<!-- card id=features kind=features rev=19 updated=2026-11-24T16:40:43.052Z -->
 
 - **F1** 切桶封存与解锁（R18）：切桶时同一次 update_option 写入 s3_options['reconcile_pending'] = {profile_id, at, bucket, from}，同步中心立刻封存；只有跑完 mode=full 或 resume 的完整核对，才由 Scan_Service::finalize() 调 Options::clear_reconcile_pending() 清零。验证：同步中心 #sakura-sync-state 的 data-reconcile-gated=1，refresh / resume / retry 三个端点返回 409 sio_reconcile_required。
 - **F2** 切桶提醒走插件弹窗（#sakura-s3-switch-modal，kicker「OBJECT STORAGE / SWITCHED」）：列出缩略图改写已关、同步中心数据仍是上一个桶的、上传行为两开关仍按原绑定三件事，按钮直达同步中心。刷新后才出现的顶部 WP admin notice 已删除。
@@ -38,6 +38,7 @@
 - **F29** 「S3 同步中心」页迁成 React 岛（1.28.8-beta-48，提交 f56a221）：PHP 侧新增 `src/Admin/Sync_Payload.php`（把旧视图 `includes/views/s3-sync-center.php` 的计算层整体搬进 payload：KPI / 樱前线 / 扫描状态 / R18 封存态 / 兼容模式 / 体积分布 / 队列与指标 / 行与日志）与 `includes/views/sync-island.php`（bootstrap JSON + `UI::page` 外壳）；`Sync_Center_Module::render()` 在 `assets/ui/dist/sync.js` 在盘时走岛、否则回落旧视图，`enqueue_assets()` 注册该 bundle；`Page_Assets::ISLAND_BUNDLES` 加 `storage-sync => assets/ui/dist/sync.js`，让 1972 行的旧页脚本 `assets/ui/js/pages/storage-sync.js` 不再入队（它是整
 - **F30** 「忽略规则」卡提示回位与空 nonce 修复（1.28.8-beta-49，提交 86eb24e）：① assets/ui/src/sync/ignored.jsx 把原先并列在 .field-list 里的 label.field__label / p.field__hint / textarea 收进一个 .field.field--full.field--textarea（field__main 内 label + p.field__hint#sufm-ignored-paths-hint，field__control 内 textarea 带 aria-describedby），复用 components.css:209-243 既有网格与 textarea width:100%，未新增任何 CSS；提示回到标签正下方、textarea 由半宽恢复为卡片内容宽。② src/Admin/Sync_Payload.php 的 strings.cards 补上 ignoredNonce => wp_create_nonce('sakura_s3_ignored_save')——bet
 - **F31** 同步中心漏传文案键修复与死键清理（1.28.8-beta-50，提交 a10fce6）：全量比对 Sync_Payload::strings() 与 assets/ui/src/sync/ 实际读取的键，发现两处真漏传——① health.retryQueueCount 与 queueBreakdown 未提供，健康卡「重试队列」行的「N 个任务 · 动作队列 N 待执行 / N 死信」永远走硬编码兜底（与 beta-48 的 ignoredNonce 同类）；② reconcile.jsx 的行内「删除/详情」读 config.strings.labels，而 labels 是 page_config 的顶层兄弟键（src/S3/Sync_Center_Module.php:319），恒为 undefined，同样落到硬编码兜底——改为读 config.labels，rowActionButton 的上传/重新上传/下载也一并改读 labels。同时清掉迁岛后无人读取的 20 个死键（cards.ignoredKicker、tasks 从 36 键精简到 18 键、s
+- **F32** 文件核对卡三处修复（1.28.8-beta-51，提交 2d93aad）：① PC 批量操作条左侧计数与右侧四按钮文字不齐——根因是 .button-row 的 margin-top:14px，storage.css 里 .batch-bar .button-row 清零并给 .batch-bar__count 设 line-height: var(--g-btn-h-sm)（=30px，与 .btn--small 同高）；② ≤782px 筛选六个 chip 改 grid 等宽两列、批量条竖排且四个按钮 2×2 等分（原先无任何 .batch-bar 移动端规则，chip 各按内容宽换行）；③ 快速搜索后类型/大小/状态/最后变化四列为空——fast-search.php 与 sakura_s3_sync_page 只返回原始索引行（Index_Repository::row_payload 无展示字段），展示字段只在首屏 Sync_Payload::rows() 里由 PHP 补齐；reconcile.jsx 新增 normalizeRow() 客户端补齐 ext / status
 
 
 ## User requirements / 用户要求
@@ -52,7 +53,7 @@
 
 
 ## Completed tasks / 已完成任务
-<!-- card id=tasks kind=tasks rev=15 updated=2026-11-24T15:59:31.977Z -->
+<!-- card id=tasks kind=tasks rev=16 updated=2026-11-24T16:41:20.257Z -->
 
 - **T1** [done] 为 sakura-tools 插件补一篇 PHP 代码规范文档（docs/开发规则/），以 PHP 8.2–8.4 兼容 (11/24)
 - **T2** [done] 文档中所有描述实验站的地方（AGENTS.md、05 篇、09 篇、11 篇、03 篇、docs/验收脚本/README — 实验站 demo.77il.cn 的新部署（宝塔本机 /www/wwwroot/demo.77il.cn，PHP 8.4.28 + MariaDB 12.3.2）已写进 AGENTS.md 与 05/09/11/03 篇、验收脚本，并写入记忆；文档不含密码，凭据只在 /root/.dsh/secrets/demo-77il-login.txt；本地提交 f343907，未 push。 (11/24)
@@ -69,3 +70,4 @@
 - **T13** [done] 把「S3 同步中心」页（对象存储 → 同步中心，模块 slug sakura-tools-storage、页签 sync — 「S3 同步中心」页已迁为 PHP + React 岛（beta-48，f56a221），实验站 1440/390、扫描/续跑/重试与 R18 封存闸门全部实测通过 (11/24)
 - **T14** [done] 本轮只做评估与解释，不擅自改代码、不动版本号；要落地需用户明确选择方案后再按 beta-49 走三道关 — 「忽略规则」卡提示回标签下方、textarea 铺满卡片，并修掉 beta-48 漏传的 ignoredNonce（保存一直 403）；beta-49 提交 86eb24e，1440/390 实测通过 (11/24)
 - **T15** [done] 全量比对 src/Admin/Sync_Payload.php 的 strings() 键与 assets/ui/src — 同步中心文案键全量比对完成并落地修复：补 health.retryQueueCount/queueBreakdown 与 config.labels 两处真漏传、清 20 个死键，beta-50 提交 a10fce6，实验站 1440/390 实测通过 (11/24)
+- **T16** [done] 调整「S3 同步中心 → 文件核对」卡片样式：① PC 端勾选文件后的批量操作条里，左侧提示文字与右侧四个按钮文字没有水 — 文件核对卡三处修复完成：批量条 PC 文字对齐、移动端筛选/按钮重排、搜索后四列异常；文档记 sync/ 硬编码中文待办；beta-51 提交 2d93aad（未 push） (11/25)

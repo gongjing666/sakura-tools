@@ -297,14 +297,105 @@
 		border-radius: 0;
 	}
 
+	/* 窄屏改成逐条记录：卡片是 overflow-x: clip，600px 宽的表格会被裁掉右侧（来源整列看不见），
+	   所以窄屏不横向滚动，而是把每行拆成「名称 + 状态 / 尺寸 + 裁剪 / 来源」三行。 */
 	.sakura-admin .sakura-imgopt-size-table {
-		min-width: 600px;
+		display: block;
+		min-width: 0;
 		font-size: 12.5px;
 	}
 
-	.sakura-admin .sakura-imgopt-size-table thead th,
+	.sakura-admin .sakura-imgopt-size-table thead {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		margin: -1px;
+		padding: 0;
+		overflow: hidden;
+		clip: rect(0 0 0 0);
+		white-space: nowrap;
+	}
+
+	.sakura-admin .sakura-imgopt-size-table tbody {
+		display: block;
+	}
+
+	.sakura-admin .sakura-imgopt-size-table tbody tr {
+		display: grid;
+		grid-template-columns: 26px minmax(0, 1fr) auto;
+		grid-template-areas:
+			"check name status"
+			"check dims crop"
+			"check sources sources";
+		column-gap: 8px;
+		row-gap: 3px;
+		align-items: center;
+		padding: 11px 2px;
+		border-bottom: 1px solid var(--g-line-soft);
+	}
+
+	.sakura-admin .sakura-imgopt-size-table tbody tr:last-child {
+		border-bottom: 0;
+	}
+
 	.sakura-admin .sakura-imgopt-size-table tbody td {
-		padding: 9px 10px;
+		padding: 0;
+		border: 0;
+	}
+
+	.sakura-admin .sakura-imgopt-size-table tbody tr:hover {
+		background: #fcfcfa;
+	}
+
+	.sakura-admin .sakura-imgopt-size-table tbody tr[data-size="_big_threshold"] {
+		background: #fbfbf8;
+	}
+
+	.sakura-admin .sakura-imgopt-size-table tbody tr:hover td,
+	.sakura-admin .sakura-imgopt-size-table tbody tr[data-size="_big_threshold"] td {
+		background: transparent;
+	}
+
+	.sakura-admin .sakura-imgopt-size-table .sakura-imgopt-col-check {
+		grid-area: check;
+		width: auto;
+	}
+
+	.sakura-admin .sakura-imgopt-col-name {
+		grid-area: name;
+		min-width: 0;
+	}
+
+	.sakura-admin .sakura-imgopt-col-name code {
+		white-space: normal;
+		overflow-wrap: anywhere;
+	}
+
+	.sakura-admin .sakura-imgopt-col-status {
+		grid-area: status;
+		justify-self: end;
+	}
+
+	.sakura-admin .sakura-imgopt-col-dims {
+		grid-area: dims;
+		color: var(--g-muted);
+	}
+
+	.sakura-admin .sakura-imgopt-col-crop {
+		grid-area: crop;
+		justify-self: end;
+		color: var(--g-muted);
+	}
+
+	.sakura-admin .sakura-imgopt-col-sources {
+		grid-area: sources;
+		color: var(--g-muted);
+		overflow-wrap: anywhere;
+	}
+
+	.sakura-admin .sakura-imgopt-col-sources::before {
+		content: attr(data-label) "：";
+		color: var(--g-faint);
 	}
 }
 

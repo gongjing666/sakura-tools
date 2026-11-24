@@ -1130,3 +1130,18 @@ body.upload-php.sufm-tree-active.folded { --sufm-tree-left: 56px; }
 **代价**：包体比 18.3.1 版大 74 KB / 80 KB（`image.js` 180,083 → 260,084、`system.js` 157,181 → 237,162）。对后台页面（每页只加载其中一个 bundle，gzip 后约 70 KB）可接受。
 
 **验收**：产物内 `O.version="19.3.1"`；实验站 1.28.8-beta-31 上系统设置与图像优化四页签正常渲染、控制台 0 error；页签切换 `performance` 导航条目仍为 1；保存仍不导航、弹窗齐全；`composer test` / `phpstan` / `lint:strict` / `git diff --check` 全绿。
+## 窄屏尺寸表拆成逐条记录，而不是横向滚动（2026-11-24，1.28.8-beta-37）
+
+**背景**：开发者发来 378px 截图：「禁止 WordPress 裁剪」卡片在窄宽下只露出前 5 列，第 6 列「来源」完全看不见，`medium_large` 还在词中折行。
+
+**实测根因**：React 版 `SizeTable`（`assets/ui/src/image/fields.jsx`）把 `table.sakura-imgopt-size-table` 直接放在卡片里，`image.css` 的 `min-width: 660px`（窄屏 600px）让它固定 600px 宽；卡片 `section.card.card--wide` 是 `overflow-x: clip`，可见右边界只有 358px——「来源」整列表头宽 196.5px，直接落在裁剪区外。旧的 PHP 版（`includes/class-image-optimizer-module.php:584`）外面套了 `.sakura-imgopt-size-scroll`，React 重写时漏掉了这层容器。页面本身没有横溢（`documentElement.scrollWidth` 等于 `clientWidth`），问题只出在卡片内部裁剪。
+
+**决策**：
+
+1. JSX 把表格套进库存的 `<div className="table-scroll">`（与 `thumb.jsx` / `stats.jsx` / `system/components.jsx` 同一惯例）：783–1100px 这种「卡片比表格窄一点」的区间靠容器内部横滚，不再被卡片裁掉。
+2. ≤782px（`03-后台UI.md` §7 的移动端断点）不横滚，改成逐条记录：`thead` 视觉隐藏，每行 `display: grid` 排成三行——「名称 + 生成状态」/「宽×高 + 裁剪方式」/「来源」，来源列用 `data-label` + `::before` 补出「来源：」前缀。与 `system.css` 的 `table--records` 同思路：卡片里的内容表在窄屏读作记录列表，而不是让人左右拖动。
+3. 列语义只加类名（`col-name` / `col-dims` / `col-status` / `col-crop` / `col-sources`）与一个 `data-label`，表单 `name`、option 键、`data-size`、`aria-label` 一个不动（守住 `03-后台UI.md` §10.1）。
+
+**代价**：`image.css` 多一段本页专用的窄屏网格规则；同一张表在三档宽度下有三种呈现（记录 / 横滚 / 表格），以后加列要三处都看。
+
+**验收**：实验站 1.28.8-beta-37 上 320 / 390 / 768 / 800 / 850 / 900 / 1024 / 1440 八档实测 `documentElement.scrollWidth === clientWidth`，「来源」列右边界始终落在卡片内（320 下 282 ≤ 304）；`medium_large`、`2560px 缩放版` 在 390 与 768 下都是单行；390 下点复选框 `true → false → true` 可正常切换；console 0 error、页面无 Deprecated / Warning；`composer test` 897 / 3816 / 6 skipped、`phpstan` 无错误、`lint:strict` 与 `lint:compat` 0 error / 0 warning、`git diff --check` 干净。

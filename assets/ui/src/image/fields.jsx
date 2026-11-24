@@ -322,69 +322,71 @@ export function SizeTable( {
 				</button>
 				<span className="sakura-imgopt-scan-summary">{ summary }</span>
 			</div>
-			<table className="sakura-imgopt-size-table">
-				<thead>
-					<tr>
-						<th className="sakura-imgopt-col-check">{ section.columns[ 0 ] }</th>
-						<th>{ section.columns[ 1 ] }</th>
-						<th>{ section.columns[ 2 ] }</th>
-						<th>{ section.columns[ 3 ] }</th>
-						<th>{ section.columns[ 4 ] }</th>
-						<th>{ section.columns[ 5 ] }</th>
-					</tr>
-				</thead>
-				<tbody>
-					{ rows.map( ( row ) => {
-						const checked = set.has( row.name );
-						const sources = ( row.sources || [] )
-							.map( ( source ) =>
-								source.detail ? `${ source.label }：${ source.detail }` : source.label
-							)
-							.join( '；' );
+			<div className="table-scroll">
+				<table className="sakura-imgopt-size-table">
+					<thead>
+						<tr>
+							<th className="sakura-imgopt-col-check">{ section.columns[ 0 ] }</th>
+							<th>{ section.columns[ 1 ] }</th>
+							<th>{ section.columns[ 2 ] }</th>
+							<th>{ section.columns[ 3 ] }</th>
+							<th>{ section.columns[ 4 ] }</th>
+							<th>{ section.columns[ 5 ] }</th>
+						</tr>
+					</thead>
+					<tbody>
+						{ rows.map( ( row ) => {
+							const checked = set.has( row.name );
+							const sources = ( row.sources || [] )
+								.map( ( source ) =>
+									source.detail ? `${ source.label }：${ source.detail }` : source.label
+								)
+								.join( '；' );
 
-						return (
-							<tr key={ row.name } data-size={ row.name }>
-								<td className="sakura-imgopt-col-check">
-									<input
-										type="checkbox"
-										name="sakura_imgopt_disabled_sizes[]"
-										value={ row.name }
-										checked={ checked }
-										aria-label={ `${ section.columns[ 0 ] } ${ row.name }` }
-										onChange={ ( event ) => {
-											const next = event.target.checked
-												? [ ...( disabled || [] ).map( String ), row.name ]
-												: ( disabled || [] )
-														.map( String )
-														.filter( ( entry ) => entry !== row.name );
+							return (
+								<tr key={ row.name } data-size={ row.name }>
+									<td className="sakura-imgopt-col-check">
+										<input
+											type="checkbox"
+											name="sakura_imgopt_disabled_sizes[]"
+											value={ row.name }
+											checked={ checked }
+											aria-label={ `${ section.columns[ 0 ] } ${ row.name }` }
+											onChange={ ( event ) => {
+												const next = event.target.checked
+													? [ ...( disabled || [] ).map( String ), row.name ]
+													: ( disabled || [] )
+															.map( String )
+															.filter( ( entry ) => entry !== row.name );
 
-											onChange( 'disabled_sizes', Array.from( new Set( next ) ) );
-										} }
-									/>
-								</td>
-								<td>
-									<code>{ 'big' === row.kind ? '2560px 缩放版' : row.name }</code>
-								</td>
-								<td>
-									{ 'big' === row.kind
-										? '2560px+'
-										: `${ row.width || 0 } × ${ row.height || 0 }` }
-								</td>
-								<td>
-									<span
-										className={ `sakura-imgopt-status ${ row.tone }` }
-										title={ row.reason || undefined }
-									>
-										{ row.status_label }
-									</span>
-								</td>
-								<td>{ row.crop ? '硬裁剪' : '等比缩放' }</td>
-								<td>{ sources }</td>
-							</tr>
-						);
-					} ) }
-				</tbody>
-			</table>
+												onChange( 'disabled_sizes', Array.from( new Set( next ) ) );
+											} }
+										/>
+									</td>
+									<td className="sakura-imgopt-col-name">
+										<code>{ 'big' === row.kind ? '2560px 缩放版' : row.name }</code>
+									</td>
+									<td className="sakura-imgopt-col-dims">
+										{ 'big' === row.kind
+											? '2560px+'
+											: `${ row.width || 0 } × ${ row.height || 0 }` }
+									</td>
+									<td className="sakura-imgopt-col-status">
+										<span
+											className={ `sakura-imgopt-status ${ row.tone }` }
+											title={ row.reason || undefined }
+										>
+											{ row.status_label }
+										</span>
+									</td>
+									<td className="sakura-imgopt-col-crop">{ row.crop ? '硬裁剪' : '等比缩放' }</td>
+									<td className="sakura-imgopt-col-sources" data-label={ section.columns[ 5 ] }>{ sources }</td>
+								</tr>
+							);
+						} ) }
+					</tbody>
+				</table>
+			</div>
 			{ warnings && warnings.length ? (
 				<div className="sakura-imgopt-scan-warnings">
 					<strong>扫描提示</strong>

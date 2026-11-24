@@ -1,11 +1,11 @@
-<!-- deep-ptc:project-cards v1 next=R1,F30,Q7,T14 -->
+<!-- deep-ptc:project-cards v1 next=R1,F31,Q7,T14 -->
 # Project cards
 
 > Maintained by Deep PTC in DeepSeek Harness: edit in a Deep PTC conversation, view 特点卡片 / Project cards.
 > User-approved settings guide this project. Features and requirements are records that can be checked and corrected.
 
 ## Implemented features / 已实现功能
-<!-- card id=features kind=features rev=16 updated=2026-11-24T14:28:20.787Z -->
+<!-- card id=features kind=features rev=17 updated=2026-11-24T15:33:58.679Z -->
 
 - **F1** 切桶封存与解锁（R18）：切桶时同一次 update_option 写入 s3_options['reconcile_pending'] = {profile_id, at, bucket, from}，同步中心立刻封存；只有跑完 mode=full 或 resume 的完整核对，才由 Scan_Service::finalize() 调 Options::clear_reconcile_pending() 清零。验证：同步中心 #sakura-sync-state 的 data-reconcile-gated=1，refresh / resume / retry 三个端点返回 409 sio_reconcile_required。
 - **F2** 切桶提醒走插件弹窗（#sakura-s3-switch-modal，kicker「OBJECT STORAGE / SWITCHED」）：列出缩略图改写已关、同步中心数据仍是上一个桶的、上传行为两开关仍按原绑定三件事，按钮直达同步中心。刷新后才出现的顶部 WP admin notice 已删除。
@@ -36,6 +36,7 @@
 - **F27** 图片优化四页也跳过旧页脚本（1.28.8-beta-46）：Page_Assets::ISLAND_BUNDLES 从 1 项扩到 5 项，image-rules / image-thumb / image-backup / image-stats 都映射 assets/ui/dist/image.js，入队条件仍是 is_readable( page_js ) && ! island_owns( page )。与 S3 存储页不同，这三个旧脚本（image-rules.js 14270B、image-backup.js 3732B、image-stats.js 3864B）取不到挂载点都会提前 return，不会重复发请求，只是白下载约 22KB，属省流量而非修 bug。实测 demo.77il.cn beta-46：四个图片页 legacy=[]、只加载 image.js、无骨架、1440 与 390 均 docW=clientW、正文零 Deprecated/Warning；system-settings 与 storage-connection 未误伤；未重构的 storage
 - **F28** F28 删除无消费者的 S3 旧处理器与 Connection_Tester（1.28.8-beta-47）：admin_post_sakura_s3_switch 与 admin_post_sakura_s3_test 在主工作区已无任何模板/脚本引用（React 切换走 REST /storage/profile、探测走 /storage/probe），Connection_Tester 全仓仅被 test_connection() 调用，一并删除；同时删掉 S3_Storage_Page 里只服务这两个 action 的 switch/switch_path 错误码与 switched/tested 两个 GET 分支。兜底页（bundle 缺失时的旧 PHP 渲染路径）与其余 11 个处理器保持原样，因为 assets/ui/js/pages/storage-connection.js 与 Monitoring_Panel 仍是它们的活入口。文档同步：07 篇把 preflight 入口从四处改为三处（src/S3/Sync_Center_Module.php:808、src/
 - **F29** 「S3 同步中心」页迁成 React 岛（1.28.8-beta-48，提交 f56a221）：PHP 侧新增 `src/Admin/Sync_Payload.php`（把旧视图 `includes/views/s3-sync-center.php` 的计算层整体搬进 payload：KPI / 樱前线 / 扫描状态 / R18 封存态 / 兼容模式 / 体积分布 / 队列与指标 / 行与日志）与 `includes/views/sync-island.php`（bootstrap JSON + `UI::page` 外壳）；`Sync_Center_Module::render()` 在 `assets/ui/dist/sync.js` 在盘时走岛、否则回落旧视图，`enqueue_assets()` 注册该 bundle；`Page_Assets::ISLAND_BUNDLES` 加 `storage-sync => assets/ui/dist/sync.js`，让 1972 行的旧页脚本 `assets/ui/js/pages/storage-sync.js` 不再入队（它是整
+- **F30** 「忽略规则」卡提示回位与空 nonce 修复（1.28.8-beta-49，提交 86eb24e）：① assets/ui/src/sync/ignored.jsx 把原先并列在 .field-list 里的 label.field__label / p.field__hint / textarea 收进一个 .field.field--full.field--textarea（field__main 内 label + p.field__hint#sufm-ignored-paths-hint，field__control 内 textarea 带 aria-describedby），复用 components.css:209-243 既有网格与 textarea width:100%，未新增任何 CSS；提示回到标签正下方、textarea 由半宽恢复为卡片内容宽。② src/Admin/Sync_Payload.php 的 strings.cards 补上 ignoredNonce => wp_create_nonce('sakura_s3_ignored_save')——bet
 
 
 ## User requirements / 用户要求

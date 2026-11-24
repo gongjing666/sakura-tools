@@ -1202,3 +1202,20 @@ body.upload-php.sufm-tree-active.folded { --sufm-tree-left: 56px; }
 **代价**：多吉云（无已保存配置）时服务商行右半边留白，与「配置名称」等占一格的字段一致；这是有意的，不为了填满而把输入框拉长。
 
 **验收**（2026-11-24，demo.77il.cn，1.28.8-beta-42）：1440 / 1912 下两行都是 572px（1912 下 712px）宽、按钮右缘等于同列字段（region）右缘（1440 是 787、1912 是 1023），间距 10px、控件全部 38px 高；bitiful（带 chips）与 dogecloud（is-empty）两种状态一致；390 下两行换行成「控件整行 + 按钮整行」、竖向间距 10px，docW = clientW = 390 / 1440 / 1912，两行都没有游离文本节点，console 0 error / 0 warning，debug.log 无新增。
+## 上传行为卡的锁与并发说明（2026-11-24，1.28.8-beta-44）
+
+**背景**：开发者截图指出「上传行为」卡两处问题——冻结行的锁形图标不见了，只剩一个空格子；「云端传输并发数」下方的说明只占一半宽度，下拉却横跨整行。
+
+**根因**（实测）：
+1. 锁是迁 React 岛时丢的：旧 PHP 页 `src/S3/S3_Storage_Page.php` 在 `.check__lock` 里输出 `UI::lock_icon()`（`src/Admin/UI.php` 的那段 svg path），React 的 `assets/ui/src/storage/behaviour.jsx` 只写了一个空的 `<span className="check__lock" />`，CSS 给它的 22×22 底色块就成了一个无意义的方格。
+2. 说明「只占一半」不是说明自己的宽度问题：上传行为卡在 `Layout::PAGES['s3']` 里是半宽（`array( 3, 1, 6 )`），卡内 `.field-list` 只剩一列 322px，而并发字段没有 `field--full`，所以说明和下拉都只吃半个卡片内容宽；下拉还被 `.field--select` 拉成 100%（322px），选项文字只有几个字却占一整行。
+
+**决策**：
+1. 共享件 `assets/ui/src/shared/ui.jsx` 新增 `LockIcon`（与 `UI::lock_icon()` 同一段 svg path、同一个 `viewBox`），冻结行改用它；`title` 走 payload 的 `strings.lockTitle`，与 PHP 那句「已随绑定锁定，不能在这里切换。」一致。
+2. 图标只能有一个来源：页面里不手画第二个锁，也不留空 span。规则写进 12 篇 §2。
+3. 并发字段加 `field--full`（说明吃满卡片内容宽）与 `field--w-fit`（下拉按内容收，min-width 168px）——两个类都加在 `.field` 包裹层上，说明的宽度跟着字段占几格走，不单独给 `field__hint` 设宽度。规则写进 03 篇 §10.2。
+4. `fallbackNote`（不支持并行时的橙色告警）从 `.field-list` 里移到字段网格外层、`card__savebar` 之前：卡变宽或字段网格变两列时，它仍然占整行而不是被并进半列。
+
+**代价**：并发下拉在桌面只有 168px，右侧留白较大；这是有意的——「按内容宽度」优先于「填满列」。卡内说明的宽度从此由字段占几格决定，页面 CSS 不能单独调说明的宽度。
+
+**验收**（2026-11-24，demo.77il.cn，1.28.8-beta-44）：1440 下 `.check__lock` 22×22 含 1 个 13×13 的 svg、title 为「已随绑定锁定，不能在这里切换。」、fill 取 `--g-muted`，两个 `.check__state` 仍是「已关闭」；并发字段 550px（= `.field-list` 整行）、说明 550×41、下拉 168×38；390 下说明 322 宽、右缘 356 落在卡片 374 内，下拉 168×38，docW = clientW = 390。并发数 1→2 保存后弹窗「已保存」并回写 2，再改回 1 保存回写 1、保存按钮重新 disabled；console 0 error / 0 warning，debug.log 无新增。

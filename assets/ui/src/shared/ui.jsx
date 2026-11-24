@@ -17,6 +17,24 @@ export function Badge( { tone = 'neutral', children } ) {
 	return <span className={ `badge badge--${ tone }` }>{ children }</span>;
 }
 
+
+/**
+ * The padlock that UI::lock_icon() prints on the server-rendered pages.
+ *
+ * A frozen row is the only place a card says "this cannot be changed here";
+ * the drawing has to match on both sides, or a PHP page and an island show
+ * two different locks.
+ */
+export function LockIcon() {
+	return (
+		<svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+			<path
+				fill="currentColor"
+				d="M8 1.6a3.1 3.1 0 0 0-3.1 3.1V6H4.6A1.6 1.6 0 0 0 3 7.6v5.8A1.6 1.6 0 0 0 4.6 15h6.8a1.6 1.6 0 0 0 1.6-1.6V7.6A1.6 1.6 0 0 0 11.4 6h-.3V4.7A3.1 3.1 0 0 0 8 1.6Zm0 1.5a1.6 1.6 0 0 1 1.6 1.6V6H6.4V4.7A1.6 1.6 0 0 1 8 3.1Zm-.8 4.6h1.6v3.6H7.2V7.7Z"
+			/>
+		</svg>
+	);
+}
 /**
  * The shared top bar: brand, module pills, status pill and extra actions.
  *

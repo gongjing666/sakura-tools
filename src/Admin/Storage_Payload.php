@@ -258,6 +258,7 @@ final class Storage_Payload {
 			'cancel'              => __( '取消', 'sakura-imgopt' ),
 			'closeDialog'         => __( '知道了', 'sakura-imgopt' ),
 			'confirmDelete'       => __( '确认删除', 'sakura-imgopt' ),
+			'lockTitle'           => __( '已随绑定锁定，不能在这里切换。', 'sakura-imgopt' ),
 		);
 	}
 

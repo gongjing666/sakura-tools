@@ -8,7 +8,7 @@
  * that would look editable and then be discarded.
  */
 import { useEffect, useState } from 'react';
-import { BusyLabel, Card } from '../shared/ui.jsx';
+import { BusyLabel, Card, LockIcon } from '../shared/ui.jsx';
 
 /**
  * @param {Object}   props         Card payload and callbacks.
@@ -93,7 +93,9 @@ export default function BehaviourCard( { card, strings, saving, onSave, askRisk 
 							<div className="field__control">
 								{ item.locked ? (
 									<div className="check check--stacked is-locked">
-										<span className="check__lock" aria-hidden="true" />
+										<span className="check__lock" aria-hidden="true" title={ strings.lockTitle }>
+											<LockIcon />
+										</span>
 										<span className={ 'check__state ' + ( item.checked ? 'is-on' : 'is-off' ) }>
 											{ item.state }
 										</span>
@@ -130,7 +132,7 @@ export default function BehaviourCard( { card, strings, saving, onSave, askRisk 
 						</div>
 					) ) }
 
-					<div className="field field--select">
+					<div className="field field--select field--full field--w-fit">
 						<div className="field__main">
 							<label className="field__label" htmlFor="sakura-s3-concurrency">
 								{ card.concurrency.label }
@@ -155,12 +157,13 @@ export default function BehaviourCard( { card, strings, saving, onSave, askRisk 
 						</div>
 					</div>
 
-					{ card.concurrency.fallbackNote ? (
-						<div className="notice-inline notice-inline--warn" role="status">
-							<p>{ card.concurrency.fallbackNote }</p>
-						</div>
-					) : null }
 				</div>
+
+				{ card.concurrency.fallbackNote ? (
+					<div className="notice-inline notice-inline--warn" role="status">
+						<p>{ card.concurrency.fallbackNote }</p>
+					</div>
+				) : null }
 
 				<div className="card__savebar">
 					<button

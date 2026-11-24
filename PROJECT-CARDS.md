@@ -1,11 +1,11 @@
-<!-- deep-ptc:project-cards v1 next=R1,F25,Q7,T9 -->
+<!-- deep-ptc:project-cards v1 next=R1,F26,Q7,T10 -->
 # Project cards
 
 > Maintained by Deep PTC in DeepSeek Harness: edit in a Deep PTC conversation, view 特点卡片 / Project cards.
 > User-approved settings guide this project. Features and requirements are records that can be checked and corrected.
 
 ## Implemented features / 已实现功能
-<!-- card id=features kind=features rev=11 updated=2026-11-24T09:42:21.848Z -->
+<!-- card id=features kind=features rev=12 updated=2026-11-24T10:03:45.184Z -->
 
 - **F1** 切桶封存与解锁（R18）：切桶时同一次 update_option 写入 s3_options['reconcile_pending'] = {profile_id, at, bucket, from}，同步中心立刻封存；只有跑完 mode=full 或 resume 的完整核对，才由 Scan_Service::finalize() 调 Options::clear_reconcile_pending() 清零。验证：同步中心 #sakura-sync-state 的 data-reconcile-gated=1，refresh / resume / retry 三个端点返回 409 sio_reconcile_required。
 - **F2** 切桶提醒走插件弹窗（#sakura-s3-switch-modal，kicker「OBJECT STORAGE / SWITCHED」）：列出缩略图改写已关、同步中心数据仍是上一个桶的、上传行为两开关仍按原绑定三件事，按钮直达同步中心。刷新后才出现的顶部 WP admin notice 已删除。
@@ -31,6 +31,7 @@
 - **F22** 对象存储模块「S3 存储」页已迁成 React 岛（1.28.8-beta-41）：五张卡（已保存的配置 / 添加存储配置 / 上传行为 / 上传吞吐 / 监控与告警）走 Storage_Payload + Storage REST（GET /storage、POST /storage/cards/{connection|behaviour}、/storage/profile、/storage/profile/delete、/storage/probe、/storage/probe/profile、/storage/doge-buckets），服务端决策抽成 Profile_Actions / Probe_Runner / Save_Refused，旧 admin-post 与 admin-ajax 处理器改为调用同一批服务；实测 1440 排成四行、390 单列不横溢、切桶徽章与 tone 同步、并发数保存与新建/删除配置全 200，console 0 error，debug.log 无新增。
 - **F23** 「添加存储配置」卡的「服务商 + 测试连接」「存储空间名称 + 获取 SDK 参数」两行收进一个字段列（1.28.8-beta-42）：根因是 React 把 field__grow 加在外层 span 上（select 被撑到 1075px 铺满整行），且多吉云按钮拿整句提示当忙碌文案（被撑到 499×38）、还沿用 .btn--small（30px，比 38px 输入框矮一截）；改成把类加回控件本身、忙碌文案换短句「获取中…」、同行按钮统一抬到 --g-ctl-h，并在 min-width:1101px 下给 .s3-provider-row.is-empty .field__row 与 .field__row--column 设 max-width: calc((100% - 26px)/2)。验证：demo.77il.cn beta-42 上 1440 / 1912 两行按钮右缘与同列 region 字段右缘对齐（787 / 1023）、间距 10px、控件全 38px；bitiful（带已保存配置 chips）与 dogecloud（is-empty）两种状态一致；390 换
 - **F24** 「已保存的配置」卡的「新增账户配置」按钮回到卡头右上角，与标题同排（1.28.8-beta-43）：根因是 React 迁移时把 .card__actions 写进了 card__body——旧 PHP 页用 UI::card( 'actions' => … ) 放在卡头（Card::head() 输出在 <header> 里），而共享 React Card 组件当时没有 actions 槽。给 shared/ui.jsx 的 Card 加 actions 槽（渲染在 header，与 PHP 同一位置），profiles.jsx 改为 actions={<button/>}。验证：demo.77il.cn beta-43 上 1440 按钮右缘 1385（= 卡右内边距 24px）、顶边 441.1 与标题 440.8 齐平（kicker 下沉 20px 规则生效）、body 里已无 .card__actions；390 时 .card__actions 落到标题下方整行右对齐（margin-top 12px、右缘 356 落在卡片 374 内），docW = clientW = 3
+- **F25** 「上传行为」卡的锁图标与并发说明（1.28.8-beta-44）：冻结行的 `.check__lock` 原先在 React 侧只有一个空 span，迁岛时丢了旧 PHP 输出的 `UI::lock_icon()` svg；共享件新增 `LockIcon`（同一段 svg path、同 viewBox），`title` 走 payload 的 `strings.lockTitle`，于是冻结行读得出「这里不能改」。并发字段加 `field--full` 让说明吃满卡片内容宽（原先卡半宽 550px 里说明只 322px），加 `field--w-fit` 让下拉按内容收到 168px（原 322px 拉满一行），两个类都加在 `.field` 包裹层；`fallbackNote` 从 `.field-list` 移到字段网格外层。验证：demo.77il.cn beta-44 上 1440 锁 22×22 含 13×13 svg、title 正确、并发字段 550px、说明 550×41、下拉 168×38；390 说明 322 宽右缘 356 落在卡片 374 内、下拉 168×38
 
 
 ## User requirements / 用户要求
@@ -45,7 +46,7 @@
 
 
 ## Completed tasks / 已完成任务
-<!-- card id=tasks kind=tasks rev=8 updated=2026-11-24T09:10:01.858Z -->
+<!-- card id=tasks kind=tasks rev=9 updated=2026-11-24T09:43:36.009Z -->
 
 - **T1** [done] 为 sakura-tools 插件补一篇 PHP 代码规范文档（docs/开发规则/），以 PHP 8.2–8.4 兼容 (11/24)
 - **T2** [done] 文档中所有描述实验站的地方（AGENTS.md、05 篇、09 篇、11 篇、03 篇、docs/验收脚本/README — 实验站 demo.77il.cn 的新部署（宝塔本机 /www/wwwroot/demo.77il.cn，PHP 8.4.28 + MariaDB 12.3.2）已写进 AGENTS.md 与 05/09/11/03 篇、验收脚本，并写入记忆；文档不含密码，凭据只在 /root/.dsh/secrets/demo-77il-login.txt；本地提交 f343907，未 push。 (11/24)
@@ -55,3 +56,4 @@
 - **T6** [done] 重构对象存储模块的第一个页面「S3 存储」，与已经重构好的「系统设置」「图片优化」两个模块保持同一套视觉与交互（页头状态 (11/24)
 - **T7** [done] 五张卡（已保存的配置 / 添加存储配置 / 上传行为 / 上传吞吐 / 监控与告警）与旧页功能等价：切换与停用配置、删除 (11/24)
 - **T8** [done] 调整「添加存储配置」卡片：切换到多吉云时，「服务商 + 测试连接」「存储空间名称 + 获取 SDK 参数」这两行的输入框 — 服务商/存储空间两行收进一个字段列，1440、1912、390 实测对齐，提交 c4fe17f（未 push） (11/24)
+- **T9** [done] 把「已保存的配置」卡的「新增账户配置」按钮移到卡头右上角，与标题「已保存的配置」同排（水平对齐）。 — 「新增账户配置」回到卡头右上角、与标题同排（卡头 actions 槽），1440/390 实测通过，提交 56ba8d1（未 push） (11/24)

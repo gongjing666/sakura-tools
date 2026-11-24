@@ -157,6 +157,25 @@ final class Sync_Center_Module implements Module {
 
 		\Sakura\ImageOptimizer\Admin\Page_Assets::set_data( 'storage-sync', $this->page_config() );
 		\Sakura\ImageOptimizer\Admin\Assets::enqueue_page();
+
+		/*
+		 * The island bundle is enqueued here, not from Page_Assets: that class
+		 * only knows the stylesheet map and the legacy controller script, and
+		 * every island so far registers its own bundle beside the screen that
+		 * uses it. Same handle shape as the storage page, so a future shared
+		 * bundle can reuse it.
+		 */
+		$bundle = 'assets/ui/dist/sync.js';
+
+		if ( is_readable( SAKURA_TOOLS_PATH . $bundle ) ) {
+			wp_enqueue_script(
+				'sakura-admin-sync',
+				SAKURA_TOOLS_URL . $bundle,
+				array( 'sakura-admin-core' ),
+				\Sakura\ImageOptimizer\Admin\Page_Assets::asset_version( $bundle ),
+				true
+			);
+		}
 	}
 
 	/**
@@ -382,6 +401,22 @@ final class Sync_Center_Module implements Module {
 		// WordPress' own ten-minute duplicate guard.
 		if ( $this->is_calibration_stale( $data ) ) {
 			Sync_Calibrator::schedule_soon();
+		}
+
+		/*
+		 * React island when the bundle is on disk, classic PHP page otherwise.
+		 *
+		 * The fallback is not dead code: a fresh checkout that has not run
+		 * `npm run build`, or a deploy that dropped assets/ui/dist, still gets a
+		 * working screen instead of an empty shell. Page_Assets gates the legacy
+		 * controller script on the same condition, so exactly one renderer binds.
+		 */
+		$bundle = 'assets/ui/dist/sync.js';
+		if ( is_readable( SAKURA_TOOLS_PATH . $bundle ) ) {
+			$payload = ( new \Sakura\ImageOptimizer\Admin\Sync_Payload( $data, $this->page_config(), $this->options ) )->build();
+
+			require __DIR__ . '/../../includes/views/sync-island.php';
+			return;
 		}
 
 		require __DIR__ . '/../../includes/views/s3-sync-center.php';

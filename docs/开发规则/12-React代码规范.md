@@ -69,6 +69,14 @@ assets/ui/src/
     transport.js       ← 与 image 同签名，路由前缀 /storage
     dialog.jsx         ← 确认框、切桶提醒、多吉云空间选择与测试结果共用一套 .sakura-modal 标记
     profiles.jsx connection.jsx behaviour.jsx metrics.jsx monitoring.jsx
+  sync/
+    index.jsx          ← 挂在 .sakura-admin[data-sakura-page="storage-sync"] 的 <main>
+    app.jsx            ← 外壳：扫描 / 续跑 / 刷新 / 取消 / 重试 / 同步记录开关 / 延迟探针，调度七张卡
+    overview.jsx       ← 樱前线与五张 KPI 票根，数据全部来自 payload，不在前端算
+    tasks.jsx health.jsx storage.jsx reconcile.jsx logs.jsx ignored.jsx notes.jsx
+    dialogs.jsx        ← 复刻 Config_Notice 的 setup / paused / reconcile 三个引导弹窗
+    transport.js       ← ajax() 直接转发 admin.api，reloadWithToast() 走 sessionStorage 跨重载
+    format.js          ← 数字 / 字节 / 日期格式化
 ```
 
 规矩：

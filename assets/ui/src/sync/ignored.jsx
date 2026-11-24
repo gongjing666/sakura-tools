@@ -19,18 +19,25 @@ export default function IgnoredCard( { card, view, strings, frozen } ) {
 				<input type="hidden" name="action" value="sakura_s3_ignored_save" />
 				<input type="hidden" name="_wpnonce" value={ ( strings && strings.cards && strings.cards.ignoredNonce ) || '' } />
 				<div className="field-list">
-					<label className="field__label" htmlFor="sufm-ignored-paths">
-						{ copy.ignoredLabel || '忽略路径' }
-					</label>
-					<p className="field__hint">{ copy.ignoredHint || '' }</p>
-					<textarea
-						id="sufm-ignored-paths"
-						name="ignored_paths"
-						rows={ 6 }
-						spellCheck={ false }
-						defaultValue={ view.ignored_rules || '' }
-						placeholder={ copy.ignoredPlaceholder || '' }
-					/>
+					<div className="field field--full field--textarea">
+						<div className="field__main">
+							<label className="field__label" htmlFor="sufm-ignored-paths">
+								{ copy.ignoredLabel || '忽略路径' }
+							</label>
+							<p className="field__hint" id="sufm-ignored-paths-hint">{ copy.ignoredHint || '' }</p>
+						</div>
+						<div className="field__control">
+							<textarea
+								id="sufm-ignored-paths"
+								name="ignored_paths"
+								rows={ 6 }
+								spellCheck={ false }
+								defaultValue={ view.ignored_rules || '' }
+								placeholder={ copy.ignoredPlaceholder || '' }
+								aria-describedby="sufm-ignored-paths-hint"
+							/>
+						</div>
+					</div>
 				</div>
 				<p className="small-text">{ ( copy.ignoredNote || '当前 %d 条生效' ).replace( '%d', String( ( view.ignored_rules || '' ).split( '\n' ).filter( Boolean ).length ) ) }</p>
 				<div className="card__savebar">

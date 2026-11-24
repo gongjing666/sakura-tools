@@ -789,6 +789,8 @@ final class Sync_Payload {
 	private function strings(): array {
 		return array(
 			'cards' => array(
+				// Nonce for the plain admin-post form on the ignore-rules card.
+				'ignoredNonce'     => wp_create_nonce( 'sakura_s3_ignored_save' ),
 				/* translators: %d: number of active ignore rules. */
 				'ignoredNote'      => __( '当前 %d 条生效', 'sakura-imgopt' ),
 				'ignoredSaved'     => __( '忽略规则已保存', 'sakura-imgopt' ),

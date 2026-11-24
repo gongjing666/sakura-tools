@@ -84,17 +84,35 @@ final class Thumb_Payload {
 	 * from the option, so a switch flipped on the page must move it in place
 	 * instead of waiting for the next reload (12-React代码规范 §10「保存后」).
 	 *
-	 * @return array<string,string>
+	 * @return array<string,mixed> 面板字段都是字符串，badge 是一项嵌套数组（text / tone）。
 	 */
 	public function status(): array {
 		$option = Settings::get();
 		$host   = Settings::media_host();
+		$mode   = Settings::effective_mode();
+		$badge  = array(
+			'text' => __( '已停用', 'sakura-imgopt' ),
+			'tone' => 'neutral',
+		);
+
+		if ( ! empty( $option['enabled'] ) ) {
+			/*
+			 * 与 alerts() 同一判据：开着地址改写却解析不出可用方式时，实际没有生效。
+			 * 这时给绿色等于说它工作正常，违反 03-后台UI 的「不要用绿色表示等待配置」。
+			 */
+			$dead  = 'url' === (string) ( $option['engine'] ?? '' ) && 'none' === $mode;
+			$badge = $dead
+				? array( 'text' => __( '未生效', 'sakura-imgopt' ), 'tone' => 'warn' )
+				: array( 'text' => __( '已启用', 'sakura-imgopt' ), 'tone' => 'ok' );
+		}
 
 		return array(
 			'label' => __( '缩略图引擎', 'sakura-imgopt' ),
 			'value' => '' === $host ? __( '未找到图片域名', 'sakura-imgopt' ) : $host,
-			'sub'   => $this->mode_label( Settings::effective_mode() ),
-			'tone'  => ! empty( $option['enabled'] ) ? 'ok' : 'neutral',
+			'sub'   => $this->mode_label( $mode ),
+			// 徽章用文字说出状态；tone 只保留给卡片的既有配色与告警语义。
+			'tone'  => (string) $badge['tone'],
+			'badge' => $badge,
 		);
 	}
 

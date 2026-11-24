@@ -1,11 +1,11 @@
-<!-- deep-ptc:project-cards v1 next=R1,F21,Q7,T5 -->
+<!-- deep-ptc:project-cards v1 next=R1,F22,Q7,T5 -->
 # Project cards
 
 > Maintained by Deep PTC in DeepSeek Harness: edit in a Deep PTC conversation, view 特点卡片 / Project cards.
 > User-approved settings guide this project. Features and requirements are records that can be checked and corrected.
 
 ## Implemented features / 已实现功能
-<!-- card id=features kind=features rev=7 updated=2026-11-24T06:52:13.828Z -->
+<!-- card id=features kind=features rev=8 updated=2026-11-24T07:23:12.923Z -->
 
 - **F1** 切桶封存与解锁（R18）：切桶时同一次 update_option 写入 s3_options['reconcile_pending'] = {profile_id, at, bucket, from}，同步中心立刻封存；只有跑完 mode=full 或 resume 的完整核对，才由 Scan_Service::finalize() 调 Options::clear_reconcile_pending() 清零。验证：同步中心 #sakura-sync-state 的 data-reconcile-gated=1，refresh / resume / retry 三个端点返回 409 sio_reconcile_required。
 - **F2** 切桶提醒走插件弹窗（#sakura-s3-switch-modal，kicker「OBJECT STORAGE / SWITCHED」）：列出缩略图改写已关、同步中心数据仍是上一个桶的、上传行为两开关仍按原绑定三件事，按钮直达同步中心。刷新后才出现的顶部 WP admin notice 已删除。
@@ -27,6 +27,7 @@
 - **F18** 「禁止 WordPress 裁剪」尺寸表窄宽可读：React 版 SizeTable 外层补上 .table-scroll（783–1100px 内部横滚），≤782px 改成逐条记录——thead 视觉隐藏、每行 grid 三行（名称+生成状态 / 宽×高+裁剪方式 / 来源），来源列用 data-label + ::before 补出「来源：」前缀。列只加类名与一个 data-label，表单 name、option 键、data-size、aria-label 未动。验证：实验站 1.28.8-beta-37 上 320/390/768/800/850/900/1024/1440 八档 scrollWidth === clientWidth，「来源」列右边界始终在卡片内（320 下 282 ≤ 304），medium_large 等名称在 390/768 下均单行，390 下复选框可切；console 0 error、无 Deprecated/Warning；composer test 897/3816/6、phpstan [OK]、lint:strict 与 l
 - **F19** 开关与勾选统一走共享组件类：React 的 Checkbox（assets/ui/src/image/thumb.jsx、backup.jsx）原先用自造类 `field__check`，全仓 CSS 里没有这条规则，只在恰好作为 `.field__control` 直接子元素时才被 `>` 选择器兜住；放进 `.check-grid` 两列网格后完全失去样式——「生效位置」4 个、「高级」8 个开关文字贴住开关，长文案还折到开关下方。改用 `label.check` + `<span class="check__text">` 后，13 个开关 computed gap 与实测间距全部 10px（`--g-check-gap`），两列左缘 835/1121、行顶 1160/1211/1262 对齐；1440 与 390 均 `documentElement.scrollWidth === clientWidth`，console 0 error、无 Deprecated/Warning，开关可点击。规则写进 12 篇 §7 与 03 篇开关条目。版本 1.28.8-beta-38。
 - **F20** 缩略图优化页保存「总开关与处理方式」后，右上角状态卡与告警跟着落库值刷新：Thumb_Payload 把 status()/alerts() 提为公开方法，Image_Controller 的 save_thumb_card 响应带回重算结果，React 侧 onServerState 合并进 head.status 与 payload.alerts（1.28.8-beta-39）。
+- **F21** 缩略图优化页右上角健康卡改用文字徽章表达状态（1.28.8-beta-40）：status 数组新增 badge {text,tone}，Page::status() 与 React StatusCard 都输出 .status-card__top（label 左、徽章右，底 --g-*-bg / 字 --g-* / 11px 胶囊），有徽章时副行回中性色；三态为已停用 neutral / 已启用 ok / 未生效 warn（判据与 alerts() 一致）。同时补上 Page::status_data() 白名单里的 badge 键——漏了它 boot.head.status 丢字段，徽章根本不出现。验证：demo.77il.cn beta-40 上 1440 与 390 徽章「已启用」(47×20.5，右边缘落在卡片内) 点开关保存后立刻变「已停用」--neutral 再变回，页面不横溢；系统设置/图片优化/对象存储/备份/统计/文件空间六处状态卡无徽章、副行仍按 tone 上色、高度仍 84.5–84.6px；903 tests / 3831 assertions / 6 ski
 
 
 ## User requirements / 用户要求

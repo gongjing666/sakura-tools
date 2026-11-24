@@ -252,6 +252,32 @@ final class Page {
 			'title'     => isset( $status['title'] ) ? (string) $status['title'] : '',
 			'ping'      => ! empty( $status['ping'] ),
 			'ping_name' => isset( $status['ping_name'] ) ? (string) $status['ping_name'] : '',
+			'badge'     => self::badge_data( $status['badge'] ?? array() ),
+		);
+	}
+
+	/**
+	 * Normalise the optional status badge. Without a text there is no badge.
+	 *
+	 * @param mixed $badge Badge arguments.
+	 * @return array<string,string>
+	 */
+	private static function badge_data( $badge ): array {
+		if ( ! is_array( $badge ) ) {
+			return array();
+		}
+
+		$text = isset( $badge['text'] ) ? trim( (string) $badge['text'] ) : '';
+
+		if ( '' === $text ) {
+			return array();
+		}
+
+		$tone = isset( $badge['tone'] ) ? sanitize_key( (string) $badge['tone'] ) : 'neutral';
+
+		return array(
+			'text' => $text,
+			'tone' => in_array( $tone, array( 'ok', 'warn', 'bad', 'neutral' ), true ) ? $tone : 'neutral',
 		);
 	}
 
@@ -381,8 +407,23 @@ final class Page {
 		$tone  = isset( $status['tone'] ) ? sanitize_key( (string) $status['tone'] ) : 'neutral';
 		$tone  = in_array( $tone, $tones, true ) ? $tone : 'neutral';
 
+		$badge = isset( $status['badge'] ) && is_array( $status['badge'] ) ? $status['badge'] : array();
+
 		echo '<div class="status-card status-card--' . esc_attr( $tone ) . '">';
-		if ( ! empty( $status['label'] ) ) {
+		if ( isset( $badge['text'] ) && '' !== (string) $badge['text'] ) {
+			/*
+			 * A badge says the state in words. The tone alone only tints the 11.5px
+			 * sub line, which reads as decoration rather than as "on" or "off".
+			 */
+			$badge_tone = isset( $badge['tone'] ) ? sanitize_key( (string) $badge['tone'] ) : 'neutral';
+			$badge_tone = in_array( $badge_tone, $tones, true ) ? $badge_tone : 'neutral';
+			echo '<span class="status-card__top">';
+			if ( ! empty( $status['label'] ) ) {
+				echo '<span class="status-card__label">' . esc_html( (string) $status['label'] ) . '</span>';
+			}
+			echo '<span class="status-card__badge status-card__badge--' . esc_attr( $badge_tone ) . '">' . esc_html( (string) $badge['text'] ) . '</span>';
+			echo '</span>';
+		} elseif ( ! empty( $status['label'] ) ) {
 			echo '<span class="status-card__label">' . esc_html( (string) $status['label'] ) . '</span>';
 		}
 		$value_id = isset( $status['id'] ) ? sanitize_key( (string) $status['id'] ) : '';

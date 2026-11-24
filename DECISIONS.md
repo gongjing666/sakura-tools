@@ -1145,3 +1145,20 @@ body.upload-php.sufm-tree-active.folded { --sufm-tree-left: 56px; }
 **代价**：`image.css` 多一段本页专用的窄屏网格规则；同一张表在三档宽度下有三种呈现（记录 / 横滚 / 表格），以后加列要三处都看。
 
 **验收**：实验站 1.28.8-beta-37 上 320 / 390 / 768 / 800 / 850 / 900 / 1024 / 1440 八档实测 `documentElement.scrollWidth === clientWidth`，「来源」列右边界始终落在卡片内（320 下 282 ≤ 304）；`medium_large`、`2560px 缩放版` 在 390 与 768 下都是单行；390 下点复选框 `true → false → true` 可正常切换；console 0 error、页面无 Deprecated / Warning；`composer test` 897 / 3816 / 6 skipped、`phpstan` 无错误、`lint:strict` 与 `lint:compat` 0 error / 0 warning、`git diff --check` 干净。
+
+## 状态卡用徽章说出状态，而不只给副行上色（2026-11-24，1.28.8-beta-40）
+
+**背景**：开发者指出缩略图优化页右上角健康卡（缩略图引擎 / bf.77il.cn / 命名样式）的状态只靠「命名样式」这一行的字色区分——绿色是启用、灰色是停用，色弱用户与快速扫视都读不出来。
+
+**决策**：
+
+1. `status` 数组加可选的 `badge`（`text` + `tone`）：`Page::status()` 有徽章时输出 `.status-card__top` 一行（label 在左、徽章在右），没有徽章时保持原来的 label 单行。徽章色走 `--g-*-bg` / `--g-*-line` / `--g-*` 同族令牌，11px/700 胶囊。
+2. React 的 `StatusCard`（`assets/ui/src/shared/ui.jsx`）用同名同结构；PHP 与 React 是同一套标记的两份实现，改一处必须改另一处。
+3. 有徽章时 `.status-card__sub` 回到中性色——颜色只表达语气，词本身表达状态。其余 16 处状态卡没有徽章，外观一字不变。
+4. `tone` 与 `badge.tone` 分开：`tone` 继续给卡片既有配色与告警语义用，`badge.tone` 决定徽章颜色。缩略图页三态：已停用（neutral）/ 已启用（ok）/ 未生效（warn），「未生效」的判据与 `alerts()` 完全一致（`enabled && engine === 'url' && effective_mode() === 'none'`）——开着地址改写却解析不出方式时给绿等于说它工作正常，违反 03 篇「不要用绿色表示等待配置」。
+5. 页头状态卡是 `status` 的一次性副本，必须过 `Page::status_data()` 的白名单。第一版徽章就是因为漏了这一步：`boot.page.status` 里有 `badge`，`boot.head.status` 里没有，React 读后者，页面上什么都没有。规则已写进 03 篇 §5 与 12 篇 §3。
+6. `Thumb_Payload::status()` 的返回类型从 `array<string,string>` 放宽到 `array<string,mixed>`（`badge` 是一项嵌套数组），否则 PHPStan level 5 直接报 `return.type`。
+
+**代价**：状态卡多一层（top / 徽章）标记，PHP 与 React 两处都要维护；`.status-card__sub` 的 tone 配色在带徽章的卡上让位给中性色。
+
+**验收**：实验站 1.28.8-beta-40 上 1440 与 390 实测——徽章「已启用」`status-card__badge--ok`（47×20.5、右边缘 1394 落在卡片 1410 内、底 `rgb(233,247,239)`、字 `rgb(47,107,74)`），点开关保存后立刻变「已停用」`--neutral`（无刷新），再点回去恢复「已启用」；`documentElement.scrollWidth === clientWidth`（1440 / 390 都对），徽章不越出卡片；系统设置、图片优化、对象存储、备份还原、统计、文件空间六处状态卡仍无徽章、副行仍按 tone 上色、高度仍是 84.5–84.6px；页面无 Deprecated / Warning；`composer test` 903 / 3831 / 6 skipped、`phpstan` 无错误、`lint:strict` 与 `lint:compat` 0 error / 0 warning、`git diff --check` 干净。

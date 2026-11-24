@@ -49,6 +49,34 @@ final class ThumbPayloadStatusTest extends TestCase {
 		$this->assertSame( '命名样式', ( new Thumb_Payload() )->status()['sub'] );
 	}
 
+	/** The badge states the switch in words, so a glance is enough. */
+	public function test_badge_names_the_three_states(): void {
+		$this->seed( 0 );
+		$off = ( new Thumb_Payload() )->status();
+
+		$this->seed( 1 );
+		$on = ( new Thumb_Payload() )->status();
+
+		$this->assertSame( '已停用', $off['badge']['text'] );
+		$this->assertSame( 'neutral', $off['badge']['tone'] );
+		$this->assertSame( '已启用', $on['badge']['text'] );
+		$this->assertSame( 'ok', $on['badge']['tone'] );
+		$this->assertSame( $on['badge']['tone'], $on['tone'], 'The card tone carries the badge tone.' );
+	}
+
+	/** On but unable to resolve a mode: the badge must not say it works. */
+	public function test_badge_reports_enabled_but_inert(): void {
+		$this->seed( 1, array( 'engine' => 'url', 'provider_mode' => 'style', 'style_map' => array() ) );
+		update_option( 's3_options', array() );
+		Settings::reset();
+
+		$status = ( new Thumb_Payload() )->status();
+
+		$this->assertSame( '未生效', $status['badge']['text'] );
+		$this->assertSame( 'warn', $status['badge']['tone'] );
+		$this->assertSame( 'warn', $status['tone'] );
+	}
+
 	/** Without a media host the mode degrades, and the card says so. */
 	public function test_status_reports_the_degraded_mode(): void {
 		$this->seed( 1 );

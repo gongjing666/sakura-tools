@@ -549,6 +549,56 @@
 .sakura-admin .status-card--warn .status-card__sub { color: var(--g-warn); }
 .sakura-admin .status-card--bad .status-card__sub { color: var(--g-bad); }
 
+/* A word for the state instead of a tint on the sub line: the tone alone
+   colours 11.5px text, which reads as decoration rather than as on or off. */
+.sakura-admin .status-card__top {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 10px;
+}
+
+.sakura-admin .status-card__badge {
+	flex: none;
+	padding: 2px 7px;
+	border-radius: 999px;
+	font-size: 11px;
+	font-weight: 700;
+	letter-spacing: 0;
+	line-height: 1.5;
+	text-transform: none;
+	white-space: nowrap;
+}
+
+.sakura-admin .status-card__badge--ok {
+	background: var(--g-ok-bg);
+	box-shadow: inset 0 0 0 1px var(--g-ok-line);
+	color: var(--g-ok);
+}
+
+.sakura-admin .status-card__badge--warn {
+	background: var(--g-warn-bg);
+	box-shadow: inset 0 0 0 1px var(--g-warn-line);
+	color: var(--g-warn);
+}
+
+.sakura-admin .status-card__badge--bad {
+	background: var(--g-bad-bg);
+	box-shadow: inset 0 0 0 1px var(--g-bad-line);
+	color: var(--g-bad);
+}
+
+.sakura-admin .status-card__badge--neutral {
+	background: var(--g-info-bg);
+	box-shadow: inset 0 0 0 1px var(--g-info-line);
+	color: var(--g-info);
+}
+
+/* With a badge stating the state, the sub line is information only. */
+.sakura-admin .status-card__top ~ .status-card__sub {
+	color: var(--g-faint);
+}
+
 /* Live latency pill in the bucket card: dot + word + number. */
 .sakura-admin .status-card__ping {
 	display: inline-flex;

@@ -183,9 +183,20 @@ function Stamp( { stamp } ) {
 
 /** Small status card, same parts and the same data-* hooks as Page::status(). */
 function StatusCard( { status } ) {
+	const badge = status.badge && status.badge.text ? status.badge : null;
+
 	return (
 		<div className={ `status-card status-card--${ status.tone || 'neutral' }` }>
-			{ status.label ? <span className="status-card__label">{ status.label }</span> : null }
+			{ badge ? (
+				<span className="status-card__top">
+					{ status.label ? <span className="status-card__label">{ status.label }</span> : null }
+					<span className={ `status-card__badge status-card__badge--${ badge.tone || 'neutral' }` }>
+						{ badge.text }
+					</span>
+				</span>
+			) : status.label ? (
+				<span className="status-card__label">{ status.label }</span>
+			) : null }
 			<span className="status-card__line">
 				<strong className="status-card__value" id={ status.id || undefined } title={ status.title || undefined }>
 					{ status.value }

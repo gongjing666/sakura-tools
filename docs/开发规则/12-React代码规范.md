@@ -88,6 +88,7 @@ const dirty = !same( draft, saved );
   1. 能由草稿算 → 在渲染时算（`section.fixed_prefix.replace( '%s', fixed )`）；
   2. 算不了 → **保存接口把新的 `section` 一起回传**，前端按卡号存进 `sections[cardId]`。
 - **页面级派生数据也要跟着保存走**：页头状态卡（`head.status`）与卡片上方的告警（`payload.alerts`）都是服务端按 option 算的，`boot` 里那份只是开页时的快照。保存响应要带回重算结果，由 `App` 合并进 `head.status` / `payload.alerts`（缩略图页的 `onServerState`），否则翻开关后卡片还停在旧配色，要刷新才变（1.28.8-beta-39 修的就是这个）。
+- **页头状态卡的新字段要过两关**：`Page::status_data()` 的白名单（键不在白名单里，`boot.head.status` 里就没有）与 `assets/ui/src/shared/ui.jsx` 的 `StatusCard`（PHP 与 React 是同一套标记的双份实现，改一处必须改另一处）。页头状态卡的徽章就是这样：PHP 侧 `Page::status()` 输出 `.status-card__top` + `.status-card__badge--{tone}`，React 侧同名同结构，规则见 03 篇 §5。
 - 表格类要留 `baseline`：初始行单独存一份，用户改了再比较，保存成功后把 `baseline` 换成新行。不要拿「渲染用的行」直接比。
 - **开关值不一定是布尔。** WordPress option 里可能是 `"0"`/`"1"`。payload 侧转 `(int)`，前端用 `isOn( value )`，**禁止 `Boolean( value )`**（`Boolean( "0" ) === true`，会显示成已启用而实际关闭）。
 - 派生状态用渲染期算，不用 `useEffect` 同步：`const shownPolicy = probe ? derive( probe ) : savedPolicy`。`useEffect` 只用于外部系统。

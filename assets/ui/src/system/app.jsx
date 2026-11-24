@@ -1,10 +1,11 @@
 /**
  * System settings page.
  *
- * Owns the whole screen: top bar, tab strip, page head, readouts and the one
- * writable card. Saving goes through the REST route instead of options.php, so
- * the document is never rebuilt and the prompt cannot arrive after a scroll
- * reset. The server keeps the mount node and the fallback note only.
+ * Owns the page head, the readouts and the one writable card; the top bar and
+ * the tab strip are printed by PHP and are deliberately not re-drawn here —
+ * they are the same on every page of the module, and replacing them on mount
+ * is what readers saw as the bar flickering. Saving goes through the REST
+ * route instead of options.php, so the document is never rebuilt.
  */
 import { Fragment, useCallback, useEffect, useRef, useState } from 'react';
 
@@ -18,8 +19,6 @@ import {
 	PageHead,
 	Prompt,
 	RuntimeTable,
-	Tabs,
-	Topbar,
 } from './components.jsx';
 import { applyCanvas, draftFromFields, normalizeLayout, saveLayout } from './boot.js';
 
@@ -93,13 +92,9 @@ export default function App( { boot } ) {
 
 	return (
 		<Fragment>
-			<Topbar chrome={ boot.chrome } />
-			<Tabs chrome={ boot.chrome } />
+			<PageHead head={ boot.head } />
 
-			<main className="sakura-admin__main">
-				<PageHead head={ boot.head } />
-
-				<div className="page-body">
+			<div className="page-body">
 					<KpiBoard score={ boot.score } kpis={ boot.kpis } />
 
 					<div className="card-grid" data-sakura-layout="system-settings" data-sakura-group="main">
@@ -157,7 +152,6 @@ export default function App( { boot } ) {
 						</Card>
 					</div>
 				</div>
-			</main>
 
 			{ notice ? (
 				<Prompt

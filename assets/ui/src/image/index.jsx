@@ -1,9 +1,9 @@
 /**
  * Entry point for the image optimisation page.
  *
- * Mounts on the .sakura-admin node itself, like the system page: the island owns
- * the top bar, the tab strip, the page head and the cards, and base.css expects
- * each of them to be a direct child of that node.
+ * Mounts on the <main> the server printed. The top bar and the tab strip stay
+ * outside it and are never re-drawn by React: they are the same on every tab,
+ * and swapping them on mount is what made the bar look like it flickered.
  */
 import { createRoot } from 'react-dom/client';
 
@@ -30,7 +30,9 @@ function readBootstrap() {
 	}
 }
 
-const mount = document.querySelector( '.sakura-admin[data-sakura-page^="image-"]' );
+const mount = document.querySelector(
+	'.sakura-admin[data-sakura-page^="image-"] > .sakura-admin__main'
+);
 
 if ( mount ) {
 	const boot = readBootstrap();

@@ -24,8 +24,9 @@ require_once dirname( __DIR__, 2 ) . '/src/Admin/UI/Page.php';
 final class PageHeadTest extends TestCase {
 
 	/**
-	 * An island's first paint still has to look like a page: ghost top bar for
-	 * height, the real head, and the boot marker inside the action row.
+	 * An island's first paint still has to look like a page: the real top bar
+	 * and tab strip (printed by PHP, never re-drawn by React), the real head and
+	 * the boot marker inside the action row.
 	 *
 	 * @return void
 	 */
@@ -50,12 +51,18 @@ final class PageHeadTest extends TestCase {
 		);
 		$html = (string) ob_get_clean();
 
-		self::assertStringContainsString( 'class="sakura-topbar sakura-topbar--boot"', $html );
-		self::assertStringContainsString( 'class="sakura-tabs sakura-tabs--boot"', $html );
+		self::assertStringContainsString( 'class="sakura-tabs"', $html );
 		self::assertStringContainsString( 'class="sakura-admin__main"', $html );
 		self::assertStringContainsString( 'id="sakura-page-title"', $html );
 		self::assertMatchesRegularExpression( '/page-head__actions.*?sakura-boot.*?<\/div>/s', $html );
 		self::assertStringContainsString( '正在读取页面信息…', $html );
+		self::assertStringContainsString( 'class="page-body page-body--boot"', $html );
+
+		// The chrome is the server's, not a placeholder React is about to replace:
+		// a ghost bar here would be re-painted on mount, which is the flicker this
+		// whole arrangement exists to avoid.
+		self::assertStringNotContainsString( 'sakura-topbar--boot', $html );
+		self::assertStringNotContainsString( 'sakura-tabs--boot', $html );
 		self::assertStringNotContainsString( 'system-boot', $html );
 	}
 

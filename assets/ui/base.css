@@ -110,36 +110,6 @@
 	justify-self: end;
 }
 
-/*
- * Ghost bar for the first paint of an island page: PHP prints it so the page
- * already starts where it will end up, and React swaps it for the real bar
- * without moving anything. It reads the same token the real bar settles at, so
- * a mismatch only appears if the bar itself grows.
- */
-.sakura-admin > .sakura-topbar--boot {
-	display: flex;
-	align-items: center;
-	gap: 10px;
-	block-size: var(--g-topbar-block);
-	min-block-size: var(--g-topbar-block);
-	overflow: hidden;
-}
-
-/*
- * The tab strip is the bar's sibling, not its child, and it carries its own
- * margins — so the first paint has to reserve it too, or the island mounting
- * drops the content by its height. Faint pills instead of an empty band: the
- * page reads as "still arriving" rather than as a hole.
- */
-.sakura-admin > .sakura-tabs--boot {
-	display: flex;
-	align-items: center;
-	gap: 8px;
-	block-size: var(--g-tabs-block);
-	min-block-size: var(--g-tabs-block);
-	overflow: hidden;
-}
-
 .sakura-admin .brand {
 	display: flex;
 	align-items: center;
@@ -840,27 +810,6 @@
 	opacity: .7;
 }
 
-/* 顶栏与页签条里的幽灵：只给形状，不给文字。 */
-.sakura-admin .boot-line--mark {
-	inline-size: 28px;
-	block-size: 28px;
-	border-radius: 50%;
-	flex: 0 0 auto;
-}
-
-.sakura-admin .boot-line--pill-sm {
-	inline-size: 76px;
-	block-size: 24px;
-	flex: 0 0 auto;
-}
-
-.sakura-admin .boot-line--tab {
-	inline-size: 72px;
-	block-size: 26px;
-	border-radius: var(--g-radius-sm, 8px);
-	flex: 0 0 auto;
-}
-
 /* 一道横掠的高光，只动 transform（合成层），reduced-motion 下直接关掉。 */
 .sakura-admin .card--boot::after {
 	content: "";
@@ -991,23 +940,14 @@
 	animation: sakura-main-in 180ms var(--g-ease) backwards;
 }
 
-/* An island page replaces <main> wholesale when React mounts. Two elements
- * both carrying this animation means the reader watches the page rise, then
- * rise again from under an already painted head — see data-sakura-island in
- * Page::render(). Island pages arrive with the boot frame instead, so main
- * itself must not move. */
-.sakura-admin[data-sakura-island] > .sakura-admin__main {
-	animation: none;
-}
-
 /*
  * The bundle runs after the head is already painted, so the cards would simply
  * pop in. A short fade says "this is the content arriving" without moving a
  * single pixel — anything with translate or scale here would bring back the
- * shift the rule above just removed. It only runs once: the body node survives
- * later React renders, and reduced-motion collapses it via the global rule.
+ * shift this file works so hard to avoid. It only runs for the body React
+ * mounts; the boot body is part of the first paint and must not blink twice.
  */
-.sakura-admin[data-sakura-island] .page-body {
+.sakura-admin[data-sakura-island] .page-body:not(.page-body--boot) {
 	animation: sakura-body-in 140ms var(--g-ease) both;
 }
 

@@ -66,15 +66,16 @@ final class Page {
 
 		if ( $island ) {
 			/*
-			 * First paint. React replaces every child of this node, so the server
-			 * prints the smallest frame that keeps the page from being blank: a
-			 * ghost top bar holding the real bar's height (so the swap moves
-			 * nothing) and the page head itself — head_data() is the single source
-			 * both renderers read, so this is the same head React is about to
-			 * draw, not a second copy of the copy. The boot marker rides at the end
-			 * of the action row.
+			 * The top bar and the tab strip are identical on every page of a module,
+			 * so they are printed once here and never touched again: React mounts on
+			 * <main> and replaces only the head and the cards. Letting the island draw
+			 * the chrome meant re-painting the whole bar on mount — which is exactly
+			 * the flicker readers saw while switching tabs, because the bar looked
+			 * settled before the swap and unsettled after it.
 			 */
-			self::boot_frame();
+			if ( '' !== $module ) {
+				Shell::header( $module, $tab, $chrome );
+			}
 
 			echo '<main class="sakura-admin__main">';
 			self::head( $args, self::boot_chip() );
@@ -481,30 +482,6 @@ final class Page {
 			. '<span class="sakura-boot__dot" aria-hidden="true"></span>'
 			. '<span class="sakura-boot__text">' . esc_html__( '正在读取页面信息…', 'sakura-imgopt' ) . '</span>'
 			. '</span>';
-	}
-
-	/**
-	 * Empty top bar and tab strip that reserve the real ones' height.
-	 *
-	 * Both are needed: the tab strip is a sibling of the bar, not a child, and the
-	 * pair carries its own margins (11px above, -9px below at wide widths). Without
-	 * them the island mounting would push the whole page down by the height of the
-	 * frame — a jump the operator reads as the page reloading.
-	 *
-	 * @return void
-	 */
-	private static function boot_frame(): void {
-		echo '<div class="sakura-topbar sakura-topbar--boot" aria-hidden="true">';
-		echo '<span class="boot-line boot-line--mark"></span>';
-		echo '<span class="boot-line boot-line--pill-sm"></span>';
-		echo '<span class="boot-line boot-line--pill-sm"></span>';
-		echo '<span class="boot-line boot-line--pill-sm"></span>';
-		echo '</div>';
-		echo '<nav class="sakura-tabs sakura-tabs--boot" aria-hidden="true">';
-		echo '<span class="boot-line boot-line--tab"></span>';
-		echo '<span class="boot-line boot-line--tab"></span>';
-		echo '<span class="boot-line boot-line--tab"></span>';
-		echo '</nav>';
 	}
 
 	/**

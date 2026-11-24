@@ -1075,3 +1075,24 @@ body.upload-php.sufm-tree-active.folded { --sufm-tree-left: 56px; }
 - `.page-body` 淡入：1440 下 opacity 序列 `0 → 0.46 → 0.75 → 0.88 → 0.94 → 0.97 → 1`（6 帧、140ms），`main` 的 top 全程不变。
 
 **测量上的教训**：上一轮我在同一个标签页里用 `evaluate` 注入过 `.sakura-admin[data-sakura-island] > .sakura-admin__main { animation: sakura-main-in … }` 做对照实验，随后读到「挂载后仍是 `sakura-main-in`」是那条内联样式造成的假象；同理控制台的 `window.__anims.push is not a function` 来自更早注入的探针。一次会话里注入的 CSS / JS 会持续污染同一标签页的读数，关键结论前要么新开标签页，要么先清掉注入物。
+
+## 顶栏与页签交回 PHP，页签切换只换内容（2026-11-24，1.28.8-beta-29）
+
+**背景**：1.28.8-beta-11 起，系统设置与图像优化改由「整页 React」渲染，连顶栏（品牌、模块胶囊）、页签条、页头一起交给岛屿。用户在 beta-28 验收后指出：切换页签时这三块区域会闪一下，而它们本该固定不动。
+
+**根因**：这三块在模块内每一页都完全一样。PHP 打印一次、React 挂载后整块替换，浏览器就要把同一份标记重绘一遍——像素位置没变，但在切换的那一瞬间看得出「重新画过」。上一轮的骨架屏把这段空窗填得更满，反而让这次重绘更显眼。
+
+**决策**：
+1. `Page::render()` 的 `island` 分支改为先 `Shell::header( $module, $tab, $chrome )` 输出**真实**顶栏与页签，再输出 `<main class="sakura-admin__main">`、页头与骨架。React 挂载点从 `.sakura-admin` 下移到 `.sakura-admin > .sakura-admin__main`，只画页头与卡片；顶栏与页签从此没有任何 React 节点（实测 `Object.keys(topbar).filter(k => k.startsWith('__react'))` 为空）。
+2. 随之撤回 beta-13 的「空壳顶栏 / 空壳页签条」：它们只为「岛屿自己画导航」那套架构服务。`data-sakura-island` 保留，但只用于骨架容器样式；`.sakura-admin[data-sakura-island] > .sakura-admin__main { animation: none }` 删除——`<main>` 不再被整体替换，`sakura-main-in` 与 PHP 直出页一样只播一次。
+3. 页签之间切换走客户端：岛屿在 `document` 上拦 `.sakura-tabs a` / `.sakura-mods a`（只接本模块的链接，组合键与中键放行），读取目标页签的载荷（`GET /wp-json/sakura-tools/v1/image/{tab}`），替换页头与 `.page-body`、`pushState`、把 `is-active` 与 `aria-current` 挪到被点的页签、`scrollTo(0, 0)`。首个历史条目用 `replaceState` 补种载荷，后退/前进是重渲染；任何失败回落到 `location.href = url` 的真实导航。
+4. 只用同一份载荷换内容，不复用旧页签的 React 状态：各页组件带 `key={payload.tab}`，切换即重挂载（表单草稿不该跨页签残留）。
+
+**验收**（实验站 1.28.8-beta-29）：
+- 1440：连点「统计 → 缩略图 → 后退」，`performance` 的 navigation 条目恒为 1；`.sakura-topbar`、`.sakura-tabs`、`.sakura-admin__main` 三次都是同一个节点；`main.top` 恒为 240；页头依次是「优化统计 / 缩略图优化 / 优化统计」，卡片 1 / 8 / 1。
+- 390：`scrollWidth = 390 = innerWidth`，从「优化规则」切到「备份还原」同样零导航、`scrollY` 归 0、卡片 4 → 3。
+- 保存链路不受影响：图像优化「压缩」卡把质量改成 91 保存，弹窗「设置已保存」、导航条目仍 1；随后改回 82 并关闭弹窗。
+- 系统设置页：五个模块胶囊与页签仍由 PHP 渲染，`main` 上是 React 根，5 张卡 + 4 个 KPI，无控制台错误。
+- `composer test` 897 tests / 3816 assertions / 6 skipped、`phpstan` 无错误、`phpcs` 退出码 0、`git diff --check` 干净。
+
+**代价**：页头仍有两个实现（`Page::head()` 与岛屿的 `PageHead`），`tests/Admin/PageHeadTest.php` 的 `test_island_first_paint_draws_the_head_and_the_boot_marker` 锁住首帧结构（真实顶栏与页签、页头、按钮行里的标记、`page-body--boot`，且不得出现 `--boot` 空壳）。跨模块跳转（图像优化 → 对象存储）仍是真实导航：那些页是不同 bundle，也确实是不同页面。

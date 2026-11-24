@@ -1,19 +1,21 @@
 /**
  * Entry point for the system settings page.
  *
- * Mounts on the .sakura-admin node itself: the island now owns the top bar, the
- * tab strip, the page head and the cards, and that node is what the `>`
- * selectors in base.css expect each of them to be a child of.
+ * Mounts on the <main> the server printed: the top bar and the tab strip stay
+ * outside it, untouched by React, so switching pages never repaints the chrome.
+ * The island owns the page head and the cards only.
  *
  * If the inline payload is missing (an older cached view, for example) the
- * server-rendered fallback line stays instead of the page turning blank.
+ * server-rendered skeleton stays instead of the page turning blank.
  */
 import { createRoot } from 'react-dom/client';
 
 import App from './app.jsx';
 import { readBootstrap } from './boot.js';
 
-const mount = document.querySelector( '.sakura-admin[data-sakura-page="system-settings"]' );
+const mount = document.querySelector(
+	'.sakura-admin[data-sakura-page="system-settings"] > .sakura-admin__main'
+);
 
 if ( mount ) {
 	const boot = readBootstrap();

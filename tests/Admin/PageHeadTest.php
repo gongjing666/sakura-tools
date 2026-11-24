@@ -60,6 +60,34 @@ final class PageHeadTest extends TestCase {
 	}
 
 	/**
+	 * A page without action buttons must not get a row just to hold the marker:
+	 * the row would vanish on mount and pull the page up by its height.
+	 *
+	 * @return void
+	 */
+	public function test_island_root_marks_itself_so_main_can_skip_its_entrance(): void {
+		ob_start();
+		Page::render(
+			array(
+				'id'     => 'image-rules',
+				'module' => 'image',
+				'tab'    => 'rules',
+				'title'  => '图像优化',
+				'island' => true,
+			),
+			static function (): void {
+			}
+		);
+		$html = (string) ob_get_clean();
+
+		self::assertStringContainsString( 'data-sakura-island="1"', $html );
+		// No action row on this page: the boot marker must not conjure one, or the
+		// row disappears on mount and the whole page jumps up by its height.
+		self::assertStringNotContainsString( 'page-head__actions', $html );
+		self::assertStringNotContainsString( 'sakura-boot', $html );
+	}
+
+	/**
 	 * The four text parts travel unchanged when a view sets them.
 	 *
 	 * @return void

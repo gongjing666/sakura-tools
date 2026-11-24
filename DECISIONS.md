@@ -1055,3 +1055,23 @@ body.upload-php.sufm-tree-active.folded { --sufm-tree-left: 56px; }
 **教训**：选项表里所有布尔项都是字符串，`Boolean()` 转出来永远是 `true`；岛屿里任何「读选项 → 绑控件」的地方都要经过 `isOn()`（或服务端 `(int)`），别指望 `tracker` 帮你分辨。另外「保存后没生效」的故事里，至少这次是读值错了，不是写值错了——功能测试要先核对「界面显示的状态」与「数据库里的值」，不能只看保存按钮的反应。
 
 **验收**：`composer test` 895 tests / 3807 assertions / 6 skipped、`phpstan` 无错误、`phpcs` 8/8、`git diff --check` 干净。实验站 1.28.8-beta-26：批量卡两个输入 93×38 与 109×38 同 `top`（713）并列、单位「张」「毫秒」、2.6 失焦变 3、保存回写 2 / 300 且其它卡不变；改名验证、缩略图 scopes 保存与还原、备份清理、统计分页均通过；测试后已把重命名（关闭、`{date}-{time}-{rand}`、固定文本空）、缩略图 scopes（仅 archive）恢复原状。
+
+## 岛屿页不再重播进场动画：6px 的升起只属于 PHP 直出页（2026-11-24，1.28.8-beta-27）
+
+**背景**：用户报「切页签时 React 页会闪烁，页面往下抖动再归位，PC 与移动端都有」，并问这是框架问题还是 CSS 问题。逐帧测量（`requestAnimationFrame` 里读 `<main>` 的 `getBoundingClientRect().top`）：岛屿页在 1440 下得到 13 个不同的值（`240.23 → 245.98 → 243.77 → … → 239.98`），PHP 直出页（对象存储）只有一次单调的 `245.98 → 239.98`；`animationstart` 监听显示岛屿页有**两个不同元素**在跑 `sakura-main-in`——PHP 首帧的 `<main class="sakura-admin__main">` 与 React 挂载后新建的 `<main>`。
+
+根因不是框架：`assets/ui/base.css` 的 `.sakura-admin__main { animation: sakura-main-in 180ms var(--g-ease) backwards }`（`@keyframes` 从 `opacity: 0; transform: translateY(6px)` 到 `opacity: 1; transform: none`）在岛屿页被播放两次——首帧一次、挂载替换元素又一次，读者看到内容升到一半又从头升。浏览器侧的两个排除项：wp-admin 下 `html` / `body` 的 `overflow-y` 都是 `visible`、`innerWidth === clientWidth`（1440 与 390 都成立），所以不是滚动条出现/消失造成的位移；`Emulation` 降到 4× CPU 后现象不变，也不是丢帧。
+
+**决策**：
+1. `Page::render()` 的 `island` 分支在根节点上打 `data-sakura-island="1"`，`base.css` 用 `.sakura-admin[data-sakura-island] > .sakura-admin__main { animation: none }` 关掉这一页的入场动画。PHP 直出页不受影响，仍保留一次 6px 升起（有意为之：那是服务端渲染唯一的「到来」提示）。
+2. 只关位移、不关「到来」的感觉：`.sakura-admin[data-sakura-island] .page-body { animation: sakura-body-in 140ms var(--g-ease) both }`，keyframes 只动 `opacity`。文档里写死**这里不许出现 `transform`**，否则等于把刚去掉的位移加回来。
+3. 首帧标记只在页头有按钮行时出现：`Page::head()` 改为 `self::actions( $head['actions'], empty( $head['actions'] ) ? '' : $slot )`。此前没有动作按钮的页（缩略图、备份）会为标记单开一行，挂载后整行消失，390 下 `body` 的 top 从 710.5 跳到 653.9（39px 上跳）。
+4. 失败提示补落点：`assets/ui/src/image/index.jsx` 在没有 `.sakura-boot` 的页上，把「页面数据加载失败，请刷新重试。」写进 `.page-body`（用 `role="alert"`）。
+
+**验收**：`composer test` 896 tests / 3810 assertions / 6 skipped、`phpstan` 无错误、`phpcs` 退出码 0、`git diff --check` 干净。实验站 1.28.8-beta-27：
+- 390×844 延迟加载对比：`thumb` 的 `head` / `body` / `main` 各只有一个值（295.4 / 653.9 / 316.5），修复前是 334.3 → 295.4、692.8 → 653.9；`backup`、`rules`、`stats` 同样单值。
+- 整页 90 帧采样：岛屿页 `distinctMainTops` 只有 `[null, 240.2]`、`animNames` 只有 `[null, 'none']`；PHP 直出页仍是 6 个运动帧、共 6px。4× CPU 降速下岛屿页 `motionFrames: 0`。
+- 真实点击页签（`t=rules` → `t=thumb`，1440 与 390）：`motionFrames: 0`、`scrollY` 恒 0、Layout Shift 全 0。
+- `.page-body` 淡入：1440 下 opacity 序列 `0 → 0.46 → 0.75 → 0.88 → 0.94 → 0.97 → 1`（6 帧、140ms），`main` 的 top 全程不变。
+
+**测量上的教训**：上一轮我在同一个标签页里用 `evaluate` 注入过 `.sakura-admin[data-sakura-island] > .sakura-admin__main { animation: sakura-main-in … }` 做对照实验，随后读到「挂载后仍是 `sakura-main-in`」是那条内联样式造成的假象；同理控制台的 `window.__anims.push is not a function` 来自更早注入的探针。一次会话里注入的 CSS / JS 会持续污染同一标签页的读数，关键结论前要么新开标签页，要么先清掉注入物。

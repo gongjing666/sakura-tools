@@ -831,6 +831,35 @@
 	animation: sakura-main-in 180ms var(--g-ease) backwards;
 }
 
+/* An island page replaces <main> wholesale when React mounts. Two elements
+ * both carrying this animation means the reader watches the page rise, then
+ * rise again from under an already painted head — see data-sakura-island in
+ * Page::render(). Island pages arrive with the boot frame instead, so main
+ * itself must not move. */
+.sakura-admin[data-sakura-island] > .sakura-admin__main {
+	animation: none;
+}
+
+/*
+ * The bundle runs after the head is already painted, so the cards would simply
+ * pop in. A short fade says "this is the content arriving" without moving a
+ * single pixel — anything with translate or scale here would bring back the
+ * shift the rule above just removed. It only runs once: the body node survives
+ * later React renders, and reduced-motion collapses it via the global rule.
+ */
+.sakura-admin[data-sakura-island] .page-body {
+	animation: sakura-body-in 140ms var(--g-ease) both;
+}
+
+@keyframes sakura-body-in {
+	from {
+		opacity: 0;
+	}
+	to {
+		opacity: 1;
+	}
+}
+
 @keyframes sakura-main-in {
 	from {
 		opacity: 0;

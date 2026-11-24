@@ -49,6 +49,15 @@ final class Page {
 		if ( '' !== $id ) {
 			echo ' data-sakura-page="' . esc_attr( $id ) . '"';
 		}
+		if ( $island ) {
+			/*
+			 * The island replaces main wholesale once it mounts, and a fresh
+			 * <main> restarts the entrance animation: the reader sees the page
+			 * rise twice, the second time under an already painted head. Say so
+			 * here and let base.css turn the animation off for island pages.
+			 */
+			echo ' data-sakura-island="1"';
+		}
 		if ( '' !== $style ) {
 			echo ' style="' . esc_attr( $style ) . '"';
 		}
@@ -294,7 +303,7 @@ final class Page {
 		if ( '' !== $head['lede'] ) {
 			echo '<p class="page-head__lede">' . esc_html( $head['lede'] ) . '</p>';
 		}
-		self::actions( $head['actions'], $slot );
+		self::actions( $head['actions'], empty( $head['actions'] ) ? '' : $slot );
 		/*
 		 * The stamp belongs to the copy column: as a third child of the header
 		 * grid it would claim the "auto" column and push the status card onto a

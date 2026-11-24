@@ -53,5 +53,20 @@ if ( mount ) {
 		if ( line ) {
 			line.textContent = '页面数据加载失败，请刷新重试。';
 		}
+
+		// Heads without an action row carry no marker (a chip alone would add a
+		// row and shift the page when the island mounts), so the failure has to
+		// land in the body instead of nowhere.
+		if ( ! chip ) {
+			const body = mount.querySelector( '.page-body' );
+
+			if ( body ) {
+				const note = document.createElement( 'p' );
+				note.className = 'system-note';
+				note.setAttribute( 'role', 'alert' );
+				note.textContent = '页面数据加载失败，请刷新重试。';
+				body.appendChild( note );
+			}
+		}
 	}
 }

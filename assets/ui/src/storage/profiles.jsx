@@ -16,13 +16,14 @@ import { Badge, Card } from '../shared/ui.jsx';
  */
 export default function ProfilesCard( { card, busy, onAdd, onToggle, onDelete, onProbe } ) {
 	return (
-		<Card card={ card }>
-			<div className="card__actions">
+		<Card
+			card={ card }
+			actions={
 				<button type="button" className="btn btn--ghost btn--small" onClick={ onAdd }>
 					{ card.addLabel }
 				</button>
-			</div>
-
+			}
+		>
 			{ card.items.length ? (
 				<div className="profile-grid">
 					{ card.items.map( ( item ) => {

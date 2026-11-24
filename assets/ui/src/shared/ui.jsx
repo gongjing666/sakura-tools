@@ -255,7 +255,7 @@ export function BusyLabel( { idle, active, busy } ) {
  * One card. Placement travels as CSS custom properties so Layout::card() stays
  * the single source of the grid, exactly like Card::render().
  */
-export function Card( { card, titleProps, children } ) {
+export function Card( { card, titleProps, actions, children } ) {
 	const style = {};
 
 	if ( card.placement ) {
@@ -286,6 +286,10 @@ export function Card( { card, titleProps, children } ) {
 						  ) )
 						: null }
 				</div>
+				{ /* Same slot as Card::head() in PHP: card__actions stays in the header,
+				   so a card-level button sits top-right and the --kicker rule lines it up
+				   with the title. */ }
+				{ actions ? <div className="card__actions">{ actions }</div> : null }
 			</header>
 			<div className="card__body">{ children }</div>
 		</section>

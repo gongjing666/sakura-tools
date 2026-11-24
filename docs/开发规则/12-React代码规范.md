@@ -75,6 +75,7 @@ assets/ui/src/
 
 - **一个页签一个文件**，文件名与 `Layout::PAGES` 的 tab 同名；`app.jsx` 只做外壳与调度，不写业务渲染。
 - **`shared/ui.jsx` 只放跨页面复用的件**。本页专用件（`RuntimeTable`、`SizeGrid`、`KpiBoard`…）留在页面目录。把一次性组件塞进 shared 会把公共 API 变成垃圾场。
+- **共享 `Card` 的卡头动作走 `actions` 槽**：`<Card card={card} actions={<button …>}>`，它渲染在 `<header>` 的 `.card__actions` 里，与 PHP `Card::head()` 同一个位置——有 `kicker` 时 CSS 自动下沉 20px 让按钮顶边与标题首行齐平，≤782px 落到标题下方整行右对齐（见 03 篇 `actions` 那条）。**不要把 `.card__actions` 写进 `card__body`**：那样按钮会跑到标题下方、正文顶部。对象存储「已保存的配置」卡 1.28.8-beta-43 修的就是这个——旧 PHP 页用 `UI::card( 'actions' => … )` 放在卡头，迁成 React 岛时掉进了 body。
 - **组件默认导出只给 `index.jsx` 的挂载调用**；页面组件用命名导出，便于测试与引用。
 - **props 来自 payload，不要自己命名一套。** `boot.cards.layout.fields` 就是渲染依据；加字段先改 PHP 的 payload，不在前端硬编码。
 - 命名：组件 `PascalCase`，函数/变量 `camelCase`；与 PHP 侧共享的名字（`data-sakura-card`、`is-active`、`card__savebar`）**逐字对齐**，它们是契约。

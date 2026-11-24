@@ -483,9 +483,9 @@ final class Delete_Queue_Panel {
 			exit;
 		}
 
-		fputcsv( $out, array( 'id', 'attachment_id', 'profile_id', 'state', 'attempts', 'object_key', 'last_error', 'updated_at' ) );
+		fputcsv( $out, array( 'id', 'attachment_id', 'profile_id', 'state', 'attempts', 'object_key', 'last_error', 'updated_at' ), ',', '"', '' );
 		foreach ( is_array( $rows ) ? $rows : array() as $row ) {
-			fputcsv( $out, array_values( $row ) );
+			fputcsv( $out, array_values( $row ), ',', '"', '' );
 		}
 
 		fclose( $out );

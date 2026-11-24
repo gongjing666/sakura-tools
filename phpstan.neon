@@ -3,6 +3,9 @@ includes:
 
 parameters:
     level: 5
+    # 语法下限是 PHP 8.2；本地 CLI 是 8.4，不写这一行 phpstan 会按 8.4 判断
+    # （例如把 8.3/8.4 新函数当成一直存在）。见 docs/开发规则/13-PHP代码规范.md §6。
+    phpVersion: 80200
     paths:
         - sakura-tools.php
         - uninstall.php

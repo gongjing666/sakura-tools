@@ -1487,7 +1487,7 @@ final class Sync_Center_Module implements Module {
 		$days   = isset( $_GET['days'] ) ? absint( wp_unslash( $_GET['days'] ) ) : 0;
 
 		$output = fopen( 'php://output', 'wb' );
-		fputcsv( $output, array( 'object_key', 'path', 'type', 'local_bytes', 'cloud_bytes', 'status', 'error' ) );
+		fputcsv( $output, array( 'object_key', 'path', 'type', 'local_bytes', 'cloud_bytes', 'status', 'error' ), ',', '"', '' );
 
 		$cursor    = '';
 		$guard     = 0;
@@ -1507,7 +1507,10 @@ final class Sync_Center_Module implements Module {
 						(int) ( $row['cloud_size'] ?? 0 ),
 						$this->csv_cell( (string) ( $row['status'] ?? '' ) ),
 						$this->csv_cell( (string) ( $row['error'] ?? '' ) ),
-					)
+					),
+					',',
+					'"',
+					''
 				);
 			}
 			$cursor = (string) $page['cursor'];
@@ -1531,7 +1534,10 @@ final class Sync_Center_Module implements Module {
 					0,
 					'warning',
 					sprintf( 'export stopped after %d rows; narrow the filters to see the rest', $guard ),
-				)
+				),
+				',',
+				'"',
+				''
 			);
 		}
 

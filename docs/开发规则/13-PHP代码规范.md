@@ -80,8 +80,8 @@
    写法：`function f( ?string $x = null )`。**现状 0 处**（243 个文件 / 2508 个函数声明全扫过，2026-11-24）。
 2. **CSV 的 `$escape` 默认值。** `fputcsv()` / `fgetcsv()` / `str_getcsv()` / `SplFileObject::fputcsv()` 等同名方法不传 `$escape` 会报：
    `Deprecated: fputcsv(): the $escape parameter must be provided as its default value will change`
-   **现状 7 处待改**：`includes/class-s3-cli.php:499`、`includes/class-s3-cli.php:501`；`src/S3/Delete_Queue_Panel.php:497`、`src/S3/Delete_Queue_Panel.php:499`；`src/S3/Sync_Center_Module.php:1540`、`src/S3/Sync_Center_Module.php:1550`、`src/S3/Sync_Center_Module.php:1574`。
-   修法：显式传 `'\\'`（保持旧行为，最小改动）或 `''`（RFC 4180；含反斜杠 / 引号的单元格输出会变，必须对比导出文件）。
+   **现状 0 处**（2026-11-24 修完 7 处：`includes/class-s3-cli.php` 2 处、`src/S3/Delete_Queue_Panel.php` 2 处、`src/S3/Sync_Center_Module.php` 3 处；全部是导出侧 CSV，仓库里没有 `fgetcsv()` 读回路径）。
+   写法：五个参数全部显式给出，`$escape` 传空串（RFC 4180，也是 PHP 9 的默认值；不再使用专有的反斜杠转义）。由 `composer lint:compat` 守护（§6.3）。
 3. **`E_STRICT` 常量与错误级别已移除**：代码里不要引用（现状 0 处）。
 4. 其余 8.4 弃用项（现状均 0 处，新代码同样禁写）：`trigger_error( ..., E_USER_ERROR )`、`lcg_value()`、`mysqli_ping/kill/refresh`、`session_set_save_handler()` 多参、`stream_context_set_option()` 双参、`xml_set_object()`、`DatePeriod` 字符串构造、`SplFileObject` CSV 默认 escape。
 
@@ -298,57 +298,49 @@ public function keys( array $files ): array {
 
 ## 6. 让静态检查兜住版本
 
-### 6.1 现有检查的盲区（2026-11-24 实测）
+### 6.1 现在谁管什么（2026-11-24 实测）
 
-| 检查 | 实际行为 | 盲区 |
+| 检查 | 实际行为 | 管什么 |
 |---|---|---|
-| `composer phpstan` | 本地跑在 CLI 8.4 上；`phpstan.neon` 没写 `phpVersion`，于是按 8.4 的函数表判断 | 8.3/8.4 才有的函数在本地不会报「未定义」 |
-| `composer lint:strict` | `WordPress-Extra`（`phpcs.xml.dist`），没有 PHPCompatibility | 8.3 语法、8.4 弃用都拦不住 |
+| `composer phpstan` | `phpstan.neon` 已写 `phpVersion: 80200`，本地按 8.2 的函数 / 类表判断 | 8.3+ 的 API 在本地也会报 unknown；当前 0 处，`[OK] No errors` |
+| `composer lint:strict` | `WordPress-Extra`（`phpcs.xml.dist`），只管 WP 惯例与安全 | 8.3 语法、8.4 弃用都不管 |
+| `composer lint:compat` | `phpcs-compat.xml.dist` + PHPCompatibility，`testVersion 8.2-8.4` | 版本相关的语法 / 函数 / 弃用；当前 0 error / 0 warning |
 | `php -l` | 只查语法；本机只有 8.3 / 8.4（`/www/server/php/` 下只有 `83`、`84`） | 不能证明 8.2 可解析 |
 | GitHub Actions `tests.yml` | matrix **8.2 / 8.3 / 8.4** 跑 PHPUnit | 只有被测试真正加载到的文件才会在 8.2 下解析；WP-CLI、视图、Zibll 桥等覆盖不到的文件仍可能带 8.3 语法漏到生产 |
-| GitHub Actions `phpstan.yml` | 固定在 PHP **8.2** 上跑 | 与本地口径不一致：CI 能发现的问题，本地 8.4 发现不了 |
 
-结论：**语法下限主要靠 CI 的 8.2 job + 本页清单**，本地三道关不负责这件事。下面两件事都值得做，但都算代码改动（要 bump beta 号、跑三道关），**本篇只记录，不在文档改动里顺手做**。
+本地能给出「8.2 写、8.4 跑」结论的是 `composer lint:compat`；CI 的 8.2 job 仍是最后防线。
 
-### 6.2 建议一：给 PHPStan 固定平台版本
+### 6.2 PHPStan 固定平台版本（已落地）
 
-`phpstan.neon` 的 `parameters` 加一行：
+`phpstan.neon` 的 `parameters` 里：
 
 ```neon
     phpVersion: 80200
 ```
 
-效果：本地与 CI 都以 8.2 的函数 / 类表判断，8.3+ 的 API 在本地也会报 unknown。当前代码 0 处 8.3+ API，预期加完直接 `[OK] No errors`；加完要跑一次 `composer phpstan` 确认没有误伤（尤其 `stubs/` 里的 WP 函数桩）。
+本地 CLI 是 8.4，不写这一行 PHPStan 会按 8.4 的函数表判断，8.3/8.4 才有的函数在本地不会报「未定义」。加完实测 `[OK] No errors`（当前 0 处 8.3+ API，没有误伤 `stubs/` 里的 WP 函数桩）。
 
-### 6.3 建议二：PHPCompatibility 先别接，等 10.x 稳定
+### 6.3 PHPCompatibility（已接入，锁 10.0.0-alpha2）
 
-实测 Packagist（2026-11-24）：
+版本选择：
 
-- `phpcompatibility/php-compatibility` 稳定线停在 **9.3.5（2019-12-27）**，只认识到 PHP 7.4（2019 年发布，PHP 8.0 比它晚一年）；**10.0.0-alpha3（2026-11-17）** 还在 alpha。
-- `phpcompatibility/phpcompatibility-wp` 稳定 2.1.8（2025-10-18），3.0.0-alpha3 同样是 alpha。
+- 稳定线 **9.3.5（2019-12-27）** 只认识到 PHP 7.4，接了等于假安全感。
+- **10.0.0-alpha3（2026-11-17）** 有 8.3/8.4 的 sniff，但要求 `squizlabs/php_codesniffer: ^4.0.2`；本仓库是 phpcs 3.13.6 + WPCS 3.2（WPCS 3.x 只支持 phpcs 3.x），换 4.0 要连 WPCS 一起动。
+- **10.0.0-alpha2（2025-11-28）** 要求 `phpcs ^3.13.3 || ^4.0`、`phpcsutils ^1.1.2`，与现状兼容，且已含 8.3/8.4 的 sniff（`RemovedImplicitlyNullableParamSniff`、`RemovedProprietaryCSVEscapingSniff`、`NewClassMemberAccessWithoutParenthesesSniff`、`RemovedTriggerErrorLevelSniff`、`RemovedXmlSetHandlerCallbackUnsetSniff` 等）。
 
-所以现在接 `^9.3` 会得到一个「停留在 PHP 7.4 时代」的假安全感。**等 10.x 出稳定版**再按这三步接（届时把版本号换成实际稳定版）：
+落地物：
 
-```bash
-composer require --dev phpcompatibility/php-compatibility:^10.0 phpcompatibility/phpcompatibility-wp:^3.0
-```
+- `composer.json` 的 dev 依赖：`phpcompatibility/php-compatibility: 10.0.0-alpha2`（锁在这个 alpha；升级前先看 alpha3 的 phpcs 4 依赖）。
+- `phpcs-compat.xml.dist`：扫 `sakura-tools.php`、`uninstall.php`、`fast-search.php`、`src/`、`includes/`；排除 `vendor/`、`node_modules/`、`assets/`、`tests/`、`docs/`；`testVersion 8.2-8.4`（8.2 是语法下限、8.4 是生产运行时，8.4 才出现的弃用也能抓到）。
+- `composer.json` 的 scripts：`"lint:compat": "phpcs --standard=phpcs-compat.xml.dist"`。
 
-`phpcs.xml.dist` 增加：
+基线 **0 error / 0 warning**（2026-11-24）。第一次跑出 7 条 `RemovedProprietaryCSVEscaping.DeprecatedParamNotPassed`，都是 `fputcsv()` 没显式传 `$escape`，已按 §1.3 第 2 条修完。
 
-```xml
-<rule ref="PHPCompatibilityWP"/>
-<config name="testVersion" value="8.2-"/>
-```
-
-`composer.json` 的 `scripts` 增加：
-
-```json
-"lint:compat": "phpcs --standard=PHPCompatibilityWP --runtime-set testVersion 8.2- src includes sakura-tools.php uninstall.php fast-search.php"
-```
+装不上时先看 composer 版本：本机 `/usr/bin/composer` 是 2.0.14（2021），`composer-plugin-api` 2.0.0 满足不了 `dealerdirect/phpcodesniffer-composer-installer` 的 `^2.2`，会直接报 Problem 1/2；换新版 `composer.phar`（2.11.2）装。
 
 ### 6.4 过渡期的提交前自查
 
-没有新工具也能做：四条 grep + 两条人工判断。
+`composer lint:compat` 已能自动抓版本问题；下面四条 grep 用来看「哪些文件碰了版本边界」：
 
 ```bash
 cd /root/work/sakura-tools
@@ -362,13 +354,13 @@ grep -rnE '\b(json_validate|mb_str_pad|mb_trim|mb_ltrim|mb_rtrim|mb_ucfirst|mb_l
 # 3) 隐式 nullable（命中后人工看类型前有没有问号）
 grep -rnE 'function[^)]*\$[A-Za-z_]+[[:space:]]*=[[:space:]]*null' src includes
 
-# 4) CSV 未传 escape（命中即改，见 §1.3 的 7 处）
+# 4) CSV 未传 escape（命中即改，规则见 §1.3 第 2 条）
 grep -rnE '\b(fputcsv|fgetcsv|str_getcsv)[[:space:]]*\(' src includes
 ```
 
 人工看两处结果：`grep -rn 'exit(\|die(' src includes | grep -v wp_die`，以及搜索双引号字符串里的美元大括号插值（用编辑器搜即可，不要用会展开变量的 shell 写法）。
 
-注意：grep 是提示不是判定——第 3 条会把 `?string $x = null` 也命中（那是正确写法）。最终以 CI 的 8.2 job 与代码评审为准。
+注意：grep 是提示不是判定——第 3 条会把 `?string $x = null` 也命中（那是正确写法）。最终以 `composer lint:compat`、CI 的 8.2 job 与代码评审为准。
 
 ## 7. 现状盘点（2026-11-24 实测）
 
@@ -380,7 +372,7 @@ grep -rnE '\b(fputcsv|fgetcsv|str_getcsv)[[:space:]]*\(' src includes
 | 隐式 nullable 参数 | **0** | 8.4 弃用为零；新代码保持 |
 | 8.3 / 8.4 独有语法 | 0 | 无 typed constants、无 `#[\Override]`、无 property hooks、无非对称可见性、无 `new Foo()->` |
 | 8.3 / 8.4 独有 API | 0（`vendor/` 里 symfony polyfill 不算） | 不用守卫也安全；新增时必须走 §2.2 |
-| CSV 未显式传 escape | **7** | 8.4 下会报弃用，清单见 §1.3 第 2 条 |
+| CSV 未显式传 escape | **0**（2026-11-24 修完 7 处） | 由 `composer lint:compat` 守护，见 §1.3 第 2 条 |
 | `strict_types` 覆盖 | `src/` 177/213；`includes/` 3/30 | 新文件必须；旧文件不批量补 |
 | `final class` / `readonly` 属性 | 203 / 17 | 默认 final、值对象 readonly 是现状 |
 | `match` / `fn` / `?->` / `enum` / `never` | 60 / 38 / 0 / 0 / 5 | match 与箭头函数已常用；enum 未用 |
@@ -392,7 +384,7 @@ grep -rnE '\b(fputcsv|fgetcsv|str_getcsv)[[:space:]]*\(' src includes
 ## 8. 提交自检
 
 - [ ] 没有 8.3/8.4 独有的**语法**（对照 §1.2 / §1.3 禁用清单；CI 的 8.2 job 通过）。
-- [ ] 8.4 弃用为 0：没有隐式 nullable；`fputcsv/fgetcsv/str_getcsv` 显式传 `$escape`；没有 `E_STRICT`。
+- [ ] 8.4 弃用为 0：没有隐式 nullable；`fputcsv/fgetcsv/str_getcsv` 显式传 `$escape`；没有 `E_STRICT`；`composer lint:compat` 0 error / 0 warning。
 - [ ] 新文件有 `declare( strict_types=1 );`、namespace、类 docblock、`ABSPATH` 守卫；类名 = 文件名。
 - [ ] 参数 / 返回值都有类型，数组有 shape docblock；没有新增 `ignoreErrors`。
 - [ ] 没有新增 `exit` / `die` / `@` / `trigger_error()` / `error_log()`；`catch` 不为空，异常带上下文。

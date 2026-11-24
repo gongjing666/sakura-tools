@@ -110,6 +110,7 @@ docs/                   文档（不进发布包）
 composer test          # PHPUnit，基线 897 tests / 3816 assertions / 6 skipped
 composer phpstan       # level 5，必须 [OK] No errors
 composer lint:strict   # PHPCS，必须 0 error / 0 warning（新增任何一条都当 error）
+composer lint:compat   # PHPCompatibility，8.2 语法下限 / 8.4 生产运行时，必须 0 error / 0 warning
 php -l <file>          # 改动的每个 PHP 文件
 node --check <file>    # 改动的每个 JS 文件
 git diff --check       # 行尾空白
@@ -117,6 +118,7 @@ git diff --check       # 行尾空白
 
 - 测试引导是**手写的最小 WordPress shim**（`tests/bootstrap.php`），不是 WP 官方套件。要用新的 WP 函数先在 shim 里补桩，否则 `Call to undefined function`。
 - PHPStan 开了 `reportUnmatchedIgnoredErrors`：代码移动会让豁免正则失效并报错，那是提醒你更新 `phpstan.neon` 的 path，不是误报。
+- `composer lint:compat` 走 `phpcs-compat.xml.dist`（PHPCompatibility 10.0.0-alpha2，`testVersion 8.2-8.4`）守 PHP 版本边界：8.2 是最低语法、8.4 是生产运行时，细节见 `docs/开发规则/13-PHP代码规范.md` §6.3。
 - PHPCS 已刻意关掉全部「纯格式」类 sniff。**不要为了合规去重排对齐**，那类改动会被拒绝。
 - CI 不跑 PHPCS，本地这一关不能省。
 - `tests/bootstrap.php` 手写的 `WP_Error` 只实现了用到的方法。
@@ -149,7 +151,7 @@ git diff --check       # 行尾空白
 发布检查与打包：
 
 ```bash
-php -l sakura-tools.php && composer test && composer phpstan && composer lint:strict
+php -l sakura-tools.php && composer test && composer phpstan && composer lint:strict && composer lint:compat
 bin/build-plugin-zip.sh --version X.Y.Z --out dist    # dist/ 被 .gitignore 忽略
 ```
 

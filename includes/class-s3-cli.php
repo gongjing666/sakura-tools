@@ -489,9 +489,9 @@ class S3_CLI {
 			if ( false === $fh ) {
 				\WP_CLI::error( sprintf( /* translators: %s: file path. */ __( '无法写入 %s', 'sakura-imgopt' ), $path ) );
 			}
-			fputcsv( $fh, array( 'id', 'profile_id', 'state', 'attempts', 'object_key', 'last_error', 'updated_at' ) );
+			fputcsv( $fh, array( 'id', 'profile_id', 'state', 'attempts', 'object_key', 'last_error', 'updated_at' ), ',', '"', '' );
 			foreach ( $rows as $row ) {
-				fputcsv( $fh, array_values( $row ) );
+				fputcsv( $fh, array_values( $row ), ',', '"', '' );
 			}
 			fclose( $fh );
 			\WP_CLI::success( sprintf( /* translators: 1: row count, 2: file path. */ __( '已导出 %1$d 行到 %2$s', 'sakura-imgopt' ), count( $rows ), $path ) );

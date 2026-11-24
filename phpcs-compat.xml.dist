@@ -1,0 +1,27 @@
+<?xml version="1.0"?>
+<ruleset name="Sakura Tools PHP compatibility">
+	<description>PHPCompatibility 规则集：语法下限 PHP 8.2，生产运行到 8.4（详见 docs/开发规则/13-PHP代码规范.md §6）。</description>
+
+	<file>sakura-tools.php</file>
+	<file>uninstall.php</file>
+	<file>fast-search.php</file>
+	<file>src/</file>
+	<file>includes/</file>
+
+	<exclude-pattern>*/vendor/*</exclude-pattern>
+	<exclude-pattern>*/node_modules/*</exclude-pattern>
+	<exclude-pattern>*/assets/*</exclude-pattern>
+	<exclude-pattern>*/tests/*</exclude-pattern>
+	<exclude-pattern>*/docs/*</exclude-pattern>
+
+	<arg name="extensions" value="php"/>
+	<arg name="basepath" value="."/>
+	<arg name="parallel" value="8"/>
+	<arg name="colors"/>
+	<arg value="ps"/>
+
+	<!-- 8.2 是语法下限；8.4 是生产运行时，用来抓 8.4 才出现的弃用与移除。 -->
+	<config name="testVersion" value="8.2-8.4"/>
+
+	<rule ref="PHPCompatibility"/>
+</ruleset>

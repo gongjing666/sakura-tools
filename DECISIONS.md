@@ -1113,3 +1113,20 @@ body.upload-php.sufm-tree-active.folded { --sufm-tree-left: 56px; }
 **代价与收益**：失去 19 的 Actions 写法（挂起/错误态还得自己写）；换来的是同页只有一种 React 语义，以及**包体显著变小**——`image.js` 253,935 → 180,083 字节、`system.js` 237,162 → 157,181 字节（19 的产物本身更大，而这一层用不到它的新 API）。
 
 **验收**：`node bin/build-ui.mjs` 后产物内 `O.version="18.3.1"`；实验站 1.28.8-beta-30 上系统设置与图像优化四页签全部正常渲染、控制台 0 error；页签切换 `performance` 导航条目仍为 1；系统设置保存圆角边框 1→2 → 弹窗「设置已保存」、关闭图标/吉祥物/知道了齐全、`scrollY` 不变、无导航，再改回 1 复原；`composer test` 897 / 3816 / 6 skipped、`phpstan` 无错误、`phpcs` 退出码 0、`git diff --check` 干净。
+
+## React 版本改回最新 19，并把「通用技巧」逐条对照写进规范（2026-11-24，1.28.8-beta-31）
+
+**背景**：同一天早些时候按「与 WordPress 官方的 React 对齐」降到 18.3.1（上一条）。开发者随后改主意：「算了，还是以 react 最新版本为基准吧」；同时问「文档关于代码编写技巧是否太少，我发的那个链接写了十几条技巧方法，是我们用不上还是什么？」
+
+**关键事实（决定追最新的依据）**：插件把 React 打进自己的 bundle（`bin/build-ui.mjs` 用 esbuild `bundle` + `format: iife` + `globalName: 'SakuraUI'`），**不读 `window.React`**，所以与 wp-admin 自带的 18.3.1 不是同一份代码、不会互相覆盖。先前担心的「同页两个副本」风险在 IIFE 自包含下不成立；真正需要注意的只有一条——两棵 React 树不能互相渲染对方的元素，而 wp-admin 不会碰我们的 DOM。
+
+**决策**：
+
+1. `package.json` 回到 `"react": "^19.0.0"` / `"react-dom": "^19.0.0"`（实际解析 19.3.1）；`node bin/build-ui.mjs` 重出 `image.js` 260,084 B / `system.js` 237,162 B。
+2. 19 的能力不再禁用：§1 表格改成「旧 React → React 19」，`useActionState` / `useOptimistic` / `ref` 当 prop / `<Ctx value>` / ref 回调清理都可用。但**「可用」不等于「要用」**：现有四个页签保持手写 `saving`，按页签逐个迁移（§5），不批量重写。
+3. 规范文档新增**附录 A「18 条通用技巧逐条对照」**：每条给「已在用 / 改造后用 / 用不上」三档结论 + 判据 + 替代做法。结论是 6 条已在做、5 条等场景出现再做、7 条对「后台 4–8 张卡的表单页」不适用（`memo`、`lazy`、虚拟列表、context 等）。
+4. 开发者给的参考链接（技术栈《React性能优化实战：从卡顿到丝滑，15个核心技巧覆盖全场景》）正文是客户端渲染的 SPA，`web_fetch` 两次都只拿到 CSS 壳，**读不到那 15 条原文**；因此没有转述其条目，改为按通用技巧清单逐条对照本仓库，并在附录里写清「允许推翻结论的唯一条件：拿 Profiler 截图或 `PerformanceObserver` 数字来」。
+
+**代价**：包体比 18.3.1 版大 74 KB / 80 KB（`image.js` 180,083 → 260,084、`system.js` 157,181 → 237,162）。对后台页面（每页只加载其中一个 bundle，gzip 后约 70 KB）可接受。
+
+**验收**：产物内 `O.version="19.3.1"`；实验站 1.28.8-beta-31 上系统设置与图像优化四页签正常渲染、控制台 0 error；页签切换 `performance` 导航条目仍为 1；保存仍不导航、弹窗齐全；`composer test` / `phpstan` / `lint:strict` / `git diff --check` 全绿。

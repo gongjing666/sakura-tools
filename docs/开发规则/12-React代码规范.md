@@ -2,9 +2,9 @@
 
 后台的 React 岛屿（系统设置、图像优化四页签）怎么写。**本篇管写法，不管视觉**——样式规则在 [03-后台UI](03-后台UI.md)，资源加载在 [10-静态资源手册](10-静态资源手册.md)。
 
-- 基线版本：`react@18.3.1` / `react-dom@18.3.1`（`package.json` 版本号**写死不带 `^`**，2026-11-24 核对）、`esbuild@0.25.12`
-- **为什么是 18.3.1**：WordPress 7.1.4 自带的那一份就是它（`wp-includes/js/dist/vendor/react.js` 里 `ReactVersion = '18.3.1'`，`react-dom.js` 同）。同一站点里两个 React 副本版本不一致会带来难以解释的行为差异，所以插件**跟随 WordPress 的版本**，不追最新。WordPress 已经同时放了 `react-jsx-runtime-19.js`，说明 19 在路上——等核心把 `react` / `react-dom` 换成 19 再跟进，跟进时按 §1.1 的流程走。
-- 参考：[React 18 发布说明](https://react.dev/blog/2022/03/29/react-v18)、[React v19 发布说明](https://react.dev/blog/2024/12/05/react-19)（前瞻）、[React Compiler](https://react.dev/learn/react-compiler)（暂不可用，见 §1）
+- 基线版本：`react@19.3.1` / `react-dom@19.3.1`（`package.json` 写 `^19.0.0`，实际解析到 19.3.1，2026-11-24 核对）、`esbuild@0.25.12`
+- **为什么追最新 19**：插件把 React 打进自己的 bundle（`var SakuraUI`，不读 `window.React`），与 wp-admin 自带的 18.3.1 **互不共享**，所以不存在「同页两个副本版本打架」的问题；开发者 2026-11-24 决定以最新版为基准（推翻了当天早些时候「跟随 WordPress」的方案，原因见 `DECISIONS.md`）。代价是包体更大（19 版 `image.js` 254 KB vs 18 版 176 KB），换来 19 的写法（Actions、`ref` 当 prop、`<Ctx value>`）可用。
+- 参考：[React v19 发布说明](https://react.dev/blog/2024/12/05/react-19)、[React 19.2 新特性](https://react.dev/blog/2025/10/01/react-19-2)、[React Compiler](https://react.dev/learn/react-compiler)（仍不用，见 §1）
 - 适用文件：`assets/ui/src/**`（`shared/ui.jsx` 与各页面模块）
 
 ## 0. 先记住三条前提
@@ -15,25 +15,25 @@
 2. **引导数据是 PHP 写进文档的 JSON，不是接口。** `<script type="application/json" id="sakura-*-bootstrap">` 必须在挂载节点**之外**（`Page::render()` 的 `island` 分支负责），`index.jsx` 读它、`JSON.parse` 失败就显示失败态。REST 只用于**动作**（保存、扫描、翻页、重置），不用于首屏。
 3. **服务端算出来的东西必须由服务端回传，不在前端猜。** 卡片上的「已保存值」「摘要文案」「派生字符串」（如 `固定文本 · Sakura`）都由 PHP 拼好；保存接口的响应要带回落库后的值，前端拿它覆盖本地状态。**前端复刻业务计算是禁止行为。**
 
-## 1. 写法对照：旧 React → React 18.3.1
+## 1. 写法对照：旧 React → React 19
 
-右列是**当前可用**的写法。左列在本仓库出现即视为缺陷。第三列标了「19」的，等 WordPress 把自带 React 换成 19 之后才允许用。
+右列是**当前可用**的写法。左列在本仓库出现即视为缺陷。我们是 19.3，19 的能力都可用——但**「可用」不等于「要用」**，是否采用看 §5 与附录 A。
 
 | 旧写法（不要用） | 现在这么写 | 备注 |
 |---|---|---|
-| `ReactDOM.render( … )` | `createRoot( node ).render( … )` | 18 已删除 `ReactDOM.render`；我们现在就是这条 |
-| 字符串 ref / `findDOMNode` | `useRef( null )` + `ref` prop | `findDOMNode` 在 18 已不可用 |
-| `Comp.defaultProps = {…}` | 参数默认值 `{ size = 'md' }` | 18.3 起函数组件 `defaultProps` 会告警 |
+| `ReactDOM.render( … )` | `createRoot( node ).render( … )` | 18 起 `ReactDOM.render` 已删除 |
+| 字符串 ref / `findDOMNode` | `useRef( null )` + `ref` prop | 18 已不可用 |
+| `Comp.defaultProps = {…}` | 参数默认值 `{ size = 'md' }` | 函数组件 `defaultProps` 已废弃 |
 | `PropTypes` | 不写运行时类型 | 校验在 PHP sanitize，前端只做 `Number()`/白名单 |
-| `forwardRef( ( props, ref ) => … )` | 仍用 `forwardRef`（仅当真的要把 ref 透传出去） | 19 才支持「`ref` 当普通 prop」；18 下直接把 `ref` 写进 props 会失效 |
-| `<Ctx.Provider value={v}>` | 仍写 `.Provider` | 19 才支持 `<Ctx value={v}>` |
-| `useFormState` / `useActionState` / `useOptimistic` | **都不可用**，手写 `saving` + `try/catch` | 19 提供的 API，18 没有；见 §5 |
-| 手动 `isPending` + `startTransition` 包 async | `startTransition( () => { … } )` 里**不要**放 async 函数 | 18 的 `startTransition` 不追踪异步；放 async 进去等于没生效 |
-| `ref` 回调函数返回清理函数 | 不要返回任何值，清理写在 `useEffect` 里 | 19 新能力（ref 回调可返回清理函数），18 会把它当返回值忽略 |
+| `forwardRef( ( props, ref ) => … )` | 直接把 `ref` 当 prop 传下去 | 19 起 `ref` 是普通 prop，不用再包一层 |
+| `<Ctx.Provider value={v}>` | `<Ctx value={v}>` | 19 起 Context 本身可当 Provider |
+| `useFormState` | `useActionState` | 19 把 `useFormState` 改名成 `useActionState` |
+| 手写 `saving` + `try/catch` | 优先 `useActionState` / 表单 `action` | 见 §5；跨页签迁移时逐个改，别一次全换 |
+| `ref` 回调不返回值 | `ref` 回调可以返回清理函数 | 19 新能力；只在确实需要绑/解绑时用 |
 
 **我们明确不用的东西**（不是「还没用」，是决定不用）：
 
-- **不追最新 React。** 版本跟随 WordPress 自带的那一份（当前 18.3.1）。理由见文首：同页两个不同版本的 React 副本，行为差异最难查。
+- **不追 React 的新机制，但追新版本。** 版本以最新 19.x 为基准（见文首）；19 的新 API 用不用，看 §5 与附录 A 的逐条判断，不因为「新」就上。
 - **不带 React Compiler。** 构建链是 esbuild，Compiler 需要 Babel/SWC 插件；引入它等于给打包加一整层依赖。因此**手动 memo 只在测量之后加**，不要先验地包 `memo`/`useMemo`。
 - **不用 SSR / `hydrateRoot`。** wp-admin 里我们的 markup 由 PHP 拼、内容由 React 建，两者不是同一棵树，hydration 只会带来 mismatch。零重绘靠「React 不碰顶栏/页签」实现，不靠 hydrate。
 - **不用 CSS-in-JS。** 令牌（`--g-*`）在 `:root` 上，React 同文档自动继承；改用 CSS-in-JS 或 Shadow DOM 会切断继承。
@@ -41,13 +41,15 @@
 
 ### 1.1 升级 React 的流程
 
-只有 WordPress 核心先换版本，插件才跟。步骤固定，别跳：
+版本由 `package.json` 的两个 `^19.0.0` 决定（实际解析值见 §11）。升级按这五步，别跳：
 
-1. 读目标站点的 `wp-includes/js/dist/vendor/react.js`，确认 `ReactVersion`（这是唯一权威来源，别信「WordPress 6.x 用 React 18」这类传闻）。
-2. 改 `package.json` 的两个版本号为该值（**写死，不带 `^`**），`npm install`。
-3. `node bin/build-ui.mjs`，确认产物里 `O.version="<目标版本>"`。
-4. 跑本文件 §10 的自检 + 1440/390 的七个页面（系统设置 + 图像优化四页签 + 任选一个 PHP 直出页对照）。
-5. 改本文件的基线版本行与 §1 表格（19 的能力这时才能解禁），再提交。
+1. `npm view react version` 看最新版；记下 `react` 与 `react-dom` 是否是同一版本（两者必须一致）。
+2. 改 `package.json`（保持 `^19.0.0` 这种范围，或临时写死精确版本做对比），`npm install`。
+3. `node bin/build-ui.mjs`，确认产物里 `O.version="<新版本>"`，记下 `image.js` / `system.js` 的新字节数。
+4. 跑 §10 的自检 + 1440/390 的七个页面（系统设置 + 图像优化四页签 + 任选一个 PHP 直出页对照）。
+5. 改本文件文首的基线行、§11 的包体数字，再提交。**升级单独一次提交**，不要和功能改动混在一起。
+
+> 附注：WordPress 7.1.4 自带的是 React 18.3.1（见 `wp-includes/js/dist/vendor/react.js` 的 `ReactVersion`）。我们不用它，因为 bundle 自包含；但如果哪天要改成读 WP 的那份，先读这个文件确认版本，再按「同页两个副本」的风险表逐项验证——2026-11-24 走过一遍，包体小 74/80 KB，随后被开发者否掉。
 
 ## 2. 组件与文件结构
 
@@ -108,11 +110,12 @@ useEffect( () => {
 
 ## 5. 动作（Actions）与表单
 
-React 19 的 Actions 模型（`useActionState` / `useOptimistic` / async `startTransition`）**在 18.3.1 上不可用**，所以现在的保存一律手写：
+我们是 React 19.3，Actions 模型（`useActionState` / `useOptimistic` / async `startTransition` / 表单 `action`）**都可用**。但现有四个页签仍是手写 `saving` + `try/catch`，这是历史写法，不是禁令：
 
-- 保存是「提交处理器里 `await call( … )` + 本地 `saving` 状态」。挂起态、错误态、防重入都要自己写——这是版本约束，不是风格选择。
-- 18 有 `useTransition`，但它**不追踪异步**：`startTransition( async () => … )` 里的 `await` 之后就不再处于 transition 中，用它做「保存中」只会给自己埋坑。真要用，只包同步的状态切换。
-- 等 WordPress 换到 React 19（§1.1），再按这个顺序改造：`useActionState` 承接「提交 → 挂起 → 结果」，`useOptimistic` 承接翻转开关这类即时反馈。届时要补一份「迁移前/后对比」，不要静默换写法。
+- **新写的保存动作优先 `useActionState`**：`const [ state, action, pending ] = useActionState( save, null )`，把 `pending` 交给 `BusyLabel`、把 `state.notice` 交给 `Prompt`。省掉三份手写状态（`saving` / `error` / `notice`）。
+- **老的别一次性全换**。真正的收益在于少写状态机；批量重写会掩盖回归。按页签逐个迁移，并在提交信息里写清「哪个页签换成了 Actions」。
+- `useOptimistic` 只用于**可回滚的即时反馈**（翻开关、勾选）。我们的保存要等服务端 clamp 后回值，别用它演「已保存」。
+- `startTransition( async () => … )` 在 19 里是合法的（异步 transition）；但它只影响「何时提交更新」，不减少请求、不改变视觉，别拿它当性能开关。
 - 破坏性动作（重置统计、清空备份）用 `window.confirm( strings.resetConfirm )`，文案来自 payload，不在前端写死中文。
 - 表单里 `name="action"` 的 hidden 输入是 WordPress 的约定，读 `form.action` 会拿到那个 input（OverrideBuiltIns）。**任何读表单属性的代码都要走 `getAttribute`。**
 
@@ -192,7 +195,36 @@ git diff --check
 | `forwardRef` / `PropTypes` / `defaultProps` / class 组件 | 0 | 无旧写法残留 |
 | `dangerouslySetInnerHTML` | 4 | 全部是服务端字符串（品牌 SVG、tagline、弹窗图标、吉祥物） |
 | 下标作 key | 4 | 全部是静态字符串列表（hint / warning / note / card.desc） |
-| React 19 Actions（`useActionState` / `useOptimistic`） | 0 | 18.3.1 没有这两个 API，等核心升级（§1.1）再改造，见 §5 |
-| 打包产物 | `image.js` 176 KB / `system.js` 153 KB | 对齐到 18.3.1 后比 19 版小 74 KB / 80 KB（19 的包体更大，且这一层用不到） |
+| React 19 Actions（`useActionState` / `useOptimistic`） | 0 | 19.3 已具备，现有页签仍是手写 `saving`；按 §5 逐个页签迁移，不批量重写 |
+| 打包产物 | `image.js` 254 KB（260,084 B）/ `system.js` 232 KB（237,162 B） | React 19.3.1 minified；18.3.1 版是 176/153 KB，差 74/80 KB，由开发者决定接受 |
 
-结论：**没有需要立刻返工的旧版写法**；版本已与 WordPress 自带的那一份一致（18.3.1）。下一次有价值的事，是等核心把 React 换到 19 之后按 §1.1 跟进，而不是现在就把 19 的写法塞进来。
+结论：**没有需要立刻返工的旧版写法**；基线与 `package.json` 一致（`^19.0.0` → 19.3.1）。下一步真正有价值的是按 §5 把保存动作迁到 `useActionState`，而不是先加 `memo`。
+
+## 附录 A　通用 React 技巧逐条对照（15 条）
+
+网上流传的「React 性能优化 15 技巧」大多是**面向大型前台应用**写的（长列表、实时搜索、图片墙）。我们的场景是「一个 wp-admin 页面里 4–8 张卡片、单页 JSON 引导、显式按钮保存」，所以逐条判断如下——**结论分三档：已在用 / 改造后用 / 用不上**，每条都写了判据，别只看结论。
+
+| # | 通用建议 | 我们的结论 | 依据与替代做法 |
+|---|---|---|---|
+| 1 | `React.memo` 减少子组件重渲 | **用不上**（默认不加） | 树很浅（页签 4–8 张卡），一次重渲是毫秒级；props 多为 payload 派生对象，`memo` 浅比较基本都会失效。启用门槛：Profiler 里单卡一次渲染 > 16ms，或同一操作里同卡重渲 ≥ 3 次 |
+| 2 | `useMemo` 缓存昂贵计算 | **改造后用** | 现在 0 处。允许的场景只有「对全量行做派生排序/过滤」且行数 > 200；**禁止**为了「稳定引用」而 memo（那本该由 §3 的状态结构解决） |
+| 3 | `useCallback` 稳定函数引用 | **已在用（3 处）** | 用于 effect 依赖与传给子组件的回调；新增回调只在「作为 `useEffect` 依赖」或「传给 `memo` 子件」时才包，其余内联可读性更好 |
+| 4 | 列表 `key` 用稳定 id，不用下标 | **已在用** | `card.id` / `row.key` / `option.value`；仅 4 处静态字符串列表用下标（已注明）。这条是硬规则，见 §9 第 7 条 |
+| 5 | 代码分割 / `React.lazy` + `Suspense` | **用不上** | 每页只有一个 bundle，懒加载等于多一次往返；页签切换已经是不重载的换内容。真要提速首屏，做「悬停预取载荷」而不是 lazy |
+| 6 | 避免内联对象/数组 props | **改造后用** | 我们的 payload 引用稳定，但注意别在渲染里现造 `{}` / `[]` 往下传；常量提到模块顶层（`COLUMNS`、`EMPTY_ROWS`） |
+| 7 | 状态尽量下移、就近 | **已在用，且是硬约束** | 卡内 `draft/saved` 在卡组件里；跨卡共享（页头 status、usage KPI）由 `app.jsx` 持有并下传，见 §3 |
+| 8 | `useReducer` 管复杂状态 | **改造后用** | 单卡就是两份状态，`useReducer` 反而绕。触发条件：一张卡里 ≥ 3 个相互约束的字段（典型是尺寸表的行 + 校验 + 脏值） |
+| 9 | effect 依赖写全、少用 effect | **已在用** | 6 个 effect 全带清理、依赖写全；禁止在 effect 里同步 setState（§4） |
+| 10 | 虚拟列表（`react-window`） | **用不上** | 统计页上限 100 行且分页 25/50/100；虚拟化会破坏 `td[data-label]` 的窄屏折行与打印 |
+| 11 | 输入防抖/节流 | **用不上（现在）** | 保存是显式按钮，不是输入即算；将来若做「规则预览实时重算」再加 120–200ms 防抖 |
+| 12 | 用 CSS 动画/`transform`，别用 JS 逐帧 | **已在用** | 只动 `opacity` / `transform`；骨架高光是 CSS keyframes；`sakura-main-in` 的位移问题就是这条的反面教材（§6、03 文档 §9.4） |
+| 13 | 避免内联函数与内联样式 | **改一半** | 内联 `onClick` 在浅树里可以接受；样式一律 class + CSS 变量，**禁止** `style={{ … }}` 写业务样式（令牌在 `:root`，见 §7） |
+| 14 | 生产构建（minify、`NODE_ENV`） | **已在用** | `bin/build-ui.mjs` 已带 `minify` 与 `define process.env.NODE_ENV='production'`；`--watch` 不压 |
+| 15 | 用 Profiler / DevTools 定位瓶颈 | **已在用（唯一入口）** | 先测量再优化。我们惯用的两种测法：rAF 逐帧采 `getBoundingClientRect` 找「谁在动」、`PerformanceObserver` 看 layout-shift；脚本模式写在 03 文档 §12 |
+| 16 | `useTransition` / `useDeferredValue` | **暂不需要** | 我们的更新都是用户显式动作，没有「打字把列表卡住」的场景；将来搜索框实时过滤再用 `useDeferredValue` |
+| 17 | 资源/图片懒加载 | **不适用** | 后台没有大图；唯一的 `<svg>` 是内联品牌标记 |
+| 18 | 减少 Context 引起的全局重渲 | **不适用** | 现在 0 个 context：数据从 payload 出发，沿 `app → 页签 → 卡` 逐层传；跨层需求出现时再引入，不要提前建 |
+
+**一句话总结**：18 条里 6 条我们已经在做，5 条是「等具体场景出现再做」（判据都写在上表），7 条对我们的规模不适用。真正容易犯的错不是漏了某条技巧，而是**把前台大应用的做法搬到后台小页面里**——多出来的 `memo`、`lazy`、虚拟列表、context 只会增加要维护的东西，不会让一次保存快 1 毫秒。
+
+**什么时候允许推翻上面的结论**：拿着 Profiler 的截图或 `PerformanceObserver` 的数字来找我，并且能指出是哪一次交互、哪个组件的哪一次渲染超了预算（一次交互 16ms、一次保存 100ms）。没有数据之前，一律按「默认不加」处理。

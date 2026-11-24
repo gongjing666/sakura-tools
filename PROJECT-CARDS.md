@@ -1,11 +1,11 @@
-<!-- deep-ptc:project-cards v1 next=R1,F28,Q7,T13 -->
+<!-- deep-ptc:project-cards v1 next=R1,F29,Q7,T13 -->
 # Project cards
 
 > Maintained by Deep PTC in DeepSeek Harness: edit in a Deep PTC conversation, view 特点卡片 / Project cards.
 > User-approved settings guide this project. Features and requirements are records that can be checked and corrected.
 
 ## Implemented features / 已实现功能
-<!-- card id=features kind=features rev=14 updated=2026-11-24T10:46:34.405Z -->
+<!-- card id=features kind=features rev=15 updated=2026-11-24T12:14:01.387Z -->
 
 - **F1** 切桶封存与解锁（R18）：切桶时同一次 update_option 写入 s3_options['reconcile_pending'] = {profile_id, at, bucket, from}，同步中心立刻封存；只有跑完 mode=full 或 resume 的完整核对，才由 Scan_Service::finalize() 调 Options::clear_reconcile_pending() 清零。验证：同步中心 #sakura-sync-state 的 data-reconcile-gated=1，refresh / resume / retry 三个端点返回 409 sio_reconcile_required。
 - **F2** 切桶提醒走插件弹窗（#sakura-s3-switch-modal，kicker「OBJECT STORAGE / SWITCHED」）：列出缩略图改写已关、同步中心数据仍是上一个桶的、上传行为两开关仍按原绑定三件事，按钮直达同步中心。刷新后才出现的顶部 WP admin notice 已删除。
@@ -34,6 +34,7 @@
 - **F25** 「上传行为」卡的锁图标与并发说明（1.28.8-beta-44）：冻结行的 `.check__lock` 原先在 React 侧只有一个空 span，迁岛时丢了旧 PHP 输出的 `UI::lock_icon()` svg；共享件新增 `LockIcon`（同一段 svg path、同 viewBox），`title` 走 payload 的 `strings.lockTitle`，于是冻结行读得出「这里不能改」。并发字段加 `field--full` 让说明吃满卡片内容宽（原先卡半宽 550px 里说明只 322px），加 `field--w-fit` 让下拉按内容收到 168px（原 322px 拉满一行），两个类都加在 `.field` 包裹层；`fallbackNote` 从 `.field-list` 移到字段网格外层。验证：demo.77il.cn beta-44 上 1440 锁 22×22 含 13×13 svg、title 正确、并发字段 550px、说明 550×41、下拉 168×38；390 说明 322 宽右缘 356 落在卡片 374 内、下拉 168×38
 - **F26** 岛页面不再加载旧页脚本、清掉无生产者的 .mono 样式（1.28.8-beta-45）：Page_Assets 新增 private const ISLAND_BUNDLES = array('storage-connection' => 'assets/ui/dist/storage.js') 与 island_owns()（bundle 登记且在盘才 true），第 7 行页脚本入队条件加 && ! self::island_owns( $page )；旧脚本找不到 [data-sakura-connection-strings] 时不会提前 return，12 个 init* 照跑，与 React 岛共用 #sakura-s3-test-connection 导致点一次「测试连接」发两条请求（REST /storage/probe + admin-ajax），修后只剩 REST 一条。assets/ui/base.css 删掉 .sakura-admin .mono（全仓无裸 mono 类，剩下的都是 profile-card__meta--mono 这类 BEM 修饰符）。b
 - **F27** 图片优化四页也跳过旧页脚本（1.28.8-beta-46）：Page_Assets::ISLAND_BUNDLES 从 1 项扩到 5 项，image-rules / image-thumb / image-backup / image-stats 都映射 assets/ui/dist/image.js，入队条件仍是 is_readable( page_js ) && ! island_owns( page )。与 S3 存储页不同，这三个旧脚本（image-rules.js 14270B、image-backup.js 3732B、image-stats.js 3864B）取不到挂载点都会提前 return，不会重复发请求，只是白下载约 22KB，属省流量而非修 bug。实测 demo.77il.cn beta-46：四个图片页 legacy=[]、只加载 image.js、无骨架、1440 与 390 均 docW=clientW、正文零 Deprecated/Warning；system-settings 与 storage-connection 未误伤；未重构的 storage
+- **F28** F28 删除无消费者的 S3 旧处理器与 Connection_Tester（1.28.8-beta-47）：admin_post_sakura_s3_switch 与 admin_post_sakura_s3_test 在主工作区已无任何模板/脚本引用（React 切换走 REST /storage/profile、探测走 /storage/probe），Connection_Tester 全仓仅被 test_connection() 调用，一并删除；同时删掉 S3_Storage_Page 里只服务这两个 action 的 switch/switch_path 错误码与 switched/tested 两个 GET 分支。兜底页（bundle 缺失时的旧 PHP 渲染路径）与其余 11 个处理器保持原样，因为 assets/ui/js/pages/storage-connection.js 与 Monitoring_Panel 仍是它们的活入口。文档同步：07 篇把 preflight 入口从四处改为三处（src/S3/Sync_Center_Module.php:808、src/
 
 
 ## User requirements / 用户要求

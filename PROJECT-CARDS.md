@@ -1,4 +1,4 @@
-<!-- deep-ptc:project-cards v1 next=R1,F28,Q7,T11 -->
+<!-- deep-ptc:project-cards v1 next=R1,F28,Q7,T13 -->
 # Project cards
 
 > Maintained by Deep PTC in DeepSeek Harness: edit in a Deep PTC conversation, view 特点卡片 / Project cards.
@@ -48,7 +48,7 @@
 
 
 ## Completed tasks / 已完成任务
-<!-- card id=tasks kind=tasks rev=10 updated=2026-11-24T10:05:31.824Z -->
+<!-- card id=tasks kind=tasks rev=12 updated=2026-11-24T11:35:13.385Z -->
 
 - **T1** [done] 为 sakura-tools 插件补一篇 PHP 代码规范文档（docs/开发规则/），以 PHP 8.2–8.4 兼容 (11/24)
 - **T2** [done] 文档中所有描述实验站的地方（AGENTS.md、05 篇、09 篇、11 篇、03 篇、docs/验收脚本/README — 实验站 demo.77il.cn 的新部署（宝塔本机 /www/wwwroot/demo.77il.cn，PHP 8.4.28 + MariaDB 12.3.2）已写进 AGENTS.md 与 05/09/11/03 篇、验收脚本，并写入记忆；文档不含密码，凭据只在 /root/.dsh/secrets/demo-77il-login.txt；本地提交 f343907，未 push。 (11/24)
@@ -60,3 +60,5 @@
 - **T8** [done] 调整「添加存储配置」卡片：切换到多吉云时，「服务商 + 测试连接」「存储空间名称 + 获取 SDK 参数」这两行的输入框 — 服务商/存储空间两行收进一个字段列，1440、1912、390 实测对齐，提交 c4fe17f（未 push） (11/24)
 - **T9** [done] 把「已保存的配置」卡的「新增账户配置」按钮移到卡头右上角，与标题「已保存的配置」同排（水平对齐）。 — 「新增账户配置」回到卡头右上角、与标题同排（卡头 actions 槽），1440/390 实测通过，提交 56ba8d1（未 push） (11/24)
 - **T10** [done] 补回「上传行为」卡冻结行里缺失的锁形 SVG 图标，让「已锁定」状态看得懂。 — 上传行为卡补回锁图标、并发说明改整卡全宽并用 w-fit 收窄下拉；1440/390 实测通过，提交 07c415c (11/24)
+- **T11** [done] 改动要落在测试站 demo.77il.cn 上，让它能正常采集扩展查询信息（组件名与受影响行数）；不破坏站点现有功能与插 — 实验站 demo.77il.cn 的 Query Monitor db.php drop-in 已就位，面板显示组件与行数，提示消失 (11/24)
+- **T12** [done] 确认 includes/class-s3-storage-module.php 里那 12 个旧 admin-post — 13 个旧 S3 处理器逐个查证：仅 retry 有活入口（同步中心 storage-sync.js:552）且承载 R18 闸门，save 被测试断言引用，其余 11 个可安全删除 (11/24)

@@ -3,13 +3,9 @@ namespace Sakura\ImageOptimizer;
 
 use Sakura\ImageOptimizer\Contracts\Module;
 use Sakura\ImageOptimizer\S3\Bucket_Identity;
-use Sakura\ImageOptimizer\S3\Client_Factory;
-use Sakura\ImageOptimizer\S3\Connection_Probe;
-use Sakura\ImageOptimizer\S3\Connection_Tester;
 use Sakura\ImageOptimizer\S3\Options;
 use Sakura\ImageOptimizer\S3\Profile_Actions;
 use Sakura\ImageOptimizer\S3\Probe_Runner;
-use Sakura\ImageOptimizer\S3\Profile_Manager;
 use Sakura\ImageOptimizer\S3\S3_Storage_Page;
 use Sakura\ImageOptimizer\S3\Settings_Saver;
 use Sakura\ImageOptimizer\S3\Storage_Adapter;
@@ -37,8 +33,6 @@ class S3_Storage_Module implements Module {
 	private ?Storage_Adapter $adapter = null;
 	/** @var Settings_Saver|null */
 	private ?Settings_Saver $saver = null;
-	/** @var Connection_Tester|null */
-	private ?Connection_Tester $tester = null;
 	/** @var S3_Storage_Page|null */
 	private ?S3_Storage_Page $page = null;
 	/** @var Sync_Status|null */
@@ -56,10 +50,6 @@ class S3_Storage_Module implements Module {
 		return $this->saver ??= new Settings_Saver( $this->options() );
 	}
 
-	private function tester(): Connection_Tester {
-		return $this->tester ??= new Connection_Tester( $this->options() );
-	}
-
 	private function status(): Sync_Status {
 		return $this->status ??= new Sync_Status();
 	}
@@ -71,9 +61,7 @@ class S3_Storage_Module implements Module {
 	/** @param Hook_Loader $hooks Hook loader. */
 	public function register_hooks( Hook_Loader $hooks ): void {
 		$hooks->add_action( 'admin_post_sakura_s3_save', array( $this, 'save' ) );
-		$hooks->add_action( 'admin_post_sakura_s3_switch', array( $this, 'switch_profile' ) );
 		$hooks->add_action( 'admin_post_sakura_s3_delete', array( $this, 'delete_profile' ) );
-		$hooks->add_action( 'admin_post_sakura_s3_test', array( $this, 'test_connection' ) );
 		$hooks->add_action( 'admin_post_sakura_s3_alerts_save', array( $this, 'save_alerts' ) );
 		$hooks->add_action( 'admin_post_sakura_s3_alerts_test', array( $this, 'test_alert' ) );
 		$hooks->add_action( 'admin_post_sakura_s3_prometheus_rotate', array( $this, 'rotate_prometheus' ) );
@@ -123,30 +111,6 @@ class S3_Storage_Module implements Module {
 	/** Rotate the Prometheus scrape token. */
 	public function rotate_prometheus(): void {
 		\Sakura\ImageOptimizer\S3\Monitoring_Panel::handle_rotate();
-	}
-
-	/** Activate a saved provider profile. */
-	public function switch_profile(): void {
-		if ( ! current_user_can( 'manage_options' ) ) {
-			wp_die( esc_html__( '权限不足。', 'sakura-imgopt' ) );
-		}
-		check_admin_referer( 'sakura_s3_switch' );
-
-		$profile_id = isset( $_POST['profile_id'] ) ? sanitize_key( wp_unslash( $_POST['profile_id'] ) ) : '';
-		$manager    = new Profile_Manager();
-		$result     = $manager->switch_profile( $profile_id );
-
-		if ( empty( $result['success'] ) ) {
-			$error = isset( $result['error'] ) && 'path_conflict' === $result['error'] ? 'switch_path' : 'switch';
-			$this->redirect( array( 'saved' => '0', 'error' => $error ) );
-		}
-
-		$this->redirect(
-			array(
-				'saved'    => '1',
-				'switched' => '1',
-			)
-		);
 	}
 
 	/**
@@ -221,10 +185,6 @@ class S3_Storage_Module implements Module {
 				'deleted' => '1',
 			)
 		);
-	}
-
-	public function test_connection(): void {
-		$this->tester()->test();
 	}
 
 	/**

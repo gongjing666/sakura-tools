@@ -1183,8 +1183,6 @@ final class S3_Storage_Page {
 			'path'             => __( '「云端路径前缀」不能包含「..」这类上级目录写法。', 'sakura-imgopt' ),
 			'config'           => __( '启用前必须填写存储桶名称、Access Key、Secret 和服务地址（使用 AWS 官方服务时地址可留空）。', 'sakura-imgopt' ),
 			'crypto'           => __( '服务器缺少加密组件，无法安全保存密钥，请联系主机商开启。', 'sakura-imgopt' ),
-			'switch'           => __( '无法切换：配置不存在或还不完整，请补全后保存。', 'sakura-imgopt' ),
-			'switch_path'      => __( '无法切换：该配置的云端路径和站点当前上传目录不一致，切换后已上传的文件会找不到。请先统一路径，或调整站点的上传目录设置。', 'sakura-imgopt' ),
 			'delete'           => __( '无法删除该配置，请刷新页面后重试。', 'sakura-imgopt' ),
 			'delete_active'    => __( '当前使用中的配置不能删除。如需更换存储桶，请先点这张卡片关闭 S3 存储。', 'sakura-imgopt' ),
 			'delete_bound'     => __( '当前使用中的配置不能删除，而且它还是绑定的那一份。如需更换存储桶，请先点这张卡片关闭 S3 存储。', 'sakura-imgopt' ),
@@ -1212,10 +1210,6 @@ final class S3_Storage_Page {
 
 		if ( isset( $_GET['deleted'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only redirect notice; it does not change state.
 			$success['message'] = __( '已删除保存的配置。', 'sakura-imgopt' );
-			return $success;
-		}
-		if ( isset( $_GET['switched'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only redirect notice; it does not change state.
-			$success['message'] = __( '已切换配置；是否启用和上传策略保持不变。', 'sakura-imgopt' );
 			return $success;
 		}
 		if ( isset( $_GET['saved'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only redirect notice; it does not change state.
@@ -1246,28 +1240,6 @@ final class S3_Storage_Page {
 				'tone'    => 'bad',
 			);
 		}
-		if ( isset( $_GET['tested'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only redirect notice; it does not change state.
-			// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only redirect notice; it does not change state.
-			if ( '1' === sanitize_key( wp_unslash( $_GET['tested'] ) ) ) {
-				/*
-				 * A successful probe can still carry a note, for example when
-				 * the bucket allows listing but refuses HEAD. Show it instead of
-				 * the plain success line so a partial policy is not hidden.
-				 */
-				// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only redirect message; it does not change state.
-				$note                 = isset( $_GET['message'] ) ? sanitize_text_field( wp_unslash( $_GET['message'] ) ) : '';
-				$success['message']   = '' !== $note ? $note : __( '连接成功，存储桶可以访问。', 'sakura-imgopt' );
-				return $success;
-			}
-			// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only redirect message; it does not change state.
-			$message = isset( $_GET['message'] ) ? sanitize_text_field( wp_unslash( $_GET['message'] ) ) : __( '连接失败。', 'sakura-imgopt' );
-
-			return array(
-				'message' => $message,
-				'tone'    => 'bad',
-			);
-		}
-
 		return $success;
 	}
 }

@@ -204,7 +204,7 @@ namespace Sakura\ImageOptimizer\Admin;
 
 ### 3.2 类型
 
-- **参数与返回值都标类型**；没有返回值写 `: void`；必然抛异常或退出的写 `: never`（现有 `src/S3/Connection_Tester.php:89`）。
+- **参数与返回值都标类型**；没有返回值写 `: void`；必然抛异常或退出的方法写 `: never`（本仓目前没有这种方法，新写时要慎用：声明 `never` 的函数只要有一条路径返回就是运行时致命错误）。
 - 可空写 `?string`，不要 `string|null`（两者等价，但全仓统一前者）。联合类型按窄到宽排列：`string|false`。
 - 数组必须给形状，PHPStan level 5 靠它：
 

@@ -14,6 +14,7 @@
 | 第一次接触，想弄清插件由什么组成 | `docs/开发规则/01-架构与装配.md` |
 | 加设置项、加页面、加 AJAX 动作、加 cron、加 S3 厂商 | `docs/开发规则/02-新增功能.md` |
 | 改后台样式、加卡片、调布局、写页签视图 | `docs/开发规则/03-后台UI.md` |
+| 写后台的 React 岛屿（系统设置、图像优化四页签）：组件结构、状态与保存、副作用、Actions、性能、DOM 契约、禁止清单 | `docs/开发规则/12-React代码规范.md`（基线 `react@19.3.1`，esbuild 打包，产物 `assets/ui/dist/*.js` 必须提交） |
 | 手动调外观：查某个 CSS/JS 管哪块、颜色令牌、怎么覆盖才不被下次更新冲掉 | `docs/开发规则/10-静态资源手册.md` |
 | 加表、加 option、写迁移、改卸载逻辑 | `docs/开发规则/04-数据与存储.md` |
 | 写测试、处理 PHPStan / PHPCS 报错 | `docs/开发规则/05-测试与质量.md` |
@@ -105,7 +106,7 @@ docs/                   文档（不进发布包）
 ## 4. 验证命令
 
 ```bash
-composer test          # PHPUnit，基线 870 tests / 3730 assertions / 6 skipped
+composer test          # PHPUnit，基线 897 tests / 3816 assertions / 6 skipped
 composer phpstan       # level 5，必须 [OK] No errors
 composer lint:strict   # PHPCS，必须 0 error / 0 warning（新增任何一条都当 error）
 php -l <file>          # 改动的每个 PHP 文件

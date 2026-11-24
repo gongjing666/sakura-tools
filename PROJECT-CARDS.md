@@ -1,11 +1,11 @@
-<!-- deep-ptc:project-cards v1 next=R1,F22,Q7,T5 -->
+<!-- deep-ptc:project-cards v1 next=R1,F23,Q7,T8 -->
 # Project cards
 
 > Maintained by Deep PTC in DeepSeek Harness: edit in a Deep PTC conversation, view 特点卡片 / Project cards.
 > User-approved settings guide this project. Features and requirements are records that can be checked and corrected.
 
 ## Implemented features / 已实现功能
-<!-- card id=features kind=features rev=8 updated=2026-11-24T07:23:12.923Z -->
+<!-- card id=features kind=features rev=9 updated=2026-11-24T08:34:29.626Z -->
 
 - **F1** 切桶封存与解锁（R18）：切桶时同一次 update_option 写入 s3_options['reconcile_pending'] = {profile_id, at, bucket, from}，同步中心立刻封存；只有跑完 mode=full 或 resume 的完整核对，才由 Scan_Service::finalize() 调 Options::clear_reconcile_pending() 清零。验证：同步中心 #sakura-sync-state 的 data-reconcile-gated=1，refresh / resume / retry 三个端点返回 409 sio_reconcile_required。
 - **F2** 切桶提醒走插件弹窗（#sakura-s3-switch-modal，kicker「OBJECT STORAGE / SWITCHED」）：列出缩略图改写已关、同步中心数据仍是上一个桶的、上传行为两开关仍按原绑定三件事，按钮直达同步中心。刷新后才出现的顶部 WP admin notice 已删除。
@@ -28,6 +28,7 @@
 - **F19** 开关与勾选统一走共享组件类：React 的 Checkbox（assets/ui/src/image/thumb.jsx、backup.jsx）原先用自造类 `field__check`，全仓 CSS 里没有这条规则，只在恰好作为 `.field__control` 直接子元素时才被 `>` 选择器兜住；放进 `.check-grid` 两列网格后完全失去样式——「生效位置」4 个、「高级」8 个开关文字贴住开关，长文案还折到开关下方。改用 `label.check` + `<span class="check__text">` 后，13 个开关 computed gap 与实测间距全部 10px（`--g-check-gap`），两列左缘 835/1121、行顶 1160/1211/1262 对齐；1440 与 390 均 `documentElement.scrollWidth === clientWidth`，console 0 error、无 Deprecated/Warning，开关可点击。规则写进 12 篇 §7 与 03 篇开关条目。版本 1.28.8-beta-38。
 - **F20** 缩略图优化页保存「总开关与处理方式」后，右上角状态卡与告警跟着落库值刷新：Thumb_Payload 把 status()/alerts() 提为公开方法，Image_Controller 的 save_thumb_card 响应带回重算结果，React 侧 onServerState 合并进 head.status 与 payload.alerts（1.28.8-beta-39）。
 - **F21** 缩略图优化页右上角健康卡改用文字徽章表达状态（1.28.8-beta-40）：status 数组新增 badge {text,tone}，Page::status() 与 React StatusCard 都输出 .status-card__top（label 左、徽章右，底 --g-*-bg / 字 --g-* / 11px 胶囊），有徽章时副行回中性色；三态为已停用 neutral / 已启用 ok / 未生效 warn（判据与 alerts() 一致）。同时补上 Page::status_data() 白名单里的 badge 键——漏了它 boot.head.status 丢字段，徽章根本不出现。验证：demo.77il.cn beta-40 上 1440 与 390 徽章「已启用」(47×20.5，右边缘落在卡片内) 点开关保存后立刻变「已停用」--neutral 再变回，页面不横溢；系统设置/图片优化/对象存储/备份/统计/文件空间六处状态卡无徽章、副行仍按 tone 上色、高度仍 84.5–84.6px；903 tests / 3831 assertions / 6 ski
+- **F22** 对象存储模块「S3 存储」页已迁成 React 岛（1.28.8-beta-41）：五张卡（已保存的配置 / 添加存储配置 / 上传行为 / 上传吞吐 / 监控与告警）走 Storage_Payload + Storage REST（GET /storage、POST /storage/cards/{connection|behaviour}、/storage/profile、/storage/profile/delete、/storage/probe、/storage/probe/profile、/storage/doge-buckets），服务端决策抽成 Profile_Actions / Probe_Runner / Save_Refused，旧 admin-post 与 admin-ajax 处理器改为调用同一批服务；实测 1440 排成四行、390 单列不横溢、切桶徽章与 tone 同步、并发数保存与新建/删除配置全 200，console 0 error，debug.log 无新增。
 
 
 ## User requirements / 用户要求
@@ -42,9 +43,12 @@
 
 
 ## Completed tasks / 已完成任务
-<!-- card id=tasks kind=tasks rev=4 updated=2026-11-24T06:23:27.293Z -->
+<!-- card id=tasks kind=tasks rev=7 updated=2026-11-24T07:57:46.332Z -->
 
 - **T1** [done] 为 sakura-tools 插件补一篇 PHP 代码规范文档（docs/开发规则/），以 PHP 8.2–8.4 兼容 (11/24)
 - **T2** [done] 文档中所有描述实验站的地方（AGENTS.md、05 篇、09 篇、11 篇、03 篇、docs/验收脚本/README — 实验站 demo.77il.cn 的新部署（宝塔本机 /www/wwwroot/demo.77il.cn，PHP 8.4.28 + MariaDB 12.3.2）已写进 AGENTS.md 与 05/09/11/03 篇、验收脚本，并写入记忆；文档不含密码，凭据只在 /root/.dsh/secrets/demo-77il-login.txt；本地提交 f343907，未 push。 (11/24)
 - **T3** [done] 修好图片优化页「禁止 WordPress 裁剪」卡片在窄宽下的显示问题：表格各列（禁用 / 尺寸名称 / 宽×高 / 生 (11/24)
 - **T4** [done] 「按位置指定尺寸」卡片的四个下拉框按实际渲染判断：若控件与文字间距同样偏离 10px 规则，本轮一并调整；本来就合规则不 — 开关/勾选改用共享 .check 组件，13 个开关间距恢复 10px；1440/390 实测通过，提交 da518fd (11/24)
+- **T5** [done] 改完后 1440 与 390 两个宽度实测：状态能在第一眼辨认（启用/停用不用读文字颜色），页面不横溢，其余 16 处状 — 健康卡改用文字徽章（已启用/已停用/未生效）表达状态，1440 与 390 实测通过，其余 16 处状态卡不变；版本 1.28.8-beta-40，提交 a7cc402（未 push） (11/24)
+- **T6** [done] 重构对象存储模块的第一个页面「S3 存储」，与已经重构好的「系统设置」「图片优化」两个模块保持同一套视觉与交互（页头状态 (11/24)
+- **T7** [done] 五张卡（已保存的配置 / 添加存储配置 / 上传行为 / 上传吞吐 / 监控与告警）与旧页功能等价：切换与停用配置、删除 (11/24)

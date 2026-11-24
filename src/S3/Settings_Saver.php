@@ -191,27 +191,38 @@ final class Settings_Saver {
 	 * @param string $old_value Value stored before this request.
 	 * @param string $new_value Effective value this request would store.
 	 */
-	public static function risk_ack_missing( string $old_value, string $new_value ): bool {
+	public static function risk_ack_missing( string $old_value, string $new_value, string $ack ): bool {
 		if ( 'true' !== $new_value || 'true' === $old_value ) {
 			return false;
 		}
 
-		$ack = isset( $_POST['no_local_saving_ack'] ) ? sanitize_text_field( wp_unslash( $_POST['no_local_saving_ack'] ) ) : '';
-
 		return '1' !== $ack;
 	}
 
-	public function save(): void {
-		if ( ! current_user_can( 'manage_options' ) ) {
-			wp_die( esc_html__( '权限不足。', 'sakura-imgopt' ) );
-		}
-		check_admin_referer( 'sakura_s3_save' );
-
-		$card = Card_Form::current_card();
+	public function apply( array $input, string $card ): array {
 		if ( 'behaviour' === $card ) {
-			$this->save_behaviour();
-			return;
+			return $this->apply_behaviour( $input );
 		}
+
+		$post = static function ( string $key ) use ( $input ): string {
+			return isset( $input[ $key ] ) && is_scalar( $input[ $key ] ) ? (string) $input[ $key ] : '';
+		};
+		$has  = static function ( string $key ) use ( $input ): bool {
+			return isset( $input[ $key ] );
+		};
+		$flag = static function ( string $key ) use ( $input ): bool {
+			if ( ! isset( $input[ $key ] ) ) {
+				return false;
+			}
+
+			$value = $input[ $key ];
+			if ( is_bool( $value ) ) {
+				return $value;
+			}
+
+			return is_scalar( $value ) && ! in_array( (string) $value, array( '', '0', 'false' ), true );
+		};
+
 		$connection_only = 'connection' === $card;
 
 		$old       = $this->options->all();
@@ -220,12 +231,12 @@ final class Settings_Saver {
 		/** @var array<string,array<string,mixed>> $profiles */
 		$profiles  = isset( $raw['profiles'] ) && is_array( $raw['profiles'] ) ? $raw['profiles'] : array();
 		$providers = Providers::all();
-		$provider  = isset( $_POST['provider'] ) ? sanitize_key( wp_unslash( $_POST['provider'] ) ) : 'cloudflare';
+		$provider  = sanitize_key( $post( 'provider' ) );
 		if ( ! isset( $providers[ $provider ] ) ) {
 			$provider = 'cloudflare';
 		}
-		$submitted_id     = isset( $_POST['profile_id'] ) ? sanitize_key( wp_unslash( $_POST['profile_id'] ) ) : '';
-		$save_as_new      = ! empty( $_POST['save_as_new'] );
+		$submitted_id     = sanitize_key( $post( 'profile_id' ) );
+		$save_as_new      = $flag( 'save_as_new' );
 		/** @var array<string,mixed> $editing Profile the form is editing, when it still exists. */
 		$editing = '' !== $submitted_id && isset( $profiles[ $submitted_id ] ) && is_array( $profiles[ $submitted_id ] ) ? $profiles[ $submitted_id ] : array();
 		// Compare against the profile being edited, not the active one: the
@@ -235,11 +246,11 @@ final class Settings_Saver {
 		// A different provider is a different account, so this save adds a
 		// profile instead of rewriting the one the form was showing.
 		$save_as_new      = self::save_as_new_for_save( $save_as_new, $provider_changed, $editing );
-		$profile_name     = isset( $_POST['profile_name'] ) ? sanitize_text_field( wp_unslash( $_POST['profile_name'] ) ) : '';
-		$bucket_raw       = isset( $_POST['bucket'] ) ? sanitize_text_field( wp_unslash( $_POST['bucket'] ) ) : '';
+		$profile_name     = sanitize_text_field( $post( 'profile_name' ) );
+		$bucket_raw       = sanitize_text_field( $post( 'bucket' ) );
 		// 空间名由「获取 SDK 参数」写入隐藏字段；没有这个字段的服务商保持空串。
 		$space_raw        = self::space_for_save(
-			isset( $_POST['space'] ) ? sanitize_text_field( wp_unslash( $_POST['space'] ) ) : '',
+			sanitize_text_field( $post( 'space' ) ),
 			$bucket_raw,
 			$editing
 		);
@@ -248,21 +259,21 @@ final class Settings_Saver {
 		// that has credentials but no bucket: it would sit on the panel as a
 		// broken card nobody can enable.
 		if ( '' === $bucket_raw ) {
-			$this->redirect( array( 'saved' => '0', 'error' => 'bucket' ) );
+			throw new Save_Refused( 'bucket' );
 		}
-		$endpoint_raw     = isset( $_POST['endpoint'] ) ? trim( wp_unslash( $_POST['endpoint'] ) ) : '';
+		$endpoint_raw     = trim( $post( 'endpoint' ) );
 		$endpoint         = '' === $endpoint_raw ? '' : esc_url_raw( $endpoint_raw, array( 'http', 'https' ) );
 		if ( '' !== $endpoint_raw && '' === $endpoint ) {
-			$this->redirect( array( 'saved' => '0', 'error' => 'endpoint' ) );
+			throw new Save_Refused( 'endpoint' );
 		}
 		$profile_id       = self::profile_id_for_save( $profiles, $submitted_id, $save_as_new );
-		$url_raw    = isset( $_POST['upload_url_path'] ) ? trim( wp_unslash( $_POST['upload_url_path'] ) ) : '';
-		$upload_url = '' === $url_raw ? '' : esc_url_raw( untrailingslashit( $url_raw ), array( 'http', 'https' ) );
+		$url_raw          = trim( $post( 'upload_url_path' ) );
+		$upload_url       = '' === $url_raw ? '' : esc_url_raw( untrailingslashit( $url_raw ), array( 'http', 'https' ) );
 		if ( '' !== $url_raw && '' === $upload_url ) {
-			$this->redirect( array( 'saved' => '0', 'error' => 'url' ) );
+			throw new Save_Refused( 'url' );
 		}
-		$key         = isset( $_POST['key'] ) ? self::clean_credential( (string) wp_unslash( $_POST['key'] ) ) : '';
-		$secret      = isset( $_POST['secret'] ) ? self::clean_credential( (string) wp_unslash( $_POST['secret'] ) ) : '';
+		$key         = self::clean_credential( $post( 'key' ) );
+		$secret      = self::clean_credential( $post( 'secret' ) );
 		// A blank credential field means "keep what this profile already has".
 		// The stored ciphertext is carried over verbatim so a secret the operator
 		// never retyped is not decrypted and re-encrypted on every save; a brand
@@ -287,41 +298,41 @@ final class Settings_Saver {
 			'provider'        => $provider,
 			'bucket'          => $bucket_raw,
 			'space'           => $space_raw,
-			'region'          => isset( $_POST['region'] ) ? sanitize_text_field( wp_unslash( $_POST['region'] ) ) : 'us-east-1',
+			'region'          => $has( 'region' ) ? sanitize_text_field( $post( 'region' ) ) : 'us-east-1',
 			'endpoint'        => $endpoint,
 			'key'             => '' !== $key ? $key : (string) ( $kept['key'] ?? '' ),
 			'secret'          => '' !== $secret ? $secret : (string) ( $kept['secret'] ?? '' ),
-			'no_thumb'        => $connection_only ? (string) ( $old['no_thumb'] ?? 'false' ) : ( isset( $_POST['no_thumb'] ) ? 'true' : 'false' ),
-			'no_local_saving' => $connection_only ? (string) ( $old['no_local_saving'] ?? 'false' ) : ( isset( $_POST['no_local_saving'] ) ? 'true' : 'false' ),
+			'no_thumb'        => $connection_only ? (string) ( $old['no_thumb'] ?? 'false' ) : ( $flag( 'no_thumb' ) ? 'true' : 'false' ),
+			'no_local_saving' => $connection_only ? (string) ( $old['no_local_saving'] ?? 'false' ) : ( $flag( 'no_local_saving' ) ? 'true' : 'false' ),
 			'upload_url_path' => $upload_url,
-			'object_acl'      => self::object_acl_for_save( isset( $_POST['object_acl'] ) ? wp_unslash( $_POST['object_acl'] ) : '', $editing, $old ),
+			'object_acl'      => self::object_acl_for_save( $post( 'object_acl' ), $editing, $old ),
 		);
 
 		// R11 (07-S3存储生命周期): both switches are frozen once one upload was
 		// confirmed. The rendered inputs are disabled while frozen, and a disabled
-		// input posts nothing at all — reading the POST here would read "unchecked"
-		// and quietly turn the risky switch off. Take the value from the freeze
-		// instead, so the option keeps saying what the site is actually doing.
+		// input posts nothing at all — reading the request here would read
+		// "unchecked" and quietly turn the risky switch off. Take the value from
+		// the freeze instead, so the option keeps saying what the site is doing.
 		if ( $this->options->behaviour_frozen() ) {
 			$behaviour                  = $this->options->behaviour_snapshot();
 			$options['no_thumb']        = $behaviour['no_thumb'];
 			$options['no_local_saving'] = $behaviour['no_local_saving'];
-		} elseif ( self::risk_ack_missing( (string) ( $old['no_local_saving'] ?? 'false' ), (string) $options['no_local_saving'] ) ) {
+		} elseif ( self::risk_ack_missing( (string) ( $old['no_local_saving'] ?? 'false' ), (string) $options['no_local_saving'], $post( 'no_local_saving_ack' ) ) ) {
 			// R2: the dialog is a courtesy, not the guard. The server re-checks the
 			// acknowledgement so a replayed or hand-built request cannot slip past it.
-			$this->redirect( array( 'saved' => '0', 'error' => 'risk_ack' ) );
+			throw new Save_Refused( 'risk_ack' );
 		}
 		if ( ! $connection_only ) {
-			$upload_concurrency = self::sanitize_upload_concurrency( isset( $_POST['upload_concurrency'] ) ? wp_unslash( $_POST['upload_concurrency'] ) : 1 );
+			$upload_concurrency = self::sanitize_upload_concurrency( $has( 'upload_concurrency' ) ? $post( 'upload_concurrency' ) : 1 );
 			update_option( 'sakura_imgopt_upload_concurrency', $upload_concurrency, false );
 		}
 
-		$upload_path = isset( $_POST['upload_path'] ) ? trim( str_replace( '\\', '/', sanitize_text_field( wp_unslash( $_POST['upload_path'] ) ) ), '/' ) : Options::DEFAULT_UPLOAD_PATH;
+		$upload_path = trim( str_replace( '\\', '/', sanitize_text_field( $post( 'upload_path' ) ) ), '/' );
 		if ( '' === $upload_path ) {
 			$upload_path = Options::DEFAULT_UPLOAD_PATH;
 		}
 		if ( '.' !== $upload_path && ( preg_match( '#(^|/)\.\.(/|$)#', $upload_path ) || false !== strpos( $upload_path, "\0" ) ) ) {
-			$this->redirect( array( 'saved' => '0', 'error' => 'path' ) );
+			throw new Save_Refused( 'path' );
 		}
 
 		// Never overwrite WordPress' own upload_path option: when the site already
@@ -341,7 +352,7 @@ final class Settings_Saver {
 			}
 			$encrypted = Credential_Cipher::encrypt( (string) $stored[ $field ] );
 			if ( false === $encrypted ) {
-				$this->redirect( array( 'saved' => '0', 'error' => 'crypto' ) );
+				throw new Save_Refused( 'crypto' );
 			}
 			$stored[ $field ] = $encrypted;
 		}
@@ -356,7 +367,7 @@ final class Settings_Saver {
 		// a save that leaves both credentials blank writes nothing, and purging
 		// its reconciliation rows would delete records for a target that did not
 		// move.
-		$will_write   = '' !== (string) $stored['key'] && '' !== (string) $stored['secret'];
+		$will_write = '' !== (string) $stored['key'] && '' !== (string) $stored['secret'];
 
 		// R4 (07-S3存储生命周期): a bound site may keep adding and switching
 		// profiles, but the profile holding the binding is no longer editable in the
@@ -370,13 +381,8 @@ final class Settings_Saver {
 			&& (string) ( $binding['profile_id'] ?? '' ) === $profile_id
 			&& ! $this->options->binding_allows( $stored )
 		) {
-			$this->redirect(
-				array(
-					'saved'  => '0',
-					'error'  => 'locked',
-					'fields' => implode( ',', $this->options->changed_identity_fields( $stored ) ),
-				)
-			);
+			// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- Carries a field list to the redirect, never printed raw.
+			throw new Save_Refused( 'locked', array( 'fields' => implode( ',', $this->options->changed_identity_fields( $stored ) ) ) );
 		}
 		$target_moved    = false;
 		$previous_bucket = '';
@@ -387,8 +393,8 @@ final class Settings_Saver {
 			$previous_bucket = Bucket_Identity::from_profile( $previous, $this->options )->hash();
 			if ( '' !== $previous_key && ! hash_equals( $previous_key, $next_key ) ) {
 				$target_moved = true;
-				$retired = isset( $stored['retired_targets'] ) && is_array( $stored['retired_targets'] ) ? $stored['retired_targets'] : array();
-				$bucket  = isset( $retired[ $profile_id ] ) && is_array( $retired[ $profile_id ] ) ? $retired[ $profile_id ] : array();
+				$retired      = isset( $stored['retired_targets'] ) && is_array( $stored['retired_targets'] ) ? $stored['retired_targets'] : array();
+				$bucket       = isset( $retired[ $profile_id ] ) && is_array( $retired[ $profile_id ] ) ? $retired[ $profile_id ] : array();
 				$bucket[ $previous_key ] = $previous + array( 'retired_at' => time() );
 				// Keep the archive small: newest five targets per profile.
 				if ( count( $bucket ) > 5 ) {
@@ -438,7 +444,7 @@ final class Settings_Saver {
 		// Switching storage on is what activates a profile now, and that path
 		// (Profile_Manager::activate) refuses an incomplete one on its own.
 		if ( $saved_is_live && 'true' === (string) $stored['enabled'] && ! ( new Options( $stored ) )->is_configured() ) {
-			$this->redirect( array( 'saved' => '0', 'error' => 'config' ) );
+			throw new Save_Refused( 'config' );
 		}
 
 		if ( ! $saved_is_live ) {
@@ -451,7 +457,7 @@ final class Settings_Saver {
 
 		$stored['profiles']          = $profiles;
 		$stored['active_profile_id'] = $active_profile_id;
-		$stored = self::keep_reserved_keys( $stored, $raw );
+		$stored                      = self::keep_reserved_keys( $stored, $raw );
 
 		update_option( Options::OPTION, $stored, false );
 		if ( $target_moved ) {
@@ -479,27 +485,45 @@ final class Settings_Saver {
 		if ( $target_moved ) {
 			$redirect['moved'] = '1';
 		}
-		$this->redirect( $redirect );
+
+		return $redirect;
 	}
 
 	/**
 	 * Save the upload-behaviour card without touching connection credentials.
+	 *
+	 * @param array<string,mixed> $input Request fields, already unslashed.
+	 * @return array<string,string> Redirect arguments describing the outcome.
 	 */
-	private function save_behaviour(): void {
+	private function apply_behaviour( array $input ): array {
 		$raw = get_option( Options::OPTION, array() );
 		$raw = is_array( $raw ) ? $raw : array();
 
-		// Same two guards as save(): the freeze wins over the POST, and reopening
-		// the risky switch has to carry the acknowledgement (R2 / R11).
+		$flag = static function ( string $key ) use ( $input ): bool {
+			if ( ! isset( $input[ $key ] ) ) {
+				return false;
+			}
+
+			$value = $input[ $key ];
+			if ( is_bool( $value ) ) {
+				return $value;
+			}
+
+			return is_scalar( $value ) && ! in_array( (string) $value, array( '', '0', 'false' ), true );
+		};
+		$ack  = isset( $input['no_local_saving_ack'] ) && is_scalar( $input['no_local_saving_ack'] ) ? (string) $input['no_local_saving_ack'] : '';
+
+		// Same two guards as apply(): the freeze wins over the request, and
+		// reopening the risky switch has to carry the acknowledgement (R2 / R11).
 		if ( $this->options->behaviour_frozen() ) {
 			$behaviour              = $this->options->behaviour_snapshot();
 			$raw['no_thumb']        = $behaviour['no_thumb'];
 			$raw['no_local_saving'] = $behaviour['no_local_saving'];
 		} else {
-			$no_thumb        = isset( $_POST['no_thumb'] ) ? 'true' : 'false';
-			$no_local_saving = isset( $_POST['no_local_saving'] ) ? 'true' : 'false';
-			if ( self::risk_ack_missing( (string) ( $raw['no_local_saving'] ?? 'false' ), $no_local_saving ) ) {
-				$this->redirect( array( 'saved' => '0', 'error' => 'risk_ack' ) );
+			$no_thumb        = $flag( 'no_thumb' ) ? 'true' : 'false';
+			$no_local_saving = $flag( 'no_local_saving' ) ? 'true' : 'false';
+			if ( self::risk_ack_missing( (string) ( $raw['no_local_saving'] ?? 'false' ), $no_local_saving, $ack ) ) {
+				throw new Save_Refused( 'risk_ack' );
 			}
 
 			$raw['no_thumb']        = $no_thumb;
@@ -507,13 +531,34 @@ final class Settings_Saver {
 		}
 
 		update_option( Options::OPTION, $raw, false );
+		$concurrency = isset( $input['upload_concurrency'] ) && is_scalar( $input['upload_concurrency'] ) ? (string) $input['upload_concurrency'] : '1';
 		update_option(
 			'sakura_imgopt_upload_concurrency',
-			self::sanitize_upload_concurrency( isset( $_POST['upload_concurrency'] ) ? wp_unslash( $_POST['upload_concurrency'] ) : 1 ),
+			self::sanitize_upload_concurrency( $concurrency ),
 			false
 		);
 
-		$this->redirect( array( 'saved' => '1' ) );
+		return array( 'saved' => '1' );
+	}
+
+	public function save(): void {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_die( esc_html__( '权限不足。', 'sakura-imgopt' ) );
+		}
+		check_admin_referer( 'sakura_s3_save' );
+
+		$post  = wp_unslash( $_POST );
+		$input = is_array( $post ) ? $post : array();
+
+		try {
+			$args = $this->apply( $input, Card_Form::current_card() );
+		} catch ( Save_Refused $refused ) {
+			$this->redirect( array_merge( array( 'saved' => '0', 'error' => $refused->reason() ), $refused->args() ) );
+
+			return;
+		}
+
+		$this->redirect( $args );
 	}
 
 	/** Redirect to the S3 settings page; never returns. */
@@ -521,6 +566,7 @@ final class Settings_Saver {
 		wp_safe_redirect( add_query_arg( array_merge( array( 'page' => S3_Storage_Module::MENU_SLUG ), $args ), admin_url( 'admin.php' ) ) );
 		exit;
 	}
+
 
 	/**
 	 * Resolve the submitted space name against the profile being edited.

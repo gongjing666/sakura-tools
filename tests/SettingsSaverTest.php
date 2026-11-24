@@ -364,12 +364,10 @@ final class SettingsSaverTest extends TestCase {
 	 * the acknowledgement.
 	 */
 	public function test_risk_acknowledgement_is_required_only_when_opening_the_risk(): void {
-		unset( $_POST['no_local_saving_ack'] );
-
-		$this->assertTrue( Settings_Saver::risk_ack_missing( 'false', 'true' ), 'Turning the risk on without ack must be refused.' );
-		$this->assertFalse( Settings_Saver::risk_ack_missing( 'true', 'true' ), 'Already on: saving again is not a new risk.' );
-		$this->assertFalse( Settings_Saver::risk_ack_missing( 'true', 'false' ), 'Turning it off never needs an ack.' );
-		$this->assertFalse( Settings_Saver::risk_ack_missing( 'false', 'false' ) );
+		$this->assertTrue( Settings_Saver::risk_ack_missing( 'false', 'true', '' ), 'Turning the risk on without ack must be refused.' );
+		$this->assertFalse( Settings_Saver::risk_ack_missing( 'true', 'true', '' ), 'Already on: saving again is not a new risk.' );
+		$this->assertFalse( Settings_Saver::risk_ack_missing( 'true', 'false', '' ), 'Turning it off never needs an ack.' );
+		$this->assertFalse( Settings_Saver::risk_ack_missing( 'false', 'false', '' ) );
 	}
 
 	/**
@@ -377,13 +375,9 @@ final class SettingsSaverTest extends TestCase {
 	 * that was not produced by the dialog.
 	 */
 	public function test_risk_acknowledgement_accepts_only_the_dialog_value(): void {
-		$_POST['no_local_saving_ack'] = '1';
-		$this->assertFalse( Settings_Saver::risk_ack_missing( 'false', 'true' ) );
-
-		$_POST['no_local_saving_ack'] = 'yes';
-		$this->assertTrue( Settings_Saver::risk_ack_missing( 'false', 'true' ) );
-
-		unset( $_POST['no_local_saving_ack'] );
+		$this->assertFalse( Settings_Saver::risk_ack_missing( 'false', 'true', '1' ) );
+		$this->assertTrue( Settings_Saver::risk_ack_missing( 'false', 'true', 'yes' ) );
+		$this->assertTrue( Settings_Saver::risk_ack_missing( 'false', 'true', '' ) );
 	}
 
 	/**

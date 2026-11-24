@@ -63,6 +63,12 @@ assets/ui/src/
     rules.jsx thumb.jsx backup.jsx stats.jsx fields.jsx
   system/
     index.jsx app.jsx components.jsx boot.js
+  storage/
+    index.jsx          ← 同上，挂在 .sakura-admin[data-sakura-page^="storage-"] 的 <main>
+    app.jsx            ← 外壳：保存 / 切换 / 删除 / 探针 / 风险确认，调度五张卡
+    transport.js       ← 与 image 同签名，路由前缀 /storage
+    dialog.jsx         ← 确认框、切桶提醒、多吉云空间选择与测试结果共用一套 .sakura-modal 标记
+    profiles.jsx connection.jsx behaviour.jsx metrics.jsx monitoring.jsx
 ```
 
 规矩：
@@ -190,16 +196,16 @@ git diff --check
 
 | 项 | 数量 | 结论 |
 |---|---|---|
-| 文件 / 行数 | 13 个 / 3,224 行 | 规模可控 |
-| `useState` | 35 | 集中在 `app.jsx` 与各页签的 draft/saved |
-| `useEffect` | 6 | 全部带清理（click / popstate / keydown / 定时器） |
-| `useRef` / `useCallback` | 3 / 3 | 合理个例 |
+| 文件 / 行数 | 22 个 / 5,466 行 | 规模可控（对象存储页带来 9 个文件 / 2,242 行） |
+| `useState` | 62 | 集中在各页 `app.jsx` 与卡片的 draft/saved |
+| `useEffect` | 14 | 全部带清理或只读依赖键（click / popstate / keydown / 定时器 / 值变化） |
+| `useRef` / `useCallback` | 8 / 5 | 合理个例 |
 | `useMemo` / `memo` / `createContext` | 0 / 0 / 0 | 未过早优化，符合本文 |
 | `forwardRef` / `PropTypes` / `defaultProps` / class 组件 | 0 | 无旧写法残留 |
 | `dangerouslySetInnerHTML` | 4 | 全部是服务端字符串（品牌 SVG、tagline、弹窗图标、吉祥物） |
-| 下标作 key | 4 | 全部是静态字符串列表（hint / warning / note / card.desc） |
+| 下标作 key | 6 | 全部是静态字符串列表（hint / warning / note / card.desc / 告警行） |
 | React 19 Actions（`useActionState` / `useOptimistic`） | 0 | 19.3 已具备，现有页签仍是手写 `saving`；按 §5 逐个页签迁移，不批量重写 |
-| 打包产物 | `image.js` 254 KB（260,608 B）/ `system.js` 232 KB（237,162 B） | React 19.3.1 minified；18.3.1 版是 176/153 KB，差 74/80 KB，由开发者决定接受 |
+| 打包产物 | `image.js` 254 KB（260,901 B）/ `storage.js` 254 KB（260,190 B）/ `system.js` 232 KB（237,455 B） | React 19.3.1 minified；18.3.1 版是 176/153 KB，差 74/80 KB，由开发者决定接受 |
 
 结论：**没有需要立刻返工的旧版写法**；基线与 `package.json` 一致（`^19.0.0` → 19.3.1）。下一步真正有价值的是按 §5 把保存动作迁到 `useActionState`，而不是先加 `memo`。
 

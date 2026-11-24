@@ -609,7 +609,16 @@
 	font-size: var(--g-fs-meta);
 }
 
+/*
+ * The island puts two buttons in here (copy the endpoint, rotate the token).
+ * The server-rendered panel only ever had one, so the row now has to wrap and
+ * space itself instead of relying on the single button's own margin.
+ */
 .sakura-admin[data-sakura-page="storage-connection"] .monitor-panel__actions {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--g-space-2);
 	margin: 0;
 }
 

@@ -1,6 +1,7 @@
 <?php
 namespace Sakura\ImageOptimizer\S3;
 
+use Sakura\ImageOptimizer\Admin\Storage_Payload;
 use Sakura\ImageOptimizer\Admin\UI;
 use Sakura\ImageOptimizer\Admin\Registry;
 
@@ -25,6 +26,22 @@ final class S3_Storage_Page {
 			return;
 		}
 
+		/*
+		 * The React island replaces the page head and the five cards. If the
+		 * bundle is missing (fresh checkout, no build, a botched deploy that
+		 * dropped assets/ui/dist), fall through to the classic form instead of
+		 * printing a page whose scripts will 404 and leave the skeleton up
+		 * forever.
+		 */
+		$bundle = 'assets/ui/dist/storage.js';
+
+		if ( is_readable( SAKURA_TOOLS_PATH . $bundle ) ) {
+			$payload = ( new Storage_Payload( $this->options ) )->build();
+			require SAKURA_TOOLS_PATH . 'includes/views/storage-island.php';
+
+			return;
+		}
+
 		$options          = $this->options->all();
 		$upload_path      = $this->options->upload_path();
 		$upload_path_src  = $this->options->upload_path_source( $options );
@@ -32,7 +49,7 @@ final class S3_Storage_Page {
 		$parallel         = Upload_Capabilities::supports_parallel();
 		$effective        = Upload_Capabilities::effective( $concurrency );
 		$constants_locked = defined( 'S3_UPLOADS_USE_CONSTANTS' ) && true === S3_UPLOADS_USE_CONSTANTS;
-		$notice           = $this->notice();
+		$notice           = self::notice_payload();
 		$credentials_bad  = $this->options->credentials_unreadable();
 		$saved_profiles   = $this->options->saved_profiles();
 		$provider_counts  = $this->options->provider_saved_counts();
@@ -881,7 +898,7 @@ final class S3_Storage_Page {
 	 * @param string $bound_id    Profile holding the binding, '' when unbound.
 	 * @param bool   $risk_locked Whether that binding ran with no_local_saving.
 	 */
-	private static function lost_local_for( string $bound_id, bool $risk_locked ): int {
+	public static function lost_local_for( string $bound_id, bool $risk_locked ): int {
 		if ( ! $risk_locked || '' === $bound_id ) {
 			return 0;
 		}
@@ -909,7 +926,7 @@ final class S3_Storage_Page {
 	 * @param bool   $risk_locked   Whether that binding ran with no_local_saving.
 	 * @param int    $profile_count Saved profiles in total.
 	 */
-	private static function delete_refusal( string $profile_id, bool $is_active, bool $enabled, string $bound_id, bool $risk_locked, int $profile_count ): string {
+	public static function delete_refusal( string $profile_id, bool $is_active, bool $enabled, string $bound_id, bool $risk_locked, int $profile_count ): string {
 		// R7 rows 2 and 3: the profile the site is uploading to cannot go. Pausing
 		// it first is the documented move, so the refusal is not a dead end.
 		if ( $is_active && $enabled ) {
@@ -939,7 +956,7 @@ final class S3_Storage_Page {
 	 *
 	 * @return array{title:string,text:string,items:string[],require:string}
 	 */
-	private static function delete_confirm( int $count, bool $is_unbind, bool $risk_locked, string $name = '' ): array {
+	public static function delete_confirm( int $count, bool $is_unbind, bool $risk_locked, string $name = '' ): array {
 		$confirm = array(
 			'title'   => __( '删除已保存的配置', 'sakura-imgopt' ),
 			'text'    => __( '确定删除这个已保存的配置吗？删除后不可恢复，它对应的核对记录、计数与日志也会一起清空，但不会影响当前活动配置。', 'sakura-imgopt' ),
@@ -1087,11 +1104,16 @@ final class S3_Storage_Page {
 	 * and the media URLs changed. The toast on the card is nowhere near those
 	 * controls, so the same response carries a dialog the client opens.
 	 *
-	 * @param string $from      Previous profile name.
-	 * @param string $to        New profile name.
-	 * @param bool   $frozen    Whether the behaviour switches are frozen.
+	 * The copy lives here as data because two clients draw it: the PHP renderer
+	 * builds markup for the legacy script, and the React island renders its own
+	 * dialog from the same words.
+	 *
+	 * @param string $from   Previous profile name.
+	 * @param string $to     New profile name.
+	 * @param bool   $frozen Whether the behaviour switches are frozen.
+	 * @return array{tone:string,kicker:string,title:string,message:string,items:string[],button:string}
 	 */
-	public static function switch_modal_html( string $from, string $to, bool $frozen ): string {
+	public static function switch_notice( string $from, string $to, bool $frozen ): array {
 		$items = array();
 
 		$items[] = __( '缩略图地址改写已自动关闭：图片域名变了，缓存的缩略图地址也已作废。到「缩略图优化」核对图片域名后重新开启。', 'sakura-imgopt' );
@@ -1101,36 +1123,88 @@ final class S3_Storage_Page {
 			$items[] = __( '「上传行为」两个开关仍按原来的绑定生效，新的改动要等解绑之后。', 'sakura-imgopt' );
 		}
 
-		$body  = '<ul class="dialog__list">';
-		foreach ( $items as $item ) {
-			$body .= '<li>' . esc_html( $item ) . '</li>';
-		}
-		$body .= '</ul>';
-
 		$to_label = '' !== $to ? $to : __( '新配置', 'sakura-imgopt' );
 		$title    = '' !== $from
 			? sprintf( /* translators: 1: previous profile name, 2: new profile name. */ __( '已从「%1$s」切换到「%2$s」', 'sakura-imgopt' ), $from, $to_label )
 			: sprintf( /* translators: %s: new profile name. */ __( '已切换到「%s」', 'sakura-imgopt' ), $to_label );
 
+		return array(
+			'tone'    => 'warn',
+			'kicker'  => 'OBJECT STORAGE / SWITCHED',
+			'title'   => $title,
+			'message' => __( '这次点击换了存储桶，有两处需要你重新确认：', 'sakura-imgopt' ),
+			'items'   => $items,
+			'button'  => __( '知道了，去同步中心核对', 'sakura-imgopt' ),
+		);
+	}
+
+	/**
+	 * Markup form of switch_notice() for the legacy (non-island) renderer.
+	 *
+	 * @param string $from   Previous profile name.
+	 * @param string $to     New profile name.
+	 * @param bool   $frozen Whether the behaviour switches are frozen.
+	 */
+	public static function switch_modal_html( string $from, string $to, bool $frozen ): string {
+		$notice = self::switch_notice( $from, $to, $frozen );
+
+		$body = '<ul class="dialog__list">';
+		foreach ( $notice['items'] as $item ) {
+			$body .= '<li>' . esc_html( $item ) . '</li>';
+		}
+		$body .= '</ul>';
+
 		return UI::modal_html(
 			array(
 				'id'        => 'sakura-s3-switch-modal',
 				'return_to' => '#sakura-s3-save-form [data-sakura-action="toggle-profile"]',
-				'tone'      => 'warn',
-				'kicker'    => 'OBJECT STORAGE / SWITCHED',
-				'title'     => $title,
-				'message'   => __( '这次点击换了存储桶，有两处需要你重新确认：', 'sakura-imgopt' ),
+				'tone'      => $notice['tone'],
+				'kicker'    => $notice['kicker'],
+				'title'     => $notice['title'],
+				'message'   => $notice['message'],
 				'body'      => $body,
-				'button'    => __( '知道了，去同步中心核对', 'sakura-imgopt' ),
+				'button'    => $notice['button'],
 			)
 		);
 	}
 	/**
+	 * Operator-facing text for a refused save.
+	 *
+	 * Shared by the redirect notice (?saved=0&error=code) and the REST save
+	 * path, so a refusal reads the same whichever transport carried it.
+	 *
+	 * @param string $code Error code from Settings_Saver::apply().
+	 */
+	public static function error_message( string $code ): string {
+		$errors = array(
+			'bucket'           => __( '还没有填存储桶名称。这个表单是用来新增一份配置的，想修改已保存的配置，请点上面的配置小卡片。', 'sakura-imgopt' ),
+			'endpoint'         => __( '「服务地址」必须是有效的 http:// 或 https:// 地址。', 'sakura-imgopt' ),
+			'url'              => __( '「图片地址前缀」必须是有效的 http:// 或 https:// 地址。', 'sakura-imgopt' ),
+			'path'             => __( '「云端路径前缀」不能包含「..」这类上级目录写法。', 'sakura-imgopt' ),
+			'config'           => __( '启用前必须填写存储桶名称、Access Key、Secret 和服务地址（使用 AWS 官方服务时地址可留空）。', 'sakura-imgopt' ),
+			'crypto'           => __( '服务器缺少加密组件，无法安全保存密钥，请联系主机商开启。', 'sakura-imgopt' ),
+			'switch'           => __( '无法切换：配置不存在或还不完整，请补全后保存。', 'sakura-imgopt' ),
+			'switch_path'      => __( '无法切换：该配置的云端路径和站点当前上传目录不一致，切换后已上传的文件会找不到。请先统一路径，或调整站点的上传目录设置。', 'sakura-imgopt' ),
+			'delete'           => __( '无法删除该配置，请刷新页面后重试。', 'sakura-imgopt' ),
+			'delete_active'    => __( '当前使用中的配置不能删除。如需更换存储桶，请先点这张卡片关闭 S3 存储。', 'sakura-imgopt' ),
+			'delete_bound'     => __( '当前使用中的配置不能删除，而且它还是绑定的那一份。如需更换存储桶，请先点这张卡片关闭 S3 存储。', 'sakura-imgopt' ),
+			'pending_profiles' => __( '高风险锁定下不能保留其它配置。请先删除其余配置（它们指向的桶里没有这些附件），再删除当前配置。', 'sakura-imgopt' ),
+			'locked'           => __( '当前处于高风险锁定：本地副本已删除，只有这份配置对应的存储桶里有这些文件，切到别的配置会变成死链。如需更换服务商或存储桶，请走「关闭 S3 → 删除其余全部配置 → 删除当前配置」。', 'sakura-imgopt' ),
+			'risk_ack'         => __( '「上传成功后删除本地文件」是高风险选项，需要先确认风险再保存。', 'sakura-imgopt' ),
+		);
+
+		return $errors[ $code ] ?? __( '设置未保存。', 'sakura-imgopt' );
+	}
+
+	/**
 	 * Read-only redirect notice, mapped from the query string.
+	 *
+	 * Public and static because the React bootstrap in Storage_Payload needs
+	 * the same words after a native POST redirect as the PHP renderer does.
 	 *
 	 * @return array{message:string,tone:string}
 	 */
-	private function notice(): array {
+	public static function notice_payload(): array {
 		$success = array(
 			'message' => '',
 			'tone'    => 'ok',
@@ -1164,27 +1238,11 @@ final class S3_Storage_Page {
 				return $success;
 			}
 
-			$errors = array(
-				'bucket'           => __( '还没有填存储桶名称。这个表单是用来新增一份配置的，想修改已保存的配置，请点上面的配置小卡片。', 'sakura-imgopt' ),
-				'endpoint'         => __( '「服务地址」必须是有效的 http:// 或 https:// 地址。', 'sakura-imgopt' ),
-				'url'              => __( '「图片地址前缀」必须是有效的 http:// 或 https:// 地址。', 'sakura-imgopt' ),
-				'path'             => __( '「云端路径前缀」不能包含「..」这类上级目录写法。', 'sakura-imgopt' ),
-				'config'           => __( '启用前必须填写存储桶名称、Access Key、Secret 和服务地址（使用 AWS 官方服务时地址可留空）。', 'sakura-imgopt' ),
-				'crypto'           => __( '服务器缺少加密组件，无法安全保存密钥，请联系主机商开启。', 'sakura-imgopt' ),
-				'switch'           => __( '无法切换：配置不存在或还不完整，请补全后保存。', 'sakura-imgopt' ),
-				'switch_path'      => __( '无法切换：该配置的云端路径和站点当前上传目录不一致，切换后已上传的文件会找不到。请先统一路径，或调整站点的上传目录设置。', 'sakura-imgopt' ),
-				'delete'           => __( '无法删除该配置，请刷新页面后重试。', 'sakura-imgopt' ),
-				'delete_active'    => __( '当前使用中的配置不能删除。如需更换存储桶，请先点这张卡片关闭 S3 存储。', 'sakura-imgopt' ),
-				'delete_bound'     => __( '当前使用中的配置不能删除，而且它还是绑定的那一份。如需更换存储桶，请先点这张卡片关闭 S3 存储。', 'sakura-imgopt' ),
-				'pending_profiles' => __( '高风险锁定下不能保留其它配置。请先删除其余配置（它们指向的桶里没有这些附件），再删除当前配置。', 'sakura-imgopt' ),
-				'locked'           => __( '当前处于高风险锁定：本地副本已删除，只有这份配置对应的存储桶里有这些文件，切到别的配置会变成死链。如需更换服务商或存储桶，请走「关闭 S3 → 删除其余全部配置 → 删除当前配置」。', 'sakura-imgopt' ),
-				'risk_ack'         => __( '「上传成功后删除本地文件」是高风险选项，需要先确认风险再保存。', 'sakura-imgopt' ),
-			);
 			// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only redirect error code; it does not change state.
 			$key = isset( $_GET['error'] ) ? sanitize_key( wp_unslash( $_GET['error'] ) ) : '';
 
 			return array(
-				'message' => $errors[ $key ] ?? __( '设置未保存。', 'sakura-imgopt' ),
+				'message' => self::error_message( $key ),
 				'tone'    => 'bad',
 			);
 		}

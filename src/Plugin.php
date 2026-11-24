@@ -236,6 +236,7 @@ final class Plugin {
 		// is_admin() 里的模块上，否则保存永远 404。
 		$modules[] = new Admin\Rest\System_Routes();
 		$modules[] = new Admin\Rest\Image_Routes();
+		$modules[] = new Admin\Rest\Storage_Routes();
 
 		// 用户文件空间：前台、REST 与后台审核页都挂在这个模块上。
 		$modules[] = new \Nboke\UserFiles\Module();

@@ -1162,3 +1162,24 @@ body.upload-php.sufm-tree-active.folded { --sufm-tree-left: 56px; }
 **代价**：状态卡多一层（top / 徽章）标记，PHP 与 React 两处都要维护；`.status-card__sub` 的 tone 配色在带徽章的卡上让位给中性色。
 
 **验收**：实验站 1.28.8-beta-40 上 1440 与 390 实测——徽章「已启用」`status-card__badge--ok`（47×20.5、右边缘 1394 落在卡片 1410 内、底 `rgb(233,247,239)`、字 `rgb(47,107,74)`），点开关保存后立刻变「已停用」`--neutral`（无刷新），再点回去恢复「已启用」；`documentElement.scrollWidth === clientWidth`（1440 / 390 都对），徽章不越出卡片；系统设置、图片优化、对象存储、备份还原、统计、文件空间六处状态卡仍无徽章、副行仍按 tone 上色、高度仍是 84.5–84.6px；页面无 Deprecated / Warning；`composer test` 903 / 3831 / 6 skipped、`phpstan` 无错误、`lint:strict` 与 `lint:compat` 0 error / 0 warning、`git diff --check` 干净。
+
+## 对象存储页迁到 React 岛，服务端决策抽成三个服务（2026-11-24，1.28.8-beta-41）
+
+**背景**：「S3 存储」页是对象存储模块的第一个页签，五张卡（已保存的配置 / 添加存储配置 / 上传行为 / 上传吞吐 / 监控与告警）。它原来是 PHP 直出 + 两套脚本（admin-post 表单 + admin-ajax），与已经迁完的「系统设置」「图像优化」在交互上差一截：保存整页刷新、提示靠 ?saved=1 回读、切桶提醒是刷新后才出现的弹窗。
+
+**决策**：
+
+1. **整页迁成一个岛**，与 image / system 同一套骨架：PHP 打面包屑、模块页签、子页签与页头首帧，React 只替换 main 里的 head 与五张卡。少了 dist/storage.js 时 render() 直接回落旧 PHP 表单，不打印一个脚本必然 404 的空壳。
+2. **五张卡全部走 REST，但决策搬进服务类，不搬进控制器**。新增 `S3\Profile_Actions`（toggle / delete）、`S3\Probe_Runner`（表单探针 / 配置探针 / 多吉云空间）、`S3\Save_Refused`（保存被拒的异常），`Settings_Saver::save()` 拆成 `apply( array $input, string $card )` + 一层薄壳。旧的 admin-post / admin-ajax 处理器改为调用同一批服务，于是三条传输（表单、AJAX、REST）不会各写一遍 R2 风险确认、R11 冻结、R18 封存、R19 桶身份这些守卫。
+3. **删除仍是破坏性单动作，但改走 REST + 弹窗**；确认文案、需要手打名字的守卫（高风险解绑时）全部由 `S3_Storage_Page::delete_confirm()` 继续生成，前端只负责显示与回传。
+4. **服务端算出来的东西保存后必须回传**：每次写接口的响应都带重算过的 status / alerts / 受影响的 section，前端合并进 head.status 与 payload，不靠整页刷新。这是 F20 定的规矩在对象存储页的延续。
+5. **两张卡的文件所有权按「一卡一文件」切开**：上传吞吐与监控告警各带自己的 Payload/Card 类与控制器，`Storage_Routes` 按类名探测注册，缺一个文件只少一条路由。省得五张卡挤在一个 900 行的 Controller 里。
+6. **卡片宽度与位置仍由 `Layout::PAGES['s3']` 决定**，payload 把 `Layout::card()` 的结果直接带下去；React 只把 placement 转成 CSS 变量，不在前端另写一套栅格。
+
+**代价**：
+
+- 页头状态卡与五张卡各有一份 PHP/React 双实现，改样式或新字段必须两边同时改（`Page::status_data()` 白名单是已知的坑，F21 踩过）。
+- 旧的 `assets/ui/js/pages/storage-connection.js` 仍会被 Page_Assets 入队（与 image 页同样的现状），岛挂载后它找不到节点，等于空跑一次；彻底停用要等旧页签全部迁完再统一收口。
+- 五张卡的数据在同一份 payload 里，页面首屏比旧页多约 40KB JSON；换来的是保存、切换、删除都不再整页刷新。
+
+**验收**（2026-11-24，demo.77il.cn，1.28.8-beta-41）：1440 下五张卡按 Layout 排成四行（profiles / connection 整行，behaviour 与 upload-metrics 各半行，monitoring 整行），reset 后 docW = clientW = 1440；390 下五卡单列、右边界 374 < 390、无横溢；切桶关闭再开启时状态卡徽章「已启用 → 已停用 → 已启用」与 tone 同步变化；行为卡并发数 1→2→1 保存均 200 且落库值回写；新建一份配置出现在列表里、删除弹窗文案与确认按钮正常、删除后列表回到一份；探针、多吉云、监控三张卡的控制台 0 error / 0 warning，debug.log 无新增。

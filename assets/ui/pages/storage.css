@@ -1118,10 +1118,17 @@
 
 .sakura-admin[data-sakura-page="storage-sync"] .batch-bar {
 	justify-content: space-between;
+	row-gap: var(--g-space-2);
 	padding: var(--g-space-2) var(--g-space-3);
 	border: 1px dashed var(--g-accent);
 	border-radius: var(--g-radius-sm);
 	background: var(--g-accent-soft);
+}
+
+/* 批量操作条里的 .button-row 是 .batch-bar 的兄弟列，不能再吃 button-row 的 14px 上边距，
+   否则左侧计数与右侧按钮的文字基线会差一截（PC 端水平不齐）。 */
+.sakura-admin[data-sakura-page="storage-sync"] .batch-bar .button-row {
+	margin-top: 0;
 }
 
 .sakura-admin[data-sakura-page="storage-sync"] .batch-bar[hidden],
@@ -1131,6 +1138,8 @@
 
 .sakura-admin[data-sakura-page="storage-sync"] .batch-bar__count {
 	font-size: var(--g-fs-meta);
+	/* 与 .btn--small 的 30px 同高，align-items:center 后文字与按钮文字落在同一中线。 */
+	line-height: var(--g-btn-h-sm);
 }
 
 .sakura-admin[data-sakura-page="storage-sync"] .batch-progress {
@@ -1583,6 +1592,42 @@
 		flex: 1 1 140px;
 		width: 100%;
 		min-width: 0;
+	}
+
+	/* 差异筛选条：6 个 chip 在窄屏排成等宽两列，不再各按内容宽度参差换行。 */
+	.sakura-admin[data-sakura-page="storage-sync"] .recon-toolbar .filter-chips {
+		display: grid;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		width: 100%;
+		gap: 8px;
+	}
+
+	.sakura-admin[data-sakura-page="storage-sync"] .recon-toolbar .filter-chip {
+		justify-content: center;
+		padding: 0 8px;
+	}
+
+	/* 批量操作条：计数独占一行，四个按钮 2×2 等分整宽。 */
+	.sakura-admin[data-sakura-page="storage-sync"] .batch-bar {
+		flex-direction: column;
+		align-items: stretch;
+		gap: var(--g-space-2);
+	}
+
+	.sakura-admin[data-sakura-page="storage-sync"] .batch-bar__count {
+		line-height: 1.5;
+	}
+
+	.sakura-admin[data-sakura-page="storage-sync"] .batch-bar .button-row {
+		display: grid;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		gap: 8px;
+		margin-top: 0;
+	}
+
+	.sakura-admin[data-sakura-page="storage-sync"] .batch-bar .button-row .btn {
+		justify-content: center;
+		width: 100%;
 	}
 
 	.sakura-admin[data-sakura-page="storage-deletes"] .queue-stats {

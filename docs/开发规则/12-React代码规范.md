@@ -179,7 +179,7 @@ useEffect( () => {
 7. 列表 key 用下标且列表可重排。
 8. 在 effect 里 `setState` 做同步推导。
 9. 直接操作 React 拥有的 DOM 节点（唯一例外：`app.jsx` 的 `syncChrome()` 按 URL 挪 `.sakura-tab` 的 `is-active`，因为页签条归 PHP）。
-10. 在组件里写死中文以外的东西：URL、nonce、option 名、字段 id —— 一律来自 payload。
+10. 在组件里写死 URL、nonce、option 名、字段 id —— 一律来自 payload；中文文案同样应读 `strings`，不要写成字面量（`|| '中文'` 兜底可以留，存量清单与补齐步骤见 §11.1）。
 
 ## 10. 提交前自检
 
@@ -218,6 +218,21 @@ git diff --check
 | 打包产物 | `image.js` 254 KB（260,901 B）/ `storage.js` 254 KB（260,190 B）/ `system.js` 232 KB（237,455 B） | React 19.3.1 minified；18.3.1 版是 176/153 KB，差 74/80 KB，由开发者决定接受 |
 
 结论：**没有需要立刻返工的旧版写法**；基线与 `package.json` 一致（`^19.0.0` → 19.3.1）。下一步真正有价值的是按 §5 把保存动作迁到 `useActionState`，而不是先加 `memo`。
+
+### 11.1 待办：sync/ 下未走翻译的中文
+
+「同步中心」迁岛（1.28.8-beta-48）时，为了先保证功能等价，大量文案直接写在 JSX 里。**功能正常**（都有中文，页面显示没错），但绕过了 PHP 的 __() 与 wp_set_script_translations，翻译文件里查不到这些句子。2026-11-25 实测 assets/ui/src/sync/ 共 13 个文件：
+
+- **直接写死的中文 32 行**，分布在 app.jsx(10)、dialogs.jsx(3)、health.jsx(1)、ignored.jsx(4)、index.jsx(1)、logs.jsx(2)、overview.jsx(1)、reconcile.jsx(6)、storage.jsx(1)、tasks.jsx(3)。主要是六段提示条（停用 / 切换封存 / 兼容模式 / 核对进行中 / 超过 30 天未校准 / 差异告警）、三个引导弹窗的按钮、日志卡的导出与级别筛选、表格 aria-label、索引卡的「N 个文件」。
+- **带 `|| '中文'` 兜底 43 行**，errors/兜底这类写法本身可接受（服务端没给键时仍有可读文案），但其中大部分键其实已经在 Sync_Payload::strings() 里提供了，等于双份维护。
+
+补齐时按这个顺序做，别一次全改：
+
+1. 先补 **aria-label 与按钮**（reconcile.jsx 的表格/分页 aria-label、dialogs.jsx 的三个按钮、logs.jsx 的导出链接）：它们出现在可访问性树里，读屏用户直接读到中文。
+2. 再补 **提示条六段**（app.jsx 的 Notices）：句子最长、占位符最多（`%1$s` / `%2$s`），一次一段改并对着页面核。
+3. 最后清 **死的兜底**：键已存在的，把 `|| '中文'` 去掉，只留 `strings.x`，让缺键在开发期暴露出来。
+
+新增键一律加在 Sync_Payload::strings() 的对应分组里并带 translators 注释；改完跑 composer lint:strict（TranslationCoverageTest 会扫 PHP 侧中文）与 npm run build。前端硬编码中文 lint 抓不到，只能靠这一节人工比对。
 
 ## 附录 A　《React 性能优化实战：15 个核心技巧》逐条对照
 

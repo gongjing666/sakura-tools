@@ -11,10 +11,70 @@ import { ajax, errorText, toast, reloadWithToast } from './transport.js';
 
 const MAX_SELECT = 100;
 
+const STATUS_TONES = { synced: 'ok', pending: 'warn', failed: 'bad', remote: 'neutral', mismatch: 'warn' };
+
+function pad2( value ) {
+	return value < 10 ? '0' + value : String( value );
+}
+
+/**
+ * Mirrors S3\Inventory::format_bytes() so a row rendered from the first-screen
+ * payload and the same row re-rendered after a search show identical text:
+ * KB / MB / GB keep two decimals there, while core.js trims to one above 10.
+ */
+function phpBytes( bytes ) {
+	const size = Number( bytes ) || 0;
+	if ( size >= 1073741824 ) {
+		return ( size / 1073741824 ).toFixed( 2 ) + ' GB';
+	}
+	if ( size >= 1048576 ) {
+		return ( size / 1048576 ).toFixed( 2 ) + ' MB';
+	}
+	if ( size >= 1024 ) {
+		return ( size / 1024 ).toFixed( 2 ) + ' KB';
+	}
+	return String( Math.round( size ) ) + ' B';
+}
+
+/**
+ * Both the page endpoint and fast-search hand back raw index rows, while the
+ * first-screen payload is built in PHP and already carries display fields.
+ * Reloading used to drop those, so the type / size / status / changed columns
+ * came back blank. Rebuild the same shape here so both paths render alike.
+ */
+function normalizeRow( row, statusLabels ) {
+	const key = String( row.key || '' );
+	const name = row.name || key.split( '/' ).pop() || '';
+	const dot = name.lastIndexOf( '.' );
+	const status = row.status || 'synced';
+	const mtime = Number( row.mtime || 0 );
+	let dateLabel = '\u2014';
+
+	if ( mtime ) {
+		const date = new Date( mtime * 1000 );
+
+		dateLabel = pad2( date.getMonth() + 1 ) + '/' + pad2( date.getDate() ) + ' ' + pad2( date.getHours() ) + ':' + pad2( date.getMinutes() );
+	}
+
+	return Object.assign( {}, row, {
+		name,
+		path: row.path || key,
+		type: row.type || 'other',
+		ext: row.ext || ( dot > 0 && dot < name.length - 1 ? name.slice( dot + 1 ).toUpperCase() : '\u2014' ),
+		status,
+		status_label: row.status_label || statusLabels[ status ] || status,
+		status_tone: row.status_tone || STATUS_TONES[ status ] || 'neutral',
+		size_label: row.size_label || ( row.local ? phpBytes( row.size ) : '\u2014' ),
+		cloud_label: row.cloud_label || ( row.cloud ? phpBytes( row.cloud_size ) : '\u2014' ),
+		date_label: row.date_label || dateLabel
+	} );
+}
+
 export default function ReconcileCard( { card, view, rows, config, strings, locked, frozen, gated, onScan, onRows, onError } ) {
 	const s = strings.reconcile || {};
 	const uiText = config.strings || {};
 	const labels = config.labels || {};
+	const statusLabels = config.statusLabels || {};
 	const [ filter, setFilter ] = useState( 'all' );
 	const [ search, setSearch ] = useState( '' );
 	const [ type, setType ] = useState( 'all' );
@@ -161,7 +221,7 @@ export default function ReconcileCard( { card, view, rows, config, strings, lock
 					return;
 				}
 
-				onRows( Array.isArray( data.rows ) ? data.rows : [] );
+				onRows( Array.isArray( data.rows ) ? data.rows.map( ( row ) => normalizeRow( row, statusLabels ) ) : [] );
 				setCursor( data.cursor || '' );
 				setHasMore( Boolean( data.has_more ) );
 				setTotal( Number( data.total || 0 ) );
@@ -599,7 +659,7 @@ export default function ReconcileCard( { card, view, rows, config, strings, lock
 					<tbody>
 						{ rows.map( ( row ) => (
 							<tr key={ row.key } data-status={ row.status } data-type={ row.type }>
-								<td className="cell-select">
+								<td className="cell-select" data-label="">
 									<input
 										type="checkbox"
 										className="row-select"
@@ -609,33 +669,33 @@ export default function ReconcileCard( { card, view, rows, config, strings, lock
 										onChange={ () => toggleRow( row.key ) }
 									/>
 								</td>
-								<td>
+								<td data-label={ ( s.columns || [] )[ 0 ] || '文件' }>
 									<div className="file-cell">
 										<span className="file-cell__name">{ row.name }</span>
 										<span className="file-cell__path">{ row.path }</span>
 									</div>
 								</td>
-								<td>
+								<td data-label={ ( s.columns || [] )[ 1 ] || '类型' }>
 									<span className="type-pill">{ row.ext }</span>
 								</td>
-								<td>{ row.size_label }</td>
-								<td>
+								<td data-label={ ( s.columns || [] )[ 2 ] || '大小' }>{ row.size_label }</td>
+								<td data-label={ ( s.columns || [] )[ 3 ] || '本地' }>
 									<span className={ 'loc ' + ( row.local ? 'loc--yes' : 'loc--no' ) }>
 										<span className="loc__dot" aria-hidden="true" />
 										{ row.local ? s.exists : s.missing }
 									</span>
 								</td>
-								<td>
+								<td data-label={ ( s.columns || [] )[ 4 ] || '云端' }>
 									<span className={ 'loc ' + ( row.cloud ? ( 'mismatch' === row.status ? 'loc--warn' : 'loc--yes' ) : 'loc--no' ) }>
 										<span className="loc__dot" aria-hidden="true" />
 										{ row.cloud ? ( 'mismatch' === row.status ? s.diffSize : s.exists ) : s.missing }
 									</span>
 								</td>
-								<td>
+								<td data-label={ ( s.columns || [] )[ 5 ] || '状态' }>
 									<Badge tone={ row.status_tone }>{ row.status_label }</Badge>
 								</td>
-								<td>{ row.date_label }</td>
-								<td>
+								<td data-label={ ( s.columns || [] )[ 6 ] || '最后变化' }>{ row.date_label }</td>
+								<td data-label={ ( s.columns || [] )[ 7 ] || '操作' }>
 									<div className="action-cell">
 										{ rowActionButton( row, labels, locked, { rowAction, confirmReplace, confirmDelete } ) }
 										{ row.cloud ? (
@@ -652,7 +712,7 @@ export default function ReconcileCard( { card, view, rows, config, strings, lock
 						) ) }
 						{ ! rows.length ? (
 							<tr className="empty-row">
-								<td colSpan={ 9 }>
+								<td colSpan={ 9 } data-label="">
 									<div className="empty-state">
 										<strong className="empty-state__title">{ s.emptyRows }</strong>
 									</div>

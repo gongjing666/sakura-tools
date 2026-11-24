@@ -133,7 +133,8 @@ useEffect( () => {
 ## 7. DOM 契约与可访问性
 
 - **钩子属性**（后端也会读）：`data-sakura-page`、`data-sakura-card`、`data-sakura-layout`、`data-sakura-modal-open`、`data-sakura-return-target`、`data-sakura-ping`。新增钩子先确认没有更合适的现有属性。
-- **类名复用 PHP 组件产出的那套**：`card` / `card__head` / `card__title` / `field` / `field__control` / `badge` / `btn btn--primary` / `card__savebar`。前端另造一套等于把设计系统复制两份。
+- **类名复用 PHP 组件产出的那套**：`card` / `card__head` / `card__title` / `field` / `field__control` / `badge` / `btn btn--primary` / `card__savebar` / `check` + `check__text` + `check-grid`（勾选与开关）。前端另造一套等于把设计系统复制两份。
+- **开关/勾选只有 `label.check` + `<input class="is-switch">` + `<span class="check__text">` 这一种写法**：间距、对齐、折行全由 `components.css` 的 `.check` 负责（`gap: var(--g-check-gap)`，10px）。自造类名（曾出现 `field__check`）在 CSS 里根本不存在，只是恰好作为 `.field__control` 直接子元素时被那条 `>` 选择器兜住；一旦放进 `.check-grid` 两列网格就完全失去样式，文字贴到开关上、长文案折到开关下方（1.28.8-beta-38 修）。
 - **弹窗只能挂在 `.sakura-admin` 内**（CSS 选择器带该前缀），不能用 `document.body` portal；打开时写 `data-sakura-modal-open="1"`，关闭走 140ms 退场。
 - 可聚焦元素：弹窗内 Tab 循环（首尾相接），关闭后焦点回触发元素，找不到就回落到卡片标题；一律 `focus( { preventScroll: true } )`。
 - 表单控件必须有 `id`，`label[for]` 要指得到；自造 id 的拼法：`field.id` 优先，缺省 `sakura_imgopt_{键}`，多选组追加 `_{item.key}`。

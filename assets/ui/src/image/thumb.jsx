@@ -15,7 +15,7 @@ import { call, same } from './transport.js';
  */
 function Checkbox( { id, label, checked, onChange } ) {
 	return (
-		<label className="field__check" htmlFor={ id }>
+		<label className="check" htmlFor={ id }>
 			<input type="hidden" value="0" />
 			<input
 				id={ id }
@@ -24,7 +24,7 @@ function Checkbox( { id, label, checked, onChange } ) {
 				checked={ isOn( checked ) }
 				onChange={ ( event ) => onChange( event.target.checked ? 1 : 0 ) }
 			/>
-			<span>{ label }</span>
+			<span className="check__text">{ label }</span>
 		</label>
 	);
 }

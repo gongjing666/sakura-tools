@@ -140,7 +140,7 @@ function PolicyCard( { card, rest, strings, onError, onNotice, onSaved } ) {
 
 							return (
 								<div className={ 'field field--switch' + ( field.full ? ' field--full' : '' ) } key={ field.name }>
-									<label className="field__check" htmlFor={ id }>
+									<label className="check" htmlFor={ id }>
 										<input type="hidden" value="0" />
 										<input
 											id={ id }
@@ -149,7 +149,7 @@ function PolicyCard( { card, rest, strings, onError, onNotice, onSaved } ) {
 											checked={ 1 === Number( value ) }
 											onChange={ ( event ) => edit( field.name, event.target.checked ? 1 : 0 ) }
 										/>
-										<span>{ field.text || field.label }</span>
+										<span className="check__text">{ field.text || field.label }</span>
 									</label>
 									<p className="field__hint">{ field.hint }</p>
 								</div>

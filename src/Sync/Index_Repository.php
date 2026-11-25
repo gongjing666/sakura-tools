@@ -9,6 +9,8 @@ declare( strict_types=1 );
 
 namespace Sakura\ImageOptimizer\Sync;
 
+use Sakura\ImageOptimizer\S3\Options;
+
 defined( 'ABSPATH' ) || exit;
 
 /**
@@ -105,14 +107,24 @@ final class Index_Repository {
 	private const SCAN_INTEGERS = array( 'total_local', 'total_remote', 'local_bytes', 'remote_bytes', 'cloud_image', 'cloud_video', 'cloud_archive', 'processed', 'attempts' );
 
 	/**
-	 * Constructor.
+	 * Storage options, resolved on demand.
+	 *
+	 * @var Options|null
 	 */
-	public function __construct() {
-		$this->index  = Schema::table( 'index' );
-		$this->scans  = Schema::table( 'scans' );
-		$this->counts = Schema::table( 'counts' );
-		$this->jobs   = Schema::table( 'jobs' );
-		$this->events = Schema::table( 'events' );
+	private ?Options $options = null;
+
+	/**
+	 * Constructor.
+	 *
+	 * @param Options|null $options Storage options; resolved on demand when omitted.
+	 */
+	public function __construct( ?Options $options = null ) {
+		$this->index   = Schema::table( 'index' );
+		$this->scans   = Schema::table( 'scans' );
+		$this->counts  = Schema::table( 'counts' );
+		$this->jobs    = Schema::table( 'jobs' );
+		$this->events  = Schema::table( 'events' );
+		$this->options = $options;
 	}
 
 	/**
@@ -120,6 +132,29 @@ final class Index_Repository {
 	 */
 	public function table_name(): string {
 		return $this->index;
+	}
+
+	/**
+	 * Storage options.
+	 */
+	private function options(): Options {
+		if ( null === $this->options ) {
+			$this->options = new Options();
+		}
+		return $this->options;
+	}
+
+	/**
+	 * Whether local files are deleted right after a confirmed upload.
+	 *
+	 * When that behaviour is on, a synced object has no local twin left, so the
+	 * status rules must read the preserved local size instead of demanding
+	 * seen_local=1; otherwise a full reconcile would demote every synced row to
+	 * "remote" (only in the cloud) on the next pass.
+	 */
+	private function local_policy_removes(): bool {
+		$behaviour = $this->options()->behaviour_snapshot();
+		return 'true' === (string) ( $behaviour['no_local_saving'] ?? 'false' );
 	}
 
 	/**
@@ -1034,6 +1069,14 @@ final class Index_Repository {
 			return;
 		}
 		$now = $this->now();
+
+		// With "delete local after upload" on, the local file is gone but the
+		// preserved local size still proves it was here. Same condition in all
+		// three CASE arms so no stale mismatch error survives the pass.
+		$local_gone = 'seen_local=0 AND seen_remote=1 AND local_size>0 AND local_size=remote_size';
+		$kept_status = $this->local_policy_removes() ? "WHEN {$local_gone} THEN 'synced'" : '';
+		$kept_clear  = $this->local_policy_removes() ? "WHEN {$local_gone} THEN NULL" : '';
+
 		$wpdb->query(
 			$wpdb->prepare(
 				"UPDATE {$this->index}
@@ -1044,6 +1087,7 @@ final class Index_Repository {
 						THEN IF(LOWER(etag)=local_md5,'synced','mismatch')
 					WHEN seen_local=1 AND seen_remote=1 THEN IF(local_size=remote_size,'synced','mismatch')
 					WHEN seen_local=1 THEN 'pending'
+					{$kept_status}
 					WHEN seen_remote=1 THEN 'remote'
 					ELSE status END,
 				verify_state = CASE
@@ -1057,6 +1101,7 @@ final class Index_Repository {
 					WHEN status='failed' AND error_code IS NOT NULL THEN error_code
 					WHEN seen_local=1 AND seen_remote=1 AND local_size<>remote_size THEN 'sio_size_mismatch'
 					WHEN seen_local=1 AND seen_remote=1 AND local_md5 IS NOT NULL AND etag REGEXP '^[0-9a-f]{32}$' AND LOWER(etag)<>local_md5 THEN 'sio_etag_mismatch'
+					{$kept_clear}
 					WHEN seen_local=1 AND seen_remote=1 THEN NULL
 					ELSE error_code END,
 				error_message = CASE
@@ -1064,6 +1109,7 @@ final class Index_Repository {
 					WHEN status='failed' AND error_code IS NOT NULL THEN error_message
 					WHEN seen_local=1 AND seen_remote=1 AND local_size<>remote_size THEN '本地与云端大小不一致。'
 					WHEN seen_local=1 AND seen_remote=1 AND local_md5 IS NOT NULL AND etag REGEXP '^[0-9a-f]{32}$' AND LOWER(etag)<>local_md5 THEN '内容不一致：ETag 与本地 MD5 不同。'
+					{$kept_clear}
 					WHEN seen_local=1 AND seen_remote=1 THEN NULL
 					ELSE error_message END,
 				updated_at=%s
@@ -1210,6 +1256,9 @@ final class Index_Repository {
 		if ( '' === $bucket ) {
 			return;
 		}
+		$local_gone = $this->local_policy_removes()
+			? "WHEN seen_local = 0 AND seen_remote = 1 AND local_size > 0 AND local_size = remote_size THEN 'synced'"
+			: '';
 		$wpdb->query(
 			$wpdb->prepare(
 				"UPDATE {$this->index}
@@ -1218,6 +1267,7 @@ final class Index_Repository {
 						WHEN status = 'failed' AND error_code IS NOT NULL AND error_code <> '' THEN 'failed'
 						WHEN seen_local = 1 AND seen_remote = 1 THEN IF( local_size = remote_size, 'synced', 'mismatch' )
 						WHEN seen_local = 1 THEN 'pending'
+						{$local_gone}
 						WHEN seen_remote = 1 THEN 'remote'
 						ELSE 'pending'
 					END,
@@ -1575,10 +1625,20 @@ final class Index_Repository {
 			$bytes[ $status ]  = (int) $row['bytes'];
 		}
 
-		$scan          = $this->latest_scan( $profile_id );
-		$total         = array_sum( $counts );
-		$local_files   = $scan ? (int) $scan->total_local : 0;
-		$cloud_objects = $scan ? (int) $scan->total_remote : 0;
+		$scan  = $this->latest_scan( $profile_id );
+		$total = array_sum( $counts );
+
+		// Local and cloud figures describe the index, not the last scan. An
+		// upload writes one row immediately and a scan only revisits rows, so
+		// reading the scan row left the page at zero until the next full check
+		// - and with "delete local after upload" the local count could never
+		// come back. The aggregate falls back to the scan row when it fails.
+		$live          = $this->live_totals( $profile_id );
+		$local_files   = $live['ok'] ? $live['local_files'] : ( $scan ? (int) $scan->total_local : 0 );
+		$local_bytes   = $live['ok'] ? $live['local_bytes'] : ( $scan ? (int) $scan->local_bytes : 0 );
+		$cloud_objects = $live['ok'] ? $live['cloud_objects'] : ( $scan ? (int) $scan->total_remote : 0 );
+		$cloud_bytes   = $live['ok'] ? $live['cloud_bytes'] : ( $scan ? (int) $scan->remote_bytes : 0 );
+		$cloud_types   = $live['ok'] ? $live['types'] : $this->types_from_scan( $scan );
 		$coverage      = $total > 0 ? ( $counts['synced'] / $total ) : 0.0;
 		$state         = $scan ? (string) $scan->state : '';
 		$phase         = $scan ? (string) $scan->phase : '';
@@ -1590,9 +1650,9 @@ final class Index_Repository {
 			'bytes'         => $bytes,
 			'total'         => $total,
 			'local_files'   => $local_files,
-			'local_bytes'   => $scan ? (int) $scan->local_bytes : 0,
+			'local_bytes'   => $local_bytes,
 			'cloud_objects' => $cloud_objects,
-			'cloud_bytes'   => $scan ? (int) $scan->remote_bytes : 0,
+			'cloud_bytes'   => $cloud_bytes,
 			'coverage'      => $coverage,
 			'scan_id'       => $scan ? (int) $scan->id : 0,
 			'scanned_at'    => $scan && $scan->finished_at ? (int) strtotime( $scan->finished_at . ' UTC' ) : 0,
@@ -1602,7 +1662,70 @@ final class Index_Repository {
 			'busy'          => in_array( $state, array( 'queued', 'running' ), true ),
 			'stale'         => in_array( $state, array( 'queued', 'running' ), true ) && $age > 600,
 			'resumable'     => in_array( $state, array( 'failed', 'cancelled' ), true ) && '' !== $phase,
-			'cloud_types'   => $this->types_from_scan( $scan ),
+			'cloud_types'   => $cloud_types,
+		);
+	}
+
+	/**
+	 * Live local/cloud totals read from the index itself.
+	 *
+	 * `ok` is false when the query failed, so the caller can fall back to the
+	 * scan row instead of showing zeros. Kept as one aggregate: the counts
+	 * table cannot express "synced, but the local copy was deleted by policy".
+	 *
+	 * @param string $profile_id Profile.
+	 * @return array{ok:bool,local_files:int,local_bytes:int,cloud_objects:int,cloud_bytes:int,types:array<string,int>}
+	 */
+	private function live_totals( string $profile_id ): array {
+		global $wpdb;
+		$empty = array(
+			'ok'            => false,
+			'local_files'   => 0,
+			'local_bytes'   => 0,
+			'cloud_objects' => 0,
+			'cloud_bytes'   => 0,
+			'types'         => $this->types_from_scan( null ),
+		);
+		$bucket = $this->bucket( $profile_id );
+		if ( '' === $bucket ) {
+			return $empty;
+		}
+
+		$row = $wpdb->get_row(
+			$wpdb->prepare(
+				"SELECT
+					COALESCE(SUM(seen_local=1),0) AS local_files,
+					COALESCE(SUM(CASE WHEN seen_local=1 THEN local_size ELSE 0 END),0) AS local_bytes,
+					COALESCE(SUM(seen_remote=1),0) AS cloud_objects,
+					COALESCE(SUM(CASE WHEN seen_remote=1 THEN remote_size ELSE 0 END),0) AS cloud_bytes,
+					COALESCE(SUM(seen_remote=1 AND kind='image'),0) AS cloud_image,
+					COALESCE(SUM(seen_remote=1 AND kind='video'),0) AS cloud_video,
+					COALESCE(SUM(seen_remote=1 AND kind='archive'),0) AS cloud_archive
+				FROM {$this->index} WHERE target_hash=%s",
+				$bucket
+			),
+			ARRAY_A
+		);
+		if ( ! is_array( $row ) ) {
+			return $empty;
+		}
+
+		$image    = (int) $row['cloud_image'];
+		$video    = (int) $row['cloud_video'];
+		$archive  = (int) $row['cloud_archive'];
+		$objects  = (int) $row['cloud_objects'];
+		return array(
+			'ok'            => true,
+			'local_files'   => (int) $row['local_files'],
+			'local_bytes'   => (int) $row['local_bytes'],
+			'cloud_objects' => $objects,
+			'cloud_bytes'   => (int) $row['cloud_bytes'],
+			'types'         => array(
+				'image'   => $image,
+				'video'   => $video,
+				'archive' => $archive,
+				'other'   => max( 0, $objects - $image - $video - $archive ),
+			),
 		);
 	}
 
@@ -2063,9 +2186,19 @@ final class Index_Repository {
 
 			$old_bytes = $old ? max( (int) $old['local_size'], (int) $old['remote_size'] ) : 0;
 			$new_bytes = max( $local_size, $seen_remote ? $remote_size : 0 );
-			if ( $old ) {
-				$this->adjust_counts( $profile_id, (string) $old['status'], -1, -$old_bytes );
+			if ( ! $old ) {
+				$this->adjust_counts( $profile_id, $status, 1, $new_bytes );
+				continue;
 			}
+			if ( (string) $old['status'] === $status ) {
+				// Same bucket: move bytes only. Decrementing and re-incrementing
+				// the same row made the cached bytes drift on every metadata pass.
+				if ( $new_bytes !== $old_bytes ) {
+					$this->adjust_counts( $profile_id, $status, 0, $new_bytes - $old_bytes );
+				}
+				continue;
+			}
+			$this->adjust_counts( $profile_id, (string) $old['status'], -1, -$old_bytes );
 			$this->adjust_counts( $profile_id, $status, 1, $new_bytes );
 		}
 	}
@@ -2172,6 +2305,49 @@ final class Index_Repository {
 					$this->adjust_counts( $profile_id, $status, -1, -$old_bytes );
 				}
 			}
+		}
+	}
+
+	/**
+	 * Mark objects whose local copies were deleted right after upload.
+	 *
+	 * The row keeps local_size (proof the file was here, and the size the scan
+	 * compares against) but drops seen_local so the local column and the KPI
+	 * stop counting files that no longer exist. Status is left alone: the
+	 * object was confirmed, so it stays `synced`.
+	 *
+	 * @param string   $profile_id Profile.
+	 * @param string[] $keys       Object keys just removed from disk.
+	 */
+	public function mark_local_removed( string $profile_id, array $keys ): void {
+		global $wpdb;
+		$keys = array_values(
+			array_filter(
+				array_map( 'strval', $keys ),
+				static function ( $key ) {
+					return '' !== $key;
+				}
+			)
+		);
+		$bucket = $this->bucket( $profile_id );
+		if ( ! $keys || '' === $bucket ) {
+			return;
+		}
+
+		$now = $this->now();
+		foreach ( array_chunk( $keys, 200 ) as $chunk ) {
+			$hashes = array();
+			foreach ( $chunk as $key ) {
+				$hashes[] = $this->hash_hex( $key );
+			}
+			$in       = implode( ',', array_fill( 0, count( $hashes ), 'UNHEX(%s)' ) );
+			$sql      = "UPDATE {$this->index} SET seen_local=0, updated_at=%s WHERE target_hash=%s AND seen_local=1 AND object_key_hash IN ({$in})";
+			$values   = array_merge( array( $now, $bucket ), $hashes );
+			$prepared = $wpdb->prepare( $sql, $values ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Placeholders are built above.
+			if ( false === $prepared ) {
+				continue;
+			}
+			$wpdb->query( $prepared ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Prepared above.
 		}
 	}
 

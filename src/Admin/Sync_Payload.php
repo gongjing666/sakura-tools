@@ -238,16 +238,20 @@ final class Sync_Payload {
 		$cloud_value  = $cloud_bytes >= 1073741824 ? $cloud_bytes / 1073741824 : $cloud_bytes / 1048576;
 		$cloud_unit   = $cloud_bytes >= 1073741824 ? 'GB' : 'MB';
 
+		// The donut now reads the live index (cloud objects by kind), so a site
+		// that never ran a full scan still sees its real shape after an upload.
 		$mix_state = 'ready';
 		if ( ! $index_enabled ) {
 			$mix_state = 'compat';
-		} elseif ( $scan_running ) {
-			$mix_state = 0 === $scan_total ? 'scanning' : 'ready';
+		} elseif ( $scan_running && 0 === $cloud_objects ) {
+			$mix_state = 'scanning';
+		} elseif ( $cloud_objects > 0 ) {
+			$mix_state = 'ready';
 		} elseif ( $scan_resumable ) {
 			$mix_state = 'interrupted';
 		} elseif ( ! $scan_obj ) {
 			$mix_state = 'unscanned';
-		} elseif ( 0 === $scan_total ) {
+		} else {
 			$mix_state = 'empty';
 		}
 
@@ -266,7 +270,7 @@ final class Sync_Payload {
 			),
 			'empty'       => array(
 				__( '云端暂时没有对象', 'sakura-imgopt' ),
-				__( '完整核对已经跑过，对象存储里目前没有可统计的文件。上传后需要再核对一次，占比才会更新。', 'sakura-imgopt' ),
+				__( '同步记录里还没有云端对象。上传过的文件会立刻计入，历史对象需要跑一次完整核对才会录入。', 'sakura-imgopt' ),
 			),
 			'compat'      => array(
 				__( '云端暂时没有对象', 'sakura-imgopt' ),
@@ -278,15 +282,15 @@ final class Sync_Payload {
 
 		if ( 'ready' === $mix_state ) {
 			if ( $scan_running ) {
-				$mix_desc = __( '核对正在进行，下面的占比来自上一次核对结果，跑完会自动刷新。', 'sakura-imgopt' );
+				$mix_desc = __( '核对正在进行，占比按同步记录实时统计；核对跑完会再校准一次。', 'sakura-imgopt' );
 			} elseif ( $scan_time ) {
 				$mix_desc = sprintf(
 					/* translators: %s: scan time. */
-					__( '数据来自 %s 的完整核对；之后单张上传不会改变这里的占比，重新核对才会更新。', 'sakura-imgopt' ),
+					__( '按同步记录实时统计，上传与删除会立刻反映在这里；最近一次完整核对在 %s。', 'sakura-imgopt' ),
 					wp_date( 'm-d H:i', $scan_time )
 				);
 			} else {
-				$mix_desc = __( '数据来自上一次没跑完的核对，占比可能不完整；续跑后可得到准确数字。', 'sakura-imgopt' );
+				$mix_desc = __( '按同步记录实时统计，上传与删除会立刻反映在这里；还没有完整核对记录，跑一次核对可以补齐历史上没有走过插件的对象。', 'sakura-imgopt' );
 			}
 		}
 
@@ -691,6 +695,10 @@ final class Sync_Payload {
 			$size   = (int) ( $row['size'] ?? 0 );
 			$csize  = (int) ( $row['cloud_size'] ?? 0 );
 			$ext    = strtoupper( (string) pathinfo( $name, PATHINFO_EXTENSION ) );
+			// A row that once had a local twin but no longer does was cleaned up
+			// by the "delete local after upload" policy, not lost. local_size is
+			// preserved for exactly this distinction.
+			$removed = ! $local && $size > 0;
 			$preview = isset( $row['preview'] ) && is_array( $row['preview'] ) ? $row['preview'] : array(
 				'name'     => $name,
 				'path'     => $path,
@@ -712,6 +720,7 @@ final class Sync_Payload {
 				'status_label' => $status_labels[ $status ] ?? $status,
 				'status_tone'  => $status_tones[ $status ] ?? 'neutral',
 				'local'        => $local,
+				'local_removed' => $removed,
 				'cloud'        => $cloud,
 				'mtime'        => $mtime,
 				'date_label'   => $mtime ? wp_date( 'm/d H:i', $mtime ) : '—',
@@ -933,6 +942,7 @@ final class Sync_Payload {
 				'perPage'     => __( '每页', 'sakura-imgopt' ),
 				'exists'      => __( '已存在', 'sakura-imgopt' ),
 				'missing'     => __( '缺失', 'sakura-imgopt' ),
+				'localRemoved' => __( '已按策略删除', 'sakura-imgopt' ),
 				'diffSize'    => __( '内容不一致', 'sakura-imgopt' ),
 			),
 			'logs' => array(

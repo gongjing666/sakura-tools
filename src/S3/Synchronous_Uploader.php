@@ -10,6 +10,7 @@ declare( strict_types=1 );
 namespace Sakura\ImageOptimizer\S3;
 
 use Sakura\ImageOptimizer\File_System;
+use Sakura\ImageOptimizer\Sync\Index_Repository;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -66,16 +67,35 @@ final class Synchronous_Uploader {
 	private Sync_Status $status;
 
 	/**
+	 * Sync index, resolved on demand.
+	 *
+	 * @var Index_Repository|null
+	 */
+	private ?Index_Repository $index = null;
+
+	/**
 	 * Constructor.
 	 *
-	 * @param Options         $options Storage options.
-	 * @param Storage_Adapter $adapter Adapter.
-	 * @param Sync_Status     $status  Status store.
+	 * @param Options              $options Storage options.
+	 * @param Storage_Adapter      $adapter Adapter.
+	 * @param Sync_Status          $status  Status store.
+	 * @param Index_Repository|null $index  Sync index; resolved on demand when omitted.
 	 */
-	public function __construct( Options $options, Storage_Adapter $adapter, Sync_Status $status ) {
+	public function __construct( Options $options, Storage_Adapter $adapter, Sync_Status $status, ?Index_Repository $index = null ) {
 		$this->options = $options;
 		$this->adapter = $adapter;
 		$this->status  = $status;
+		$this->index   = $index;
+	}
+
+	/**
+	 * Sync index.
+	 */
+	private function index(): Index_Repository {
+		if ( null === $this->index ) {
+			$this->index = new Index_Repository();
+		}
+		return $this->index;
 	}
 
 	/**
@@ -422,13 +442,25 @@ final class Synchronous_Uploader {
 	 * @param array<string,array{path?:string}> $manifest      Confirmed files.
 	 */
 	private function cleanup_local( int $attachment_id, array $manifest ): void {
+		$removed = array();
 		foreach ( $manifest as $key => $file ) {
 			if ( ! File_System::delete( (string) $file['path'] ) ) {
 				// Cleanup is best-effort: the object is confirmed, so warn
 				// instead of turning a successful sync into a failure.
 				do_action( 'sakura_imgopt_s3_cleanup_failed', $attachment_id, $file['path'], $key );
+				continue;
 			}
+			$removed[] = (string) $key;
 		}
+
+		if ( ! $removed ) {
+			return;
+		}
+
+		// Tell the index the local twin is gone on purpose: without this the
+		// sync centre keeps counting files the policy just deleted, and the next
+		// reconcile demotes the rows to "only in the cloud".
+		$this->index()->mark_local_removed( (string) $this->options->active_profile_id(), $removed );
 	}
 
 	/**

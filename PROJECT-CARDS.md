@@ -1,4 +1,4 @@
-<!-- deep-ptc:project-cards v1 next=R1,F34,Q7,T18 -->
+<!-- deep-ptc:project-cards v1 next=R9,F34,Q7,T20 -->
 # Project cards
 
 > Maintained by Deep PTC in DeepSeek Harness: edit in a Deep PTC conversation, view 特点卡片 / Project cards.
@@ -54,7 +54,7 @@
 
 
 ## Completed tasks / 已完成任务
-<!-- card id=tasks kind=tasks rev=17 updated=2026-11-24T16:55:24.183Z -->
+<!-- card id=tasks kind=tasks rev=19 updated=2026-11-25T01:10:20.269Z -->
 
 - **T1** [done] 为 sakura-tools 插件补一篇 PHP 代码规范文档（docs/开发规则/），以 PHP 8.2–8.4 兼容 (11/24)
 - **T2** [done] 文档中所有描述实验站的地方（AGENTS.md、05 篇、09 篇、11 篇、03 篇、docs/验收脚本/README — 实验站 demo.77il.cn 的新部署（宝塔本机 /www/wwwroot/demo.77il.cn，PHP 8.4.28 + MariaDB 12.3.2）已写进 AGENTS.md 与 05/09/11/03 篇、验收脚本，并写入记忆；文档不含密码，凭据只在 /root/.dsh/secrets/demo-77il-login.txt；本地提交 f343907，未 push。 (11/24)
@@ -73,3 +73,23 @@
 - **T15** [done] 全量比对 src/Admin/Sync_Payload.php 的 strings() 键与 assets/ui/src — 同步中心文案键全量比对完成并落地修复：补 health.retryQueueCount/queueBreakdown 与 config.labels 两处真漏传、清 20 个死键，beta-50 提交 a10fce6，实验站 1440/390 实测通过 (11/24)
 - **T16** [done] 调整「S3 同步中心 → 文件核对」卡片样式：① PC 端勾选文件后的批量操作条里，左侧提示文字与右侧四个按钮文字没有水 — 文件核对卡三处修复完成：批量条 PC 文字对齐、移动端筛选/按钮重排、搜索后四列异常；文档记 sync/ 硬编码中文待办；beta-51 提交 2d93aad（未 push） (11/25)
 - **T17** [done] 调整「S3 同步中心 → 忽略规则」卡片：右下角「当前 0 条生效」文字与上方 textarea 间隔太近，需按 03- — 忽略规则卡说明行按 8px 间距令牌与 textarea 拉开；beta-52 提交 5167894，1440/390 实测 8px、三道关全过（未 push） (11/25)
+- **T18** [done] 分析并解释「S3 同步中心」页里「已同步 = 9」但「本地媒体 / 云端文件 = 0」的矛盾原因，并给出可选解决办法（本 — 定位「已同步 9 但本地/云端为 0」根因：本地/云端数取 scan 快照行，已同步取 counts 实时表，两者不同源且上传不写快照；给出 4 条路线未改代码 (11/25)
+- **T19** [done] 核对我理解的上传三段链路（浏览器→WP 服务器、WP 服务器→存储桶、存储桶返回→写入媒体库数据表）是否准确，并判断是否 — 核清上传三段链路（先写媒体库与索引、再同步上传、返回后回写 postmeta 与索引），结论：不需要重做表结构，问题在读路径把任务日志当事实表 (11/25)
+
+
+## 生产环境与部署事实
+<!-- card id=c1 kind=setting category=stack rev=1 updated=2026-11-25T02:23:50.845Z -->
+
+- **R1** 生产站 /www/wwwroot/www.nboke.com，插件目录是 git checkout，remote `local-deploy` 指向工作区 /root/work/sakura-tools。部署命令：git fetch local-deploy main -q && git merge --ff-only FETCH_HEAD && chown -R www:www .（属主必须修回 www:www，否则 git 会把文件改成 root，后台写文件失败）。
+- **R2** 生产数据库前缀 nb_；插件表是 nb_sio_*（同步索引、扫描、指标）与 nb_sufm_*（用户文件空间），不是 nb_sakura_*。表名一律走各 Schema 的 table()，不手拼。
+- **R3** 存储配置的 option 名是 s3_options（没有 sakura_imgopt_ 前缀，历史原因）；代码里不要直接 get_option，走 S3\Options 取快照。同一 option 里 active_profile_id 指向 profiles 中的一份配置。
+- **R4** 冒烟验证用 https://www.nboke.com/ 首页与 ?p=232 文章页；文章页图片走当前桶的 CDN 域名（现为 doge.nboke.com）。debug.log 在 wp-content/debug.log，部署后应无新增条目（现存最早条目是 10-30 旧插件 sakura-image-optimizer 的历史 fatal）。
+
+
+## 后台 UI 与字段约定
+<!-- card id=ui kind=setting category=conventions rev=1 updated=2026-11-25T02:23:56.107Z -->
+
+- **R5** 卡片类动作按钮（保存、连接测试等）统一放所在区域底部右侧：卡片内用 <div class="card-savebar">（可带 span.card-savebar__note 左侧提示、form.card-savebar__aside 次要动作），整页单表单用 <div class="page-savebar"> 放在最后一张卡片之后；不要放 hero-actions 或裸 <p> 里。
+- **R6** 不引入 Bootstrap / Alpine.js / Vue 等前端框架。后台继续用 assets/ui 的 tokens + base + components 三件套与 core.js（暴露 window.SakuraAdmin：toast / confirm / busy / openModal）。理由：Bootstrap 单 CSS 就 30.4 KB gzip，且 Reboot 会污染整个 wp-admin。
+- **R7** 容量类字段（单人容量、单文件上限、每日上传量、全站预算、用户单独容量）后台一律按 MB 输入与展示；数据库、REST 与配额计算仍按字节换算。
+- **R8** 空间套餐两张表统一 6 列「套餐ID / 名称 / 容量(GB) / 价格或积分 / 时长(天) / 上架删除」，容量一律 GB（现金存 bytes，表单字段 bytes_gb，兼容旧 bytes_mb / bytes）；现金价格用元、积分价格用积分。

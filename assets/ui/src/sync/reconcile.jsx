@@ -60,6 +60,9 @@ function normalizeRow( row, statusLabels ) {
 		name,
 		path: row.path || key,
 		type: row.type || 'other',
+		// A row that kept its local size but lost the local file was cleaned up
+		// by the "delete local after upload" policy, not lost by hand.
+		local_removed: ! row.local && Number( row.size || 0 ) > 0,
 		ext: row.ext || ( dot > 0 && dot < name.length - 1 ? name.slice( dot + 1 ).toUpperCase() : '\u2014' ),
 		status,
 		status_label: row.status_label || statusLabels[ status ] || status,
@@ -680,9 +683,9 @@ export default function ReconcileCard( { card, view, rows, config, strings, lock
 								</td>
 								<td data-label={ ( s.columns || [] )[ 2 ] || '大小' }>{ row.size_label }</td>
 								<td data-label={ ( s.columns || [] )[ 3 ] || '本地' }>
-									<span className={ 'loc ' + ( row.local ? 'loc--yes' : 'loc--no' ) }>
+									<span className={ 'loc ' + ( row.local ? 'loc--yes' : row.local_removed ? 'loc--warn' : 'loc--no' ) }>
 										<span className="loc__dot" aria-hidden="true" />
-										{ row.local ? s.exists : s.missing }
+										{ row.local ? s.exists : row.local_removed ? s.localRemoved || '已按策略删除' : s.missing }
 									</span>
 								</td>
 								<td data-label={ ( s.columns || [] )[ 4 ] || '云端' }>

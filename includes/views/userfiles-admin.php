@@ -248,10 +248,6 @@ UI::page(
 	static function () use ( $sufm_tab, $settings, $enabled, $entry_status, $sufm_entry_label, $sufm_entry_theme, $sufm_theme_limits, $sufm_type_labels, $sufm_accent_labels, $sufm_style_labels, $sufm_appearance_form, $sufm_policy_form, $sufm_policy_groups, $sufm_checkbox, $sufm_pager ) {
 		if ( 'settings' === $sufm_tab ) {
 
-			$sufm_moved = $enabled
-				/* translators: %s: detected entry label */
-				? sprintf( __( '「前台入口」开关已移至「子比专属」页；当前已开启，入口：%s。', 'sakura-imgopt' ), '' !== $sufm_entry_label ? $sufm_entry_label : __( '未检测到', 'sakura-imgopt' ) )
-				: __( '「前台入口」开关已移至「子比专属」页；当前未开启，前台不出现入口（媒体库功能不受影响）。', 'sakura-imgopt' );
 			?>
 			<div class="card-grid" data-sakura-layout="files-settings" data-sakura-group="main">
 				<?php
@@ -375,20 +371,12 @@ UI::page(
 						'anchor'      => 'sufm-settings',
 						'kicker'      => 'POLICY',
 						'title'       => __( '上传与配额策略', 'sakura-imgopt' ),
-						'description' => __( '这里是唯一默认值来源；保存后立即对新请求生效。前台入口开关不在本页。', 'sakura-imgopt' ),
-						'actions'     => array(
-							array(
-								'label'   => __( '前往子比专属', 'sakura-imgopt' ),
-								'url'     => \Sakura\ImageOptimizer\Admin\Registry::url( 'files', 'zibll' ),
-								'variant' => 'ghost',
-							),
-						),
+						'description' => __( '这里是唯一默认值来源；保存后立即对新请求生效。', 'sakura-imgopt' ),
 						'form'        => $sufm_policy_form,
 						'save'        => __( '保存策略', 'sakura-imgopt' ),
 					),
-					static function () use ( $settings, $sufm_moved, $sufm_policy_groups, $sufm_theme_limits, $sufm_type_labels, $sufm_checkbox ) {
+					static function () use ( $settings, $sufm_policy_groups, $sufm_theme_limits, $sufm_type_labels, $sufm_checkbox ) {
 						?>
-						<p class="field__hint moved-hint"><?php echo esc_html( $sufm_moved ); ?></p>
 						<?php foreach ( $sufm_policy_groups as $group ) : ?>
 							<section class="policy-group">
 								<div class="policy-group__head">

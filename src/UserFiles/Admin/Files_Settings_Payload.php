@@ -155,14 +155,7 @@ final class Files_Settings_Payload {
 			'id'          => 'settings',
 			'kicker'      => 'POLICY',
 			'title'       => __( '上传与配额策略', 'sakura-imgopt' ),
-			'description' => __( '这里是唯一默认值来源；保存后立即对新请求生效。前台入口开关不在本页。', 'sakura-imgopt' ),
-			'actions'     => array(
-				array(
-					'label' => __( '前往子比专属', 'sakura-imgopt' ),
-					'url'   => Registry::url( 'files', 'zibll' ),
-					'variant' => 'ghost',
-				),
-			),
+			'description' => __( '这里是唯一默认值来源；保存后立即对新请求生效。', 'sakura-imgopt' ),
 			'form'        => 'settings',
 			'placement'   => array( (int) $settings[0] + $offset, (int) $settings[1], (int) $settings[2] ),
 		);
@@ -280,13 +273,6 @@ final class Files_Settings_Payload {
 			'health'      => $health,
 			'entry'       => $entry,
 			'policy'      => array(
-				'movedHint'   => ! empty( $entry['enabled'] )
-					? sprintf(
-						/* translators: %s: detected entry label. */
-						__( '「前台入口」开关已移至「子比专属」页；当前已开启，入口：%s。', 'sakura-imgopt' ),
-						'' !== (string) $entry['label'] ? (string) $entry['label'] : __( '未检测到', 'sakura-imgopt' )
-					)
-					: __( '「前台入口」开关已移至「子比专属」页；当前未开启，前台不出现入口（媒体库功能不受影响）。', 'sakura-imgopt' ),
 				'groups'      => $this->policy_groups( $settings ),
 				'themeLimits' => $limits,
 				'allowedTypes' => $allowed_types,

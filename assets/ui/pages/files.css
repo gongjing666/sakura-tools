@@ -711,10 +711,6 @@
 	margin-top: 14px;
 }
 
-.sakura-admin[data-sakura-page="files-settings"] .moved-hint {
-	margin-bottom: 18px;
-}
-
 .sakura-admin[data-sakura-page="files-settings"] .policy-group {
 	margin-top: 22px;
 }
@@ -762,6 +758,16 @@
 
 .sakura-admin[data-sakura-page="files-settings"] .type-field .check-grid {
 	margin-top: 8px;
+}
+
+/* The global mobile rule collapses every check grid to one column. The policy
+ * card has nine short labels, so two columns fit at 390px and keep the card
+ * from growing by four extra rows. */
+@media (max-width: 782px) {
+	.sakura-admin[data-sakura-page="files-settings"] .type-field .check-grid {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		gap: 8px 10px;
+	}
 }
 
 /* Execute steps --------------------------------------------------------- */

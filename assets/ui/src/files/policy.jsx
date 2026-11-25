@@ -37,22 +37,9 @@ export default function Policy( { card, config } ) {
 		setValues( ( current ) => ( { ...current, [ key ]: value } ) );
 	};
 
-	const action = ( card.actions || [] )[ 0 ];
-
 	return (
-		<Card
-			card={ card }
-			actions={
-				action ? (
-					<a className="btn btn--ghost btn--small" href={ action.url }>
-						{ action.label }
-					</a>
-				) : null
-			}
-		>
+		<Card card={ card }>
 			<Form config={ config } card="settings" hidden={ policy.hidden || {} }>
-				<p className="field__hint moved-hint">{ policy.movedHint }</p>
-
 				{ groups.map( ( group ) => (
 					<section className="policy-group" key={ group.title }>
 						<div className="policy-group__head">

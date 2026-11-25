@@ -1,11 +1,11 @@
-<!-- deep-ptc:project-cards v1 next=R9,F39,Q7,T25 -->
+<!-- deep-ptc:project-cards v1 next=R9,F40,Q7,T26 -->
 # Project cards
 
 > Maintained by Deep PTC in DeepSeek Harness: edit in a Deep PTC conversation, view 特点卡片 / Project cards.
 > User-approved settings guide this project. Features and requirements are records that can be checked and corrected.
 
 ## Implemented features / 已实现功能
-<!-- card id=features kind=features rev=25 updated=2026-11-25T13:54:17.638Z -->
+<!-- card id=features kind=features rev=26 updated=2026-11-25T14:23:28.060Z -->
 
 - **F1** 切桶封存与解锁（R18）：切桶时同一次 update_option 写入 s3_options['reconcile_pending'] = {profile_id, at, bucket, from}，同步中心立刻封存；只有跑完 mode=full 或 resume 的完整核对，才由 Scan_Service::finalize() 调 Options::clear_reconcile_pending() 清零。验证：同步中心 #sakura-sync-state 的 data-reconcile-gated=1，refresh / resume / retry 三个端点返回 409 sio_reconcile_required。
 - **F2** 切桶提醒走插件弹窗（#sakura-s3-switch-modal，kicker「OBJECT STORAGE / SWITCHED」）：列出缩略图改写已关、同步中心数据仍是上一个桶的、上传行为两开关仍按原绑定三件事，按钮直达同步中心。刷新后才出现的顶部 WP admin notice 已删除。
@@ -45,6 +45,7 @@
 - **F36** F36 链接改写与费用估算迁 React 岛（1.28.8-beta-56）：`Rewrite_Payload` + `Url_Rewrite_Scope` + `assets/ui/dist/rewrite.js`，`Cost_Payload` + `assets/ui/dist/cost.js`；链接改写按旧域名 + `upload_url_path` 路径（空则 `upload_path`）做 SQL 粗筛、写库前 URL 级精确匹配，只改附件 URL，JSON 转义/序列化/回滚保持；两页旧脚本由 `Page_Assets::ISLAND_BUNDLES` 跳过，bundle 缺失回落旧页。验证：915 tests / 3875 assertions / 6 skipped，PHPStan/PHPCS/PHPCompatibility 全绿；demo.77il.cn 1440/390 无横溢、console 0 error，扫描 6 候选 / 改写 4 / 跳过 2、回滚逐字节还原，费用估算 200GB 重算与口径展开、两页兜底均实测。
 - **F37** F37 链接改写页扫描/回滚卡片视觉修正（1.28.8-beta-57）：扫描工具栏改为带边框面板 + 「快捷选择」标签 + 两个深描边 `btn--ghost` 按钮，400px 下第一行「全选/已选」、第二行两个等宽按钮；无数据时给合并单元格 `data-label=""` 并加 `.rewrite-empty-cell`，≤782px 隐藏「选择/时间」自动列名、空状态铺满并居中；旧页兜底同步。验证 1560/400 无横溢、console 0 error，915 tests / 3875 assertions / 6 skipped、PHPStan/PHPCS/PHPCompatibility 全绿。
 - **F38** 文件空间设置页迁 React 岛（1.28.8-beta-58）：PHP Files_Settings_Payload + Health 下发 page/head/cards/config；React assets/ui/src/files（app / appearance / policy / entry-gate / form / color）。健康卡与「子比专属」同源显示桥接 N/M、主题名、前台入口状态与标签。文件夹颜色支持 #rrggbb 自定义色，Settings::accent_class()/accent_style() 统一输出 class + ink/fill 变量，前台用户中心、写文章编辑面板、媒体库三处同色。保存仍走 options.php + sufm_settings[_partial]，外观/策略分别保存不重置 enabled、主题限制或兄弟卡字段。Page_Assets 登记 files-settings => assets/ui/dist/files.js，bundle 缺失回落旧页，旧页也支持自定义色并保留健康卡。验证：demo 1440/390 无
+- **F39** 文件空间策略卡清理与窄屏两列（1.28.8-beta-59）：删除「前往子比专属」按钮与「前台入口开关已移至…」提示（payload、React 岛和旧页视图三处同步），并移除策略卡描述里的同类尾句；≤782px 把允许类型 .check-grid 从全局单列覆盖为两列。390 实测两列各 139px、右边界 339 < 卡片 356，无页面横溢，策略卡高度 2508→2264；1440 仍两列且无按钮/提示；保存一次后 quota 512、9 个类型勾选不变，console 0 error。
 
 
 ## User requirements / 用户要求
@@ -59,7 +60,7 @@
 
 
 ## Completed tasks / 已完成任务
-<!-- card id=tasks kind=tasks rev=24 updated=2026-11-25T12:40:21.515Z -->
+<!-- card id=tasks kind=tasks rev=25 updated=2026-11-25T14:00:19.952Z -->
 
 - **T1** [done] 为 sakura-tools 插件补一篇 PHP 代码规范文档（docs/开发规则/），以 PHP 8.2–8.4 兼容 (11/24)
 - **T2** [done] 文档中所有描述实验站的地方（AGENTS.md、05 篇、09 篇、11 篇、03 篇、docs/验收脚本/README — 实验站 demo.77il.cn 的新部署（宝塔本机 /www/wwwroot/demo.77il.cn，PHP 8.4.28 + MariaDB 12.3.2）已写进 AGENTS.md 与 05/09/11/03 篇、验收脚本，并写入记忆；文档不含密码，凭据只在 /root/.dsh/secrets/demo-77il-login.txt；本地提交 f343907，未 push。 (11/24)
@@ -85,6 +86,7 @@
 - **T22** [done] 把对象存储模块的「删除队列」页（storage-deletes）重构为 PHP 外壳 + React 内容区混合渲染，做 — 删除队列页迁 React 岛，完成态与 4s 实时进度已在 demo.77il.cn 验收；commit dd08fbb 未 push (11/25)
 - **T23** [done] 把对象存储模块剩下的「链接改写」与「费用估算」两个页签一并重构为 PHP 外壳 + React 内容区，做法与已迁的 s — 链接改写与费用估算已迁 React 岛；链接改写按旧域名+配置路径只改附件 URL；静态门禁与 demo 1440/390 验收通过；提交 eedda0a（未 push）。 (11/25)
 - **T24** [done] 重做「扫描与选择」卡里「内容+主题」「全选所有位置」两个选项的视觉样式，让它们在 1560px 与 400px 下都有清 — 链接改写扫描/回滚卡片：快捷选择改为带边框分组按钮，400px 无数据时隐藏「选择/时间」并让空状态铺满居中；1560/400 实测通过，提交 8a36b1f（未 push）。 (11/25)
+- **T25** [done] 重构文件空间模块的「样式」与「策略」页签；这是插件第二大功能，要求极其谨慎、保持既有行为。 — 文件空间设置页迁 React 岛完成；健康卡同源、自定义色三处生效、两卡保存与旧页兜底已验证。 (11/25)
 
 
 ## 生产环境与部署事实

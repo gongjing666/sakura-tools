@@ -212,7 +212,7 @@ git diff --check
 
 | 项 | 数量 | 结论 |
 |---|---|---|
-| 文件 / 行数 | 59 个 / 10,403 行 | 规模可控；文件空间设置岛 7 个文件 / 512 行、链接改写岛 9 个文件 / 876 行、费用估算岛 3 个文件 / 359 行 |
+| 文件 / 行数 | 59 个 / 10,390 行 | 规模可控；文件空间设置岛 7 个文件 / 499 行、链接改写岛 9 个文件 / 876 行、费用估算岛 3 个文件 / 359 行 |
 | `useState` | 111 | 集中在各页 `app.jsx` 与卡片的 draft/saved |
 | `useEffect` | 29 | 全部带清理或只读依赖键（click / popstate / keydown / 定时器 / 值变化） |
 | `useRef` / `useCallback` | 23 / 7 | 合理个例 |
@@ -221,7 +221,7 @@ git diff --check
 | `dangerouslySetInnerHTML` | 4 | 全部是服务端字符串（品牌 SVG、tagline、弹窗图标、吉祥物） |
 | 下标作 key | 6 | 全部是静态字符串列表（hint / warning / note / card.desc / 告警行） |
 | React 19 Actions（`useActionState` / `useOptimistic`） | 0 | 19.3 已具备，现有页签仍是手写 `saving`；按 §5 逐个页签迁移，不批量重写 |
-| 打包产物 | `files.js` 231 KB（236,801 B）/ `image.js` 255 KB（260,977 B）/ `storage.js` 255 KB（260,731 B）/ `sync.js` 267 KB（273,075 B）/ `deletes.js` 241 KB（246,604 B）/ `rewrite.js` 239 KB（244,258 B）/ `cost.js` 228 KB（233,857 B）/ `system.js` 232 KB（237,621 B） | React 19.3.1 minified；18.3.1 版是 176/153 KB，差 74/80 KB，由开发者决定接受 |
+| 打包产物 | `files.js` 231 KB（236,609 B）/ `image.js` 255 KB（260,977 B）/ `storage.js` 255 KB（260,731 B）/ `sync.js` 267 KB（273,075 B）/ `deletes.js` 241 KB（246,604 B）/ `rewrite.js` 239 KB（244,258 B）/ `cost.js` 228 KB（233,857 B）/ `system.js` 232 KB（237,621 B） | React 19.3.1 minified；18.3.1 版是 176/153 KB，差 74/80 KB，由开发者决定接受 |
 
 结论：**没有需要立刻返工的旧版写法**；基线与 `package.json` 一致（`^19.0.0` → 19.3.1）。下一步真正有价值的是按 §5 把保存动作迁到 `useActionState`，而不是先加 `memo`。
 
@@ -273,7 +273,7 @@ git diff --check
 - **健康卡同源**：新增 `src/UserFiles/Admin/Health.php`，从 `Zibll_Bridge::capabilities()/theme()`、`Settings::entry_enabled()` 与 `Entry::status()` 取同一份快照。设置页显示「子比桥接 N/M 项能力 + 主题名 + 前台入口状态/入口标签」；子比专属页仍用同一组桥接数据，旧页兜底也改为 `Health::status()`。
 - **保存不另造通道**：两张卡仍是原生 `options.php` 表单。外观卡提交 `tree_style` 与 `folder_accent`，策略卡提交数字字段、主题限制与允许类型；`Settings::sanitize()` 在收到 `sufm_settings[_partial]` 时先合并已存值。**这里必须用模块自己的 `_partial`，不是 `Card_Form::PARTIAL_FIELD` 的 `_sakura_partial`**，否则保存外观会清掉入口开关与主题限制（本轮实测踩到并修复）。
 - **自定义文件夹颜色**：`folder_accent` 支持空 / 六个预设 / `#rrggbb`。`Settings::accent_class()` 对自定义色只输出 `sufm-accent-custom`，`Settings::accent_style()` 输出 `--sufm-folder-ink` 与由该色混白 28% 得到的 `--sufm-folder-fill`。前台用户中心、前台写文章编辑面板和媒体库三处都通过同一对变量取色；预设色仍走旧 CSS 类，不写内联样式。旧页外观卡也补了自定义色单选、取色器、hex 输入和实时预览，bundle 缺失时不会把自定义色写回空值。
-- **界面**：外观卡保留原左右预览/选择布局与六个预设胶囊，新增自定义颜色行；390px 下改为单列，自定义取色、hex 与两个按钮换行但不横向溢出。策略卡沿用原分组、字段名与提示，主题限制和允许类型仍在原位置。
+- **界面**：外观卡保留原左右预览/选择布局与六个预设胶囊，新增自定义颜色行；390px 下改为单列，自定义取色、hex 与按钮换行但不横向溢出。策略卡沿用原分组、字段名与提示，主题限制和允许类型仍在原位置；策略卡头部不再放入口按钮，旧的入口迁移提示已删除。允许类型网格在 ≤782px 被全局规则压成单列时，用文件设置页自己的断点改回两列（390px 实测 139×2，卡片高度 2508→2264）。
 - **兜底与资源**：`Page_Assets::ISLAND_BUNDLES` 登记 `files-settings => assets/ui/dist/files.js`；`Page::render()` 只在 bundle 可读时走岛，否则回到 `userfiles-admin.php` 与旧 `files-settings.js`。`Page::boot_height()` 增加 appearance/settings 的骨架高度，入口关闭时 gate 卡把两张卡整体下移一行。
 - **验收**：1440 与 390 均无页面横溢、控制台 0 error；外观/策略分别保存且互不清空；自定义色保存后三处读到的 ink/fill 一致；预设 amber + mac 仍走原类且无内联变量；bundle 移除后旧页健康卡、表单与自定义色保存仍可用。
 

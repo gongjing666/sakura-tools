@@ -43,6 +43,7 @@ final class Page_Assets {
 		'image-stats'         => 'assets/ui/dist/image.js',
 		'storage-connection'  => 'assets/ui/dist/storage.js',
 		'storage-sync'        => 'assets/ui/dist/sync.js',
+		'storage-deletes'     => 'assets/ui/dist/deletes.js',
 	);
 
 	/**

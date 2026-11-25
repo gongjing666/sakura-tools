@@ -24,7 +24,7 @@ final class Delete_Jobs {
 	/**
 	 * Table schema version.
 	 */
-	public const VERSION = '1.2.2';
+	public const VERSION = '1.2.3';
 
 	/**
 	 * Schema option name.
@@ -35,6 +35,16 @@ final class Delete_Jobs {
 	 * Give up after this many failed attempts.
 	 */
 	public const MAX_ATTEMPTS = 8;
+
+	/**
+	 * How long completed rows stay visible before the worker prunes them.
+	 */
+	public const DONE_RETENTION_DAYS = 7;
+
+	/**
+	 * Rows removed per prune statement, so one cleanup never locks the table.
+	 */
+	public const PRUNE_LIMIT = 500;
 
 	/** Normalize the saved profile id to the queue column format. */
 	public static function normalize_profile_id( string $profile_id ): string {
@@ -119,11 +129,14 @@ final class Delete_Jobs {
 			last_error varchar(500) NOT NULL DEFAULT '',
 			created_at datetime NOT NULL DEFAULT '1970-01-01 00:00:00',
 			updated_at datetime NOT NULL DEFAULT '1970-01-01 00:00:00',
+			completed_at datetime NULL DEFAULT NULL,
+			resolution varchar(20) NOT NULL DEFAULT '',
 			lease_until datetime NULL,
 			claim_token char(64) NOT NULL DEFAULT '',
 			PRIMARY KEY  (id),
 			UNIQUE KEY object_key (profile_id,object_key_hash),
 			KEY state_next (state,next_at),
+			KEY state_completed (state,completed_at),
 			KEY profile_state (profile_id,state),
 			KEY attachment_state (attachment_id,state)
 		) {$charset};";
@@ -160,8 +173,8 @@ final class Delete_Jobs {
 		dbDelta( $sql );
 
 		$columns = (array) $wpdb->get_col( "SHOW COLUMNS FROM {$table}", 0 );
-		if ( ! in_array( 'lease_until', $columns, true ) || ! in_array( 'claim_token', $columns, true ) || ! in_array( 'target_hash', $columns, true ) ) {
-			do_action( 'sakura_imgopt_s3_log', __( '删除队列表升级未完成：缺少租约、令牌或目标指纹字段，已保留旧版本标记。', 'sakura-imgopt' ) );
+		if ( ! in_array( 'lease_until', $columns, true ) || ! in_array( 'claim_token', $columns, true ) || ! in_array( 'target_hash', $columns, true ) || ! in_array( 'completed_at', $columns, true ) || ! in_array( 'resolution', $columns, true ) ) {
+			do_action( 'sakura_imgopt_s3_log', __( '删除队列表升级未完成：缺少租约、令牌、目标指纹或完成字段，已保留旧版本标记。', 'sakura-imgopt' ) );
 			return;
 		}
 		update_option( self::OPTION, self::VERSION, false );
@@ -230,12 +243,15 @@ final class Delete_Jobs {
 					attachment_id = VALUES(attachment_id),
 					profile_id = VALUES(profile_id),
 					target_hash = VALUES(target_hash),
-					attempts = IF(state = 'dead', 0, attempts),
-					claim_token = IF(state = 'dead', '', claim_token),
-					lease_until = IF(state = 'dead', NULL, lease_until),
-					next_at = IF(state = 'dead', VALUES(next_at), IF(state = 'queued', LEAST(next_at, VALUES(next_at)), next_at)),
+					attempts = IF(state IN ('dead', 'done'), 0, attempts),
+					claim_token = IF(state IN ('dead', 'done'), '', claim_token),
+					lease_until = IF(state IN ('dead', 'done'), NULL, lease_until),
+					completed_at = IF(state IN ('dead', 'done'), NULL, completed_at),
+					resolution = IF(state IN ('dead', 'done'), '', resolution),
+					created_at = IF(state IN ('dead', 'done'), VALUES(created_at), created_at),
+					next_at = IF(state IN ('dead', 'done'), VALUES(next_at), IF(state = 'queued', LEAST(next_at, VALUES(next_at)), next_at)),
 					updated_at = VALUES(updated_at),
-					state = IF(state = 'dead', 'queued', state)"
+					state = IF(state IN ('dead', 'done'), 'queued', state)"
 			);
 		}
 
@@ -452,15 +468,32 @@ final class Delete_Jobs {
 	}
 
 	/**
-	 * Remove a confirmed delete only for the current claim.
+	 * Mark a confirmed delete as done for the current claim.
 	 *
+	 * The row is kept instead of deleted so the screen can show what was
+	 * removed, when, and whether the object was deleted or intentionally kept
+	 * (still referenced by an attachment / filtered by a hook). A worker tick
+	 * prunes these rows after the retention window.
+	 *
+	 * @param int    $id          Row ID.
+	 * @param string $claim_token Current claim token.
+	 * @param string $resolution  deleted | kept | skipped.
 	 * @return bool Whether this worker still owned the row.
 	 */
-	public function complete( int $id, string $claim_token ): bool {
+	public function complete( int $id, string $claim_token, string $resolution = 'deleted' ): bool {
 		global $wpdb;
+
+		$resolution = in_array( $resolution, array( 'deleted', 'kept', 'skipped' ), true ) ? $resolution : 'deleted';
+		$now        = gmdate( 'Y-m-d H:i:s' );
+
 		return 1 === (int) $wpdb->query(
 			$wpdb->prepare(
-				"DELETE FROM {$this->table} WHERE id = %d AND state = 'running' AND claim_token = %s",
+				"UPDATE {$this->table}
+				SET state = 'done', resolution = %s, completed_at = %s, lease_until = NULL, claim_token = '', last_error = '', updated_at = %s
+				WHERE id = %d AND state = 'running' AND claim_token = %s",
+				$resolution,
+				$now,
+				$now,
 				$id,
 				$claim_token
 			)
@@ -639,6 +672,316 @@ final class Delete_Jobs {
 	}
 
 	/**
+	 * Row counts per state.
+	 *
+	 * retrying is not a state: it counts queued rows that already failed at
+	 * least once, so the screen can say how much of the backlog is a retry.
+	 *
+	 * @return array{all:int,queued:int,running:int,done:int,dead:int,failed:int,retrying:int}
+	 */
+	public function counts(): array {
+		global $wpdb;
+
+		$rows = $wpdb->get_results( "SELECT state, COUNT(*) AS total, SUM(attempts > 0) AS retried FROM {$this->table} GROUP BY state", ARRAY_A );
+		$out  = array(
+			'all'      => 0,
+			'queued'   => 0,
+			'running'  => 0,
+			'done'     => 0,
+			'dead'     => 0,
+			'failed'   => 0,
+			'retrying' => 0,
+		);
+
+		foreach ( is_array( $rows ) ? $rows : array() as $row ) {
+			$state = sanitize_key( (string) ( $row['state'] ?? '' ) );
+			$total = max( 0, (int) ( $row['total'] ?? 0 ) );
+
+			switch ( $state ) {
+				case 'queued':
+					$out['queued']   = $total;
+					$out['retrying'] = max( 0, (int) ( $row['retried'] ?? 0 ) );
+					break;
+				case 'running':
+					$out['running'] = $total;
+					break;
+				case 'done':
+					$out['done'] = $total;
+					break;
+				case 'dead':
+					$out['dead'] = $total;
+					break;
+				case 'failed':
+					$out['failed'] = $total;
+					break;
+				default:
+					continue 2;
+			}
+
+			$out['all'] += $total;
+		}
+
+		return $out;
+	}
+
+	/**
+	 * Total rows for one state, or every row when the state is unknown.
+	 *
+	 * @param string $state State filter.
+	 */
+	public function total_rows( string $state = 'all' ): int {
+		global $wpdb;
+
+		$where = $this->state_where( $state );
+
+		return (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$this->table} {$where}" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $where is built from a whitelisted state.
+	}
+
+	/**
+	 * One page of queue rows, active work first.
+	 *
+	 * @param string $state    State filter.
+	 * @param int    $page     1-based page.
+	 * @param int    $per_page Rows per page.
+	 * @return array<int,array<string,mixed>>
+	 */
+	public function page_rows( string $state = 'all', int $page = 1, int $per_page = 50 ): array {
+		global $wpdb;
+
+		$per_page = max( 1, min( 100, $per_page ) );
+		$offset   = ( max( 1, $page ) - 1 ) * $per_page;
+		$where    = $this->state_where( $state );
+		$sql      = $wpdb->prepare(
+			"SELECT id, attachment_id, profile_id, state, attempts, object_key, last_error, next_at, created_at, updated_at, completed_at, resolution
+			FROM {$this->table} {$where}
+			ORDER BY CASE state WHEN 'running' THEN 0 WHEN 'queued' THEN 1 WHEN 'failed' THEN 2 WHEN 'dead' THEN 3 WHEN 'done' THEN 4 ELSE 5 END, id DESC
+			LIMIT %d OFFSET %d", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $where is built from a whitelisted state.
+			$per_page,
+			$offset
+		);
+
+		$rows = is_string( $sql ) ? $wpdb->get_results( $sql, ARRAY_A ) : array();
+
+		return is_array( $rows ) ? $rows : array();
+	}
+
+	/**
+	 * Completion and activity facts used by the live panel.
+	 *
+	 * @param int $minutes Recent window in minutes.
+	 * @return array{done_recent:int,done_hour:int,last_done:string,last_activity:string}
+	 */
+	public function activity( int $minutes = 10 ): array {
+		global $wpdb;
+
+		$now    = time();
+		$recent = gmdate( 'Y-m-d H:i:s', $now - max( 1, $minutes ) * MINUTE_IN_SECONDS );
+		$hour   = gmdate( 'Y-m-d H:i:s', $now - HOUR_IN_SECONDS );
+		$row    = $wpdb->get_row(
+			$wpdb->prepare(
+				"SELECT
+					SUM(completed_at IS NOT NULL AND completed_at >= %s) AS done_recent,
+					SUM(completed_at IS NOT NULL AND completed_at >= %s) AS done_hour,
+					MAX(completed_at) AS last_done,
+					MAX(CASE WHEN state IN ('queued', 'running') THEN updated_at END) AS last_activity
+				FROM {$this->table}",
+				$recent,
+				$hour
+			),
+			ARRAY_A
+		);
+
+		$row = is_array( $row ) ? $row : array();
+
+		return array(
+			'done_recent'   => max( 0, (int) ( $row['done_recent'] ?? 0 ) ),
+			'done_hour'     => max( 0, (int) ( $row['done_hour'] ?? 0 ) ),
+			'last_done'     => (string) ( $row['last_done'] ?? '' ),
+			'last_activity' => (string) ( $row['last_activity'] ?? '' ),
+		);
+	}
+
+	/**
+	 * Earliest queued next_at, as a GMT string.
+	 */
+	public function next_due(): string {
+		global $wpdb;
+
+		$value = $wpdb->get_var( "SELECT MIN(next_at) FROM {$this->table} WHERE state = 'queued'" );
+
+		return is_string( $value ) ? $value : '';
+	}
+
+	/**
+	 * Rows a worker currently holds, newest activity first.
+	 *
+	 * @param int $limit Max rows.
+	 * @return array<int,array<string,mixed>>
+	 */
+	public function running_rows( int $limit = 5 ): array {
+		global $wpdb;
+
+		$rows = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT id, attachment_id, profile_id, object_key, attempts, updated_at, lease_until
+				FROM {$this->table} WHERE state = 'running' ORDER BY updated_at DESC LIMIT %d",
+				max( 1, min( 20, $limit ) )
+			),
+			ARRAY_A
+		);
+
+		return is_array( $rows ) ? $rows : array();
+	}
+
+	/**
+	 * Return selected rows to the queue.
+	 *
+	 * Completed rows are deliberately excluded: the object is gone, and a new
+	 * upload may already occupy the same key, so re-running it could delete the
+	 * replacement. Only pending work can be retried.
+	 *
+	 * @param array<int,int> $ids Selected row ids.
+	 */
+	public function retry_ids( array $ids ): int {
+		global $wpdb;
+
+		$ids = self::clean_ids( $ids );
+
+		if ( array() === $ids ) {
+			return 0;
+		}
+
+		$in  = implode( ',', array_fill( 0, count( $ids ), '%d' ) );
+		$now = gmdate( 'Y-m-d H:i:s' );
+		$sql = $wpdb->prepare( // phpcs:ignore WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber -- Two %s placeholders plus the dynamic IN list, passed as one array.
+			"UPDATE {$this->table}
+			SET state = 'queued', attempts = 0, next_at = %s, lease_until = NULL, claim_token = '', last_error = '', completed_at = NULL, resolution = '', updated_at = %s
+			WHERE id IN ({$in}) AND state IN ('queued', 'dead', 'failed')", // phpcs:ignore WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare -- IN list and arguments both derive from $ids.
+			array_merge( array( $now, $now ), $ids )
+		);
+
+		$updated = is_string( $sql ) ? (int) $wpdb->query( $sql ) : 0;
+
+		return max( 0, $updated );
+	}
+
+	/**
+	 * Drop queue rows without touching the remote objects.
+	 *
+	 * @param array<int,int> $ids Selected row ids.
+	 */
+	public function drop_ids( array $ids ): int {
+		global $wpdb;
+
+		$ids = self::clean_ids( $ids );
+
+		if ( array() === $ids ) {
+			return 0;
+		}
+
+		$in  = implode( ',', array_fill( 0, count( $ids ), '%d' ) );
+		$sql = $wpdb->prepare( "DELETE FROM {$this->table} WHERE id IN ({$in})", $ids ); // phpcs:ignore WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare -- IN list and arguments both derive from $ids.
+
+		$deleted = is_string( $sql ) ? (int) $wpdb->query( $sql ) : 0;
+
+		return max( 0, $deleted );
+	}
+
+	/**
+	 * Rows for the CSV export, oldest first.
+	 *
+	 * @param array<int,int> $ids Selected ids; empty exports everything.
+	 * @return array<int,array<string,mixed>>
+	 */
+	public function export_rows( array $ids = array() ): array {
+		global $wpdb;
+
+		$ids = self::clean_ids( $ids );
+		$sql = "SELECT id, attachment_id, profile_id, state, attempts, object_key, last_error, created_at, updated_at, completed_at, resolution FROM {$this->table}";
+
+		if ( array() !== $ids ) {
+			$in  = implode( ',', array_fill( 0, count( $ids ), '%d' ) );
+			$sql = $wpdb->prepare( "{$sql} WHERE id IN ({$in})", $ids ); // phpcs:ignore WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare -- IN list and arguments both derive from $ids.
+		}
+
+		if ( ! is_string( $sql ) ) {
+			return array();
+		}
+
+		$rows = $wpdb->get_results( $sql . ' ORDER BY id ASC', ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Prepared above when needed.
+
+		return is_array( $rows ) ? $rows : array();
+	}
+
+	/**
+	 * Delete completed rows past the retention window.
+	 *
+	 * @param int $days Retention in days.
+	 */
+	public function prune_done( int $days = self::DONE_RETENTION_DAYS ): int {
+		global $wpdb;
+
+		$cutoff = gmdate( 'Y-m-d H:i:s', time() - max( 1, $days ) * DAY_IN_SECONDS );
+		$total  = 0;
+
+		for ( $i = 0; $i < 20; $i++ ) {
+			$deleted = $wpdb->query(
+				$wpdb->prepare(
+					"DELETE FROM {$this->table} WHERE state = 'done' AND completed_at IS NOT NULL AND completed_at < %s LIMIT %d",
+					$cutoff,
+					self::PRUNE_LIMIT
+				)
+			);
+
+			if ( false === $deleted || 0 === (int) $deleted ) {
+				break;
+			}
+
+			$total += (int) $deleted;
+
+			if ( (int) $deleted < self::PRUNE_LIMIT ) {
+				break;
+			}
+		}
+
+		return $total;
+	}
+
+	/**
+	 * WHERE clause for a whitelisted state filter.
+	 *
+	 * @param string $state State filter.
+	 */
+	private function state_where( string $state ): string {
+		global $wpdb;
+
+		if ( ! in_array( $state, array( 'queued', 'running', 'done', 'dead', 'failed' ), true ) ) {
+			return '';
+		}
+
+		return (string) $wpdb->prepare( 'WHERE state = %s', $state );
+	}
+
+	/**
+	 * Positive ids, deduplicated.
+	 *
+	 * @param array<int,int> $ids Raw ids.
+	 * @return array<int,int>
+	 */
+	private static function clean_ids( array $ids ): array {
+		$out = array();
+
+		foreach ( $ids as $id ) {
+			$id = (int) $id;
+			if ( $id > 0 ) {
+				$out[ $id ] = $id;
+			}
+		}
+
+		return array_values( $out );
+	}
+
+	/**
 	 * Pending rows grouped by the storage target they were enqueued for.
 	 *
 	 * Needed after the bucket/endpoint of a profile changes: rows whose
@@ -651,10 +994,10 @@ final class Delete_Jobs {
 		global $wpdb;
 		$rows = $wpdb->get_results(
 			"SELECT profile_id, target_hash, state, COUNT(*) AS row_count FROM {$this->table}
+			WHERE state IN ('queued', 'running', 'dead')
 			GROUP BY profile_id, target_hash, state",
 			ARRAY_A
 		);
-
 		if ( ! is_array( $rows ) ) {
 			return array();
 		}

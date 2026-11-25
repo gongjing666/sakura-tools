@@ -114,6 +114,7 @@ final class Delete_Worker implements Module {
 		$start = time();
 		Profiler::start( 'delete queue tick' );
 		try {
+			$this->maybe_prune();
 			$deleted = 0;
 			while ( $deleted < self::MAX_JOBS && ( time() - $start ) < $max_seconds ) {
 				$rows = $this->deletes->due( 5, self::STALE_SECONDS );
@@ -135,6 +136,25 @@ final class Delete_Worker implements Module {
 		if ( $this->deletes->due_count() > 0 ) {
 			wp_schedule_single_event( time() + 5, self::HOOK );
 		}
+	}
+
+	/**
+	 * Delete completed rows once an hour, at most.
+	 *
+	 * Done rows are history, not queue state; keeping them forever would grow
+	 * the table with every deleted object. The transient is only a throttle, so
+	 * losing it costs one extra indexed DELETE, not correctness.
+	 */
+	private function maybe_prune(): void {
+		if ( ! function_exists( 'get_transient' ) || false !== get_transient( 'sakura_imgopt_s3_delete_pruned' ) ) {
+			return;
+		}
+
+		if ( function_exists( 'set_transient' ) ) {
+			set_transient( 'sakura_imgopt_s3_delete_pruned', 1, HOUR_IN_SECONDS );
+		}
+
+		$this->deletes->prune_done();
 	}
 
 	/** @return Storage_Adapter|null Null when the saved profile is missing. */
@@ -223,8 +243,15 @@ final class Delete_Worker implements Module {
 		$skip       = (bool) apply_filters( 'sakura_imgopt_skip_object_delete', false, $key, $attachment_id );
 		$referenced = '' !== $this->status->status( $attachment_id ) && $this->is_still_referenced( $attachment_id, $key );
 		if ( $skip || $referenced ) {
-			if ( $this->deletes->complete( $id, $claim_token ) ) {
-				do_action( 'sakura_imgopt_s3_log', sprintf( '[delete queue] kept %s: still referenced by attachment %d', $key, $attachment_id ) );
+			$resolution = $referenced ? 'kept' : 'skipped';
+
+			if ( $this->deletes->complete( $id, $claim_token, $resolution ) ) {
+				do_action(
+					'sakura_imgopt_s3_log',
+					'kept' === $resolution
+						? sprintf( '[delete queue] kept %s: still referenced by attachment %d', $key, $attachment_id )
+						: sprintf( '[delete queue] skipped %s: delete filter said keep', $key )
+				);
 			}
 			return;
 		}
@@ -233,7 +260,7 @@ final class Delete_Worker implements Module {
 			fn() => $adapter->delete_keys( array( $key ) )
 		);
 		if ( true === $result ) {
-			if ( $this->deletes->complete( $id, $claim_token ) ) {
+			if ( $this->deletes->complete( $id, $claim_token, 'deleted' ) ) {
 				do_action( 'sakura_imgopt_s3_log', sprintf( '[delete queue] removed orphan %s', $key ) );
 			}
 			// The index row still says the object is cloud-only until the next

@@ -51,6 +51,10 @@ final class Storage_Routes implements Module {
 	public static function register(): void {
 		Storage_Controller::register();
 
+		if ( class_exists( Deletes_Controller::class ) ) {
+			Deletes_Controller::register();
+		}
+
 		foreach ( self::CARD_CONTROLLERS as $name ) {
 			$class = __NAMESPACE__ . '\\' . $name;
 

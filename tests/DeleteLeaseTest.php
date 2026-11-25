@@ -60,12 +60,14 @@ final class DeleteLeaseDatabase {
 			}
 			return $this->renew_update_noop ? 0 : 1;
 		}
-		if ( str_starts_with( trim( $sql ), 'DELETE FROM' ) ) {
-			[ $id, $token ] = $args;
+		if ( str_contains( $sql, "SET state = 'done'" ) ) {
+			[ $resolution, , , $id, $token ] = $args;
 			if ( (int) $id !== (int) $this->row['id'] || 'running' !== $this->row['state'] || $token !== $this->row['claim_token'] ) {
 				return 0;
 			}
-			$this->row['state'] = 'deleted';
+			$this->row['state']       = 'done';
+			$this->row['resolution']  = $resolution;
+			$this->row['completed_at'] = gmdate( 'Y-m-d H:i:s' );
 			return 1;
 		}
 		if ( str_contains( $sql, "SET state = IF(attempts + 1" ) ) {
@@ -130,7 +132,8 @@ final class DeleteLeaseTest extends TestCase {
 			$this->assertFalse( $jobs->complete( 7, 'stale-token' ) );
 			$this->assertSame( 'running', $db->row['state'] );
 			$this->assertTrue( $jobs->complete( 7, $token ) );
-			$this->assertSame( 'deleted', $db->row['state'] );
+			$this->assertSame( 'done', $db->row['state'] );
+			$this->assertSame( 'deleted', $db->row['resolution'] );
 		} finally {
 			$GLOBALS['wpdb'] = $previous;
 		}

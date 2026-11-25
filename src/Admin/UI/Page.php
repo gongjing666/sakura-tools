@@ -629,6 +629,7 @@ final class Page {
 			'checks'     => 320,
 			'extensions' => 320,
 			'layout'     => 380,
+			'queue'      => 760,
 		);
 
 		if ( isset( $known[ $card ] ) ) {

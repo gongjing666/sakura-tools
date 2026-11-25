@@ -77,6 +77,12 @@ assets/ui/src/
     dialogs.jsx        ← 复刻 Config_Notice 的 setup / paused / reconcile 三个引导弹窗
     transport.js       ← ajax() 直接转发 admin.api，reloadWithToast() 走 sessionStorage 跨重载
     format.js          ← 数字 / 字节 / 日期格式化
+  deletes/
+    index.jsx          ← 挂在 .sakura-admin[data-sakura-page="storage-deletes"] 的 <main>
+    app.jsx            ← 外壳：筛选/分页 URL、轮询与退避、重试/丢弃/导出、操作后的 snapshot 合并
+    transport.js       ← REST /storage/deletes 与 /retry /drop，导出仍走 admin-post
+    live.jsx           ← 实时面板：四计数、堆叠进度、速率/ETA/下次到期、本次打开后进度、正在执行
+    table.jsx          ← 完整队列表（含已完成）、筛选 chip、勾选、每行进度、分页
 ```
 
 规矩：
@@ -206,7 +212,7 @@ git diff --check
 
 | 项 | 数量 | 结论 |
 |---|---|---|
-| 文件 / 行数 | 22 个 / 5,466 行 | 规模可控（对象存储页带来 9 个文件 / 2,242 行） |
+| 文件 / 行数 | 40 个 / 8,654 行 | 规模可控；删除队列岛新增 5 个文件 / 833 行 |
 | `useState` | 62 | 集中在各页 `app.jsx` 与卡片的 draft/saved |
 | `useEffect` | 14 | 全部带清理或只读依赖键（click / popstate / keydown / 定时器 / 值变化） |
 | `useRef` / `useCallback` | 8 / 5 | 合理个例 |
@@ -215,7 +221,7 @@ git diff --check
 | `dangerouslySetInnerHTML` | 4 | 全部是服务端字符串（品牌 SVG、tagline、弹窗图标、吉祥物） |
 | 下标作 key | 6 | 全部是静态字符串列表（hint / warning / note / card.desc / 告警行） |
 | React 19 Actions（`useActionState` / `useOptimistic`） | 0 | 19.3 已具备，现有页签仍是手写 `saving`；按 §5 逐个页签迁移，不批量重写 |
-| 打包产物 | `image.js` 254 KB（260,901 B）/ `storage.js` 254 KB（260,190 B）/ `system.js` 232 KB（237,455 B） | React 19.3.1 minified；18.3.1 版是 176/153 KB，差 74/80 KB，由开发者决定接受 |
+| 打包产物 | `image.js` 255 KB（260,977 B）/ `storage.js` 255 KB（260,641 B）/ `sync.js` 267 KB（273,075 B）/ `deletes.js` 241 KB（246,604 B）/ `system.js` 232 KB（237,531 B） | React 19.3.1 minified；18.3.1 版是 176/153 KB，差 74/80 KB，由开发者决定接受 |
 
 结论：**没有需要立刻返工的旧版写法**；基线与 `package.json` 一致（`^19.0.0` → 19.3.1）。下一步真正有价值的是按 §5 把保存动作迁到 `useActionState`，而不是先加 `memo`。
 
@@ -233,6 +239,14 @@ git diff --check
 3. 最后清 **死的兜底**：键已存在的，把 `|| '中文'` 去掉，只留 `strings.x`，让缺键在开发期暴露出来。
 
 新增键一律加在 Sync_Payload::strings() 的对应分组里并带 translators 注释；改完跑 composer lint:strict（TranslationCoverageTest 会扫 PHP 侧中文）与 npm run build。前端硬编码中文 lint 抓不到，只能靠这一节人工比对。
+
+### 11.2 删除队列岛（1.28.8-beta-55）
+
+- **PHP 算完再下发**：`src/Admin/Deletes_Payload.php` 产出 counts / activity / running / rows / pagination / status；速率、ETA、下次到期、每行百分比都由服务端算，React 只渲染与倒计时。REST 在 `src/Admin/Rest/Deletes_Controller.php`（`GET /storage/deletes`、`POST /storage/deletes/{retry|drop}`）；导出仍走 admin-post，因为 WP REST 会把 CSV 字符串再编码成 JSON。
+- **轮询只有一处**：`app.jsx` 里活动状态 4s、空闲 15s，连续失败按 ×2 退避到 30s；`document.hidden` 时暂停，`visibilitychange` 回来后立即拉一次。定时器在 effect 里 set/clear，不用 `setInterval` 叠请求；`load()` 同时只允许一个请求在飞。
+- **操作不整页刷新**：retry / drop 的响应直接带回新 snapshot，`apply()` 合并；筛选与分页用 `history.replaceState` 写 `state` / `paged`，越界页由服务端夹回范围。
+- **状态语义**：`done` 行保留 7 天（`Delete_Jobs::DONE_RETENTION_DAYS`），worker 每小时最多清一次；重试只覆盖 queued / failed / dead，**不重试 done**（同一 key 可能已被重新上传，重跑会删掉新对象）；已完成记录可导出 CSV。
+- `Page_Assets::ISLAND_BUNDLES` 已登记 `storage-deletes => assets/ui/dist/deletes.js`，旧页脚本不再入队。
 
 ## 附录 A　《React 性能优化实战：15 个核心技巧》逐条对照
 

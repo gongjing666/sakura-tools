@@ -1314,3 +1314,85 @@
 		padding-inline: 18px;
 	}
 }
+
+/* Custom folder colour ------------------------------------------------ */
+
+.sakura-admin[data-sakura-page="files-settings"] .accent-custom {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 8px 10px;
+	margin-top: 10px;
+	padding: 10px 12px;
+	border: 1px dashed var(--g-line-strong);
+	border-radius: var(--g-radius-sm);
+	background: var(--g-wash);
+}
+
+.sakura-admin[data-sakura-page="files-settings"] .accent-custom__label {
+	margin-right: 2px;
+	color: var(--g-ink-soft);
+	font-size: 12px;
+	font-weight: 600;
+}
+
+.sakura-admin[data-sakura-page="files-settings"] .accent-custom__color {
+	width: 38px;
+	height: 38px;
+	padding: 2px;
+	border: 1px solid var(--g-line-strong);
+	border-radius: var(--g-radius-xs);
+	background: var(--g-card);
+	cursor: pointer;
+}
+
+.sakura-admin[data-sakura-page="files-settings"] .accent-custom__color::-webkit-color-swatch-wrapper {
+	padding: 0;
+}
+
+.sakura-admin[data-sakura-page="files-settings"] .accent-custom__color::-webkit-color-swatch {
+	border: 0;
+	border-radius: calc(var(--g-radius-xs) - 3px);
+}
+
+.sakura-admin[data-sakura-page="files-settings"] .accent-custom__color::-moz-color-swatch {
+	border: 0;
+	border-radius: calc(var(--g-radius-xs) - 3px);
+}
+
+.sakura-admin[data-sakura-page="files-settings"] .accent-custom__hex {
+	flex: 1 1 110px;
+	min-width: 0;
+	width: auto;
+	font-family: var(--g-font);
+	font-variant-numeric: tabular-nums;
+	letter-spacing: .02em;
+}
+
+.sakura-admin[data-sakura-page="files-settings"] .accent-custom .btn {
+	flex: 0 0 auto;
+}
+
+.sakura-admin[data-sakura-page="files-settings"] .accent-custom__error {
+	margin: 7px 0 0;
+	color: var(--g-bad);
+}
+
+@media (max-width: 600px) {
+	.sakura-admin[data-sakura-page="files-settings"] .accent-custom {
+		align-items: stretch;
+	}
+
+	.sakura-admin[data-sakura-page="files-settings"] .accent-custom__label {
+		flex: 1 1 100%;
+	}
+
+	.sakura-admin[data-sakura-page="files-settings"] .accent-custom__hex {
+		flex: 1 1 calc(100% - 48px);
+	}
+
+	.sakura-admin[data-sakura-page="files-settings"] .accent-custom .btn {
+		flex: 0 0 auto;
+		margin-left: auto;
+	}
+}

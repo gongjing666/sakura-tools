@@ -46,6 +46,7 @@ final class Page_Assets {
 		'storage-deletes'     => 'assets/ui/dist/deletes.js',
 		'storage-rewrite'     => 'assets/ui/dist/rewrite.js',
 		'storage-cost'        => 'assets/ui/dist/cost.js',
+		'files-settings'      => 'assets/ui/dist/files.js',
 	);
 
 	/**

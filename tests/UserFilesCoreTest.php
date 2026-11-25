@@ -64,6 +64,36 @@ final class UserFilesCoreTest extends TestCase {
 		$this->assertSame( '2026-10-31', $clean['reference_notice_version'] );
 	}
 
+	public function test_custom_folder_accent_round_trips_and_derives_fill(): void {
+		$clean = Settings::sanitize( array( 'folder_accent' => '#3A8F7A' ) );
+
+		$this->assertSame( '#3a8f7a', $clean['folder_accent'] );
+		$this->assertTrue( Settings::is_custom_accent( $clean['folder_accent'] ) );
+		$this->assertSame( 'sufm-accent-custom', Settings::accent_class( $clean['folder_accent'] ) );
+		$this->assertSame(
+			'--sufm-folder-ink:#3a8f7a;--sufm-folder-fill:#c8e0da;',
+			Settings::accent_style( $clean['folder_accent'] )
+		);
+
+		$this->assertSame( 'sufm-accent-amber', Settings::accent_class( 'amber' ) );
+		$this->assertSame( '', Settings::accent_style( 'amber' ) );
+		$this->assertSame( '', Settings::accent_class( '' ) );
+	}
+
+	public function test_invalid_folder_accent_falls_back_to_auto(): void {
+		foreach ( array( '#12345', '#1234567', 'not-a-colour', '#gggggg' ) as $bad ) {
+			$this->assertSame( '', Settings::sanitize( array( 'folder_accent' => $bad ) )['folder_accent'] );
+		}
+	}
+
+	public function test_preset_accent_palette_matches_the_stylesheet_values(): void {
+		$palette = Settings::accent_palette();
+
+		$this->assertCount( 6, $palette );
+		$this->assertSame( array( 'ink' => '#c8932b', 'fill' => '#f7dc9a' ), $palette['amber'] );
+		$this->assertSame( array( 'ink' => '#3b7dd8', 'fill' => '#cfe0f7' ), $palette['blue'] );
+	}
+
 	public function test_megabyte_inputs_are_stored_as_bytes(): void {
 		$clean = Settings::sanitize(
 			array(

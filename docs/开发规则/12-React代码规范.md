@@ -206,14 +206,14 @@ git diff --check
 - [ ] 键盘：Tab 不出弹窗、Esc 关闭、焦点回触发元素
 - [ ] 1440 与 390 两个宽度：无横向溢出，控制台 0 error / 0 warning
 
-## 11. 现状盘点（2026-11-24）
+## 11. 现状盘点（2026-11-25）
 
 对 `assets/ui/src` 的实测统计，写在这里是为了让下一次改动知道「已经站在哪」：
 
 | 项 | 数量 | 结论 |
 |---|---|---|
-| 文件 / 行数 | 52 个 / 9,891 行 | 规模可控；链接改写岛 9 个文件 / 876 行、费用估算岛 3 个文件 / 359 行 |
-| `useState` | 105 | 集中在各页 `app.jsx` 与卡片的 draft/saved |
+| 文件 / 行数 | 59 个 / 10,403 行 | 规模可控；文件空间设置岛 7 个文件 / 512 行、链接改写岛 9 个文件 / 876 行、费用估算岛 3 个文件 / 359 行 |
+| `useState` | 111 | 集中在各页 `app.jsx` 与卡片的 draft/saved |
 | `useEffect` | 29 | 全部带清理或只读依赖键（click / popstate / keydown / 定时器 / 值变化） |
 | `useRef` / `useCallback` | 23 / 7 | 合理个例 |
 | `useMemo` / `memo` / `createContext` | 1 / 0 / 0 | 既存的 1 处不在本次两页；本轮未新增 |
@@ -221,7 +221,7 @@ git diff --check
 | `dangerouslySetInnerHTML` | 4 | 全部是服务端字符串（品牌 SVG、tagline、弹窗图标、吉祥物） |
 | 下标作 key | 6 | 全部是静态字符串列表（hint / warning / note / card.desc / 告警行） |
 | React 19 Actions（`useActionState` / `useOptimistic`） | 0 | 19.3 已具备，现有页签仍是手写 `saving`；按 §5 逐个页签迁移，不批量重写 |
-| 打包产物 | `image.js` 255 KB（260,977 B）/ `storage.js` 255 KB（260,731 B）/ `sync.js` 267 KB（273,075 B）/ `deletes.js` 241 KB（246,604 B）/ `rewrite.js` 239 KB（244,258 B）/ `cost.js` 228 KB（233,857 B）/ `system.js` 232 KB（237,621 B） | React 19.3.1 minified；18.3.1 版是 176/153 KB，差 74/80 KB，由开发者决定接受 |
+| 打包产物 | `files.js` 231 KB（236,801 B）/ `image.js` 255 KB（260,977 B）/ `storage.js` 255 KB（260,731 B）/ `sync.js` 267 KB（273,075 B）/ `deletes.js` 241 KB（246,604 B）/ `rewrite.js` 239 KB（244,258 B）/ `cost.js` 228 KB（233,857 B）/ `system.js` 232 KB（237,621 B） | React 19.3.1 minified；18.3.1 版是 176/153 KB，差 74/80 KB，由开发者决定接受 |
 
 结论：**没有需要立刻返工的旧版写法**；基线与 `package.json` 一致（`^19.0.0` → 19.3.1）。下一步真正有价值的是按 §5 把保存动作迁到 `useActionState`，而不是先加 `memo`。
 
@@ -266,6 +266,16 @@ git diff --check
 - **重新估算仍走 admin-ajax**：`app.jsx` 只改表单 draft，点「重新估算」把当前值发到 `sakura_storage_cost_estimate`，服务端 `Cost_Estimator::normalize()` 夹紧范围后返回同形状结果；前端用返回值覆盖结果并回填规范化后的输入。
 - **表格与口径**：金额格式化在客户端完成（`Intl.NumberFormat('zh-CN')`，与 PHP `number_format` 的两位小数/千分位一致）；「口径」按钮控制每行的 detail 行，来源链接来自 payload 的 `sources`，notes 来自 `notes`，都不在 JSX 里重写。
 - **无持久化**：这一步没有 option/表写入，刷新即回默认需求；`Page_Assets::ISLAND_BUNDLES` 登记 `storage-cost => assets/ui/dist/cost.js`，bundle 缺失时回落 `storage-cost.php` 与旧控制器（已实测）。
+
+### 11.5 文件空间设置岛（1.28.8-beta-58）
+
+- **数据与渲染分开**：`src/UserFiles/Admin/Files_Settings_Payload.php` 组装 `page/head/cards/config`，页面参数、入口提示、两张卡、策略字段、主题限制、允许类型与全部文案都在 PHP 侧完成；`includes/views/files-settings-island.php` 只打印 bootstrap 和空 `UI::page()` 外壳，React 通过 `assets/ui/src/files/` 挂载。
+- **健康卡同源**：新增 `src/UserFiles/Admin/Health.php`，从 `Zibll_Bridge::capabilities()/theme()`、`Settings::entry_enabled()` 与 `Entry::status()` 取同一份快照。设置页显示「子比桥接 N/M 项能力 + 主题名 + 前台入口状态/入口标签」；子比专属页仍用同一组桥接数据，旧页兜底也改为 `Health::status()`。
+- **保存不另造通道**：两张卡仍是原生 `options.php` 表单。外观卡提交 `tree_style` 与 `folder_accent`，策略卡提交数字字段、主题限制与允许类型；`Settings::sanitize()` 在收到 `sufm_settings[_partial]` 时先合并已存值。**这里必须用模块自己的 `_partial`，不是 `Card_Form::PARTIAL_FIELD` 的 `_sakura_partial`**，否则保存外观会清掉入口开关与主题限制（本轮实测踩到并修复）。
+- **自定义文件夹颜色**：`folder_accent` 支持空 / 六个预设 / `#rrggbb`。`Settings::accent_class()` 对自定义色只输出 `sufm-accent-custom`，`Settings::accent_style()` 输出 `--sufm-folder-ink` 与由该色混白 28% 得到的 `--sufm-folder-fill`。前台用户中心、前台写文章编辑面板和媒体库三处都通过同一对变量取色；预设色仍走旧 CSS 类，不写内联样式。旧页外观卡也补了自定义色单选、取色器、hex 输入和实时预览，bundle 缺失时不会把自定义色写回空值。
+- **界面**：外观卡保留原左右预览/选择布局与六个预设胶囊，新增自定义颜色行；390px 下改为单列，自定义取色、hex 与两个按钮换行但不横向溢出。策略卡沿用原分组、字段名与提示，主题限制和允许类型仍在原位置。
+- **兜底与资源**：`Page_Assets::ISLAND_BUNDLES` 登记 `files-settings => assets/ui/dist/files.js`；`Page::render()` 只在 bundle 可读时走岛，否则回到 `userfiles-admin.php` 与旧 `files-settings.js`。`Page::boot_height()` 增加 appearance/settings 的骨架高度，入口关闭时 gate 卡把两张卡整体下移一行。
+- **验收**：1440 与 390 均无页面横溢、控制台 0 error；外观/策略分别保存且互不清空；自定义色保存后三处读到的 ink/fill 一致；预设 amber + mac 仍走原类且无内联变量；bundle 移除后旧页健康卡、表单与自定义色保存仍可用。
 
 ## 附录 A　《React 性能优化实战：15 个核心技巧》逐条对照
 

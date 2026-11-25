@@ -38,6 +38,11 @@ final class Page {
 	public const PAGE = 'files';
 
 	/**
+	 * React island bundle for the settings tab.
+	 */
+	public const BUNDLE = 'assets/ui/dist/files.js';
+
+	/**
 	 * Tabs migrated to the new UI stack.
 	 *
 	 * @var array<int, string>
@@ -205,6 +210,16 @@ final class Page {
 
 		Page_Assets::set_data( $page, $this->page_data( $page ) );
 		Assets::enqueue_page();
+
+		if ( 'files-settings' === $page && is_readable( SAKURA_TOOLS_PATH . self::BUNDLE ) ) {
+			wp_enqueue_script(
+				'sakura-admin-files',
+				SAKURA_TOOLS_URL . self::BUNDLE,
+				array( 'sakura-admin-core' ),
+				Page_Assets::asset_version( self::BUNDLE ),
+				true
+			);
+		}
 	}
 
 	/**
@@ -410,6 +425,16 @@ final class Page {
 	public function render(): void {
 		if ( ! current_user_can( 'manage_options' ) && ! Capabilities::can_review() ) {
 			wp_die( esc_html__( '你没有权限管理文件空间。', 'sakura-imgopt' ) );
+		}
+
+		$page = Route::current_page();
+
+		if ( 'files-settings' === $page && is_readable( SAKURA_TOOLS_PATH . self::BUNDLE ) ) {
+			$data = ( new Files_Settings_Payload() )->build();
+
+			require SAKURA_TOOLS_PATH . 'includes/views/files-settings-island.php';
+
+			return;
 		}
 
 		$view = SAKURA_TOOLS_PATH . 'includes/views/userfiles-admin.php';

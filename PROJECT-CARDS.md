@@ -1,11 +1,11 @@
-<!-- deep-ptc:project-cards v1 next=R9,F38,Q7,T25 -->
+<!-- deep-ptc:project-cards v1 next=R9,F39,Q7,T25 -->
 # Project cards
 
 > Maintained by Deep PTC in DeepSeek Harness: edit in a Deep PTC conversation, view 特点卡片 / Project cards.
 > User-approved settings guide this project. Features and requirements are records that can be checked and corrected.
 
 ## Implemented features / 已实现功能
-<!-- card id=features kind=features rev=24 updated=2026-11-25T12:39:53.055Z -->
+<!-- card id=features kind=features rev=25 updated=2026-11-25T13:54:17.638Z -->
 
 - **F1** 切桶封存与解锁（R18）：切桶时同一次 update_option 写入 s3_options['reconcile_pending'] = {profile_id, at, bucket, from}，同步中心立刻封存；只有跑完 mode=full 或 resume 的完整核对，才由 Scan_Service::finalize() 调 Options::clear_reconcile_pending() 清零。验证：同步中心 #sakura-sync-state 的 data-reconcile-gated=1，refresh / resume / retry 三个端点返回 409 sio_reconcile_required。
 - **F2** 切桶提醒走插件弹窗（#sakura-s3-switch-modal，kicker「OBJECT STORAGE / SWITCHED」）：列出缩略图改写已关、同步中心数据仍是上一个桶的、上传行为两开关仍按原绑定三件事，按钮直达同步中心。刷新后才出现的顶部 WP admin notice 已删除。
@@ -44,6 +44,7 @@
 - **F35** **F35** 删除队列页迁 React 岛（1.28.8-beta-55）：`Deletes_Payload` + `Deletes_Controller`（GET /storage/deletes、POST retry/drop）+ `assets/ui/dist/deletes.js`；旧页脚本由 `Page_Assets::ISLAND_BUNDLES` 跳过。队列新增 done 态：`complete()` 写 resolution（deleted/kept/skipped）与 completed_at，保留 7 天、worker 每小时清理；重试只覆盖 queued/failed/dead，done 不重试，同 key 再次入队重置该行。页面活动 4s / 空闲 15s 轮询、失败退避、隐藏暂停；筛选/分页走 replaceState；retry/drop 直接用响应 snapshot 不整页刷新；导出 CSV 含 completed_at/resolution。实测 demo.77il.cn 1440/390 无横溢、console 0 error、6 行全状态、轮询排队
 - **F36** F36 链接改写与费用估算迁 React 岛（1.28.8-beta-56）：`Rewrite_Payload` + `Url_Rewrite_Scope` + `assets/ui/dist/rewrite.js`，`Cost_Payload` + `assets/ui/dist/cost.js`；链接改写按旧域名 + `upload_url_path` 路径（空则 `upload_path`）做 SQL 粗筛、写库前 URL 级精确匹配，只改附件 URL，JSON 转义/序列化/回滚保持；两页旧脚本由 `Page_Assets::ISLAND_BUNDLES` 跳过，bundle 缺失回落旧页。验证：915 tests / 3875 assertions / 6 skipped，PHPStan/PHPCS/PHPCompatibility 全绿；demo.77il.cn 1440/390 无横溢、console 0 error，扫描 6 候选 / 改写 4 / 跳过 2、回滚逐字节还原，费用估算 200GB 重算与口径展开、两页兜底均实测。
 - **F37** F37 链接改写页扫描/回滚卡片视觉修正（1.28.8-beta-57）：扫描工具栏改为带边框面板 + 「快捷选择」标签 + 两个深描边 `btn--ghost` 按钮，400px 下第一行「全选/已选」、第二行两个等宽按钮；无数据时给合并单元格 `data-label=""` 并加 `.rewrite-empty-cell`，≤782px 隐藏「选择/时间」自动列名、空状态铺满并居中；旧页兜底同步。验证 1560/400 无横溢、console 0 error，915 tests / 3875 assertions / 6 skipped、PHPStan/PHPCS/PHPCompatibility 全绿。
+- **F38** 文件空间设置页迁 React 岛（1.28.8-beta-58）：PHP Files_Settings_Payload + Health 下发 page/head/cards/config；React assets/ui/src/files（app / appearance / policy / entry-gate / form / color）。健康卡与「子比专属」同源显示桥接 N/M、主题名、前台入口状态与标签。文件夹颜色支持 #rrggbb 自定义色，Settings::accent_class()/accent_style() 统一输出 class + ink/fill 变量，前台用户中心、写文章编辑面板、媒体库三处同色。保存仍走 options.php + sufm_settings[_partial]，外观/策略分别保存不重置 enabled、主题限制或兄弟卡字段。Page_Assets 登记 files-settings => assets/ui/dist/files.js，bundle 缺失回落旧页，旧页也支持自定义色并保留健康卡。验证：demo 1440/390 无
 
 
 ## User requirements / 用户要求

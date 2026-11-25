@@ -984,7 +984,7 @@ final class Media_Hooks {
 
 		$accent = Settings::folder_accent();
 		if ( '' !== $accent ) {
-			$classes .= ' sufm-accent-' . sanitize_html_class( $accent ) . ' ';
+			$classes .= ' ' . Settings::accent_class( $accent ) . ' ';
 		}
 
 		return (string) $classes;
@@ -1310,6 +1310,15 @@ final class Media_Hooks {
 		}
 
 		wp_enqueue_style( 'sufm-media-folders', SAKURA_TOOLS_URL . 'assets/media-folders.css', array(), \Nboke\UserFiles\Support\Assets::version( 'assets/media-folders.css' ) );
+
+		$accent_style = Settings::accent_style( Settings::folder_accent() );
+		if ( '' !== $accent_style ) {
+			// The body class only carries sufm-accent-custom; the actual colour is
+			// kept in variables so the media tree, editor panel and user centre
+			// all paint from the same pair.
+			wp_add_inline_style( 'sufm-media-folders', 'body.upload-php.sufm-tree-active.sufm-accent-custom{' . $accent_style . '}' );
+		}
+
 		wp_enqueue_media();
 		wp_enqueue_script( 'sufm-media-folders', SAKURA_TOOLS_URL . 'assets/media-folders.js', array( 'media-views', 'media-grid' ), \Nboke\UserFiles\Support\Assets::version( 'assets/media-folders.js' ), true );
 		wp_localize_script(

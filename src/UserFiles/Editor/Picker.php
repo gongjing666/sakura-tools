@@ -56,6 +56,8 @@ final class Picker {
 			'notice'        => isset( $config['notice'] ) && is_array( $config['notice'] ) ? $config['notice'] : array(),
 			'tree_style'    => Settings::tree_style(),
 			'folder_accent' => Settings::folder_accent(),
+			'folder_accent_class' => Settings::accent_class( Settings::folder_accent() ),
+			'folder_accent_style' => Settings::accent_style( Settings::folder_accent() ),
 		);
 
 		ob_start();
@@ -70,9 +72,10 @@ final class Picker {
 		// to live on the panel element itself, not on the inner `.sufm` root.
 		$classes = 'sufm sufm-picker-app sufm-style-' . Settings::tree_style();
 		$accent  = Settings::folder_accent();
+		$style   = Settings::accent_style( $accent );
 
 		if ( '' !== $accent ) {
-			$classes .= ' sufm-accent-' . sanitize_html_class( $accent );
+			$classes .= ' ' . Settings::accent_class( $accent );
 		}
 		?>
 		<?php // The sidebar entry card. `mountTrigger()` moves it into `.sidebar`; pages without one get it floating bottom-right. ?>
@@ -85,7 +88,7 @@ final class Picker {
 			<span class="sufm-trigger-state" data-sufm-trigger-state><?php esc_html_e( '展开', 'sakura-imgopt' ); ?></span>
 		</button>
 
-		<aside class="<?php echo esc_attr( $classes ); ?>" id="sufm-picker" hidden aria-label="<?php echo esc_attr__( '文件空间', 'sakura-imgopt' ); ?>">
+		<aside class="<?php echo esc_attr( $classes ); ?>" id="sufm-picker"<?php echo '' !== $style ? ' style="' . esc_attr( $style ) . '"' : ''; ?> hidden aria-label="<?php echo esc_attr__( '文件空间', 'sakura-imgopt' ); ?>">
 			<button type="button" class="sufm-icon-btn sufm-picker-x" data-sufm-close aria-label="<?php echo esc_attr__( '收起文件空间', 'sakura-imgopt' ); ?>" title="<?php echo esc_attr__( '收起文件空间', 'sakura-imgopt' ); ?>"><svg class="sufm-icon" aria-hidden="true" focusable="false"><use href="#sufm-i-x"></use></svg></button>
 			<?php echo $markup; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Template output built and escaped by the plugin. ?>
 

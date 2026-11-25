@@ -174,6 +174,8 @@ final class Tab {
 			// tree reads it from the body class, this tab from its own root class.
 			'tree_style'   => Settings::tree_style(),
 			'folder_accent' => Settings::folder_accent(),
+			'folder_accent_class' => Settings::accent_class( Settings::folder_accent() ),
+			'folder_accent_style' => Settings::accent_style( Settings::folder_accent() ),
 		);
 
 		ob_start();

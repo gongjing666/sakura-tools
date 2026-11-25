@@ -635,6 +635,8 @@ final class Page {
 			'run'        => 360,
 			'demand'     => 520,
 			'table'      => 560,
+			'appearance' => 520,
+			'settings'   => 780,
 		);
 
 		if ( isset( $known[ $card ] ) ) {

@@ -337,6 +337,7 @@ export function Field( { field, value, onChange, disabled } ) {
 				{ 'select' === field.type ? (
 					<select
 						id={ field.id }
+						name={ field.name }
 						value={ value }
 						disabled={ disabled }
 						aria-describedby={ hintId }
@@ -352,6 +353,7 @@ export function Field( { field, value, onChange, disabled } ) {
 					<input
 						type={ field.type }
 						id={ field.id }
+						name={ field.name }
 						value={ value }
 						min={ field.min }
 						max={ field.max }

@@ -42,15 +42,7 @@ $sufm_ledes         = array(
 	'log'      => __( '只记录动作与结果，不记录文件路径、对象键或凭证。', 'sakura-imgopt' ),
 );
 $sufm_status        = array(
-	'settings' => array(
-		'label' => __( '前台入口', 'sakura-imgopt' ),
-		'value' => $enabled ? __( '已开启', 'sakura-imgopt' ) : __( '未开启', 'sakura-imgopt' ),
-		'sub'   => $enabled
-			/* translators: %s: detected front-end entry label */
-			? sprintf( __( '入口：%s', 'sakura-imgopt' ), '' !== $sufm_entry_label ? $sufm_entry_label : __( '未检测到', 'sakura-imgopt' ) )
-			: __( '媒体库功能不受影响', 'sakura-imgopt' ),
-		'tone'  => $enabled ? 'ok' : 'neutral',
-	),
+	'settings' => \Nboke\UserFiles\Admin\Health::status(),
 	'users'    => array(
 		'label' => __( '容量策略', 'sakura-imgopt' ),
 		'value' => __( '按用户配额', 'sakura-imgopt' ),
@@ -308,9 +300,11 @@ UI::page(
 					static function () use ( $settings, $sufm_accent_labels, $sufm_style_labels ) {
 						$current_style  = (string) ( $settings['tree_style'] ?? 'windows' );
 						$current_accent = (string) ( $settings['folder_accent'] ?? '' );
+						$custom_accent  = Settings::is_custom_accent( $current_accent );
+						$custom_color   = $custom_accent ? $current_accent : '#c8932b';
 						?>
 						<div class="appearance-grid">
-							<div class="tree-preview" data-tree-preview data-style="<?php echo esc_attr( $current_style ); ?>" data-accent="<?php echo esc_attr( $current_accent ); ?>">
+							<div class="tree-preview" data-tree-preview data-style="<?php echo esc_attr( $current_style ); ?>" data-accent="<?php echo esc_attr( $custom_accent ? 'custom' : $current_accent ); ?>"<?php echo $custom_accent ? ' style="' . esc_attr( '--folder-ink:' . $current_accent ) . '"' : ''; ?>>
 								<div class="tree-preview__bar" aria-hidden="true"><span></span><span></span><span></span></div>
 								<div class="tree-preview__row is-active"><span class="tree-folder" aria-hidden="true"></span><span class="tree-preview__name"><?php echo esc_html__( '图片素材', 'sakura-imgopt' ); ?></span><span class="tree-preview__count">128</span></div>
 								<div class="tree-preview__row is-nested"><span class="tree-folder" aria-hidden="true"></span><span class="tree-preview__name"><?php echo esc_html__( '项目归档', 'sakura-imgopt' ); ?></span><span class="tree-preview__count">36</span></div>
@@ -343,8 +337,19 @@ UI::page(
 												<span><?php echo esc_html( $label ); ?></span>
 											</label>
 										<?php endforeach; ?>
+										<label class="accent-choice<?php echo $custom_accent ? ' is-selected' : ''; ?>" data-accent="custom" data-label="<?php echo esc_attr__( '自定义颜色', 'sakura-imgopt' ); ?>">
+											<input type="radio" name="sufm_settings[folder_accent]" value="<?php echo esc_attr( $custom_color ); ?>" <?php checked( $custom_accent ); ?> data-accent-custom-radio />
+											<span class="accent-choice__dot" style="background:<?php echo esc_attr( $custom_color ); ?>" data-accent-custom-dot aria-hidden="true"></span>
+											<span><?php echo esc_html__( '自定义颜色', 'sakura-imgopt' ); ?></span>
+										</label>
 									</div>
 									<p class="field__hint"><?php echo esc_html__( '只给文件夹图标上色，标题文字保持中性灰，避免整棵树的花色压过内容。', 'sakura-imgopt' ); ?></p>
+									<div class="accent-custom" data-accent-custom>
+										<span class="accent-custom__label"><?php echo esc_html__( '自定义颜色', 'sakura-imgopt' ); ?></span>
+										<input type="color" class="accent-custom__color" value="<?php echo esc_attr( $custom_color ); ?>" data-accent-custom-color aria-label="<?php echo esc_attr__( '自定义颜色', 'sakura-imgopt' ); ?>" />
+										<input type="text" class="accent-custom__hex" value="<?php echo esc_attr( $custom_color ); ?>" data-accent-custom-hex placeholder="#c8932b" aria-label="<?php echo esc_attr__( '十六进制', 'sakura-imgopt' ); ?>" spellcheck="false" />
+										<button type="button" class="btn btn--ghost btn--small" data-accent-custom-apply><?php echo esc_html__( '使用此颜色', 'sakura-imgopt' ); ?></button>
+									</div>
 								</fieldset>
 							</div>
 						</div>
@@ -355,7 +360,7 @@ UI::page(
 									/* translators: 1: tree style label, 2: accent label */
 									__( '当前样式：%1$s；图标颜色：%2$s。', 'sakura-imgopt' ),
 									$sufm_style_labels[ $current_style ] ?? $current_style,
-									$sufm_accent_labels[ $current_accent ] ?? $sufm_accent_labels['']
+									$custom_accent ? __( '自定义颜色', 'sakura-imgopt' ) : ( $sufm_accent_labels[ $current_accent ] ?? $sufm_accent_labels[''] )
 								)
 							);
 							?>

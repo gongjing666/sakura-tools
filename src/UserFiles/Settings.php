@@ -63,6 +63,20 @@ final class Settings {
 	private const ACCENTS = array( '', 'amber', 'blue', 'green', 'violet', 'rose', 'slate' );
 
 	/**
+	 * Preset ink/fill pairs; the same values the front-end stylesheets use.
+	 *
+	 * @var array<string, array{ink: string, fill: string}>
+	 */
+	private const ACCENT_PALETTE = array(
+		'amber'  => array( 'ink' => '#c8932b', 'fill' => '#f7dc9a' ),
+		'blue'   => array( 'ink' => '#3b7dd8', 'fill' => '#cfe0f7' ),
+		'green'  => array( 'ink' => '#3f9b6d', 'fill' => '#cfe9db' ),
+		'violet' => array( 'ink' => '#7a5bd0', 'fill' => '#ddd3f6' ),
+		'rose'   => array( 'ink' => '#d4547f', 'fill' => '#f8d7e2' ),
+		'slate'  => array( 'ink' => '#5c6675', 'fill' => '#dde1e7' ),
+	);
+
+	/**
 	 * Settings stored in bytes but edited in megabytes.
 	 */
 	private const MB_FIELDS = array(
@@ -249,8 +263,14 @@ final class Settings {
 		$style                            = isset( $value['tree_style'] ) ? (string) $value['tree_style'] : $defaults['tree_style'];
 		$out['tree_style']                = in_array( $style, array( self::STYLE_WINDOWS, self::STYLE_MAC ), true ) ? $style : self::STYLE_WINDOWS;
 
-		$accent                       = isset( $value['folder_accent'] ) ? sanitize_key( (string) $value['folder_accent'] ) : '';
-		$out['folder_accent']         = in_array( $accent, self::ACCENTS, true ) ? $accent : '';
+		$accent = isset( $value['folder_accent'] ) ? strtolower( trim( (string) $value['folder_accent'] ) ) : '';
+
+		if ( preg_match( '/^#[0-9a-f]{6}$/', $accent ) ) {
+			$out['folder_accent'] = $accent;
+		} else {
+			$accent               = sanitize_key( $accent );
+			$out['folder_accent'] = in_array( $accent, self::ACCENTS, true ) ? $accent : '';
+		}
 
 		$notice                            = isset( $value['reference_notice_version'] ) ? (string) $value['reference_notice_version'] : self::NOTICE_VERSION;
 		$out['reference_notice_version']   = preg_match( '/^\d{4}-\d{2}-\d{2}$/', $notice ) ? $notice : self::NOTICE_VERSION;
@@ -336,6 +356,85 @@ final class Settings {
 	 */
 	public static function folder_accent(): string {
 		return (string) self::get()['folder_accent'];
+	}
+
+	/**
+	 * Whether an accent is a custom #rrggbb colour rather than a preset key.
+	 *
+	 * @param string $accent Accent value.
+	 * @return bool
+	 */
+	public static function is_custom_accent( string $accent ): bool {
+		return 1 === preg_match( '/^#[0-9a-f]{6}$/', $accent );
+	}
+
+	/**
+	 * CSS class for the current accent. Custom colours share one class because
+	 * the actual colour travels as inline custom properties.
+	 *
+	 * @param string $accent Accent value.
+	 * @return string
+	 */
+	public static function accent_class( string $accent ): string {
+		if ( '' === $accent ) {
+			return '';
+		}
+
+		return self::is_custom_accent( $accent ) ? 'sufm-accent-custom' : 'sufm-accent-' . sanitize_html_class( $accent );
+	}
+
+	/**
+	 * Inline custom properties for a custom accent; empty for presets.
+	 *
+	 * @param string $accent Accent value.
+	 * @return string
+	 */
+	public static function accent_style( string $accent ): string {
+		if ( ! self::is_custom_accent( $accent ) ) {
+			return '';
+		}
+
+		$fill = self::mix_hex( $accent, '#ffffff', 0.28 );
+
+		return '--sufm-folder-ink:' . $accent . ';--sufm-folder-fill:' . $fill . ';';
+	}
+
+	/**
+	 * Preset ink/fill pairs for the admin preview and payload.
+	 *
+	 * @return array<string, array{ink: string, fill: string}>
+	 */
+	public static function accent_palette(): array {
+		return self::ACCENT_PALETTE;
+	}
+
+	/**
+	 * Mix a hex colour with another colour; used to derive a light folder fill.
+	 *
+	 * @param string $hex   Source #rrggbb.
+	 * @param string $with  Target #rrggbb.
+	 * @param float  $ratio Ratio of the source colour (0..1).
+	 * @return string
+	 */
+	private static function mix_hex( string $hex, string $with, float $ratio ): string {
+		$ratio = max( 0.0, min( 1.0, $ratio ) );
+		$rgb   = static function ( string $value ): array {
+			return array(
+				hexdec( substr( $value, 1, 2 ) ),
+				hexdec( substr( $value, 3, 2 ) ),
+				hexdec( substr( $value, 5, 2 ) ),
+			);
+		};
+
+		$from = $rgb( $hex );
+		$to   = $rgb( $with );
+		$out  = array();
+
+		for ( $i = 0; $i < 3; $i++ ) {
+			$out[] = (int) round( $from[ $i ] * $ratio + $to[ $i ] * ( 1 - $ratio ) );
+		}
+
+		return sprintf( '#%02x%02x%02x', $out[0], $out[1], $out[2] );
 	}
 
 	/**

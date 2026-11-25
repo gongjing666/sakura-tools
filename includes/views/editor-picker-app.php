@@ -29,9 +29,11 @@ $sufm_str = static function ( string $key ) use ( $strings ): string {
 	return isset( $strings[ $key ] ) ? (string) $strings[ $key ] : '';
 };
 
-$tree_style     = isset( $data['tree_style'] ) && 'mac' === $data['tree_style'] ? 'mac' : 'windows';
-$folder_accent  = isset( $data['folder_accent'] ) && is_string( $data['folder_accent'] ) ? sanitize_html_class( $data['folder_accent'] ) : '';
-$app_classes    = 'sufm sufm-style-' . $tree_style . ( '' !== $folder_accent ? ' sufm-accent-' . $folder_accent : '' );
+$tree_style          = isset( $data['tree_style'] ) && 'mac' === $data['tree_style'] ? 'mac' : 'windows';
+$folder_accent_class = isset( $data['folder_accent_class'] ) && is_string( $data['folder_accent_class'] ) ? $data['folder_accent_class'] : '';
+$folder_accent_style = isset( $data['folder_accent_style'] ) && is_string( $data['folder_accent_style'] ) ? $data['folder_accent_style'] : '';
+$app_classes         = 'sufm sufm-style-' . $tree_style . ( '' !== $folder_accent_class ? ' ' . $folder_accent_class : '' );
+$app_style           = '' !== $folder_accent_style ? ' style="' . esc_attr( $folder_accent_style ) . '"' : '';
 
 $notice_text    = isset( $notice['text'] ) && is_string( $notice['text'] ) ? $notice['text'] : '';
 $notice_version = isset( $notice['version'] ) && is_string( $notice['version'] ) ? $notice['version'] : '';
@@ -40,7 +42,7 @@ if ( '' === $notice_text ) {
 	$notice_text = __( '删除后文章、商品、头像等位置的链接可能失效，请自行确认后再提交', 'sakura-imgopt' );
 }
 ?>
-<div data-sufm-compact class="<?php echo esc_attr( $app_classes ); ?>" id="sufm-app" data-sufm data-notice-version="<?php echo esc_attr( $notice_version ); ?>">
+<div data-sufm-compact class="<?php echo esc_attr( $app_classes ); ?>" id="sufm-app"<?php echo $app_style; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Escaped when built. ?> data-sufm data-notice-version="<?php echo esc_attr( $notice_version ); ?>">
 	<svg class="sufm-sprite" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
 		<symbol id="sufm-i-folder" viewBox="0 0 24 24"><path d="M5 4h4l3 3h7a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2"/></symbol>
 		<symbol id="sufm-i-folder-plus" viewBox="0 0 24 24"><path d="M12 19H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h4l3 3h7a2 2 0 0 1 2 2v3.5"/><path d="M16 19h6"/><path d="M19 16v6"/></symbol>

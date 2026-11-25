@@ -34,6 +34,21 @@ if ( ! defined( 'ARRAY_N' ) ) {
 define( 'MINUTE_IN_SECONDS', 60 );
 define( 'HOUR_IN_SECONDS', 3600 );
 
+if ( ! function_exists( 'sanitize_html_class' ) ) {
+	/**
+	 * Minimal WordPress class-name sanitiser used by the accent helpers.
+	 *
+	 * @param string $class_name Class name.
+	 * @param string $fallback   Fallback.
+	 * @return string
+	 */
+	function sanitize_html_class( $class_name, $fallback = '' ) {
+		$class_name = preg_replace( '/[^A-Za-z0-9_-]/', '', (string) $class_name );
+
+		return '' !== $class_name ? $class_name : (string) $fallback;
+	}
+}
+
 if ( ! class_exists( 'WP_Error', false ) ) {
 	/**
 	 * Minimal WP_Error test double.

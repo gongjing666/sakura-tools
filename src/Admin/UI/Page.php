@@ -637,6 +637,10 @@ final class Page {
 			'table'      => 560,
 			'appearance' => 520,
 			'settings'   => 780,
+			'users'      => 420,
+			'execute'    => 650,
+			'capability-matrix' => 650,
+			'log'        => 1200,
 		);
 
 		if ( isset( $known[ $card ] ) ) {

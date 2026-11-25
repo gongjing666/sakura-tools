@@ -211,12 +211,16 @@ final class Page {
 		Page_Assets::set_data( $page, $this->page_data( $page ) );
 		Assets::enqueue_page();
 
-		if ( 'files-settings' === $page && is_readable( SAKURA_TOOLS_PATH . self::BUNDLE ) ) {
+		$bundle = Page_Assets::island_bundle( $page );
+
+		if ( '' !== $bundle && is_readable( SAKURA_TOOLS_PATH . $bundle ) ) {
+			$handle = 'files-settings' === $page ? 'sakura-admin-files' : 'sakura-admin-' . $page;
+
 			wp_enqueue_script(
-				'sakura-admin-files',
-				SAKURA_TOOLS_URL . self::BUNDLE,
+				$handle,
+				SAKURA_TOOLS_URL . $bundle,
 				array( 'sakura-admin-core' ),
-				Page_Assets::asset_version( self::BUNDLE ),
+				Page_Assets::asset_version( $bundle ),
 				true
 			);
 		}
@@ -229,7 +233,7 @@ final class Page {
 	 * @param string $page Page id.
 	 * @return array<string,mixed>
 	 */
-	private function page_data( string $page ): array {
+	public function page_data( string $page ): array {
 		$data = array(
 			'restPath' => 'sufm/v1/',
 			'strings'  => array(
@@ -429,12 +433,24 @@ final class Page {
 
 		$page = Route::current_page();
 
-		if ( 'files-settings' === $page && is_readable( SAKURA_TOOLS_PATH . self::BUNDLE ) ) {
-			$data = ( new Files_Settings_Payload() )->build();
+		$bundle = Page_Assets::island_bundle( $page );
 
-			require SAKURA_TOOLS_PATH . 'includes/views/files-settings-island.php';
+		if ( '' !== $bundle && is_readable( SAKURA_TOOLS_PATH . $bundle ) ) {
+			if ( 'files-settings' === $page ) {
+				$data = ( new Files_Settings_Payload() )->build();
 
-			return;
+				require SAKURA_TOOLS_PATH . 'includes/views/files-settings-island.php';
+
+				return;
+			}
+
+			if ( in_array( $page, array( 'files-users', 'files-queue', 'files-log' ), true ) ) {
+				$data = ( new Files_Admin_Payload() )->build( $page );
+
+				require SAKURA_TOOLS_PATH . 'includes/views/files-admin-island.php';
+
+				return;
+			}
 		}
 
 		$view = SAKURA_TOOLS_PATH . 'includes/views/userfiles-admin.php';

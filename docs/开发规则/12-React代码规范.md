@@ -212,7 +212,7 @@ git diff --check
 
 | 项 | 数量 | 结论 |
 |---|---|---|
-| 文件 / 行数 | 59 个 / 10,390 行 | 规模可控；文件空间设置岛 7 个文件 / 499 行、链接改写岛 9 个文件 / 876 行、费用估算岛 3 个文件 / 359 行 |
+| 文件 / 行数 | 71 个 / 12,188 行 | 规模可控；文件空间设置岛 7 个文件 / 499 行、文件空间三页 8 个文件 / 1,548 行（另有 4 个共享文件 / 250 行）、链接改写岛 9 个文件 / 876 行、费用估算岛 3 个文件 / 359 行 |
 | `useState` | 111 | 集中在各页 `app.jsx` 与卡片的 draft/saved |
 | `useEffect` | 29 | 全部带清理或只读依赖键（click / popstate / keydown / 定时器 / 值变化） |
 | `useRef` / `useCallback` | 23 / 7 | 合理个例 |
@@ -221,7 +221,7 @@ git diff --check
 | `dangerouslySetInnerHTML` | 4 | 全部是服务端字符串（品牌 SVG、tagline、弹窗图标、吉祥物） |
 | 下标作 key | 6 | 全部是静态字符串列表（hint / warning / note / card.desc / 告警行） |
 | React 19 Actions（`useActionState` / `useOptimistic`） | 0 | 19.3 已具备，现有页签仍是手写 `saving`；按 §5 逐个页签迁移，不批量重写 |
-| 打包产物 | `files.js` 231 KB（236,609 B）/ `image.js` 255 KB（260,977 B）/ `storage.js` 255 KB（260,731 B）/ `sync.js` 267 KB（273,075 B）/ `deletes.js` 241 KB（246,604 B）/ `rewrite.js` 239 KB（244,258 B）/ `cost.js` 228 KB（233,857 B）/ `system.js` 232 KB（237,621 B） | React 19.3.1 minified；18.3.1 版是 176/153 KB，差 74/80 KB，由开发者决定接受 |
+| 打包产物 | `files.js` 231 KB（236,609 B）/ `files-users.js` 237 KB（242,342 B）/ `files-queue.js` 240 KB（246,145 B）/ `files-log.js` 228 KB（233,052 B）/ `image.js` 255 KB（260,977 B）/ `storage.js` 255 KB（260,731 B）/ `sync.js` 267 KB（273,075 B）/ `deletes.js` 241 KB（246,604 B）/ `rewrite.js` 239 KB（244,258 B）/ `cost.js` 228 KB（233,857 B）/ `system.js` 232 KB（237,621 B） | React 19.3.1 minified；18.3.1 版是 176/153 KB，差 74/80 KB，由开发者决定接受 |
 
 结论：**没有需要立刻返工的旧版写法**；基线与 `package.json` 一致（`^19.0.0` → 19.3.1）。下一步真正有价值的是按 §5 把保存动作迁到 `useActionState`，而不是先加 `memo`。
 
@@ -276,6 +276,15 @@ git diff --check
 - **界面**：外观卡保留原左右预览/选择布局与六个预设胶囊，新增自定义颜色行；390px 下改为单列，自定义取色、hex 与按钮换行但不横向溢出。策略卡沿用原分组、字段名与提示，主题限制和允许类型仍在原位置；策略卡头部不再放入口按钮，旧的入口迁移提示已删除。允许类型网格在 ≤782px 被全局规则压成单列时，用文件设置页自己的断点改回两列（390px 实测 139×2，卡片高度 2508→2264）。
 - **兜底与资源**：`Page_Assets::ISLAND_BUNDLES` 登记 `files-settings => assets/ui/dist/files.js`；`Page::render()` 只在 bundle 可读时走岛，否则回到 `userfiles-admin.php` 与旧 `files-settings.js`。`Page::boot_height()` 增加 appearance/settings 的骨架高度，入口关闭时 gate 卡把两张卡整体下移一行。
 - **验收**：1440 与 390 均无页面横溢、控制台 0 error；外观/策略分别保存且互不清空；自定义色保存后三处读到的 ink/fill 一致；预设 amber + mac 仍走原类且无内联变量；bundle 移除后旧页健康卡、表单与自定义色保存仍可用。
+
+### 11.6 文件空间三页岛（1.28.8-beta-60）
+
+- **一个 payload，三个入口**：`src/UserFiles/Admin/Files_Admin_Payload.php` 按 `files-users` / `files-queue` / `files-log` 输出 `page/head/cards/config`；页面参数复用 `Page::page_data()` 的 strings，不复制第二份文案。`includes/views/files-admin-island.php` 打印同一个 bootstrap id，`assets/ui/src/files/shared/` 提供 transport、Pager、EmptyState 与挂载器，三个入口分别打 `files-users.js` / `files-queue.js` / `files-log.js`。
+- **业务逻辑零迁移**：用户容量、处罚、审核、预览、批次执行、停止、审计仍走原来的 `sufm/v1/admin/*`；React 只负责列表状态、按钮启用条件与刷新时机。权限矩阵仍是原生 `admin-post.php` 表单（`sufm_save_caps` + `_wpnonce` + 锁定管理员行），保存后按旧 notice 参数回流。
+- **用户容量**：搜索、25/50/100 分页、刷新、同步容量（1.2s 轮询）、重置容量确认、每行 MB 输入与保存、用法条、处罚徽标与处罚弹窗。处罚弹窗保留服务端下发的类型/期限/理由/建议，永久禁上传必须输入登录名；撤销走 `admin/sanctions/{id}/revoke`。
+- **审核与执行**：状态筛选、用户搜索、分页、批准/驳回/撤销、申请文件预览、已批准勾选、范围预览与哈希、短语 `删除`、建立批次、4s 批次轮询与停止。卡片顺序沿用 `Layout::PAGES['files-queue']`：执行卡与权限矩阵在第一行、申请队列在第二行；不要在 payload 里另写一份顺序。
+- **最近操作**：服务端只返回当前页，结果/理由/文字筛选都在当前页内做，保持旧语义；分页与刷新回服务端。
+- **验收**：1440/390 三页均无页面横溢、console 0 error；容量保存与清除、处罚弹窗打开/永久输入/申请与撤销、权限矩阵保存、日志筛选均实测；分别移除三个 bundle 后旧页与旧控制器仍可用。390 下用户表按 `data-label` 堆叠，权限矩阵在卡片内完整显示。
 
 ## 附录 A　《React 性能优化实战：15 个核心技巧》逐条对照
 

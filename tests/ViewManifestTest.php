@@ -22,6 +22,7 @@ final class ViewManifestTest extends TestCase {
 	private const VIEWS = array(
 		'system-settings.php',
 		'files-settings-island.php',
+		'files-admin-island.php',
 		'editor-picker-app.php',
 		'media-progress.php',
 		's3-sync-center.php',

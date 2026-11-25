@@ -47,7 +47,20 @@ final class Page_Assets {
 		'storage-rewrite'     => 'assets/ui/dist/rewrite.js',
 		'storage-cost'        => 'assets/ui/dist/cost.js',
 		'files-settings'      => 'assets/ui/dist/files.js',
+		'files-users'         => 'assets/ui/dist/files-users.js',
+		'files-queue'         => 'assets/ui/dist/files-queue.js',
+		'files-log'           => 'assets/ui/dist/files-log.js',
 	);
+
+	/**
+	 * Bundle path declared for a page, or '' when the page is still legacy.
+	 *
+	 * @param string $page Page id.
+	 * @return string Relative plugin path.
+	 */
+	public static function island_bundle( string $page ): string {
+		return self::ISLAND_BUNDLES[ $page ] ?? '';
+	}
 
 	/**
 	 * Attach data to one page. Must run before Assets::enqueue_page().

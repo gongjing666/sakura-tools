@@ -32,8 +32,8 @@ export default function History( { runs, strings, busy, onRevert } ) {
 								</td>
 							</tr>
 						) ) : (
-							<tr>
-								<td colSpan="6">
+							<tr className="rewrite-runs__empty">
+								<td colSpan="6" data-label="" className="rewrite-empty-cell">
 									<div className="empty-state">
 										<strong className="empty-state__title">{ strings.emptyRunsTitle }</strong>
 										<p className="empty-state__message">{ strings.emptyRunsBody }</p>

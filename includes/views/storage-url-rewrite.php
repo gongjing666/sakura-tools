@@ -141,8 +141,11 @@ ob_start();
 
 <div class="rewrite-toolbar">
 	<label class="check"><input type="checkbox" id="rewrite-select-all" <?php echo $all_selected ? 'checked' : ''; ?> /><span class="check__box" aria-hidden="true"></span><span class="check__text"><?php esc_html_e( '全选', 'sakura-imgopt' ); ?></span></label>
-	<button type="button" class="btn btn--quiet btn--small" id="rewrite-preset-default"><?php esc_html_e( '内容 + 主题', 'sakura-imgopt' ); ?></button>
-	<button type="button" class="btn btn--quiet btn--small" id="rewrite-preset-all"><?php esc_html_e( '全选所有位置', 'sakura-imgopt' ); ?></button>
+	<div class="rewrite-presets" role="group" aria-label="<?php esc_attr_e( '快捷选择', 'sakura-imgopt' ); ?>">
+		<span class="rewrite-presets__label"><?php esc_html_e( '快捷选择', 'sakura-imgopt' ); ?></span>
+		<button type="button" class="btn btn--ghost btn--small rewrite-preset" id="rewrite-preset-default"><?php esc_html_e( '内容 + 主题', 'sakura-imgopt' ); ?></button>
+		<button type="button" class="btn btn--ghost btn--small rewrite-preset" id="rewrite-preset-all"><?php esc_html_e( '全选所有位置', 'sakura-imgopt' ); ?></button>
+	</div>
 	<span class="rewrite-selection" id="rewrite-selection"><?php echo esc_html( sprintf( /* translators: %d: selected count. */ __( '已选 %d 项', 'sakura-imgopt' ), $selected ) ); ?></span>
 </div>
 
@@ -181,7 +184,7 @@ ob_start();
 			<?php endforeach; ?>
 		<?php else : ?>
 			<tr class="rewrite-tasks__empty">
-				<td colspan="5">
+				<td colspan="5" data-label="" class="rewrite-empty-cell">
 					<?php
 					UI::empty_state(
 						__( '还没有扫描结果', 'sakura-imgopt' ),
@@ -270,8 +273,8 @@ ob_start();
 				</tr>
 			<?php endforeach; ?>
 		<?php else : ?>
-			<tr>
-				<td colspan="6">
+			<tr class="rewrite-runs__empty">
+				<td colspan="6" data-label="" class="rewrite-empty-cell">
 					<?php
 					UI::empty_state(
 						__( '还没有改写记录', 'sakura-imgopt' ),

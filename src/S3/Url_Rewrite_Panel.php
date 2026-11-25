@@ -228,6 +228,7 @@ final class Url_Rewrite_Panel implements Module {
 				'emptyRunsBody'   => __( '执行一次改写后，这里按批次列出账本；回滚会按记录把值改回原样。', 'sakura-imgopt' ),
 				'runButton'       => __( '执行改写', 'sakura-imgopt' ),
 				'runContinue'     => __( '继续改写', 'sakura-imgopt' ),
+				'presetLegend'    => __( '快捷选择', 'sakura-imgopt' ),
 				'presetDefault'   => __( '内容 + 主题', 'sakura-imgopt' ),
 				'presetAll'       => __( '全选所有位置', 'sakura-imgopt' ),
 				'selectAll'       => __( '全选', 'sakura-imgopt' ),

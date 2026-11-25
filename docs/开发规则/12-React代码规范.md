@@ -256,6 +256,8 @@ git diff --check
 - **扫描是粗筛，写库前精确匹配**：`Url_Rewrite_Service::scan_column()` 以旧域名 + 路径前缀（plain 与 JSON escaped 两种 LIKE）做候选集，多个 needle 必须是 `AND (a OR b)`；任务行数是候选行数，执行时 `Link_Rewriter` 再按 URL 精确判断，粗筛到但没命中的行计入「已跳过」。这个区别在页面上由执行卡的第一条 notes 说明。
 - **状态带 scope**：`path_prefix` 写进 `sio_url_rewrite_state`；`scan_step / run_step / preview` 都从 state 取同一个前缀，续跑不会切到另一套规则；旧版本留下的 state 没有这个键时按 `null` 走兼容路径。
 - **UI 文件**：`assets/ui/src/rewrite/` 的 app / target / scan / run / history / preview / status / transport；目标卡用共享 `Field` 渲染两个域名输入与 datalist，scope 用只读提示条；扫描卡负责选择与样例，执行卡负责统计与进度，历史卡负责回滚。`Page_Assets::ISLAND_BUNDLES` 登记 `storage-rewrite => assets/ui/dist/rewrite.js`，bundle 缺失时回落 `storage-url-rewrite.php` 与旧控制器（已实测）。
+- **扫描工具栏**：`.rewrite-toolbar` 是带边框的面板，`.rewrite-presets` 内先放「快捷选择」标签，再放两个 `btn btn--ghost btn--small rewrite-preset`；**不要用 `btn--quiet`**——它在浅色卡片上会变成无边框胶囊，选项与背景融在一起。窄屏（≤600px）工具栏改成两行网格：第一行「全选 + 已选」，第二行「快捷选择 + 两个等宽按钮」。
+- **空状态与自动列名**：`.rewrite-empty-cell` 必须带 `data-label=""`（React 岛和旧页兜底都要），否则 `assets/ui/js/ui.js` 的 `labelCells()` 会把第一列表头「选择/时间」自动补到 `colspan` 合并单元格上；≤782px 时该单元格 `display:block`、隐藏 `::before`，空状态 `min-height:168px` 铺满并居中。
 - **测试**：`tests/LinkRewriterTest.php` 新增 scoped 用例（只改附件、保留其它路径/相似域名、JSON 转义、序列化长度、根前缀、编码前缀）；`tests/UrlRewriteScopeTest.php` 覆盖路径优先级、回退、规范化与 payload 形状。
 
 ### 11.4 费用估算岛（1.28.8-beta-56）

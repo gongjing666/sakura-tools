@@ -83,12 +83,15 @@ export default function Scan( {
 					label={ strings.selectAll }
 					disabled={ busy || ! tasks.length }
 				/>
-				<button type="button" className="btn btn--quiet btn--small" onClick={ () => onPreset( [ 'content', 'theme' ] ) } disabled={ busy || ! canPreview || ! tasks.length }>
-					{ strings.presetDefault }
-				</button>
-				<button type="button" className="btn btn--quiet btn--small" onClick={ () => onPreset( null ) } disabled={ busy || ! canPreview || ! tasks.length }>
-					{ strings.presetAll }
-				</button>
+				<div className="rewrite-presets" role="group" aria-label={ strings.presetLegend }>
+					<span className="rewrite-presets__label">{ strings.presetLegend }</span>
+					<button type="button" className="btn btn--ghost btn--small rewrite-preset" onClick={ () => onPreset( [ 'content', 'theme' ] ) } disabled={ busy || ! canPreview || ! tasks.length }>
+						{ strings.presetDefault }
+					</button>
+					<button type="button" className="btn btn--ghost btn--small rewrite-preset" onClick={ () => onPreset( null ) } disabled={ busy || ! canPreview || ! tasks.length }>
+						{ strings.presetAll }
+					</button>
+				</div>
 				<span className="rewrite-selection">{ ( strings.selected || '' ).replace( '%d', String( selectedCount ) ) }</span>
 			</div>
 
@@ -147,7 +150,7 @@ export default function Scan( {
 							} )
 						) : (
 							<tr className="rewrite-tasks__empty">
-								<td colSpan="5">
+								<td colSpan="5" data-label="" className="rewrite-empty-cell">
 									<div className="empty-state">
 										<strong className="empty-state__title">{ strings.emptyTasksTitle }</strong>
 										<p className="empty-state__message">{ strings.emptyTasksBody }</p>

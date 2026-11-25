@@ -1,11 +1,11 @@
-<!-- deep-ptc:project-cards v1 next=R9,F37,Q7,T24 -->
+<!-- deep-ptc:project-cards v1 next=R9,F38,Q7,T24 -->
 # Project cards
 
 > Maintained by Deep PTC in DeepSeek Harness: edit in a Deep PTC conversation, view 特点卡片 / Project cards.
 > User-approved settings guide this project. Features and requirements are records that can be checked and corrected.
 
 ## Implemented features / 已实现功能
-<!-- card id=features kind=features rev=23 updated=2026-11-25T11:34:51.450Z -->
+<!-- card id=features kind=features rev=24 updated=2026-11-25T12:39:53.055Z -->
 
 - **F1** 切桶封存与解锁（R18）：切桶时同一次 update_option 写入 s3_options['reconcile_pending'] = {profile_id, at, bucket, from}，同步中心立刻封存；只有跑完 mode=full 或 resume 的完整核对，才由 Scan_Service::finalize() 调 Options::clear_reconcile_pending() 清零。验证：同步中心 #sakura-sync-state 的 data-reconcile-gated=1，refresh / resume / retry 三个端点返回 409 sio_reconcile_required。
 - **F2** 切桶提醒走插件弹窗（#sakura-s3-switch-modal，kicker「OBJECT STORAGE / SWITCHED」）：列出缩略图改写已关、同步中心数据仍是上一个桶的、上传行为两开关仍按原绑定三件事，按钮直达同步中心。刷新后才出现的顶部 WP admin notice 已删除。
@@ -43,6 +43,7 @@
 - **F34** 同步中心数字改为实时派生、策略删本地不再判成「仅云端」（1.28.8-beta-53，提交 c5bbcb0）：① Index_Repository::summary() 不再返回 scan 行的 total_local/total_remote/local_bytes/remote_bytes，本地与云端对象数、字节、云端类型分布改由新增的 live_totals() 一条聚合实时派生（SUM(seen_local=1) / SUM(seen_remote=1) / 按 kind 分桶），scans 只提供 scanned_at 与状态——此前一次 total_local=0 的空全量核对会让页面显示「已同步 9，本地 0，云端 0」。② Index_Repository 注入可选 Options，新增 local_policy_removes() 唯一读 behaviour_snapshot()['no_local_saving']；reconcile()/recalculate() 在策略生效时把 seen_local=0 AND seen_remote=1 AND local_s
 - **F35** **F35** 删除队列页迁 React 岛（1.28.8-beta-55）：`Deletes_Payload` + `Deletes_Controller`（GET /storage/deletes、POST retry/drop）+ `assets/ui/dist/deletes.js`；旧页脚本由 `Page_Assets::ISLAND_BUNDLES` 跳过。队列新增 done 态：`complete()` 写 resolution（deleted/kept/skipped）与 completed_at，保留 7 天、worker 每小时清理；重试只覆盖 queued/failed/dead，done 不重试，同 key 再次入队重置该行。页面活动 4s / 空闲 15s 轮询、失败退避、隐藏暂停；筛选/分页走 replaceState；retry/drop 直接用响应 snapshot 不整页刷新；导出 CSV 含 completed_at/resolution。实测 demo.77il.cn 1440/390 无横溢、console 0 error、6 行全状态、轮询排队
 - **F36** F36 链接改写与费用估算迁 React 岛（1.28.8-beta-56）：`Rewrite_Payload` + `Url_Rewrite_Scope` + `assets/ui/dist/rewrite.js`，`Cost_Payload` + `assets/ui/dist/cost.js`；链接改写按旧域名 + `upload_url_path` 路径（空则 `upload_path`）做 SQL 粗筛、写库前 URL 级精确匹配，只改附件 URL，JSON 转义/序列化/回滚保持；两页旧脚本由 `Page_Assets::ISLAND_BUNDLES` 跳过，bundle 缺失回落旧页。验证：915 tests / 3875 assertions / 6 skipped，PHPStan/PHPCS/PHPCompatibility 全绿；demo.77il.cn 1440/390 无横溢、console 0 error，扫描 6 候选 / 改写 4 / 跳过 2、回滚逐字节还原，费用估算 200GB 重算与口径展开、两页兜底均实测。
+- **F37** F37 链接改写页扫描/回滚卡片视觉修正（1.28.8-beta-57）：扫描工具栏改为带边框面板 + 「快捷选择」标签 + 两个深描边 `btn--ghost` 按钮，400px 下第一行「全选/已选」、第二行两个等宽按钮；无数据时给合并单元格 `data-label=""` 并加 `.rewrite-empty-cell`，≤782px 隐藏「选择/时间」自动列名、空状态铺满并居中；旧页兜底同步。验证 1560/400 无横溢、console 0 error，915 tests / 3875 assertions / 6 skipped、PHPStan/PHPCS/PHPCompatibility 全绿。
 
 
 ## User requirements / 用户要求

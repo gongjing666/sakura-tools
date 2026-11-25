@@ -137,6 +137,8 @@
 			tr.className = 'rewrite-empty-row';
 			var td = document.createElement( 'td' );
 			td.colSpan = colspan;
+			td.className = 'rewrite-empty-cell';
+			td.setAttribute( 'data-label', '' );
 			var box = make( 'div', 'empty-state' );
 			box.appendChild( make( 'strong', 'empty-state__title', title ) );
 			box.appendChild( make( 'p', 'empty-state__message', message ) );

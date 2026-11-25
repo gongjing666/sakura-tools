@@ -1,11 +1,11 @@
-<!-- deep-ptc:project-cards v1 next=R9,F34,Q7,T20 -->
+<!-- deep-ptc:project-cards v1 next=R9,F35,Q7,T21 -->
 # Project cards
 
 > Maintained by Deep PTC in DeepSeek Harness: edit in a Deep PTC conversation, view 特点卡片 / Project cards.
 > User-approved settings guide this project. Features and requirements are records that can be checked and corrected.
 
 ## Implemented features / 已实现功能
-<!-- card id=features kind=features rev=20 updated=2026-11-24T16:54:42.464Z -->
+<!-- card id=features kind=features rev=21 updated=2026-11-25T03:06:17.669Z -->
 
 - **F1** 切桶封存与解锁（R18）：切桶时同一次 update_option 写入 s3_options['reconcile_pending'] = {profile_id, at, bucket, from}，同步中心立刻封存；只有跑完 mode=full 或 resume 的完整核对，才由 Scan_Service::finalize() 调 Options::clear_reconcile_pending() 清零。验证：同步中心 #sakura-sync-state 的 data-reconcile-gated=1，refresh / resume / retry 三个端点返回 409 sio_reconcile_required。
 - **F2** 切桶提醒走插件弹窗（#sakura-s3-switch-modal，kicker「OBJECT STORAGE / SWITCHED」）：列出缩略图改写已关、同步中心数据仍是上一个桶的、上传行为两开关仍按原绑定三件事，按钮直达同步中心。刷新后才出现的顶部 WP admin notice 已删除。
@@ -40,6 +40,7 @@
 - **F31** 同步中心漏传文案键修复与死键清理（1.28.8-beta-50，提交 a10fce6）：全量比对 Sync_Payload::strings() 与 assets/ui/src/sync/ 实际读取的键，发现两处真漏传——① health.retryQueueCount 与 queueBreakdown 未提供，健康卡「重试队列」行的「N 个任务 · 动作队列 N 待执行 / N 死信」永远走硬编码兜底（与 beta-48 的 ignoredNonce 同类）；② reconcile.jsx 的行内「删除/详情」读 config.strings.labels，而 labels 是 page_config 的顶层兄弟键（src/S3/Sync_Center_Module.php:319），恒为 undefined，同样落到硬编码兜底——改为读 config.labels，rowActionButton 的上传/重新上传/下载也一并改读 labels。同时清掉迁岛后无人读取的 20 个死键（cards.ignoredKicker、tasks 从 36 键精简到 18 键、s
 - **F32** 文件核对卡三处修复（1.28.8-beta-51，提交 2d93aad）：① PC 批量操作条左侧计数与右侧四按钮文字不齐——根因是 .button-row 的 margin-top:14px，storage.css 里 .batch-bar .button-row 清零并给 .batch-bar__count 设 line-height: var(--g-btn-h-sm)（=30px，与 .btn--small 同高）；② ≤782px 筛选六个 chip 改 grid 等宽两列、批量条竖排且四个按钮 2×2 等分（原先无任何 .batch-bar 移动端规则，chip 各按内容宽换行）；③ 快速搜索后类型/大小/状态/最后变化四列为空——fast-search.php 与 sakura_s3_sync_page 只返回原始索引行（Index_Repository::row_payload 无展示字段），展示字段只在首屏 Sync_Payload::rows() 里由 PHP 补齐；reconcile.jsx 新增 normalizeRow() 客户端补齐 ext / status
 - **F33** 「忽略规则」卡说明行按间距令牌拉开（1.28.8-beta-52，提交 5167894）：根因是 03 篇「间距与尺寸令牌表」里的「控件与说明 8px → .field__notes { margin-top: 8px }」只写在 assets/ui/pages/image.css（图片页专用样式表），同步中心不加载它，textarea 与「当前 N 条生效」的实测间距是 0px。把这两条规则（.field__notes 的 8px 与 .field__notes .field__hint 的 0）上移到 assets/ui/components.css 的 Field 段成为全局令牌（03 篇要求间距数值只在 tokens.css 与 components.css 的 Field 段定义），image.css 里删掉重复定义；assets/ui/src/sync/ignored.jsx 把说明行包进 div.field__notes，与 PHP Field::render() 的 hint_after 路径统一。验证：demo.77il.cn beta-52 上 1440 与 390
+- **F34** 同步中心数字改为实时派生、策略删本地不再判成「仅云端」（1.28.8-beta-53，提交 c5bbcb0）：① Index_Repository::summary() 不再返回 scan 行的 total_local/total_remote/local_bytes/remote_bytes，本地与云端对象数、字节、云端类型分布改由新增的 live_totals() 一条聚合实时派生（SUM(seen_local=1) / SUM(seen_remote=1) / 按 kind 分桶），scans 只提供 scanned_at 与状态——此前一次 total_local=0 的空全量核对会让页面显示「已同步 9，本地 0，云端 0」。② Index_Repository 注入可选 Options，新增 local_policy_removes() 唯一读 behaviour_snapshot()['no_local_saving']；reconcile()/recalculate() 在策略生效时把 seen_local=0 AND seen_remote=1 AND local_s
 
 
 ## User requirements / 用户要求
@@ -54,7 +55,7 @@
 
 
 ## Completed tasks / 已完成任务
-<!-- card id=tasks kind=tasks rev=19 updated=2026-11-25T01:10:20.269Z -->
+<!-- card id=tasks kind=tasks rev=20 updated=2026-11-25T03:07:42.345Z -->
 
 - **T1** [done] 为 sakura-tools 插件补一篇 PHP 代码规范文档（docs/开发规则/），以 PHP 8.2–8.4 兼容 (11/24)
 - **T2** [done] 文档中所有描述实验站的地方（AGENTS.md、05 篇、09 篇、11 篇、03 篇、docs/验收脚本/README — 实验站 demo.77il.cn 的新部署（宝塔本机 /www/wwwroot/demo.77il.cn，PHP 8.4.28 + MariaDB 12.3.2）已写进 AGENTS.md 与 05/09/11/03 篇、验收脚本，并写入记忆；文档不含密码，凭据只在 /root/.dsh/secrets/demo-77il-login.txt；本地提交 f343907，未 push。 (11/24)
@@ -75,6 +76,7 @@
 - **T17** [done] 调整「S3 同步中心 → 忽略规则」卡片：右下角「当前 0 条生效」文字与上方 textarea 间隔太近，需按 03- — 忽略规则卡说明行按 8px 间距令牌与 textarea 拉开；beta-52 提交 5167894，1440/390 实测 8px、三道关全过（未 push） (11/25)
 - **T18** [done] 分析并解释「S3 同步中心」页里「已同步 = 9」但「本地媒体 / 云端文件 = 0」的矛盾原因，并给出可选解决办法（本 — 定位「已同步 9 但本地/云端为 0」根因：本地/云端数取 scan 快照行，已同步取 counts 实时表，两者不同源且上传不写快照；给出 4 条路线未改代码 (11/25)
 - **T19** [done] 核对我理解的上传三段链路（浏览器→WP 服务器、WP 服务器→存储桶、存储桶返回→写入媒体库数据表）是否准确，并判断是否 — 核清上传三段链路（先写媒体库与索引、再同步上传、返回后回写 postmeta 与索引），结论：不需要重做表结构，问题在读路径把任务日志当事实表 (11/25)
+- **T20** [done] 同步中心数字实时派生 + 策略删本地不再判成仅云端（beta-53，c5bbcb0）：summary() 改 live_totals() 实时派生、local_policy_removes() 放行 seen_local=0 的已同步、cleanup_local 写穿 mark_local_removed、adjust_counts 漂移修正、本地列三态、04/07 篇文档。
 
 
 ## 生产环境与部署事实

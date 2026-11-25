@@ -1,4 +1,4 @@
-<!-- deep-ptc:project-cards v1 next=R9,F37,Q7,T23 -->
+<!-- deep-ptc:project-cards v1 next=R9,F37,Q7,T24 -->
 # Project cards
 
 > Maintained by Deep PTC in DeepSeek Harness: edit in a Deep PTC conversation, view 特点卡片 / Project cards.
@@ -57,7 +57,7 @@
 
 
 ## Completed tasks / 已完成任务
-<!-- card id=tasks kind=tasks rev=22 updated=2026-11-25T10:33:17.164Z -->
+<!-- card id=tasks kind=tasks rev=23 updated=2026-11-25T11:39:18.292Z -->
 
 - **T1** [done] 为 sakura-tools 插件补一篇 PHP 代码规范文档（docs/开发规则/），以 PHP 8.2–8.4 兼容 (11/24)
 - **T2** [done] 文档中所有描述实验站的地方（AGENTS.md、05 篇、09 篇、11 篇、03 篇、docs/验收脚本/README — 实验站 demo.77il.cn 的新部署（宝塔本机 /www/wwwroot/demo.77il.cn，PHP 8.4.28 + MariaDB 12.3.2）已写进 AGENTS.md 与 05/09/11/03 篇、验收脚本，并写入记忆；文档不含密码，凭据只在 /root/.dsh/secrets/demo-77il-login.txt；本地提交 f343907，未 push。 (11/24)
@@ -81,6 +81,7 @@
 - **T20** [done] 同步中心数字实时派生 + 策略删本地不再判成仅云端（beta-53，c5bbcb0）：summary() 改 live_totals() 实时派生、local_policy_removes() 放行 seen_local=0 的已同步、cleanup_local 写穿 mark_local_removed、adjust_counts 漂移修正、本地列三态、04/07 篇文档。
 - **T21** [done] 让「S3 同步中心」的「本地媒体 / 云端文件 / 已同步 / 体积」反映当前事实而不是上一次核对快照，并让「上传后自动 — beta-53 已落地：同步中心数字改实时派生、策略删本地不再判成仅云端、本地列三态；三道关与实验站 1440/390 实测通过，提交 c5bbcb0 未 push。 (11/25)
 - **T22** [done] 把对象存储模块的「删除队列」页（storage-deletes）重构为 PHP 外壳 + React 内容区混合渲染，做 — 删除队列页迁 React 岛，完成态与 4s 实时进度已在 demo.77il.cn 验收；commit dd08fbb 未 push (11/25)
+- **T23** [done] 把对象存储模块剩下的「链接改写」与「费用估算」两个页签一并重构为 PHP 外壳 + React 内容区，做法与已迁的 s — 链接改写与费用估算已迁 React 岛；链接改写按旧域名+配置路径只改附件 URL；静态门禁与 demo 1440/390 验收通过；提交 eedda0a（未 push）。 (11/25)
 
 
 ## 生产环境与部署事实

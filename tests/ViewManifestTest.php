@@ -31,6 +31,8 @@ final class ViewManifestTest extends TestCase {
 		'settings-island.php',
 		'storage-island.php',
 		'deletes-island.php',
+		'rewrite-island.php',
+		'cost-island.php',
 		'settings-main.php',
 		'settings-stats.php',
 		'thumb-settings.php',

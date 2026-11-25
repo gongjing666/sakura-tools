@@ -1,11 +1,11 @@
-<!-- deep-ptc:project-cards v1 next=R9,F35,Q7,T21 -->
+<!-- deep-ptc:project-cards v1 next=R9,F37,Q7,T23 -->
 # Project cards
 
 > Maintained by Deep PTC in DeepSeek Harness: edit in a Deep PTC conversation, view 特点卡片 / Project cards.
 > User-approved settings guide this project. Features and requirements are records that can be checked and corrected.
 
 ## Implemented features / 已实现功能
-<!-- card id=features kind=features rev=21 updated=2026-11-25T03:06:17.669Z -->
+<!-- card id=features kind=features rev=23 updated=2026-11-25T11:34:51.450Z -->
 
 - **F1** 切桶封存与解锁（R18）：切桶时同一次 update_option 写入 s3_options['reconcile_pending'] = {profile_id, at, bucket, from}，同步中心立刻封存；只有跑完 mode=full 或 resume 的完整核对，才由 Scan_Service::finalize() 调 Options::clear_reconcile_pending() 清零。验证：同步中心 #sakura-sync-state 的 data-reconcile-gated=1，refresh / resume / retry 三个端点返回 409 sio_reconcile_required。
 - **F2** 切桶提醒走插件弹窗（#sakura-s3-switch-modal，kicker「OBJECT STORAGE / SWITCHED」）：列出缩略图改写已关、同步中心数据仍是上一个桶的、上传行为两开关仍按原绑定三件事，按钮直达同步中心。刷新后才出现的顶部 WP admin notice 已删除。
@@ -41,6 +41,8 @@
 - **F32** 文件核对卡三处修复（1.28.8-beta-51，提交 2d93aad）：① PC 批量操作条左侧计数与右侧四按钮文字不齐——根因是 .button-row 的 margin-top:14px，storage.css 里 .batch-bar .button-row 清零并给 .batch-bar__count 设 line-height: var(--g-btn-h-sm)（=30px，与 .btn--small 同高）；② ≤782px 筛选六个 chip 改 grid 等宽两列、批量条竖排且四个按钮 2×2 等分（原先无任何 .batch-bar 移动端规则，chip 各按内容宽换行）；③ 快速搜索后类型/大小/状态/最后变化四列为空——fast-search.php 与 sakura_s3_sync_page 只返回原始索引行（Index_Repository::row_payload 无展示字段），展示字段只在首屏 Sync_Payload::rows() 里由 PHP 补齐；reconcile.jsx 新增 normalizeRow() 客户端补齐 ext / status
 - **F33** 「忽略规则」卡说明行按间距令牌拉开（1.28.8-beta-52，提交 5167894）：根因是 03 篇「间距与尺寸令牌表」里的「控件与说明 8px → .field__notes { margin-top: 8px }」只写在 assets/ui/pages/image.css（图片页专用样式表），同步中心不加载它，textarea 与「当前 N 条生效」的实测间距是 0px。把这两条规则（.field__notes 的 8px 与 .field__notes .field__hint 的 0）上移到 assets/ui/components.css 的 Field 段成为全局令牌（03 篇要求间距数值只在 tokens.css 与 components.css 的 Field 段定义），image.css 里删掉重复定义；assets/ui/src/sync/ignored.jsx 把说明行包进 div.field__notes，与 PHP Field::render() 的 hint_after 路径统一。验证：demo.77il.cn beta-52 上 1440 与 390
 - **F34** 同步中心数字改为实时派生、策略删本地不再判成「仅云端」（1.28.8-beta-53，提交 c5bbcb0）：① Index_Repository::summary() 不再返回 scan 行的 total_local/total_remote/local_bytes/remote_bytes，本地与云端对象数、字节、云端类型分布改由新增的 live_totals() 一条聚合实时派生（SUM(seen_local=1) / SUM(seen_remote=1) / 按 kind 分桶），scans 只提供 scanned_at 与状态——此前一次 total_local=0 的空全量核对会让页面显示「已同步 9，本地 0，云端 0」。② Index_Repository 注入可选 Options，新增 local_policy_removes() 唯一读 behaviour_snapshot()['no_local_saving']；reconcile()/recalculate() 在策略生效时把 seen_local=0 AND seen_remote=1 AND local_s
+- **F35** **F35** 删除队列页迁 React 岛（1.28.8-beta-55）：`Deletes_Payload` + `Deletes_Controller`（GET /storage/deletes、POST retry/drop）+ `assets/ui/dist/deletes.js`；旧页脚本由 `Page_Assets::ISLAND_BUNDLES` 跳过。队列新增 done 态：`complete()` 写 resolution（deleted/kept/skipped）与 completed_at，保留 7 天、worker 每小时清理；重试只覆盖 queued/failed/dead，done 不重试，同 key 再次入队重置该行。页面活动 4s / 空闲 15s 轮询、失败退避、隐藏暂停；筛选/分页走 replaceState；retry/drop 直接用响应 snapshot 不整页刷新；导出 CSV 含 completed_at/resolution。实测 demo.77il.cn 1440/390 无横溢、console 0 error、6 行全状态、轮询排队
+- **F36** F36 链接改写与费用估算迁 React 岛（1.28.8-beta-56）：`Rewrite_Payload` + `Url_Rewrite_Scope` + `assets/ui/dist/rewrite.js`，`Cost_Payload` + `assets/ui/dist/cost.js`；链接改写按旧域名 + `upload_url_path` 路径（空则 `upload_path`）做 SQL 粗筛、写库前 URL 级精确匹配，只改附件 URL，JSON 转义/序列化/回滚保持；两页旧脚本由 `Page_Assets::ISLAND_BUNDLES` 跳过，bundle 缺失回落旧页。验证：915 tests / 3875 assertions / 6 skipped，PHPStan/PHPCS/PHPCompatibility 全绿；demo.77il.cn 1440/390 无横溢、console 0 error，扫描 6 候选 / 改写 4 / 跳过 2、回滚逐字节还原，费用估算 200GB 重算与口径展开、两页兜底均实测。
 
 
 ## User requirements / 用户要求
@@ -55,7 +57,7 @@
 
 
 ## Completed tasks / 已完成任务
-<!-- card id=tasks kind=tasks rev=20 updated=2026-11-25T03:07:42.345Z -->
+<!-- card id=tasks kind=tasks rev=22 updated=2026-11-25T10:33:17.164Z -->
 
 - **T1** [done] 为 sakura-tools 插件补一篇 PHP 代码规范文档（docs/开发规则/），以 PHP 8.2–8.4 兼容 (11/24)
 - **T2** [done] 文档中所有描述实验站的地方（AGENTS.md、05 篇、09 篇、11 篇、03 篇、docs/验收脚本/README — 实验站 demo.77il.cn 的新部署（宝塔本机 /www/wwwroot/demo.77il.cn，PHP 8.4.28 + MariaDB 12.3.2）已写进 AGENTS.md 与 05/09/11/03 篇、验收脚本，并写入记忆；文档不含密码，凭据只在 /root/.dsh/secrets/demo-77il-login.txt；本地提交 f343907，未 push。 (11/24)
@@ -77,6 +79,8 @@
 - **T18** [done] 分析并解释「S3 同步中心」页里「已同步 = 9」但「本地媒体 / 云端文件 = 0」的矛盾原因，并给出可选解决办法（本 — 定位「已同步 9 但本地/云端为 0」根因：本地/云端数取 scan 快照行，已同步取 counts 实时表，两者不同源且上传不写快照；给出 4 条路线未改代码 (11/25)
 - **T19** [done] 核对我理解的上传三段链路（浏览器→WP 服务器、WP 服务器→存储桶、存储桶返回→写入媒体库数据表）是否准确，并判断是否 — 核清上传三段链路（先写媒体库与索引、再同步上传、返回后回写 postmeta 与索引），结论：不需要重做表结构，问题在读路径把任务日志当事实表 (11/25)
 - **T20** [done] 同步中心数字实时派生 + 策略删本地不再判成仅云端（beta-53，c5bbcb0）：summary() 改 live_totals() 实时派生、local_policy_removes() 放行 seen_local=0 的已同步、cleanup_local 写穿 mark_local_removed、adjust_counts 漂移修正、本地列三态、04/07 篇文档。
+- **T21** [done] 让「S3 同步中心」的「本地媒体 / 云端文件 / 已同步 / 体积」反映当前事实而不是上一次核对快照，并让「上传后自动 — beta-53 已落地：同步中心数字改实时派生、策略删本地不再判成仅云端、本地列三态；三道关与实验站 1440/390 实测通过，提交 c5bbcb0 未 push。 (11/25)
+- **T22** [done] 把对象存储模块的「删除队列」页（storage-deletes）重构为 PHP 外壳 + React 内容区混合渲染，做 — 删除队列页迁 React 岛，完成态与 4s 实时进度已在 demo.77il.cn 验收；commit dd08fbb 未 push (11/25)
 
 
 ## 生产环境与部署事实

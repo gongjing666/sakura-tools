@@ -50,13 +50,21 @@ final class Link_Rewriter {
 	private string $to;
 
 	/**
+	 * Attachment URL path prefix; null keeps the historical host-only mode.
+	 *
+	 * @var string|null
+	 */
+	private ?string $path_prefix = null;
+
+	/**
 	 * Constructor.
 	 *
-	 * @param string $from Old host or URL.
-	 * @param string $to   New host or URL.
+	 * @param string      $from        Old host or URL.
+	 * @param string      $to          New host or URL.
+	 * @param string|null $path_prefix Attachment URL path prefix, or null for host-only mode.
 	 * @throws \InvalidArgumentException When either host is missing, malformed or identical.
 	 */
-	public function __construct( string $from, string $to ) {
+	public function __construct( string $from, string $to, ?string $path_prefix = null ) {
 		$from = self::normalize_host( $from );
 		$to   = self::normalize_host( $to );
 
@@ -70,6 +78,10 @@ final class Link_Rewriter {
 
 		$this->from = $from;
 		$this->to   = $to;
+
+		if ( null !== $path_prefix ) {
+			$this->path_prefix = self::normalize_path_prefix( $path_prefix );
+		}
 	}
 
 	/**
@@ -84,6 +96,20 @@ final class Link_Rewriter {
 	 */
 	public function to_host(): string {
 		return $this->to;
+	}
+
+	/**
+	 * Normalized attachment path prefix, or null for the host-only mode.
+	 */
+	public function path_prefix(): ?string {
+		return $this->path_prefix;
+	}
+
+	/**
+	 * Whether this rewriter restricts matches to one attachment URL prefix.
+	 */
+	public function is_scoped(): bool {
+		return null !== $this->path_prefix;
 	}
 
 	/**
@@ -140,10 +166,82 @@ final class Link_Rewriter {
 	/**
 	 * Replace the old host inside a plain string.
 	 *
+	 * With a path prefix this is URL-scoped: only attachment URLs are changed.
+	 * Without one it keeps the historical host-only behaviour.
+	 *
 	 * @param string $value Plain text.
 	 * @return string
 	 */
 	public function rewrite_string( string $value ): string {
+		if ( null === $this->path_prefix ) {
+			return $this->rewrite_legacy_string( $value );
+		}
+
+		return $this->rewrite_scoped_string( $value );
+	}
+
+	/**
+	 * Whether a value contains at least one attachment URL on the old host.
+	 *
+	 * Serialized payloads are scanned as text: their nested strings still
+	 * contain the same URL characters, and the rewrite walk handles them one by
+	 * one. JSON values with escaped slashes are normalized for the path check.
+	 *
+	 * @param string $value Raw value.
+	 */
+	public function has_attachment_url( string $value ): bool {
+		if ( null === $this->path_prefix ) {
+			return $this->contains_host( $value );
+		}
+
+		foreach ( $this->scoped_patterns() as $pattern ) {
+			if ( ! preg_match_all( $pattern, $value, $matches, PREG_SET_ORDER ) ) {
+				continue;
+			}
+
+			foreach ( $matches as $match ) {
+				if ( $this->path_matches( $this->normalize_rest( (string) ( $match['rest'] ?? '' ) ) ) ) {
+					return true;
+				}
+			}
+		}
+
+		return false;
+	}
+
+	/**
+	 * Normalize an object-key or public URL path prefix.
+	 *
+	 * A full URL is accepted for callers that only have upload_url_path; its
+	 * path component is used. The returned value has no leading or trailing
+	 * slash, and "." (the root marker) becomes an empty prefix.
+	 *
+	 * @param string $prefix Raw prefix.
+	 */
+	public static function normalize_path_prefix( string $prefix ): string {
+		$prefix = trim( $prefix );
+
+		if ( '' === $prefix || '.' === $prefix ) {
+			return '';
+		}
+
+		if ( preg_match( '#^[a-z][a-z0-9+.-]*://#i', $prefix ) ) {
+			$parsed = parse_url( $prefix );
+			$prefix = is_array( $parsed ) && isset( $parsed['path'] ) ? (string) $parsed['path'] : '';
+		}
+
+		$prefix = str_replace( '\\', '/', $prefix );
+		$prefix = (string) preg_replace( '#/+#', '/', $prefix );
+
+		return trim( $prefix, '/' );
+	}
+
+	/**
+	 * Historical host-only replacement, kept byte-for-byte for old callers.
+	 *
+	 * @param string $value Plain text.
+	 */
+	private function rewrite_legacy_string( string $value ): string {
 		if ( false === stripos( $value, $this->from ) ) {
 			return $value;
 		}
@@ -165,6 +263,127 @@ final class Link_Rewriter {
 		$rewritten = preg_replace( $pattern, $this->to, $value );
 
 		return is_string( $rewritten ) ? $rewritten : $value;
+	}
+
+	/**
+	 * URL-scoped replacement: only URLs under the configured path prefix.
+	 *
+	 * Two passes are intentional. The first consumes scheme-qualified URLs so
+	 * the bare-host pass cannot see a host that sits after "//"; the second
+	 * handles bare hosts such as "bf.example.com/wp-content/uploads/a.jpg"
+	 * that appear in options and serialized strings.
+	 *
+	 * @param string $value Plain text.
+	 */
+	private function rewrite_scoped_string( string $value ): string {
+		$patterns = $this->scoped_patterns();
+
+		$value = (string) preg_replace_callback(
+			$patterns[0],
+			fn( array $parts ): string => $this->rewrite_full_url( $parts ),
+			$value
+		);
+
+		return (string) preg_replace_callback(
+			$patterns[1],
+			fn( array $parts ): string => $this->rewrite_bare_host( $parts ),
+			$value
+		);
+	}
+
+	/**
+	 * Regexes for scheme-qualified and bare-host attachment URLs.
+	 *
+	 * The slash pairs accept an optional backslash so JSON values written as
+	 * "https:\/\/host\/path" are found without a separate decoder. The rest of
+	 * the URL is captured raw because the replacement must preserve escaping.
+	 *
+	 * @return array{0:string,1:string}
+	 */
+	private function scoped_patterns(): array {
+		$host = preg_quote( $this->from, '#' );
+		$tail = '(?![a-z0-9\-]|\.[a-z0-9])';
+		$rest = '(?<rest>[^\s"\'<>]*)';
+
+		return array(
+			'#(?<prefix>(?:https?:)?(?:\\\\?/){2})' . $host . $tail . $rest . '#i',
+			'#(?<![a-z0-9.:/\-])' . $host . $tail . $rest . '#i',
+		);
+	}
+
+	/**
+	 * Rewrite one scheme-qualified URL when its path is in scope.
+	 *
+	 * @param array<string,string> $parts Regex match parts.
+	 */
+	private function rewrite_full_url( array $parts ): string {
+		$rest = $this->normalize_rest( (string) ( $parts['rest'] ?? '' ) );
+
+		if ( ! $this->path_matches( $rest ) ) {
+			return (string) ( $parts[0] ?? '' );
+		}
+
+		$prefix = (string) ( $parts['prefix'] ?? '' );
+		$value  = $prefix . $this->to . (string) ( $parts['rest'] ?? '' );
+
+		if ( 0 === stripos( $prefix, 'http:' ) ) {
+			$value = (string) preg_replace( '#^http:#i', 'https:', $value, 1 );
+		}
+
+		return $value;
+	}
+
+	/**
+	 * Rewrite one bare-host URL when its path is in scope.
+	 *
+	 * @param array<string,string> $parts Regex match parts.
+	 */
+	private function rewrite_bare_host( array $parts ): string {
+		$rest = $this->normalize_rest( (string) ( $parts['rest'] ?? '' ) );
+
+		if ( ! $this->path_matches( $rest ) ) {
+			return (string) ( $parts[0] ?? '' );
+		}
+
+		return $this->to . (string) ( $parts['rest'] ?? '' );
+	}
+
+	/**
+	 * Undo JSON slash escaping only for the path check.
+	 *
+	 * @param string $rest Captured URL tail.
+	 */
+	private function normalize_rest( string $rest ): string {
+		return str_replace( '\\/', '/', $rest );
+	}
+
+	/**
+	 * Whether a URL tail starts with the configured attachment directory.
+	 *
+	 * A trailing slash is required so "wp-content/uploads-old" and a bare
+	 * directory URL never count as attachment files. An empty prefix means the
+	 * site explicitly stores objects at the bucket root.
+	 *
+	 * @param string $rest URL tail, with escaped slashes already normalized.
+	 */
+	private function path_matches( string $rest ): bool {
+		if ( '' === $rest || '/' !== $rest[0] ) {
+			return false;
+		}
+
+		$prefix = (string) $this->path_prefix;
+
+		if ( '' === $prefix ) {
+			return true;
+		}
+
+		$needle = '/' . $prefix . '/';
+
+		if ( 0 === strpos( $rest, $needle ) ) {
+			return true;
+		}
+
+		return 0 === strpos( rawurldecode( $rest ), $needle );
 	}
 
 	/**

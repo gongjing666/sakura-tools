@@ -323,4 +323,122 @@ final class LinkRewriterTest extends TestCase {
 		$this->assertTrue( $result['safe'] );
 		$this->assertSame( $original, $result['value'] );
 	}
+
+	/**
+	 * Scoped rewriter restricted to the uploads directory.
+	 */
+	private function scoped(): Link_Rewriter {
+		return new Link_Rewriter( 'bf.nboke.com', 'doge.nboke.com', 'wp-content/uploads' );
+	}
+
+	/**
+	 * Only attachment URLs under the prefix are rewritten.
+	 */
+	public function test_scoped_rewrites_only_attachment_urls(): void {
+		$rewriter = $this->scoped();
+
+		$this->assertSame(
+			'<img src="https://doge.nboke.com/wp-content/uploads/a.jpg">',
+			$rewriter->rewrite_string( '<img src="https://bf.nboke.com/wp-content/uploads/a.jpg">' )
+		);
+		$this->assertSame(
+			'https://doge.nboke.com/wp-content/uploads/a.jpg?x=1&y=2',
+			$rewriter->rewrite_string( 'https://bf.nboke.com/wp-content/uploads/a.jpg?x=1&y=2' )
+		);
+		$this->assertSame(
+			'https://doge.nboke.com/wp-content/uploads/a.jpg',
+			$rewriter->rewrite_string( 'http://bf.nboke.com/wp-content/uploads/a.jpg' )
+		);
+		$this->assertSame(
+			'//doge.nboke.com/wp-content/uploads/a.jpg',
+			$rewriter->rewrite_string( '//bf.nboke.com/wp-content/uploads/a.jpg' )
+		);
+	}
+
+	/**
+	 * Other paths, prefix lookalikes and other hosts stay untouched.
+	 */
+	public function test_scoped_keeps_other_paths_and_lookalikes(): void {
+		$rewriter = $this->scoped();
+
+		foreach ( array(
+			'https://bf.nboke.com/other/a.jpg',
+			'https://bf.nboke.com/wp-content/uploads-old/a.jpg',
+			'https://bf.nboke.com/wp-content/a.jpg',
+			'https://bf.nboke.com.evil.test/wp-content/uploads/a.jpg',
+			'https://mybf.nboke.com/wp-content/uploads/a.jpg',
+			'https://bf.nboke.com/WP-CONTENT/uploads/a.jpg',
+			'https://www.nboke.com/wp-content/uploads/a.jpg',
+		) as $value ) {
+			$this->assertSame( $value, $rewriter->rewrite_string( $value ) );
+			$this->assertFalse( $rewriter->has_attachment_url( $value ) );
+		}
+	}
+
+	/**
+	 * A bare host with the attachment path is still a URL in options data.
+	 */
+	public function test_scoped_handles_bare_host(): void {
+		$this->assertSame(
+			'doge.nboke.com/wp-content/uploads/a.jpg',
+			$this->scoped()->rewrite_string( 'bf.nboke.com/wp-content/uploads/a.jpg' )
+		);
+		$this->assertSame( 'bf.nboke.com', $this->scoped()->rewrite_string( 'bf.nboke.com' ) );
+	}
+
+	/**
+	 * A JSON value with escaped slashes is rewritten without losing escaping.
+	 */
+	public function test_scoped_handles_escaped_json_slashes(): void {
+		$input = '{"url":"https:\/\/bf.nboke.com\/wp-content\/uploads\/a.jpg","api":"https:\/\/bf.nboke.com\/api\/x"}';
+		$want  = '{"url":"https:\/\/doge.nboke.com\/wp-content\/uploads\/a.jpg","api":"https:\/\/bf.nboke.com\/api\/x"}';
+
+		$this->assertSame( $want, $this->scoped()->rewrite_string( $input ) );
+		$this->assertTrue( $this->scoped()->has_attachment_url( $input ) );
+	}
+
+	/**
+	 * Serialized values keep their lengths and leave non-attachment strings alone.
+	 */
+	public function test_scoped_repairs_serialized_lengths(): void {
+		$original = serialize(
+			array(
+				'image' => 'https://bf.nboke.com/wp-content/uploads/a.jpg',
+				'api'   => 'https://bf.nboke.com/api/v1',
+				'host'  => 'bf.nboke.com',
+			)
+		);
+		$result = $this->scoped()->rewrite_value( $original );
+
+		$this->assertTrue( $result['safe'] );
+		$this->assertTrue( $result['serialized'] );
+
+		$data = unserialize( $result['value'] );
+		$this->assertSame( 'https://doge.nboke.com/wp-content/uploads/a.jpg', $data['image'] );
+		$this->assertSame( 'https://bf.nboke.com/api/v1', $data['api'] );
+		$this->assertSame( 'bf.nboke.com', $data['host'] );
+	}
+
+	/**
+	 * A root-level bucket accepts any path but still requires one.
+	 */
+	public function test_scoped_root_prefix_requires_a_path(): void {
+		$rewriter = new Link_Rewriter( 'bf.nboke.com', 'doge.nboke.com', '' );
+
+		$this->assertSame( 'https://doge.nboke.com/a.jpg', $rewriter->rewrite_string( 'https://bf.nboke.com/a.jpg' ) );
+		$this->assertSame( 'bf.nboke.com', $rewriter->rewrite_string( 'bf.nboke.com' ) );
+	}
+
+	/**
+	 * An encoded prefix is accepted for matching, while the raw URL is preserved.
+	 */
+	public function test_scoped_matches_encoded_prefix(): void {
+		$rewriter = $this->scoped();
+
+		$this->assertTrue( $rewriter->has_attachment_url( 'https://bf.nboke.com/%77p-content/uploads/a.jpg' ) );
+		$this->assertSame(
+			'https://doge.nboke.com/%77p-content/uploads/a.jpg',
+			$rewriter->rewrite_string( 'https://bf.nboke.com/%77p-content/uploads/a.jpg' )
+		);
+	}
 }

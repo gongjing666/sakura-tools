@@ -139,6 +139,7 @@ final class Url_Rewrite_Repository {
 			'run_id'       => '',
 			'from'         => '',
 			'to'           => '',
+			'path_prefix'  => null,
 			'tables'       => array(),
 			'table_index'  => 0,
 			'column_index' => 0,

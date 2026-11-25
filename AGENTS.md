@@ -14,7 +14,7 @@
 | 第一次接触，想弄清插件由什么组成 | `docs/开发规则/01-架构与装配.md` |
 | 加设置项、加页面、加 AJAX 动作、加 cron、加 S3 厂商 | `docs/开发规则/02-新增功能.md` |
 | 改后台样式、加卡片、调布局、写页签视图 | `docs/开发规则/03-后台UI.md` |
-| 写后台的 React 内容区（PHP 外壳 + React 内容区混合渲染；已迁岛的页签：系统设置、图像优化四页、S3 存储、同步中心、删除队列）：分工边界、组件结构、状态与保存、副作用、Actions、性能、DOM 契约、禁止清单 | `docs/开发规则/12-React代码规范.md`（**React 版本追最新 19.x，`package.json` 写 `^19.0.0`、实际 19.3.1；插件自打包，不读 WordPress 自带的 18.3.1**；esbuild 打包，产物 `assets/ui/dist/*.js` 必须提交） |
+| 写后台的 React 内容区（PHP 外壳 + React 内容区混合渲染；已迁岛的页签：系统设置、图像优化四页、S3 存储、同步中心、删除队列、链接改写、费用估算）：分工边界、组件结构、状态与保存、副作用、Actions、性能、DOM 契约、禁止清单 | `docs/开发规则/12-React代码规范.md`（**React 版本追最新 19.x，`package.json` 写 `^19.0.0`、实际 19.3.1；插件自打包，不读 WordPress 自带的 18.3.1**；esbuild 打包，产物 `assets/ui/dist/*.js` 必须提交） |
 | 写 PHP 代码：语言特性能不能用、8.2–8.4 兼容、8.4 弃用、向下兼容与提交前自查 | `docs/开发规则/13-PHP代码规范.md`（**语法按 8.2 写、运行按 8.4 验**；8.3/8.4 的语法硬禁，新 API 要用守卫 + 回落） |
 | 手动调外观：查某个 CSS/JS 管哪块、颜色令牌、怎么覆盖才不被下次更新冲掉 | `docs/开发规则/10-静态资源手册.md` |
 | 加表、加 option、写迁移、改卸载逻辑 | `docs/开发规则/04-数据与存储.md` |
@@ -107,7 +107,7 @@ docs/                   文档（不进发布包）
 ## 4. 验证命令
 
 ```bash
-composer test          # PHPUnit，基线 903 tests / 3833 assertions / 6 skipped
+composer test          # PHPUnit，基线 915 tests / 3875 assertions / 6 skipped
 composer phpstan       # level 5，必须 [OK] No errors
 composer lint:strict   # PHPCS，必须 0 error / 0 warning（新增任何一条都当 error）
 composer lint:compat   # PHPCompatibility，8.2 语法下限 / 8.4 生产运行时，必须 0 error / 0 warning
@@ -170,7 +170,7 @@ chown -R www:www .        # 部署后属主会被 git 改成 root，必须修回
 - `dist/` 被 `.gitignore` 忽略，不进版本库。
 - 打包脚本用 `git archive` 只取**已跟踪文件**，然后删掉 `docs/`、`tests/`、`bin/`、`stubs/`、`.github/` 与各配置文件。`docs/` 下的文档不会进发布包，可以放心写细节；**但根目录新增的 `.md` 会进包**，要加进 `bin/build-plugin-zip.sh` 的 `rm -f` 列表。
 - `.agents/worktrees/` 下可能有多份工作副本（未被 git 跟踪），改之前确认自己在哪个分支，别改错副本。
-- 实验站：`https://demo.77il.cn`，宝塔面板本机站点，目录 `/www/wwwroot/demo.77il.cn`（PHP 8.4.28、MariaDB 12.3.2、WP 7.1.5，与生产同版本；DB `demo`、前缀 `wp_`，主题子比已授权，管理员 `yexu`，密码不写进仓库）。装的是同一插件的**实体副本**，不是符号链接，**同步时要整目录拷**，并且必须带上 `assets/ui/dist/`（React 打包产物，`system.js` / `image.js` / `storage.js` / `sync.js` / `deletes.js`）：漏了它，系统设置、图像优化、对象存储与删除队列页的脚本 404，页面会永远停在「正在读取页面信息…」的骨架屏。用这条命令，排除项里写 `/dist`（锚定根目录），**不要写 `dist`**——那样会把 `assets/ui/dist` 一起排掉：
+- 实验站：`https://demo.77il.cn`，宝塔面板本机站点，目录 `/www/wwwroot/demo.77il.cn`（PHP 8.4.28、MariaDB 12.3.2、WP 7.1.5，与生产同版本；DB `demo`、前缀 `wp_`，主题子比已授权，管理员 `yexu`，密码不写进仓库）。装的是同一插件的**实体副本**，不是符号链接，**同步时要整目录拷**，并且必须带上 `assets/ui/dist/`（React 打包产物，`system.js` / `image.js` / `storage.js` / `sync.js` / `deletes.js` / `rewrite.js` / `cost.js`）：漏了它，系统设置、图像优化、对象存储（含链接改写/费用估算）页的脚本 404，页面会永远停在「正在读取页面信息…」的骨架屏。用这条命令，排除项里写 `/dist`（锚定根目录），**不要写 `dist`**——那样会把 `assets/ui/dist` 一起排掉：
 
 ```bash
 rsync -a --delete --exclude .git --exclude .agents --exclude .dsh-ops --exclude node_modules \
@@ -179,7 +179,7 @@ rsync -a --delete --exclude .git --exclude .agents --exclude .dsh-ops --exclude 
   && chown -R www:www /www/wwwroot/demo.77il.cn/wp-content/plugins/sakura-tools
 ```
 
-站上已装 sakura-tools（`wp-content/plugins/sakura-tools`，整目录拷贝，当前 `1.28.8-beta-55`，25 张表已建、`wp sakura-sync` 可用）。旧的内置服务器实验站 `/root/sio-e2e`（`php -S 127.0.0.1:18080` + docker 的 MariaDB/MinIO）已于 2026-11-24 整体删除，备份在 `/root/backups/sio-e2e-20261124-1316/`（站点文件 tar 524M + 6 个库的 sql.gz），不再作为验收环境。
+站上已装 sakura-tools（`wp-content/plugins/sakura-tools`，整目录拷贝，当前 `1.28.8-beta-56`，25 张表已建、`wp sakura-sync` 可用）。旧的内置服务器实验站 `/root/sio-e2e`（`php -S 127.0.0.1:18080` + docker 的 MariaDB/MinIO）已于 2026-11-24 整体删除，备份在 `/root/backups/sio-e2e-20261124-1316/`（站点文件 tar 524M + 6 个库的 sql.gz），不再作为验收环境。
 - **代码改动要测，纯文档改动不测。** 改 PHP / JS / CSS 必须跑完 §4 的静态三关（外加 `php -l` / `node --check` / `git diff --check`）；需要真实 WordPress 才看得出的验证（第 10 条的 1440/390、保存与弹窗回流、console）跑在**开发者指定的环境**，他没指定就不要自行部署到实验站或生产站，只把要看的点写进交付说明。**只改 `.md` 的整轮不测**，也不动版本号，直接 push `main`。详见 `05-测试与质量.md` §6。
 - 生产站 `/www/wwwroot/www.nboke.com`，DB 前缀 `nb_`；主题是子比（zibll），部分后台能力与它耦合（`Zibll_Bridge`）。
 

@@ -86,18 +86,19 @@ final class Url_Rewrite_Service {
 	/**
 	 * Start a fresh scan.
 	 *
-	 * @param string $from Old host or URL.
-	 * @param string $to   New host or URL.
+	 * @param string      $from        Old host or URL.
+	 * @param string      $to          New host or URL.
+	 * @param string|null $path_prefix Attachment path prefix, or null for host-only mode.
 	 * @return array<string,mixed>|\WP_Error
 	 */
-	public function start( string $from, string $to ) {
+	public function start( string $from, string $to, ?string $path_prefix = null ) {
 		$current = Url_Rewrite_Repository::get_state();
 
 		if ( 'running' === (string) $current['status'] ) {
 			return new \WP_Error( 'sio_url_busy', __( '已有改写任务正在执行，请先完成或重置。', 'sakura-imgopt' ) );
 		}
 
-		$rewriter = self::rewriter( $from, $to );
+		$rewriter = self::rewriter( $from, $to, $path_prefix );
 		if ( $rewriter instanceof \WP_Error ) {
 			return $rewriter;
 		}
@@ -110,9 +111,10 @@ final class Url_Rewrite_Service {
 		$state = Url_Rewrite_Repository::defaults();
 		$state['status']     = 'scanning';
 		$state['run_id']     = bin2hex( random_bytes( 16 ) );
-		$state['from']       = $rewriter->from_host();
-		$state['to']         = $rewriter->to_host();
-		$state['tables']     = $tables;
+		$state['from']        = $rewriter->from_host();
+		$state['to']          = $rewriter->to_host();
+		$state['path_prefix'] = $rewriter->path_prefix();
+		$state['tables']      = $tables;
 		$state['started_at'] = time();
 
 		Url_Rewrite_Repository::save_state( $state );
@@ -132,7 +134,7 @@ final class Url_Rewrite_Service {
 			return $this->summary();
 		}
 
-		$rewriter = self::rewriter( (string) $state['from'], (string) $state['to'] );
+		$rewriter = self::rewriter( (string) $state['from'], (string) $state['to'], self::state_prefix( $state ) );
 		if ( $rewriter instanceof \WP_Error ) {
 			return $rewriter;
 		}
@@ -224,7 +226,7 @@ final class Url_Rewrite_Service {
 			return new \WP_Error( 'sio_url_not_ready', __( '请先扫描数据库，再执行改写。', 'sakura-imgopt' ) );
 		}
 
-		$rewriter = self::rewriter( (string) $state['from'], (string) $state['to'] );
+		$rewriter = self::rewriter( (string) $state['from'], (string) $state['to'], self::state_prefix( $state ) );
 		if ( $rewriter instanceof \WP_Error ) {
 			return $rewriter;
 		}
@@ -288,7 +290,7 @@ final class Url_Rewrite_Service {
 				continue;
 			}
 
-			$rows = $this->fetch_rows( $task, $cursor, $batch, $rewriter->from_host() );
+			$rows = $this->fetch_rows( $task, $cursor, $batch, $rewriter );
 
 			if ( '' !== $this->query_error ) {
 				$state['tasks'] = $tasks;
@@ -537,7 +539,7 @@ final class Url_Rewrite_Service {
 			return new \WP_Error( 'sio_url_bad_task', __( '该改写位置不存在，请重新扫描。', 'sakura-imgopt' ) );
 		}
 
-		$rewriter = self::rewriter( (string) $state['from'], (string) $state['to'] );
+		$rewriter = self::rewriter( (string) $state['from'], (string) $state['to'], self::state_prefix( $state ) );
 		if ( $rewriter instanceof \WP_Error ) {
 			return $rewriter;
 		}
@@ -560,6 +562,17 @@ final class Url_Rewrite_Service {
 			(string) $task['column'],
 			$like,
 		);
+
+		$needles = self::scope_needles( $rewriter );
+
+		if ( $needles ) {
+			$sql .= ' AND (' . implode( ' OR ', array_fill( 0, count( $needles ), '%i LIKE %s' ) ) . ')';
+
+			foreach ( $needles as $needle ) {
+				$args[] = (string) $task['column'];
+				$args[] = $needle;
+			}
+		}
 
 		if ( '' !== (string) $task['filter_column'] ) {
 			$sql   .= ' AND %i = %s';
@@ -650,6 +663,7 @@ final class Url_Rewrite_Service {
 			'runId'      => (string) $state['run_id'],
 			'from'       => (string) $state['from'],
 			'to'         => (string) $state['to'],
+			'pathPrefix' => (string) ( $state['path_prefix'] ?? '' ),
 			'tasks'      => $out,
 			'total'      => $total,
 			'selected'   => $selected,
@@ -703,15 +717,57 @@ final class Url_Rewrite_Service {
 	}
 
 	/**
+	 * Path prefix saved with the scan state, or null for a legacy host-only scan.
+	 *
+	 * @param array<string,mixed> $state State.
+	 */
+	private static function state_prefix( array $state ): ?string {
+		if ( ! array_key_exists( 'path_prefix', $state ) || null === $state['path_prefix'] ) {
+			return null;
+		}
+
+		return (string) $state['path_prefix'];
+	}
+
+	/**
+	 * LIKE needles that narrow a candidate set to the scoped attachment path.
+	 *
+	 * Two spellings are returned because JSON stores slashes as "\/". Both are
+	 * only a prefilter: the exact URL test happens in Link_Rewriter before a
+	 * value is written.
+	 *
+	 * @param Link_Rewriter $rewriter Scoped rewriter.
+	 * @return array<int,string>
+	 */
+	private static function scope_needles( Link_Rewriter $rewriter ): array {
+		if ( ! $rewriter->is_scoped() ) {
+			return array();
+		}
+
+		global $wpdb;
+
+		$host   = $rewriter->from_host();
+		$prefix = (string) $rewriter->path_prefix();
+		$plain  = $host . '/' . ( '' !== $prefix ? $prefix . '/' : '' );
+		$json   = $host . '\\/' . ( '' !== $prefix ? str_replace( '/', '\\/', $prefix ) . '\\/' : '' );
+
+		return array(
+			'%' . $wpdb->esc_like( $plain ) . '%',
+			'%' . $wpdb->esc_like( $json ) . '%',
+		);
+	}
+
+	/**
 	 * Build the rewriter or explain why the two hosts cannot be used.
 	 *
-	 * @param string $from Old host.
-	 * @param string $to   New host.
+	 * @param string      $from        Old host.
+	 * @param string      $to          New host.
+	 * @param string|null $path_prefix Attachment path prefix, or null for host-only mode.
 	 * @return Link_Rewriter|\WP_Error
 	 */
-	private static function rewriter( string $from, string $to ) {
+	private static function rewriter( string $from, string $to, ?string $path_prefix = null ) {
 		try {
-			return new Link_Rewriter( $from, $to );
+			return new Link_Rewriter( $from, $to, $path_prefix );
 		} catch ( \InvalidArgumentException $exception ) {
 			return new \WP_Error( 'sio_url_hosts', $exception->getMessage() );
 		}
@@ -822,13 +878,25 @@ final class Url_Rewrite_Service {
 			return array();
 		}
 
-		$like = '%' . $wpdb->esc_like( $rewriter->from_host() ) . '%';
+		$like    = '%' . $wpdb->esc_like( $rewriter->from_host() ) . '%';
+		$needles = self::scope_needles( $rewriter );
 
 		$this->query_error = '';
 
 		if ( self::is_options_table( $table ) && 'option_value' === $column ) {
+			$where = 'option_value LIKE %s';
+			$args  = array( $table, $like );
+
+			if ( $needles ) {
+				$where .= ' AND (' . implode( ' OR ', array_fill( 0, count( $needles ), 'option_value LIKE %s' ) ) . ')';
+
+				foreach ( $needles as $needle ) {
+					$args[] = $needle;
+				}
+			}
+
 			$rows = $wpdb->get_results(
-				$wpdb->prepare( 'SELECT option_name, COUNT(*) AS matched FROM %i WHERE option_value LIKE %s GROUP BY option_name', $table, $like ),
+				$wpdb->prepare( 'SELECT option_name, COUNT(*) AS matched FROM %i WHERE ' . $where . ' GROUP BY option_name', $args ),
 				ARRAY_A
 			);
 
@@ -854,8 +922,20 @@ final class Url_Rewrite_Service {
 			return $tasks;
 		}
 
+		$where = '%i LIKE %s';
+		$args  = array( $table, $column, $like );
+
+		if ( $needles ) {
+			$where .= ' AND (' . implode( ' OR ', array_fill( 0, count( $needles ), '%i LIKE %s' ) ) . ')';
+
+			foreach ( $needles as $needle ) {
+				$args[] = $column;
+				$args[] = $needle;
+			}
+		}
+
 		$count = (int) $wpdb->get_var(
-			$wpdb->prepare( 'SELECT COUNT(*) FROM %i WHERE %i LIKE %s', $table, $column, $like )
+			$wpdb->prepare( 'SELECT COUNT(*) FROM %i WHERE ' . $where, $args )
 		);
 
 		if ( '' !== $wpdb->last_error ) {
@@ -1072,12 +1152,12 @@ final class Url_Rewrite_Service {
 	 * Walk one task from a cursor.
 	 *
 	 * @param array<string,mixed> $task   Task.
-	 * @param int                 $cursor Last primary key.
-	 * @param int                 $limit  Batch size.
-	 * @param string              $host   Old host.
+	 * @param int           $cursor   Last primary key.
+	 * @param int           $limit    Batch size.
+	 * @param Link_Rewriter $rewriter Host and optional attachment scope.
 	 * @return array<int,array<string,mixed>>
 	 */
-	private function fetch_rows( array $task, int $cursor, int $limit, string $host ): array {
+	private function fetch_rows( array $task, int $cursor, int $limit, Link_Rewriter $rewriter ): array {
 		global $wpdb;
 
 		$this->query_error = '';
@@ -1090,8 +1170,19 @@ final class Url_Rewrite_Service {
 			(string) $task['pk'],
 			$cursor,
 			(string) $task['column'],
-			'%' . $wpdb->esc_like( $host ) . '%',
+			'%' . $wpdb->esc_like( $rewriter->from_host() ) . '%',
 		);
+
+		$needles = self::scope_needles( $rewriter );
+
+		if ( $needles ) {
+			$sql .= ' AND (' . implode( ' OR ', array_fill( 0, count( $needles ), '%i LIKE %s' ) ) . ')';
+
+			foreach ( $needles as $needle ) {
+				$args[] = (string) $task['column'];
+				$args[] = $needle;
+			}
+		}
 
 		if ( '' !== (string) $task['filter_column'] ) {
 			$sql   .= ' AND %i = %s';

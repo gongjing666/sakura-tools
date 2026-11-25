@@ -12,6 +12,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 /** @var array<string,mixed> $state */
 /** @var array<int,string> $hosts */
 /** @var string $current_host */
+/** @var \Sakura\ImageOptimizer\S3\Url_Rewrite_Scope $scope */
 
 use Sakura\ImageOptimizer\Admin\Registry;
 use Sakura\ImageOptimizer\Admin\UI;
@@ -20,6 +21,12 @@ $tasks        = isset( $state['tasks'] ) && is_array( $state['tasks'] ) ? $state
 $runs         = isset( $state['runs'] ) && is_array( $state['runs'] ) ? $state['runs'] : array();
 $hosts        = isset( $hosts ) && is_array( $hosts ) ? $hosts : array();
 $current_host = isset( $current_host ) ? (string) $current_host : '';
+$scope          = isset( $scope ) && $scope instanceof \Sakura\ImageOptimizer\S3\Url_Rewrite_Scope
+	? $scope
+	: \Sakura\ImageOptimizer\S3\Url_Rewrite_Scope::current();
+$scope_source   = \Sakura\ImageOptimizer\S3\Url_Rewrite_Scope::SOURCE_URL === $scope->source()
+	? __( '图片地址前缀（upload_url_path）', 'sakura-imgopt' )
+	: __( '云端路径前缀（upload_path）', 'sakura-imgopt' );
 $rewrite_status = isset( $state['status'] ) ? (string) $state['status'] : 'idle';
 $group_labels = array(
 	'content' => __( '内容', 'sakura-imgopt' ),
@@ -90,7 +97,12 @@ ob_start();
 </datalist>
 <?php
 UI::alert(
-	__( '改写会成对替换 https://旧域名、http://旧域名与 //旧域名，并修正 PHP 序列化数据的长度前缀。反序列化后是对象的值会跳过，不会尝试重建。', 'sakura-imgopt' ),
+	sprintf(
+		/* translators: 1: attachment path, 2: setting label. */
+		__( '只改写「旧域名 + 附件路径 %1$s」的 URL；同域名的其它路径与非附件链接不会改写。路径来自 %2$s。仍会修正 PHP 序列化数据的长度前缀；反序列化后是对象的值会跳过，不会尝试重建。', 'sakura-imgopt' ),
+		$scope->display_path(),
+		$scope_source
+	),
 	'info'
 );
 UI::alert(
@@ -106,10 +118,11 @@ ob_start();
 	<?php
 	echo esc_html(
 		sprintf(
-			/* translators: 1: status, 2: number of scanned locations. */
-			__( '当前状态：%1$s，已发现 %2$s 个使用该域名的位置。', 'sakura-imgopt' ),
+			/* translators: 1: status, 2: number of scanned locations, 3: attachment path. */
+			__( '当前状态：%1$s，已发现 %2$s 个包含 %3$s 的位置。', 'sakura-imgopt' ),
 			$status_label,
-			number_format_i18n( count( $tasks ) )
+			number_format_i18n( count( $tasks ) ),
+			$scope->display_path()
 		)
 	);
 	?>
@@ -172,7 +185,7 @@ ob_start();
 					<?php
 					UI::empty_state(
 						__( '还没有扫描结果', 'sakura-imgopt' ),
-						__( '填写新旧域名后点“扫描数据库”。扫描只读，不会改动任何数据；发现位置后再勾选并执行。', 'sakura-imgopt' )
+						__( '填写新旧域名后点“扫描数据库”。只统计包含当前附件路径的位置；扫描只读，不会改动任何数据；发现位置后再勾选并执行。', 'sakura-imgopt' )
 					);
 					?>
 				</td>
@@ -281,7 +294,7 @@ $cards = static function () use ( $target_body, $scan_body, $run_body, $history_
 			'id'          => 'target',
 			'kicker'      => __( 'Step 1', 'sakura-imgopt' ),
 			'title'       => __( '目标域名', 'sakura-imgopt' ),
-			'description' => __( '只改域名，不改路径。新域名应当已经在对象存储里接管同一批文件。', 'sakura-imgopt' ),
+			'description' => __( '只改旧域名到新域名，并且只处理当前附件路径下的 URL；同域名的其它路径保持原样。', 'sakura-imgopt' ),
 		),
 		static function () use ( $target_body ): void {
 			echo $target_body; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Escaped while buffering.
@@ -293,7 +306,7 @@ $cards = static function () use ( $target_body, $scan_body, $run_body, $history_
 			'id'          => 'scan',
 			'kicker'      => __( 'Step 2', 'sakura-imgopt' ),
 			'title'       => __( '扫描与选择', 'sakura-imgopt' ),
-			'description' => __( '扫描当前站点前缀下所有文本列，按表与列列出命中位置；文章内容与主题数据默认勾选。', 'sakura-imgopt' ),
+			'description' => __( '扫描当前站点前缀下的文本列，只统计旧域名 + 附件路径命中的位置；文章内容与主题数据默认勾选。', 'sakura-imgopt' ),
 		),
 		static function () use ( $scan_body ): void {
 			echo $scan_body; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Escaped while buffering.

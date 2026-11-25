@@ -357,6 +357,10 @@ export function Field( { field, value, onChange, disabled } ) {
 						max={ field.max }
 						step={ field.step }
 						inputMode={ field.inputmode }
+						placeholder={ field.placeholder }
+						list={ field.list }
+						autoComplete={ field.autocomplete }
+						spellCheck={ field.spellcheck }
 						disabled={ disabled }
 						aria-describedby={ hintId }
 						onChange={ ( event ) => onChange( field.key, event.target.value ) }

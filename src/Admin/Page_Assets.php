@@ -44,6 +44,8 @@ final class Page_Assets {
 		'storage-connection'  => 'assets/ui/dist/storage.js',
 		'storage-sync'        => 'assets/ui/dist/sync.js',
 		'storage-deletes'     => 'assets/ui/dist/deletes.js',
+		'storage-rewrite'     => 'assets/ui/dist/rewrite.js',
+		'storage-cost'        => 'assets/ui/dist/cost.js',
 	);
 
 	/**

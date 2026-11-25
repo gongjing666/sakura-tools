@@ -630,6 +630,11 @@ final class Page {
 			'extensions' => 320,
 			'layout'     => 380,
 			'queue'      => 760,
+			'target'     => 300,
+			'scan'       => 560,
+			'run'        => 360,
+			'demand'     => 520,
+			'table'      => 560,
 		);
 
 		if ( isset( $known[ $card ] ) ) {

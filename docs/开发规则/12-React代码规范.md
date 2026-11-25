@@ -212,16 +212,16 @@ git diff --check
 
 | 项 | 数量 | 结论 |
 |---|---|---|
-| 文件 / 行数 | 40 个 / 8,654 行 | 规模可控；删除队列岛新增 5 个文件 / 833 行 |
-| `useState` | 62 | 集中在各页 `app.jsx` 与卡片的 draft/saved |
-| `useEffect` | 14 | 全部带清理或只读依赖键（click / popstate / keydown / 定时器 / 值变化） |
-| `useRef` / `useCallback` | 8 / 5 | 合理个例 |
-| `useMemo` / `memo` / `createContext` | 0 / 0 / 0 | 未过早优化，符合本文 |
+| 文件 / 行数 | 52 个 / 9,891 行 | 规模可控；链接改写岛 9 个文件 / 876 行、费用估算岛 3 个文件 / 359 行 |
+| `useState` | 105 | 集中在各页 `app.jsx` 与卡片的 draft/saved |
+| `useEffect` | 29 | 全部带清理或只读依赖键（click / popstate / keydown / 定时器 / 值变化） |
+| `useRef` / `useCallback` | 23 / 7 | 合理个例 |
+| `useMemo` / `memo` / `createContext` | 1 / 0 / 0 | 既存的 1 处不在本次两页；本轮未新增 |
 | `forwardRef` / `PropTypes` / `defaultProps` / class 组件 | 0 | 无旧写法残留 |
 | `dangerouslySetInnerHTML` | 4 | 全部是服务端字符串（品牌 SVG、tagline、弹窗图标、吉祥物） |
 | 下标作 key | 6 | 全部是静态字符串列表（hint / warning / note / card.desc / 告警行） |
 | React 19 Actions（`useActionState` / `useOptimistic`） | 0 | 19.3 已具备，现有页签仍是手写 `saving`；按 §5 逐个页签迁移，不批量重写 |
-| 打包产物 | `image.js` 255 KB（260,977 B）/ `storage.js` 255 KB（260,641 B）/ `sync.js` 267 KB（273,075 B）/ `deletes.js` 241 KB（246,604 B）/ `system.js` 232 KB（237,531 B） | React 19.3.1 minified；18.3.1 版是 176/153 KB，差 74/80 KB，由开发者决定接受 |
+| 打包产物 | `image.js` 255 KB（260,977 B）/ `storage.js` 255 KB（260,731 B）/ `sync.js` 267 KB（273,075 B）/ `deletes.js` 241 KB（246,604 B）/ `rewrite.js` 239 KB（244,258 B）/ `cost.js` 228 KB（233,857 B）/ `system.js` 232 KB（237,621 B） | React 19.3.1 minified；18.3.1 版是 176/153 KB，差 74/80 KB，由开发者决定接受 |
 
 结论：**没有需要立刻返工的旧版写法**；基线与 `package.json` 一致（`^19.0.0` → 19.3.1）。下一步真正有价值的是按 §5 把保存动作迁到 `useActionState`，而不是先加 `memo`。
 
@@ -248,6 +248,23 @@ git diff --check
 - **状态语义**：`done` 行保留 7 天（`Delete_Jobs::DONE_RETENTION_DAYS`），worker 每小时最多清一次；重试只覆盖 queued / failed / dead，**不重试 done**（同一 key 可能已被重新上传，重跑会删掉新对象）；已完成记录可导出 CSV。
 - `Page_Assets::ISLAND_BUNDLES` 已登记 `storage-deletes => assets/ui/dist/deletes.js`，旧页脚本不再入队。
 
+### 11.3 链接改写岛（1.28.8-beta-56）
+
+- **PHP 侧两件事分开**：`src/Admin/Rewrite_Payload.php` 只组装 `page/head/cards/config`；`src/S3/Url_Rewrite_Scope.php` 只回答「当前活动配置的附件 URL 路径前缀是什么」。扫描、执行、预览、回滚仍然走原来的 `wp_ajax_sakura_url_rewrite_*`，所以兜底页和岛共用同一套游标、时间盒与账本，不新增 REST。
+- **路径前缀优先级**：活动配置的 `upload_url_path` 有路径就用它的路径；没有路径才回落 `upload_path`。页面只读展示 `/{prefix}/` 与来源，不提供覆盖输入（旧桶前缀不同时，本轮明确不处理）。
+- **URL 级而不是整值替换**：`Link_Rewriter` 构造器第三个参数是 `?string $path_prefix`；传 `null` 保持旧的全域名替换（老测试仍覆盖它），传字符串进入 scoped 模式。scoped 模式先匹配 scheme-qualified URL（`http://`、`https://`、`//`，含 JSON 的 `\/` 写法），再匹配裸 `host/path`；host 必须精确、path 必须以 `/{prefix}/` 开头、大小写敏感；命中的只替换 host，同一行里的其它链接原样保留。序列化数据仍走 `rewrite_value()` 的递归与长度修复。
+- **扫描是粗筛，写库前精确匹配**：`Url_Rewrite_Service::scan_column()` 以旧域名 + 路径前缀（plain 与 JSON escaped 两种 LIKE）做候选集，多个 needle 必须是 `AND (a OR b)`；任务行数是候选行数，执行时 `Link_Rewriter` 再按 URL 精确判断，粗筛到但没命中的行计入「已跳过」。这个区别在页面上由执行卡的第一条 notes 说明。
+- **状态带 scope**：`path_prefix` 写进 `sio_url_rewrite_state`；`scan_step / run_step / preview` 都从 state 取同一个前缀，续跑不会切到另一套规则；旧版本留下的 state 没有这个键时按 `null` 走兼容路径。
+- **UI 文件**：`assets/ui/src/rewrite/` 的 app / target / scan / run / history / preview / status / transport；目标卡用共享 `Field` 渲染两个域名输入与 datalist，scope 用只读提示条；扫描卡负责选择与样例，执行卡负责统计与进度，历史卡负责回滚。`Page_Assets::ISLAND_BUNDLES` 登记 `storage-rewrite => assets/ui/dist/rewrite.js`，bundle 缺失时回落 `storage-url-rewrite.php` 与旧控制器（已实测）。
+- **测试**：`tests/LinkRewriterTest.php` 新增 scoped 用例（只改附件、保留其它路径/相似域名、JSON 转义、序列化长度、根前缀、编码前缀）；`tests/UrlRewriteScopeTest.php` 覆盖路径优先级、回退、规范化与 payload 形状。
+
+### 11.4 费用估算岛（1.28.8-beta-56）
+
+- **服务端定义表单**：`src/Admin/Cost_Payload.php` 把字段（key/id/type/label/hint/min/max/step/options）、首屏 `Cost_Estimator::estimate(defaults)`、价格基准、口径 notes 与去重后的来源链接一起下发；React 不再自己维护第二份字段表。
+- **重新估算仍走 admin-ajax**：`app.jsx` 只改表单 draft，点「重新估算」把当前值发到 `sakura_storage_cost_estimate`，服务端 `Cost_Estimator::normalize()` 夹紧范围后返回同形状结果；前端用返回值覆盖结果并回填规范化后的输入。
+- **表格与口径**：金额格式化在客户端完成（`Intl.NumberFormat('zh-CN')`，与 PHP `number_format` 的两位小数/千分位一致）；「口径」按钮控制每行的 detail 行，来源链接来自 payload 的 `sources`，notes 来自 `notes`，都不在 JSX 里重写。
+- **无持久化**：这一步没有 option/表写入，刷新即回默认需求；`Page_Assets::ISLAND_BUNDLES` 登记 `storage-cost => assets/ui/dist/cost.js`，bundle 缺失时回落 `storage-cost.php` 与旧控制器（已实测）。
+
 ## 附录 A　《React 性能优化实战：15 个核心技巧》逐条对照
 
 来源：开发者提供的《React性能优化实战：从卡顿到丝滑，15个核心技巧覆盖全场景》（技术栈，转载）。**正文实际编号只有 13 条**（渲染 7 + 加载 4 + 内存 2），标题里的「15」把案例里的重复项与工具清单也算进去了；示例代码基于 `react-router`、`antd`、`react-window`，与本项目技术栈无关。下表按它的原编号逐条给结论，判据一栏是「什么时候可以推翻」。
@@ -255,7 +272,7 @@ git diff --check
 | # | 文章主张 | 我们的结论 | 做法与判据 |
 |---|---|---|---|
 | 1 | `React.memo` 缓存子组件 | **用不上（默认不加）** | 页签 4–8 张卡，树浅；props 多为 payload 派生对象，浅比较基本失效。React 19 起有 Compiler 可自动做等价优化，手写更没必要。**启用门槛**：Profiler 里单卡一次渲染 > 16ms，或同一操作里同卡重渲 ≥ 3 次 |
-| 2 | `useMemo` 缓存计算结果 | **改造后用** | 现在 0 处。唯一允许的场景：对全量行做派生排序/过滤且行数 > 200。**禁止**为了「稳定引用」memo——那该由状态结构解决（§3） |
+| 2 | `useMemo` 缓存计算结果 | **改造后用** | 现有 1 处（既存 sync），本轮未新增。唯一允许的场景：对全量行做派生排序/过滤且行数 > 200。**禁止**为了「稳定引用」memo——那该由状态结构解决（§3） |
 | 3 | `useCallback` 缓存函数 | **已在用（3 处）** | 只作为 `useEffect` 依赖或传给 `memo` 子件时才包；其余内联更可读 |
 | 4 | key 用唯一稳定 id，不用索引 | **已在用（照做）** | `card.id` / `row.key` / `option.value`；仅 4 处静态字符串列表用下标并已注明。违反即返工（§9 第 7 条） |
 | 5 | 拆分大型组件，缩小重渲染范围 | **已在用** | 一页签一文件 + 卡组件。当前最大风险点是 `assets/ui/src/image/fields.jsx`（各类型字段的渲染函数集中在一起，约 500 行）：再长就按 field type 拆文件，而不是靠 `memo` |

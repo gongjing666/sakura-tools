@@ -6,7 +6,7 @@
 
 图片压缩 · 缩略图治理 · S3 对象存储 · 同步索引 · 用户文件空间
 
-[![版本](https://img.shields.io/badge/version-1.28.3-e85d8b?style=flat-square)](https://github.com/gongjing666/sakura-tools/releases/latest)
+[![版本](https://img.shields.io/badge/version-1.29.0-e85d8b?style=flat-square)](https://github.com/gongjing666/sakura-tools/releases/latest)
 [![PHPUnit](https://img.shields.io/badge/PHPUnit-10.5-4c1?style=flat-square)](https://github.com/gongjing666/sakura-tools/actions/workflows/tests.yml)
 [![PHPStan](https://img.shields.io/badge/PHPStan-level%205-4c1?style=flat-square)](https://github.com/gongjing666/sakura-tools/actions/workflows/phpstan.yml)
 ![WordPress](https://img.shields.io/badge/WordPress-6.4%2B-21759b?style=flat-square&logo=wordpress&logoColor=white)
@@ -29,7 +29,7 @@
 - **同步索引**：扫描本地与远端对象，维护可断点续跑的索引、动作队列与校验结果。
 - **用户文件空间**：给投稿者提供虚拟文件夹、容量配额、上传权限和删除审核。
 
-所以可以只开图片压缩，不启用云存储；也可以只用文件空间，不改变现有图片处理方式。后台按「系统、图片优化、对象存储、文件空间」四个模块组织。
+所以可以只开图片压缩，不启用云存储；也可以只用文件空间，不改变现有图片处理方式。后台按「系统设置、图片优化、对象存储、文件空间、子比增强」五个模块组织；1.29.0 起 16 个页面的内容区全部是 React 岛。
 
 **适合这些场景**
 
@@ -40,6 +40,8 @@
 
 ## 最近更新
 
+- **1.29.0** — 后台 16 个页面的内容区全部迁为 React 岛（13 个 bundle）：顶栏、页签条、页头与首帧仍由 PHP 输出，内容区由 `*_Payload` + bootstrap JSON 挂载；旧 PHP 视图和 `assets/ui/js/pages/*.js` 只在 bundle 不可读时回退，正常请求不再下载旧页脚本。对象存储五页（连接、同步中心、删除队列、链接改写、费用估算）、文件空间五页（样式与策略、用户容量、审核与执行、最近操作、子比专属）与子比增强「性能优化」完成迁岛；同步中心数字实时派生、删除队列完成态/实时进度、链接改写作用域筛选与费用估算保留。顺带补回汽水进度条气泡注入器、修复风险开关取消后未恢复原值，并移除 1.28.8 短暂上线的「文件空间 → 媒体管理」页签。不新增表结构，不改既有 option 键、钩子语义与数据格式；升级无需手工迁移。
+- **1.28.8** — 新增「子比增强」模块与授权缓存：主题的授权校验结果可缓存，之后只读页面请求跳过主题那次远程校验；写操作、AJAX/REST/XML-RPC、登录与 cron 仍跑真实校验，主题升级、换域名或换授权会立即失效。同期加入「文件空间 → 媒体管理」页签与共享 `Takedown` 服务，媒体库批量下架与后台走同一份判据、审计与通知（该页签在 1.29.0 移除，媒体库仍是唯一下架入口）。
 - **1.28.3** — 存储生命周期十九条规则（R1–R19）全部落地并写进 `docs/开发规则/07-S3存储生命周期.md`。第一次成功上传后绑定存储身份（厂商 / 桶 / 端点 / 地域 / 云端路径），之后改任一项即视为换桶，服务端直接拒绝并返回 `error=locked`；高风险锁定（上传后删本地）想换桶只能全部删除后重来。**换桶之后同步中心会封存**，只有跑完一次完整核对才解锁——期间拦下所有「会按旧索引去向桶里写或删」的动作（刷新差异、继续核对、重试失败、批量上传/下载/删除），三个端点同时返回 409。切换当场弹插件弹窗说明三件事，不再只有左下角一行提示、也不用等刷新看顶部红字。顺带修了「开始完整核对」其实一直发增量扫描（自 1.22.8 起就没真正全量过）、渲染附件 URL 时每次写库、对账索引批量写入的占位符错位、`wp sakura-sync scan --full` 被 WP-CLI 拒绝，以及桶身份五套定义各自为政（现在收敛成 `Bucket_Identity` + `Bucket_Confirmation`，索引改按桶分区，Schema 1.9.0 自动迁移）。缩略图能力探测不再联网。
 - **1.28.2** — 存储配置操作规范化。切服务商保存不再覆盖原配置（服务商一变就新建一份，前端把「另存为新配置」勾上并锁定并说明原因）；换桶后已上传附件的 URL 会按同步索引自愈到新域名，切回去也会跟着回来，同步时间不变；腾讯云桶名不再被账号级 APPID 挤成 `sakura-c…4331`，只显示自定义部分；同一存储桶的两份配置不再互相判为换了桶；保存非在用配置不再把活动凭据写成明文；连接表单拒绝空桶名。「启用 S3 存储」从连接设置卡移到已保存的配置卡片上——点非活动卡片即切换并启用，再点当前卡片即关闭但保留配置，走 AJAX 就地重绘；每张卡片新增「连接测试」按钮，不切配置也能验证它是否还活着；卡片底部两个按钮等分两列，静止态就有边框。详见 [readme.txt](readme.txt) 的 changelog。
 - **1.28.1** — 去掉一条已经不再成立的缩略图警告。连接页在 1.28.0 已移除对象 ACL 控件，但旧配置里的 private 仍会触发「访客会收到 403」提示；实际可见性由存储空间策略 / CDN 决定，现在不再显示该警告。只是移除提示，不改上传与已有对象。
@@ -64,7 +66,8 @@
 | **对象存储** | 10 家 S3 兼容服务；附件创建时同步上传；删除失败进补偿队列；Prometheus 指标与 webhook 告警 | 对象存储 → 连接配置 / 同步中心 / 删除队列 |
 | **存储工具** | 附件链接批量改写（带账本与回滚）；10 家云存储费用估算；连接参数与兼容性说明集中在一张卡 | 对象存储 → 链接改写 / 费用估算 |
 | **同步索引** | 本地与远端扫描；断点续跑；MD5 / ETag 校验；动作队列与结果核对 | 对象存储 → 同步中心 |
-| **用户文件空间** | 虚拟文件夹；单文件、每日、用户与站点配额；删除申请 → 审核 → 执行；媒体库归属与容量 | 文件空间 → 用户容量 / 审核与执行 |
+| **用户文件空间** | 虚拟文件夹；单文件、每日、用户与站点配额；删除申请 → 审核 → 执行；媒体库归属与容量 | 文件空间 → 样式与策略 / 用户容量 / 审核与执行 / 最近操作 / 子比专属 |
+| **子比增强** | 授权校验缓存（只读请求跳过主题远程校验）；性能相关开关与复验状态 | 子比增强 → 性能优化 |
 | **编辑页文件面板** | 拖到正文插入；右键插入；Shift / Ctrl 多选；批量操作条 | Zibll 发帖 / 编辑页 |
 
 几个不显眼但重要的行为：
@@ -84,7 +87,7 @@ flowchart LR
     S3 --> IDX["同步索引<br/>扫描 · 校验"]
     UF["用户文件空间<br/>配额 · 审核 · Zibll"] --> S3
     UF --> UP
-    ADMIN["后台四个模块"] -.-> IMG
+    ADMIN["后台五个模块"] -.-> IMG
     ADMIN -.-> THUMB
     ADMIN -.-> S3
     ADMIN -.-> IDX
@@ -97,23 +100,23 @@ flowchart LR
 | --- | --- | --- |
 | 入口与生命周期 | `sakura-tools.php`、`uninstall.php` | 常量、自动加载、启用 / 停用 / 卸载 |
 | 组合根 | `src/Plugin.php` | 创建仓储与模块，统一交给 `Hook_Loader` 注册 |
-| 业务子系统 | `src/Image`、`src/Thumbnail`、`src/S3`、`src/Sync`、`src/UserFiles` | 图片、缩略图、对象存储、索引、文件空间 |
-| 后台信息架构 | `src/Admin/Registry.php`、`src/Admin/Menu.php` | 四个模块、页签权限、renderer 分发 |
-| 后台 UI 栈 | `src/Admin/UI.php`、`src/Admin/UI/`、`src/Admin/Page_Assets.php`、`assets/ui/` | 页面骨架、卡片与控件、外观令牌、按页加载资源 |
-| 兼容层 | `includes/`、`includes/views/` | 旧实现与后台模板，仍由启动流程加载，不能盲删 |
+| 业务子系统 | `src/Image`、`src/Thumbnail`、`src/S3`、`src/Sync`、`src/UserFiles`、`src/Zibll` | 图片、缩略图、对象存储、索引、文件空间、子比增强 |
+| 后台信息架构 | `src/Admin/Registry.php`、`src/Admin/Menu.php` | 五个模块、16 个页签、权限与 renderer 分发 |
+| 后台 UI 栈 | `src/Admin/UI.php`、`src/Admin/UI/`、`src/Admin/Page_Assets.php`、`assets/ui/`、`assets/ui/src/` | 页面骨架、卡片与控件、外观令牌、按页加载资源；16 页内容区由 React 岛渲染 |
+| 兼容层 | `includes/`、`includes/views/` | 旧实现与后台视图/岛挂载壳，仍由启动流程加载，不能盲删；bundle 不可读时回退 |
 
 <details>
-<summary><strong>代码规模与仓库结构（1.28.3）</strong></summary>
+<summary><strong>代码规模与仓库结构（1.29.0）</strong></summary>
 
 | 指标 | 数值 |
 | --- | --- |
-| 生产 PHP | 210 文件 / 74,641 行 |
-| 类与接口 | 193（含 7 个接口） |
-| 注册钩子 | 222 |
-| 自定义表 | 24 |
-| 后台模块 | 4（15 个页签） |
-| 后台 CSS/JS | 42 文件 / 37,037 行（`assets/ui/` 31 文件 / 17,547 行） |
-| 测试 | 101 文件 / 17,438 行；765 tests / 3,251 assertions |
+| 生产 PHP | 273 文件 / 94,417 行 |
+| 类与接口 | 247 |
+| 注册钩子 | 246 |
+| 自定义表 | 25 |
+| 后台模块 | 5（16 个页签，13 个 React bundle） |
+| 后台 CSS/JS | 131 文件 / 34,905 行（含 `assets/ui/src/` 与提交进仓库的 `assets/ui/dist/`） |
+| 测试 | 122 文件 / 19,671 行；918 tests / 3,889 assertions / 6 skipped |
 
 ```text
 sakura-tools/
@@ -126,10 +129,12 @@ sakura-tools/
 │   ├── Thumbnail/            # 缩略图策略
 │   ├── S3/                   # 对象存储
 │   ├── Sync/                 # 同步索引
-│   └── UserFiles/            # 用户文件空间
+│   ├── UserFiles/            # 用户文件空间
+│   └── Zibll/                # 子比主题增强（授权缓存、性能优化）
 ├── includes/                 # 兼容层与后台视图（仍承重）
 ├── assets/
-│   ├── ui/                   # 后台唯一样式栈：令牌、组件、布局、分页脚本
+│   ├── ui/                   # 后台唯一样式栈：令牌、组件、页面 CSS、dist bundle
+│   ├── ui/src/               # React 岛源码（16 个页面，13 个入口）
 │   ├── css/ js/              # 前台与媒体库资源
 │   └── wp-media/             # 媒体库扩展样式
 ├── docs/                     # 代码结构文档、UI 规则与静态图谱
@@ -192,8 +197,9 @@ git clone https://github.com/gongjing666/sakura-tools.git
 | --- | --- |
 | 系统设置 | 环境自检 |
 | 图片优化 | 优化规则、缩略图、备份还原、统计 |
-| 对象存储 | 连接配置、同步中心、删除队列 |
+| 对象存储 | 连接配置、同步中心、删除队列、链接改写、费用估算 |
 | 文件空间 | 样式与策略、用户容量、审核与执行、最近操作、子比专属（Zibll 可用时） |
+| 子比增强 | 性能优化（仅 Zibll 主题可用） |
 
 「文件空间」需要审核或执行权限；「子比专属」只在主题可用时出现。需要命令行维护时：
 
@@ -271,20 +277,28 @@ git clone https://github.com/gongjing666/sakura-tools.git
 | 文档 | 内容 |
 | --- | --- |
 | [开发规则索引](docs/开发规则/00-索引.md) | **改代码从这里开始**：五分钟上手路径、按任务找文档、十条铁律 |
-| [代码结构文档](docs/sakura-tools-代码结构-1.28.3.md) | 文件树、类职责、依赖矩阵、钩子分布，附类 / 钩子 / 文件三个索引；由 `docs/tools/` 生成 |
+| [代码结构文档](docs/sakura-tools-代码结构-1.28.3.md) | 文件树、类职责、依赖矩阵、钩子分布；生成物停在 1.28.3，1.28.4–1.29.0 新增类以 `src/` 为准 |
 | [DECISIONS.md](DECISIONS.md) | 关键设计取舍与已知边界，记录「为什么」而不是「现在有什么」 |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | 环境、提交前必跑的命令、提交信息与 PR 要求 |
 
-六篇开发规则各自覆盖一块，边界不重叠：
+十四篇开发规则各自覆盖一块，边界不重叠：
 
 | 文档 | 覆盖 |
 | --- | --- |
+| [00 索引](docs/开发规则/00-索引.md) | 五分钟上手、按任务找文档、十条铁律、文档维护约定 |
 | [01 架构与装配](docs/开发规则/01-架构与装配.md) | 目录、autoloader、启动顺序、`Module` 契约、模块装配、路由、生命周期 |
-| [02 新增功能](docs/开发规则/02-新增功能.md) | 改动分类、契约先行、服务类、AJAX、新页面五处必改、命名、i18n、测试 |
-| [03 后台 UI](docs/开发规则/03-后台UI.md) | 样式分层、设计令牌、间距、边框、页头、弹窗、控件、移动端、验收清单 |
+| [02 新增功能](docs/开发规则/02-新增功能.md) | 改动分类、契约先行、服务类、AJAX/REST、React 岛新页面九处必改、命名、i18n、测试 |
+| [03 后台 UI](docs/开发规则/03-后台UI.md) | 样式分层、设计令牌、间距、边框、页头、弹窗、控件、React 岛接入、移动端、验收清单 |
 | [04 数据与存储](docs/开发规则/04-数据与存储.md) | option、`Card_Form`、建表、迁移、卸载、文件、队列、多站点 |
-| [05 测试与质量](docs/开发规则/05-测试与质量.md) | PHPUnit / PHPStan / PHPCS 口径、CI、手工验收 |
-| [06 发布流程](docs/开发规则/06-发布流程.md) | 版本号、changelog、三关检查、打包、Release、部署、回滚 |
+| [05 测试与质量](docs/开发规则/05-测试与质量.md) | PHPUnit / PHPStan / PHPCS / PHPCompatibility 口径、CI、手工验收 |
+| [06 发布流程](docs/开发规则/06-发布流程.md) | 版本号、changelog、门禁、打包、Release、部署、回滚 |
+| [07 S3 存储生命周期](docs/开发规则/07-S3存储生命周期.md) | 连接、启用/切换、绑定锁定、删除、R1–R20 与生产验收 |
+| [08 OpenList 迁移通道](docs/开发规则/08-OpenList迁移通道.md) | 跨厂商搬桶边界、OpenList API 取证与人工迁移 |
+| [09 删除与结算](docs/开发规则/09-删除与结算.md) | 删除顺序、容量退还、媒体库直删、P1–P4 |
+| [10 静态资源手册](docs/开发规则/10-静态资源手册.md) | CSS/JS 文件地图、加载顺序、覆盖方式、前台样式坑 |
+| [11 违规处置与用户处罚](docs/开发规则/11-违规处置与用户处罚.md) | 下架后处罚、通知、禁上传、期限、撤销、子比小黑屋 |
+| [12 React 代码规范](docs/开发规则/12-React代码规范.md) | 岛结构、状态与保存、副作用、Actions、性能、DOM 契约、禁止清单 |
+| [13 PHP 代码规范](docs/开发规则/13-PHP代码规范.md) | PHP 8.2–8.4 语法边界、8.4 弃用、向下兼容、自查清单 |
 
 另有两类补充：3D 图谱静态页（[docs/graph-preview/index.html](docs/graph-preview/index.html)，GitHub 不执行页面脚本，克隆后用浏览器打开）；以及 [docs/history/](docs/history/) 里的归档文档（`DEVELOPMENT.md`、1.25.9 / 1.27.5 / 1.27.6 的分析产物、后台 UI 重构方案），**开头的声明都写着「不代表现状」**，只管追溯「当时为什么这么做」。
 
@@ -296,12 +310,15 @@ git clone https://github.com/gongjing666/sakura-tools.git
 
 ```bash
 composer install
+npm ci                 # 改过 assets/ui/src 时需要
 composer test
 composer phpstan
 composer lint:strict
+composer lint:compat
+npm run build          # 重打 13 个 React bundle 并提交 assets/ui/dist/
 ```
 
-项目使用 PHPUnit 10.5、PHPStan level 5 与 WPCS 3.2。CI 运行 Tests 与 PHPStan 两个 workflow；提交前至少跑一遍测试、静态分析和代码规范。
+项目使用 PHPUnit 10.5、PHPStan 2.x（level 5）与 WPCS 3.4.1；PHP 语法下限 8.2，生产按 8.4 验证。CI 运行 Tests 与 PHPStan 两个 workflow；提交前至少跑一遍测试、静态分析、代码规范与 PHP 版本兼容检查。当前基线：918 tests / 3,889 assertions / 6 skipped。
 
 ### 代码约定
 
@@ -326,7 +343,7 @@ composer lint:strict
 本地构建（默认当前 HEAD）：
 
 ```bash
-bin/build-plugin-zip.sh --version 1.28.3 --out dist
+bin/build-plugin-zip.sh --version 1.29.0 --out dist
 ```
 
 补建历史版本包：

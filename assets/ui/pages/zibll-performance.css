@@ -27,10 +27,6 @@
 	margin-top: var(--g-space-3);
 }
 
-.sakura-admin[data-sakura-page="zibll-performance"] .zibll-duration .field {
-	margin: 0;
-}
-
 .sakura-admin[data-sakura-page="zibll-performance"] .zibll-duration__count {
 	width: 8rem;
 }

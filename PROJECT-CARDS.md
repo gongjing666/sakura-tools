@@ -1,11 +1,11 @@
-<!-- deep-ptc:project-cards v1 next=R9,F43,Q7,T30 -->
+<!-- deep-ptc:project-cards v1 next=R9,F44,Q7,T31 -->
 # Project cards
 
 > Maintained by Deep PTC in DeepSeek Harness: edit in a Deep PTC conversation, view 特点卡片 / Project cards.
 > User-approved settings guide this project. Features and requirements are records that can be checked and corrected.
 
 ## Implemented features / 已实现功能
-<!-- card id=features kind=features rev=29 updated=2026-11-26T01:49:13.103Z -->
+<!-- card id=features kind=features rev=30 updated=2026-11-26T02:12:20.425Z -->
 
 - **F1** 切桶封存与解锁（R18）：切桶时同一次 update_option 写入 s3_options['reconcile_pending'] = {profile_id, at, bucket, from}，同步中心立刻封存；只有跑完 mode=full 或 resume 的完整核对，才由 Scan_Service::finalize() 调 Options::clear_reconcile_pending() 清零。验证：同步中心 #sakura-sync-state 的 data-reconcile-gated=1，refresh / resume / retry 三个端点返回 409 sio_reconcile_required。
 - **F2** 切桶提醒走插件弹窗（#sakura-s3-switch-modal，kicker「OBJECT STORAGE / SWITCHED」）：列出缩略图改写已关、同步中心数据仍是上一个桶的、上传行为两开关仍按原绑定三件事，按钮直达同步中心。刷新后才出现的顶部 WP admin notice 已删除。
@@ -49,6 +49,7 @@
 - **F40** 文件空间「用户容量 / 审核与执行 / 最近操作」三页迁 PHP 外壳 + React 岛：Files_Admin_Payload 统一下发 page/head/cards/config，三个 bundle files-users/queue/log 与共享 transport/Pager/EmptyState；既有 sufm/v1/admin/*、权限矩阵 admin-post、处罚与批次轮询全部复用。1440/390 无横溢、console 0 error；容量保存与清除、处罚打开/永久输入/申请与撤销、权限矩阵保存、日志筛选、三个 bundle 缺失时旧页兜底均实测。版本 1.28.8-beta-60。
 - **F41** 文件空间「子比专属」页迁为纯 React 岛：Space_Payload 汇总 10 张卡/7 个原生 options.php 表单，主题诊断、支付方式、入口、编辑器、门禁、等级/VIP、套餐、授权与对账全部保留；旧 userfiles-space-admin.php、files-zibll.js 与 page_data() 已删除，bundle 缺失显示资源缺失提示。1440/390 无横溢、console 0 error；7 表单逐个无改动保存 option JSON 不变，开关、套餐、授权、对账均实测。版本 1.28.8-beta-61。
 - **F42** 子比主题未启用时，文件空间「子比专属」与子比增强「性能优化」两个禁用页签在文字后显示统一锁 SVG（PHP UI::lock_icon() / React LockIcon），替换原来的空方块占位；.is-disabled 灰化、aria-disabled、横向滚动与 1440/390 布局保持。版本 1.28.8-beta-62。
+- **F43** 子比增强「性能优化」页迁为纯 React 岛：Performance_Payload 输出 2 张卡/1 个原生 options.php 表单，授权缓存开关、时长/单位、未验证版本确认、重新验证 AJAX、状态表全部保留；旧 zibll-performance.php 与 zibll-performance.js 已删除，bundle 缺失显示资源缺失提示。1440/390 无横溢、console 0 error；无改动保存、forever、开关关/开、AJAX 重验实测，option 已恢复。版本 1.28.8-beta-63。
 
 
 ## User requirements / 用户要求
@@ -63,7 +64,7 @@
 
 
 ## Completed tasks / 已完成任务
-<!-- card id=tasks kind=tasks rev=29 updated=2026-11-26T01:49:21.858Z -->
+<!-- card id=tasks kind=tasks rev=30 updated=2026-11-26T02:12:20.479Z -->
 
 - **T1** [done] 为 sakura-tools 插件补一篇 PHP 代码规范文档（docs/开发规则/），以 PHP 8.2–8.4 兼容 (11/24)
 - **T2** [done] 文档中所有描述实验站的地方（AGENTS.md、05 篇、09 篇、11 篇、03 篇、docs/验收脚本/README — 实验站 demo.77il.cn 的新部署（宝塔本机 /www/wwwroot/demo.77il.cn，PHP 8.4.28 + MariaDB 12.3.2）已写进 AGENTS.md 与 05/09/11/03 篇、验收脚本，并写入记忆；文档不含密码，凭据只在 /root/.dsh/secrets/demo-77il-login.txt；本地提交 f343907，未 push。 (11/24)
@@ -94,6 +95,7 @@
 - **T27** [done] 把文件空间的「用户容量」「审核与执行」「最近操作」三页一起迁成 PHP 外壳 + React 内容区，保持现有功能与数据 — 文件空间用户容量/审核与执行/最近操作三页迁 React 岛；静态门禁与 1440/390、保存、弹窗、筛选、兜底均验证，版本 1.28.8-beta-60。 (11/25)
 - **T28** [done] 把文件空间模块最后一页「子比专属」迁成 PHP 外壳 + React 内容区，仔细阅读现有选项与保存逻辑，重构后自行验证 — 子比专属页迁纯 React 岛；10 卡/7 表单保存、开关、套餐、授权、对账与 1440/390 验收通过，旧 PHP/JS 已清理，版本 1.28.8-beta-61。 (11/26)
 - **T29** [done] 在主题不是子比时被禁用的两个 Zibll 页签按钮内补上锁的 SVG 图标。 — 两个禁用子比页签补上统一锁 SVG；PHP/React 双路径与 1440/390 验证通过，版本 1.28.8-beta-62。 (11/26)
+- **T30** [done] 把子比增强模块的性能优化页重构为 PHP 外壳 + React 内容区。 — 性能优化页迁纯 React 岛；2 卡/1 表单、开关/时长/forever/重验与 1440/390 验证通过，旧 PHP/JS 已清理，版本 1.28.8-beta-63。 (11/26)
 
 
 ## 生产环境与部署事实

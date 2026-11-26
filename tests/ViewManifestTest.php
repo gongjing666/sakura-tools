@@ -24,6 +24,7 @@ final class ViewManifestTest extends TestCase {
 		'files-settings-island.php',
 		'files-admin-island.php',
 		'files-zibll-island.php',
+		'zibll-performance-island.php',
 		'editor-picker-app.php',
 		'media-progress.php',
 		's3-sync-center.php',
@@ -42,7 +43,6 @@ final class ViewManifestTest extends TestCase {
 		'userfiles-admin.php',
 		'userfiles-space-panel.php',
 		'userfiles-tab.php',
-		'zibll-performance.php',
 	);
 
 	/**

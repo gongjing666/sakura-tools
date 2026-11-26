@@ -212,7 +212,7 @@ git diff --check
 
 | 项 | 数量 | 结论 |
 |---|---|---|
-| 文件 / 行数 | 83 个 / 13,489 行 | 规模可控；文件空间设置岛 7 个文件 / 499 行、文件空间三页 8 个文件 / 1,548 行（另有 4 个共享文件 / 250 行）、子比专属岛 12 个文件 / 1,301 行、链接改写岛 9 个文件 / 876 行、费用估算岛 3 个文件 / 359 行 |
+| 文件 / 行数 | 85 个 / 13,752 行 | 规模可控；文件空间设置岛 7 个文件 / 499 行、文件空间三页 8 个文件 / 1,548 行（另有 4 个共享文件 / 250 行）、子比专属岛 12 个文件 / 1,301 行、性能优化岛 2 个文件 / 263 行、链接改写岛 9 个文件 / 876 行、费用估算岛 3 个文件 / 359 行 |
 | `useState` | 111 | 集中在各页 `app.jsx` 与卡片的 draft/saved |
 | `useEffect` | 29 | 全部带清理或只读依赖键（click / popstate / keydown / 定时器 / 值变化） |
 | `useRef` / `useCallback` | 23 / 7 | 合理个例 |
@@ -221,7 +221,7 @@ git diff --check
 | `dangerouslySetInnerHTML` | 4 | 全部是服务端字符串（品牌 SVG、tagline、弹窗图标、吉祥物） |
 | 下标作 key | 6 | 全部是静态字符串列表（hint / warning / note / card.desc / 告警行） |
 | React 19 Actions（`useActionState` / `useOptimistic`） | 0 | 19.3 已具备，现有页签仍是手写 `saving`；按 §5 逐个页签迁移，不批量重写 |
-| 打包产物 | `files.js` 231 KB（236,609 B）/ `files-users.js` 237 KB（242,342 B）/ `files-queue.js` 240 KB（246,145 B）/ `files-log.js` 228 KB（233,052 B）/ `zibll.js` 254 KB（260,254 B）/ `image.js` 255 KB（260,977 B）/ `storage.js` 255 KB（260,731 B）/ `sync.js` 267 KB（273,075 B）/ `deletes.js` 241 KB（246,604 B）/ `rewrite.js` 239 KB（244,258 B）/ `cost.js` 228 KB（233,857 B）/ `system.js` 232 KB（237,621 B） | React 19.3.1 minified；18.3.1 版是 176/153 KB，差 74/80 KB，由开发者决定接受 |
+| 打包产物 | `files.js` 231 KB（236,609 B）/ `files-users.js` 237 KB（242,342 B）/ `files-queue.js` 240 KB（246,145 B）/ `files-log.js` 228 KB（233,052 B）/ `zibll.js` 254 KB（260,254 B）/ `performance.js` 227 KB（232,353 B）/ `image.js` 255 KB（260,977 B）/ `storage.js` 255 KB（260,731 B）/ `sync.js` 267 KB（273,075 B）/ `deletes.js` 241 KB（246,604 B）/ `rewrite.js` 239 KB（244,258 B）/ `cost.js` 228 KB（233,857 B）/ `system.js` 232 KB（237,621 B） | React 19.3.1 minified；18.3.1 版是 176/153 KB，差 74/80 KB，由开发者决定接受 |
 
 结论：**没有需要立刻返工的旧版写法**；基线与 `package.json` 一致（`^19.0.0` → 19.3.1）。下一步真正有价值的是按 §5 把保存动作迁到 `useActionState`，而不是先加 `memo`。
 
@@ -292,6 +292,13 @@ git diff --check
 - **动态交互留在前端**：套餐新增/删除行、图标媒体选择、等级/VIP 合计、等级规则禁用联动、开关确认、授权延长/撤销、对账 dry-run/apply；授权与对账继续走 `sufm/v1/admin/space/grants`、`.../extend`、`.../revoke` 与 `.../reconcile`，不新增接口。
 - **纯岛页**：旧 `includes/views/userfiles-space-admin.php`、`assets/ui/js/pages/files-zibll.js` 与 `Space_Page::page_data()` 已删除；`Space_Page::render()` 只在 bundle 可读时走岛，bundle 缺失时显示「资源缺失」提示，不再保留旧设置页兜底。主题不可用时仍走原只读提示。
 - **验收**：1440/390 无页面横溢、console 0 error；7 个表单逐个无改动保存后两个 option 的 JSON 与备份完全一致；开关关闭保存只改目标键；套餐新增保存后恢复备份；授权延长/撤销与对账检查实测后清理测试数据。
+
+### 11.8 子比增强 · 性能优化岛（1.28.8-beta-63）
+
+- **2 卡 / 1 表单**：`src/Zibll/Performance_Payload.php` 输出页头、授权缓存卡与状态卡；`assets/ui/src/performance/` 渲染。保存仍走原生 `options.php`，`sakura_imgopt_zibll` 的 `license_cache`、`duration`、`unit` 与 `_sakura_card` / `_sakura_partial` 全部不变。
+- **交互留在前端**：单位选「永久」时禁用时长输入（禁用字段不提交，服务端沿用旧值）；「重新验证」继续调用 `wp_ajax_sakura_zibll_warm`，成功/失败状态与 toast 保持原行为；状态表的版本、缓存时间、来源、有效期、授权到期和下次复验仍由 PHP 预格式化。
+- **纯岛页**：旧 `includes/views/zibll-performance.php` 与 `assets/ui/js/pages/zibll-performance.js` 已删除；bundle 缺失时显示资源缺失提示。页面 CSS 选择器逐个对照新 DOM，全部仍被使用，只删掉了不再生效的 `.zibll-duration .field { margin: 0; }` 冗余规则。
+- **验收**：1440/390 无页面横溢、console 0 error；无改动保存后 option 逐字节一致；`forever` 保存与回读、开关关闭/重新启用、AJAX 重验均实测，随后恢复原 option。
 
 ## 附录 A　《React 性能优化实战：15 个核心技巧》逐条对照
 

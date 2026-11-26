@@ -333,11 +333,17 @@
 }
 
 .sakura-admin .sakura-tab-lock {
-	display: inline-block;
-	width: 7px;
-	height: 7px;
-	border: 1.5px solid currentColor;
-	border-radius: 2px;
+	display: inline-flex;
+	flex: 0 0 auto;
+	width: 11px;
+	height: 11px;
+	color: currentColor;
+}
+
+.sakura-admin .sakura-tab-lock svg {
+	display: block;
+	width: 100%;
+	height: 100%;
 }
 
 .sakura-admin__main {

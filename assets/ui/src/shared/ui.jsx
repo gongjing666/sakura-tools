@@ -119,7 +119,7 @@ export function Tabs( { chrome } ) {
 						title={ tab.note }
 					>
 						{ tab.label }
-						<span className="sakura-tab-lock" aria-hidden="true" />
+						<span className="sakura-tab-lock" aria-hidden="true"><LockIcon /></span>
 						<span className="screen-reader-text">{ tab.note }</span>
 					</span>
 				)

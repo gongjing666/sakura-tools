@@ -168,7 +168,7 @@ final class Shell {
 					<span class="sakura-tab is-disabled<?php echo $tab_data['active'] ? ' is-active' : ''; ?>"
 						aria-disabled="true"
 						tabindex="-1"
-						title="<?php echo esc_attr( $tab_data['note'] ); ?>"><?php echo esc_html( $tab_data['label'] ); ?><span class="sakura-tab-lock" aria-hidden="true"></span><span class="screen-reader-text"><?php echo esc_html( $tab_data['note'] ); ?></span></span>
+						title="<?php echo esc_attr( $tab_data['note'] ); ?>"><?php echo esc_html( $tab_data['label'] ); ?><span class="sakura-tab-lock" aria-hidden="true"><?php echo UI::lock_icon(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Static SVG. ?></span><span class="screen-reader-text"><?php echo esc_html( $tab_data['note'] ); ?></span></span>
 					<?php endif; ?>
 				<?php endforeach; ?>
 			</nav>

@@ -3,7 +3,7 @@
 本页管 **PHP 这一侧怎么写**：语言特性能用哪些、哪些禁用、8.3/8.4 的写法在 8.2 上怎么办、提交前怎么自查。**不管**三道关怎么跑（见 [05-测试与质量](05-测试与质量.md)）、不管目录与装配（见 [01-架构与装配](01-架构与装配.md)）、不管 option / SQL / 数据落点的细节（见 [04-数据与存储](04-数据与存储.md) 与 [02-新增功能](02-新增功能.md)）。
 
 - 兼容基线：**PHP 8.2 – 8.4**。下限写在插件头 `sakura-tools.php:8` 的 `Requires PHP: 8.2`。
-- 生产实际：`/www/server/panel/vhost/nginx/www.nboke.com.conf` 指向 `php-84`；同机 `/www/server/php/` 下 `83`、`84` 两套 FPM 并存（2026-11-24 核对）。开发机 CLI 为 8.4.28。
+- 生产实际：`/www/server/panel/vhost/nginx/www.nboke.com.conf` 指向 `php-84`；同机 `/www/server/php/` 下 `82`、`83`、`84` 三套 FPM 并存（2026-11-26 核对）。面板默认 `php` 是 8.2.36（该 build 的 `disable_functions` 见 [05-测试与质量](05-测试与质量.md) §1），跑测试与三关时把 8.4.28 放进 PATH。
 - 官方依据（本篇所有版本差异只从这里来，不凭印象）：
   - PHP 手册：[8.2 迁移](https://www.php.net/manual/en/migration82.php)（[弃用](https://www.php.net/manual/en/migration82.deprecated.php)）、[8.3 迁移](https://www.php.net/manual/en/migration83.php)（[弃用](https://www.php.net/manual/en/migration83.deprecated.php)）、[8.4 迁移](https://www.php.net/manual/en/migration84.php)（[弃用](https://www.php.net/manual/en/migration84.deprecated.php)）
   - php-src 的 UPGRADING 原文：[PHP-8.2](https://github.com/php/php-src/blob/PHP-8.2/UPGRADING)、[PHP-8.3](https://github.com/php/php-src/blob/PHP-8.3/UPGRADING)、[PHP-8.4](https://github.com/php/php-src/blob/PHP-8.4/UPGRADING)
@@ -77,7 +77,7 @@
 
 1. **隐式 nullable 参数。** `function f( string $x = null )` 在 8.4 报：
    `Deprecated: f(): Implicitly marking parameter $x as nullable is deprecated, the explicit nullable type must be used instead`
-   写法：`function f( ?string $x = null )`。**现状 0 处**（243 个文件 / 2508 个函数声明全扫过，2026-11-24）。
+   写法：`function f( ?string $x = null )`。**现状 0 处**（273 个文件 / 2525 个函数声明全扫过，2026-11-26）。
 2. **CSV 的 `$escape` 默认值。** `fputcsv()` / `fgetcsv()` / `str_getcsv()` / `SplFileObject::fputcsv()` 等同名方法不传 `$escape` 会报：
    `Deprecated: fputcsv(): the $escape parameter must be provided as its default value will change`
    **现状 0 处**（2026-11-24 修完 7 处：`includes/class-s3-cli.php` 2 处、`src/S3/Delete_Queue_Panel.php` 2 处、`src/S3/Sync_Center_Module.php` 3 处；全部是导出侧 CSV，仓库里没有 `fgetcsv()` 读回路径）。
@@ -91,12 +91,12 @@
 
 | 变化 | 官方口径 | 对本插件 |
 |---|---|---|
-| `round()` 重写 | 修正舍入实现与精度：`round( 0.49999999999999994 )` 旧版 `1.0`、8.4 为 `0.0`；`round( 4503599627370495.5 )` 旧版返回原值、8.4 为 `4503599627370496`；负数精度生效 | **60 处**。集中在 `src/S3/Cost_Estimator.php`（报价）与 `src/S3/Upload_Metrics.php`（速率 / 体积展示）；PNG 质量映射 `includes/class-gd-handler.php:140` 也用。展示值可能差一个最小单位，报价类要核对边界 |
+| `round()` 重写 | 修正舍入实现与精度：`round( 0.49999999999999994 )` 旧版 `1.0`、8.4 为 `0.0`；`round( 4503599627370495.5 )` 旧版返回原值、8.4 为 `4503599627370496`；负数精度生效 | **66 处**。集中在 `src/S3/Cost_Estimator.php`（报价）与 `src/S3/Upload_Metrics.php`（速率 / 体积展示）；PNG 质量映射 `includes/class-gd-handler.php:140` 也用。展示值可能差一个最小单位，报价类要核对边界 |
 | `number_format()` 负精度 | 8.3 起负数 `$decimals` 真正生效（此前被忽略） | 现有调用全传正数，无影响 |
 | `range()` | 8.3 起非法 step / 非数值边界抛 `ValueError`、发 `E_WARNING` | 0 处 |
-| `unserialize()` | 8.2 起结构校验更严；8.3 把 `E_NOTICE` 升为 `E_WARNING`；8.4 校验 `allowed_classes` 类型 | 2 处直接调用都带 `array( 'allowed_classes' => false )`（`src/S3/Link_Rewriter.php:187`、`src/S3/Link_Rewriter.php:240`），其余走 `maybe_unserialize()`。新代码保持这个写法 |
+| `unserialize()` | 8.2 起结构校验更严；8.3 把 `E_NOTICE` 升为 `E_WARNING`；8.4 校验 `allowed_classes` 类型 | 2 处直接调用都带 `array( 'allowed_classes' => false )`（`src/S3/Link_Rewriter.php:406`、`src/S3/Link_Rewriter.php:459`），其余走 `maybe_unserialize()`。新代码保持这个写法 |
 | `array_sum()` / `array_product()` | 8.3 起不可转数值的元素发警告 | 只用于数字数组；来自请求 / DB 时先 `array_map( 'intval', … )` |
-| `strtolower()` / `strtoupper()` | 8.2 起只做 ASCII 大小写，不再受 locale 影响 | 93 + 21 处；中文场景无影响，但不要指望它处理非 ASCII 大小写（用 `mb_strtolower()`） |
+| `strtolower()` / `strtoupper()` | 8.2 起只做 ASCII 大小写，不再受 locale 影响 | 96 + 23 处；中文场景无影响，但不要指望它处理非 ASCII 大小写（用 `mb_strtolower()`） |
 | `str_split( '' )` | 8.2 起返回 `[]`（此前 `['']`） | 不要假设空串会得到 `['']` |
 | GD 输出函数 | 8.4 起非法 quality / size 抛异常（此前静默） | `includes/class-gd-handler.php:52` 已 `max( 1, min( 100, absint( … ) ) )`，不会触发；新增输出格式时仍要 clamp |
 | `password_hash()` | 8.4 起 bcrypt 默认 cost 10 → 12 | 插件不存密码（0 处）；不要在插件里自算用户密码 hash |
@@ -197,9 +197,9 @@ namespace Sakura\ImageOptimizer\Admin;
 ```
 
 - 新文件**必须**带 `declare( strict_types=1 );`，且放在 namespace 之前。
-- 现有覆盖：`src/` 213 个文件里 177 个已声明，36 个没有（`src/Zibll/` 全部、`src/Sync/` 与 `src/S3/` 的一部分、`src/UserFiles/` 与 `src/Admin/` 的一部分）。**不要批量补**：strict_types 会改变参数强制转换行为，给旧文件补等于一次行为变更，必须单独提交并跑三道关。改到哪个文件、确认测试过了，再顺手补。
-- `includes/` 的 30 个旧类只有 3 个声明，保持原样；它们是兼容层，不做风格迁移。
-- 直访守卫：`src/` 里 202/213 有 `defined( 'ABSPATH' )` 守卫。新文件照写。
+- 现有覆盖：`src/` 233 个文件里 215 个已声明，18 个没有（`src/S3/` 11 个、`src/Admin/` 4 个、`src/Sync/` 2 个、`src/UserFiles/` 1 个；`src/Zibll/` 已全覆盖）。**不要批量补**：strict_types 会改变参数强制转换行为，给旧文件补等于一次行为变更，必须单独提交并跑三道关。改到哪个文件、确认测试过了，再顺手补。
+- `includes/` 的 14 个旧类只有 1 个声明；23 个视图模板里有 2 个（视图只在 bundle 不可读时作回退）。两者都保持原样：旧类是兼容层，视图是回退层，都不做风格迁移。
+- 直访守卫：`src/` 里 221/233 有 `defined( 'ABSPATH' )` 守卫。新文件照写。
 - 类文件不 `exit`、不输出、不产生副作用；钩子注册一律走 `register_hooks()`（见 [01-架构与装配](01-架构与装配.md)）。
 
 ### 3.2 类型
@@ -222,7 +222,7 @@ public function keys( array $files ): array {
 
 ### 3.3 类与属性
 
-- **默认 `final`**（现有 203 个 `final class`）。确实要给测试替身或扩展点继承时才去掉；去掉时在类 docblock 里写一句为什么。
+- **默认 `final`**（现有 223 个 `final class`）。确实要给测试替身或扩展点继承时才去掉；去掉时在类 docblock 里写一句为什么。
 - 一个文件一个类，类名 = 文件名（PSR-4）。现有两种命名并存（`Image_Payload` 与 `S3_Credential_Error`），新类沿用所在目录的既有风格，**不要为改名而改名**。
 - **属性必须声明**（8.2 起动态属性弃用）。不要在 `__construct()` 里 `$this->foo = ...` 一个没声明的属性。
 - readonly 属性用于不可变值对象（现有 `src/Thumbnail/Rendition.php:60-66` 的构造器提升 + readonly）。带状态、要 `set_*()` 的对象不要 readonly。
@@ -232,7 +232,7 @@ public function keys( array $files ): array {
 
 ### 3.4 控制流
 
-- `match` 可用（现有 60 处），但必须穷尽或带 `default`；**不要用 `match` 的表达式做副作用**（写库、发请求、改全局）。
+- `match` 可用（本仓暂未使用），但必须穷尽或带 `default`；**不要用 `match` 的表达式做副作用**（写库、发请求、改全局）。
 - 早返回，嵌套不超过 3 层。`if` 里能 `return` 就不要 `else`。
 - `??` 只处理 `null`。`WP_Error` 不是 `null`，`$result ?? $fallback` 不会替你兜错误，必须 `is_wp_error()`。
 - 比较一律 `===` / `!==`；`in_array()` 第三参必须 `true`（现有调用全部符合）；`array_search()` 同理。
@@ -242,7 +242,7 @@ public function keys( array $files ): array {
 
 ### 3.5 字符串、正则与多字节
 
-- 插值用 `"{$var}"`；复杂拼接用 `sprintf()`（现有 347 处，跟着用）。
+- 插值用 `"{$var}"`；复杂拼接用 `sprintf()`（现有 390 处，跟着用）。
 - 正则：`preg_*` 的返回值必须分别判 `false`（失败）与 `0`（不匹配），两者不是一回事；拼用户输入先 `preg_quote()`；分隔符统一 `/`。
 - 中文 / emoji 一律 `mb_*` 或 `preg_*` 加 `/u`：字符数用 `mb_strlen()`，字节数才用 `strlen()`。不要用 `substr()` 截 UTF-8。
 - 大小写：`strtolower()` 自 8.2 起只做 ASCII；非 ASCII 用 `mb_strtolower()`。
@@ -257,9 +257,9 @@ public function keys( array $files ): array {
 
 ### 4.1 边界返回 WP_Error，内部抛异常
 
-- **WP 边界**（钩子回调、REST、AJAX、CLI 命令入口）返回 `WP_Error`（现有 188 处）或 `wp_send_json_error()`（现有 51 处）；不要把异常抛进 WP 核心。
-- **服务内部**抛异常（现有 40 处），由调用方决定转 `WP_Error`、重试还是中止。
-- 自定义异常：`final class Xxx_Error extends \RuntimeException`，放对应模块目录。现有两个：`src/S3/S3_Credential_Error.php:24`、`src/UserFiles/Services/Media_Move_Failure.php:21`。异常消息给开发者看（英文或中文均可），**用户可见文案在边界用 `__( '…', 'sakura-imgopt' )` 翻译**。
+- **WP 边界**（钩子回调、REST、AJAX、CLI 命令入口）返回 `WP_Error`（现有 217 处）或 `wp_send_json_error()`（现有 79 处）；不要把异常抛进 WP 核心。
+- **服务内部**抛异常（现有 51 处），由调用方决定转 `WP_Error`、重试还是中止。
+- 自定义异常：`final class Xxx_Error extends \RuntimeException`，放对应模块目录。现有三个：`src/S3/S3_Credential_Error.php:24`、`src/S3/Save_Refused.php:16`、`src/UserFiles/Services/Media_Move_Failure.php:21`。异常消息给开发者看（英文或中文均可），**用户可见文案在边界用 `__( '…', 'sakura-imgopt' )` 翻译**。
 - 异常要带上下文：对象 key、profile id、attachment id。不要 `throw new \RuntimeException( 'failed' )`。
 
 ### 4.2 捕获
@@ -273,7 +273,7 @@ public function keys( array $files ): array {
 
 - `trigger_error()`：8.4 起传 `E_USER_ERROR` 已弃用。要提醒开发者用 `_doing_it_wrong()`，要中止请求用 `wp_die()`。
 - `die()` / `exit()`：只允许 `uninstall.php`、`fast-search.php` 的直访守卫。8.4 起 `exit` 更像函数（可当 callable、受 strict_types 影响），不要把它传来传去。
-- `@` 抑制：只允许文件系统探针，且必须 `set_error_handler()` 后还原（现有 7 处 set_error_handler）。PHPCS 已关掉 `NoSilencedErrors`，所以评审要看理由。
+- `@` 抑制：只允许文件系统探针，且必须 `set_error_handler()` 后还原（现有 4 处 set_error_handler）。PHPCS 已关掉 `NoSilencedErrors`，所以评审要看理由。
 - `error_log()` 刷生产日志：调试用 Query Monitor（[01-架构与装配](01-架构与装配.md) §2）；持久错误交给 WP 的 `debug.log`。
 - 不要自己 `echo` 错误页：后台用 `wp_die()`，前台返回 `WP_Error` / HTTP 状态。
 
@@ -290,22 +290,22 @@ public function keys( array $files ): array {
 - **SQL**：表名只走各 Schema 的 `table()`；值只走 `$wpdb->prepare()`；**占位符数量与参数数量一一对应**。F13 的教训：13 列对 12 个占位符，只有把参数 `substitute()` 回 SQL 的测试才抓到（[05-测试与质量](05-测试与质量.md)）。
 - **option**：业务代码不直接 `get_option()`（铁律 9），走 `Settings_Repository`；新增 option 同时进 `Uninstaller`（铁律 6）。
 - **i18n**：用户可见文案 `__( '…', 'sakura-imgopt' )`；异常消息不翻译；不要拼接可翻译字符串（用 `sprintf` + 完整句式）。
-- **时间**：`time()` / `gmdate()`；不要 `date()` 依赖站点时区（现存 1 处旧代码，不要新增）。
+- **时间**：`time()` / `gmdate()`；不要 `date()` 依赖站点时区（现存 0 处，不要新增）。
 - **文件**：走现有 `File_System` 抽象；`is_resource()` 只用于文件句柄；临时文件名用 `random_bytes()`，不要新增 `uniqid()`（现存 3 处旧代码）。
-- **序列化**：option 只存标量 / 数组，不 `serialize()` 对象；`unserialize()` 必须 `array( 'allowed_classes' => false )`（现有 `src/S3/Link_Rewriter.php:187` / `:240` 就是标准写法），其余优先 `maybe_unserialize()`。
+- **序列化**：option 只存标量 / 数组，不 `serialize()` 对象；`unserialize()` 必须 `array( 'allowed_classes' => false )`（现有 `src/S3/Link_Rewriter.php:406` / `:459` 就是标准写法），其余优先 `maybe_unserialize()`。
 - **图片**：GD / Imagick 输出质量必须 clamp（8.4 起非法值抛异常）；格式能力用 `function_exists( 'imageavif' )` 判断，不要假设。
 - **HTTP**：用 `wp_remote_*`（超时、重试、代理由 WP 管），不要裸 `curl_*`（现有 0 处）；S3 SDK 走 `src/S3/Object_Store.php` 是既定例外。
 
 ## 6. 让静态检查兜住版本
 
-### 6.1 现在谁管什么（2026-11-24 实测）
+### 6.1 现在谁管什么（2026-11-26 实测）
 
 | 检查 | 实际行为 | 管什么 |
 |---|---|---|
 | `composer phpstan` | `phpstan.neon` 已写 `phpVersion: 80200`，本地按 8.2 的函数 / 类表判断 | 8.3+ 的 API 在本地也会报 unknown；当前 0 处，`[OK] No errors` |
 | `composer lint:strict` | `WordPress-Extra`（`phpcs.xml.dist`），只管 WP 惯例与安全 | 8.3 语法、8.4 弃用都不管 |
 | `composer lint:compat` | `phpcs-compat.xml.dist` + PHPCompatibility，`testVersion 8.2-8.4` | 版本相关的语法 / 函数 / 弃用；当前 0 error / 0 warning |
-| `php -l` | 只查语法；本机只有 8.3 / 8.4（`/www/server/php/` 下只有 `83`、`84`） | 不能证明 8.2 可解析 |
+| `php -l` | 只查语法；本机 `82`/`83`/`84` 三套都在（默认 `php` 是 8.2.36，三关用 8.4.28） | 用 8.4 的二进制不能证明 8.2 可解析；要证明就显式跑 `/www/server/php/82/bin/php -l` |
 | GitHub Actions `tests.yml` | matrix **8.2 / 8.3 / 8.4** 跑 PHPUnit | 只有被测试真正加载到的文件才会在 8.2 下解析；WP-CLI、视图、Zibll 桥等覆盖不到的文件仍可能带 8.3 语法漏到生产 |
 
 本地能给出「8.2 写、8.4 跑」结论的是 `composer lint:compat`；CI 的 8.2 job 仍是最后防线。
@@ -325,7 +325,7 @@ public function keys( array $files ): array {
 版本选择：
 
 - 稳定线 **9.3.5（2019-12-27）** 只认识到 PHP 7.4，接了等于假安全感。
-- **10.0.0-alpha3（2026-11-17）** 有 8.3/8.4 的 sniff，但要求 `squizlabs/php_codesniffer: ^4.0.2`；本仓库是 phpcs 3.13.6 + WPCS 3.2（WPCS 3.x 只支持 phpcs 3.x），换 4.0 要连 WPCS 一起动。
+- **10.0.0-alpha3（2026-11-17）** 有 8.3/8.4 的 sniff，但要求 `squizlabs/php_codesniffer: ^4.0.2`；本仓库是 phpcs 3.13.6 + WPCS 3.4.1（WPCS 3.x 只支持 phpcs 3.x），换 4.0 要连 WPCS 一起动。
 - **10.0.0-alpha2（2025-11-28）** 要求 `phpcs ^3.13.3 || ^4.0`、`phpcsutils ^1.1.2`，与现状兼容，且已含 8.3/8.4 的 sniff（`RemovedImplicitlyNullableParamSniff`、`RemovedProprietaryCSVEscapingSniff`、`NewClassMemberAccessWithoutParenthesesSniff`、`RemovedTriggerErrorLevelSniff`、`RemovedXmlSetHandlerCallbackUnsetSniff` 等）。
 
 落地物：
@@ -334,7 +334,7 @@ public function keys( array $files ): array {
 - `phpcs-compat.xml.dist`：扫 `sakura-tools.php`、`uninstall.php`、`fast-search.php`、`src/`、`includes/`；排除 `vendor/`、`node_modules/`、`assets/`、`tests/`、`docs/`；`testVersion 8.2-8.4`（8.2 是语法下限、8.4 是生产运行时，8.4 才出现的弃用也能抓到）。
 - `composer.json` 的 scripts：`"lint:compat": "phpcs --standard=phpcs-compat.xml.dist"`。
 
-基线 **0 error / 0 warning**（2026-11-24）。第一次跑出 7 条 `RemovedProprietaryCSVEscaping.DeprecatedParamNotPassed`，都是 `fputcsv()` 没显式传 `$escape`，已按 §1.3 第 2 条修完。
+基线 **0 error / 0 warning**（2026-11-26，本轮复跑）。第一次跑出 7 条 `RemovedProprietaryCSVEscaping.DeprecatedParamNotPassed`，都是 `fputcsv()` 没显式传 `$escape`，已按 §1.3 第 2 条修完。
 
 装不上时先看 composer 版本：本机 `/usr/bin/composer` 是 2.0.14（2021），`composer-plugin-api` 2.0.0 满足不了 `dealerdirect/phpcodesniffer-composer-installer` 的 `^2.2`，会直接报 Problem 1/2；换新版 `composer.phar`（2.11.2）装。
 
@@ -362,24 +362,24 @@ grep -rnE '\b(fputcsv|fgetcsv|str_getcsv)[[:space:]]*\(' src includes
 
 注意：grep 是提示不是判定——第 3 条会把 `?string $x = null` 也命中（那是正确写法）。最终以 `composer lint:compat`、CI 的 8.2 job 与代码评审为准。
 
-## 7. 现状盘点（2026-11-24 实测）
+## 7. 现状盘点（2026-11-26 实测）
 
 扫描范围：`src/`、`includes/`、`sakura-tools.php`、`uninstall.php`、`fast-search.php`。方法：`token_get_all()` 一次性脚本统计函数声明与参数，配合 grep 统计调用；脚本未入库，结论是**快照**，改完代码按 §6.4 重跑。
 
 | 项目 | 实测 | 结论 |
 |---|---|---|
-| PHP 文件 / 函数声明 | 243 / 2508（`src/` 213、`includes/` 30） | — |
+| PHP 文件 / 函数声明 | 273 / 2525（`src/` 233、`includes/` 37、根目录 3） | — |
 | 隐式 nullable 参数 | **0** | 8.4 弃用为零；新代码保持 |
 | 8.3 / 8.4 独有语法 | 0 | 无 typed constants、无 `#[\Override]`、无 property hooks、无非对称可见性、无 `new Foo()->` |
 | 8.3 / 8.4 独有 API | 0（`vendor/` 里 symfony polyfill 不算） | 不用守卫也安全；新增时必须走 §2.2 |
 | CSV 未显式传 escape | **0**（2026-11-24 修完 7 处） | 由 `composer lint:compat` 守护，见 §1.3 第 2 条 |
-| `strict_types` 覆盖 | `src/` 177/213；`includes/` 3/30 | 新文件必须；旧文件不批量补 |
-| `final class` / `readonly` 属性 | 203 / 17 | 默认 final、值对象 readonly 是现状 |
-| `match` / `fn` / `?->` / `enum` / `never` | 60 / 38 / 0 / 0 / 5 | match 与箭头函数已常用；enum 未用 |
-| `WP_Error` / `throw` / 自定义异常 | 188 / 40 / 2 | 边界返回错误对象、内部抛异常已是现状 |
-| `round()` / `range()` / `unserialize()` | 60 / 0 / 2（两处直接调用都带 `allowed_classes => false`） | 8.4 round 重写要抽样核对 |
-| `php -l` 全仓 | 0 语法错误（PHP 8.4.28） | 只能证明 8.4 可解析 |
-| 生产 / CI / 本地 PHP | 生产 8.4；CI matrix 8.2/8.3/8.4，phpstan CI 固定 8.2；本地 8.4.28 | 本地最容易漏 8.3+ API |
+| `strict_types` 覆盖 | `src/` 215/233；`includes/` 3/37（1 个旧类、2 个视图） | 新文件必须；旧文件不批量补 |
+| `final class` / `readonly` 属性 | 223 / 7 | 默认 final、值对象 readonly 是现状 |
+| `match` / `fn` / `?->` / `enum` / `never` | 0 / 41 / 0 / 0 / 0 | `match` 与 `never` 未用；箭头函数 41 处 |
+| `WP_Error` / `throw` / 自定义异常 | 217 / 51 / 3 | 边界返回错误对象、内部抛异常已是现状 |
+| `round()` / `range()` / `unserialize()` | 66 / 0 / 2（两处直接调用都带 `allowed_classes => false`） | 8.4 round 重写要抽样核对 |
+| `php -l` 全仓 | 0 语法错误（8.2.36 与 8.4.28 各扫一遍） | 8.2 与 8.4 都能解析 |
+| 生产 / CI / 本地 PHP | 生产 8.4；CI matrix 8.2/8.3/8.4，phpstan CI 固定 8.2；本地默认 8.2.36、三关用 8.4.28 | 默认 CLI 守语法下限，8.4 才查得出弃用 |
 
 ## 8. 提交自检
 

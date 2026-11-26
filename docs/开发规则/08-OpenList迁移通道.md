@@ -3,7 +3,7 @@
 这一页记录本站点上的 **OpenList** 实例，以及「跨厂商搬桶」这件事**人工**怎么做。**OpenList 不是上传路径，也不在插件里**——上传永远走 WordPress 媒体库与插件自己的 `Object_Store`；插件与 OpenList 之间**没有任何代码耦合**（没有常驻镜像挂载、没有迁移卡、没有凭据落库）。
 
 > 相邻篇：换桶在插件里的唯一路径见 [07-S3存储生命周期](07-S3存储生命周期.md) §6；新增一家存储厂商见 [02-新增功能](02-新增功能.md) §12；option 的读写与卸载见 [04-数据与存储](04-数据与存储.md)。
-> 本页的 API 事实分两批取证：**2026-11-17** 用本机实例实测（当时 v4.2.4），**2026-11-18** 按本机 v4.2.9 与上游源码逐条复核（`/api/fs/copy` 的合并语义、任务队列持久化、跨挂载的元数据损失）；插件侧基线 1.28.3。上游改版后以实测为准并顺手修正本页。
+> 本页的 API 事实分两批取证：**2026-11-17** 用本机实例实测（当时 v4.2.4），**2026-11-18** 按本机 v4.2.9 与上游源码逐条复核（`/api/fs/copy` 的合并语义、任务队列持久化、跨挂载的元数据损失）；插件侧代码引用已按 1.29.0 基线复核（2026-11-26）。上游改版后以实测为准并顺手修正本页。
 > 本页**不含任何明文密钥**。账号密码走运维侧凭据文件与记忆，不进仓库。
 > **状态（2026-11-18 定稿）：插件不实现 OpenList 迁移通道。** 本页是**人工操作手册**，不是待实现的设计；决策与理由见 §11 第一行。能不用 OpenList 就别用——本地有副本时插件原生上传（§7.4）完全够用，且它是本站唯一能验证「搬对了」的路径。
 
@@ -470,7 +470,7 @@ GET /api/task/copy/done     → {"code":200,"data":[...]}
           └─ 目标根本不是 S3 桶（本地磁盘）──→ 用 OpenList 手工搬，按 §7.5
 ~~~
 
-> **别用 OpenList 预填目标桶再让插件跳过上传。** 这条路看着省时间，实际会把索引灌坏：预填的对象在 `scan --full` 之后因「本地有、远端有、大小相同」被判成 `synced`（`src/Sync/Index_Repository.php:999-1007` 的对账 SQL **只比大小**），而 `Bucket_Confirmation` 只认 `synced` 行、`wp sakura-s3 migrate` 据此**永久跳过**这些对象；`verify` 也不会报警——字节确实一样，错的是 `Content-Type` 与 ACL。结果是「索引说干净、对象是错的」，之后插件再没有任何路径会去修。
+> **别用 OpenList 预填目标桶再让插件跳过上传。** 这条路看着省时间，实际会把索引灌坏：预填的对象在 `scan --full` 之后因「本地有、远端有、大小相同」被判成 `synced`（`src/Sync/Index_Repository.php:1084-1091` 的对账 SQL 在 `local_md5` 与 32 位 ETag 都在时比哈希，否则只比大小），而 `Bucket_Confirmation` 只认 `synced` 行、`wp sakura-s3 migrate` 据此**永久跳过**这些对象；`verify` 也不会报警——字节确实一样，错的是 `Content-Type` 与 ACL。结果是「索引说干净、对象是错的」，之后插件再没有任何路径会去修。
 
 ### §7.2 全新目标桶怎么设计
 
@@ -500,7 +500,7 @@ GET /api/task/copy/done     → {"code":200,"data":[...]}
 
 **③ 路径与域名**
 
-- `upload_path` 不要换前缀（上面已说），也不要用 `.`（根）——那是另一套 URL 归一逻辑（`normalize_root_url()`，`src/S3/Storage.php:968`）。
+- `upload_path` 不要换前缀（上面已说），也不要用 `.`（根）——那是另一套 URL 归一逻辑（`normalize_root_url()`，`src/S3/Storage.php:1042`）。
 - **公网域名保持不变**（本站 `https://bf.nboke.com/wp-content/uploads`）：只切 CDN 回源，`upload_url_path` 不动，正文里的图片地址不用重写，`srcset` 基址跟着 `wp_get_upload_dir()` 走也不用动。
 - 真要换域名，顺序是：改 `upload_url_path` → Url_Rewrite 规则（R12）→ 正文 / 摘要 / 自定义字段批量替换 → CDN 预热 → 抽样验证。这一步与「搬对象」是两件事，能不做就别做。
 - 桶必须空，或只用你这一个前缀：迁移前 `fs/list` 目标前缀确认 `total=0`（§7.5 第 2 步的「空桶校验」）。与别的站点共用前缀，会让 §7.3 的「同名不同内容」从理论风险变成数据事故。
@@ -559,11 +559,11 @@ wp sakura-sync stats                                      # 索引行数（按 s
 
 **切到目标之后的正规校验与修复**（插件自己有链路，不要另写脚本）：
 
-1. `wp sakura-sync scan --full`：把目标桶对象写进 `nb_sio_sync_index`，行状态由对账 SQL 给出（`src/Sync/Index_Repository.php:999-1007`）：本地与远端都在且 size 相同 → `synced`；size 不同 → `mismatch`；只有远端 → `remote`；只有本地 → `pending`。**它只比大小。**
+1. `wp sakura-sync scan --full`：把目标桶对象写进 `nb_sio_sync_index`，行状态由对账 SQL 给出（`src/Sync/Index_Repository.php:1084-1091`）：本地与远端都在时，若 size 相同且 `local_md5` 与 32 位 MD5 格式的 ETag 都在，则比哈希——相同 `synced`、不同 `mismatch`；其余按 size：相同 `synced`、不同 `mismatch`。只有远端 → `remote`；只有本地 → `pending`。**分片 ETag 与没有本地 MD5 的行只比大小。**
 2. `wp sakura-sync verify --seconds=60`：对已同步的行比本地 MD5 与远端 ETag；只有 32 位 hex 的 ETag 可比，分片（>5 MB）标 `unverifiable`（`src/Sync/Checksums.php`、`src/Sync/Verify_Service.php`）。
 3. 修：
    - 有本地文件 → `wp sakura-s3 migrate` 只重传「未被 `Bucket_Confirmation` 确认」的附件（它只认索引里 `status=synced` 且桶 hash 匹配的行，`src/S3/Bucket_Confirmation.php`）。
-   - 只想修一批 key → 同步中心批量上传（`keys` ≤ 200，云端已存在要输入 `REPLACE`，`src/S3/Sync_Center_Module.php:790`）。上传是 `PUT` 覆盖，会带上正确的 `ContentType` / ACL / `Content-MD5`。
+   - 只想修一批 key → 同步中心批量上传（`keys` ≤ 200，云端已存在要输入 `REPLACE`，`src/S3/Sync_Center_Module.php:899-979`）。上传是 `PUT` 覆盖，会带上正确的 `ContentType` / ACL / `Content-MD5`。
    - 本地没有、内容又可疑 → 只能从源重取（路线 C 对单个 key `overwrite`），或接受并记入遗留清单。
 4. **禁止的修复**：整棵树再 `copy` 一遍。`merge` 会全部跳过（白跑），`overwrite` 会全部覆盖（把迁移窗口里新上传的对象打回源版本）。
 
@@ -615,7 +615,7 @@ wp sakura-sync stats
 
 1. **不要动配置**（源配置还是活动配置）。
 2. 同步中心先跑一次核对（`scan`），让「远端有、本地没有」的对象进索引（`remote` / 本地缺失）。
-3. 同步中心批量下载：`keys` ≤ 200／次，`seconds` 3–60。下载走 `Sync_Actions::download()`（`src/S3/Sync_Actions.php:70`），**本地已存在会直接拒绝覆盖**（`sakura_s3_local_exists`），正好是「只补缺」的语义；成功后写回 `synced`、`Attachment_Adopter`、用户文件空间账本（R13/R14）。
+3. 同步中心批量下载：`keys` ≤ 200／次，`seconds` 3–60。下载走 `Sync_Actions::download()`（`src/S3/Sync_Actions.php:75`），**本地已存在会直接拒绝覆盖**（`sakura_s3_local_exists`），正好是「只补缺」的语义；成功后写回 `synced`、`Attachment_Adopter`、用户文件空间账本（R13/R14）。
 4. 下载完用第 0 步的 file 清单核对数量，再走 A。
 
 注意：OpenList 也能做「源挂载 → Local 挂载」，但那会**覆盖**本地同名文件（`drivers/local/driver.go:426` 直接 os.Create 截断写，非原子），而且不写插件记账——补缺请用同步中心，不要用 OpenList。
@@ -723,7 +723,7 @@ V1 到 V6 是 2026-11-17 在本机 v4.2.4 实测、2026-11-18 按 v4.2.9 源码�
 - **V12** 目标目录里没有残留 `.openlist`：`fs/list` 不显示它，但 `fs/get .openlist` 能取到就是没删。
 - **V13** 抽样 `curl -I` ≥10 个对象：状态码 200、`Content-Length` 与源一致、`Content-Type` 与 `wp_check_filetype` 的推断一致（不一致就回插件重传）。
 - **V14** 切到目标配置并 `scan --full` 后：`synced` 行数 = 目标对象数；`remote` 行数为 0（为 0 才能删源桶）。
-- **V15** 有本地副本时 `verify` 跑完 `mismatched=0`；`unverifiable` 只应出现在 ≥16 MB 的分片对象上（`Object_Store` 的单段上限，`src/S3/Object_Store.php:109`）。
+- **V15** 有本地副本时 `verify` 跑完 `mismatched=0`；`unverifiable` 只应出现在 ≥16 MB 的分片对象上（`Object_Store` 的 16 MB 单段阈值，`src/S3/Object_Store.php:86`）。
 - **V16** CDN 回源切到目标后，抽样访问附件页与 `srcset` 候选，全部 200。
 - **V17** 观察期内 `debug.log` 没有新增 `sakura_s3_*` 报错；同步中心的差异数回零。
 - **V18** 删除临时挂载后 `storage/list` 回到迁移前，桶内对象数量不变（删挂载不删对象）。

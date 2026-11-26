@@ -278,11 +278,12 @@ export default function App( { boot } ) {
 		}
 	};
 
-	const askRisk = ( accept ) => {
+	const askRisk = ( accept, cancel ) => {
 		setDialog( {
 			kind: 'risk',
 			items: strings.riskAckItems || [],
 			accept,
+			cancel,
 		} );
 	};
 
@@ -358,7 +359,14 @@ export default function App( { boot } ) {
 						setDialog( null );
 						accept();
 					} }
-					onClose={ () => setDialog( null ) }
+					onClose={ () => {
+						const cancel = dialog.cancel;
+
+						setDialog( null );
+						if ( cancel ) {
+							cancel();
+						}
+					} }
 				/>
 			);
 		}

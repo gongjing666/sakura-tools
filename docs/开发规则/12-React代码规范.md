@@ -1,6 +1,6 @@
 # 12 React 代码规范
 
-后台的 React 内容区（PHP 外壳 + React 内容区混合渲染，系统设置与图像优化四页签）怎么写。**先读 [03-后台UI](03-后台UI.md) §9.3 的分工表**——哪块归 PHP、哪块归 React 由那张表定；本篇只讲 React 这一侧怎么写。**本篇管写法，不管视觉**——样式规则在 [03-后台UI](03-后台UI.md)，资源加载在 [10-静态资源手册](10-静态资源手册.md)。
+后台的 React 内容区（PHP 外壳 + React 内容区混合渲染；1.29.0 起 16 个后台页面的内容区全部迁岛）怎么写。**先读 [03-后台UI](03-后台UI.md) §9.3 的分工表**——哪块归 PHP、哪块归 React 由那张表定；本篇只讲 React 这一侧怎么写。**本篇管写法，不管视觉**——样式规则在 [03-后台UI](03-后台UI.md)，资源加载在 [10-静态资源手册](10-静态资源手册.md)。
 
 - 基线版本：`react@19.3.1` / `react-dom@19.3.1`（`package.json` 写 `^19.0.0`，实际解析到 19.3.1，2026-11-24 核对）、`esbuild@0.25.12`
 - **为什么追最新 19**：插件把 React 打进自己的 bundle（`var SakuraUI`，不读 `window.React`），与 wp-admin 自带的 18.3.1 **互不共享**，所以不存在「同页两个副本版本打架」的问题；开发者 2026-11-24 决定以最新版为基准（推翻了当天早些时候「跟随 WordPress」的方案，原因见 `DECISIONS.md`）。代价是包体更大（19 版 `image.js` 254 KB vs 18 版 176 KB），换来 19 的写法（Actions、`ref` 当 prop、`<Ctx value>`）可用。
@@ -46,7 +46,7 @@
 1. `npm view react version` 看最新版；记下 `react` 与 `react-dom` 是否是同一版本（两者必须一致）。
 2. 改 `package.json`（保持 `^19.0.0` 这种范围，或临时写死精确版本做对比），`npm install`。
 3. `node bin/build-ui.mjs`，确认产物里 `O.version="<新版本>"`，记下 `image.js` / `system.js` 的新字节数。
-4. 跑 §10 的自检 + 1440/390 的七个页面（系统设置 + 图像优化四页签 + 任选一个 PHP 直出页对照）。
+4. 跑 §10 的自检 + 1440/390 的全部 16 个后台页面（至少覆盖系统设置、图像四页、存储五页、文件五页与子比增强）。
 5. 改本文件文首的基线行、§11 的包体数字，再提交。**升级单独一次提交**，不要和功能改动混在一起。
 
 > 附注：WordPress 7.1.4 自带的是 React 18.3.1（见 `wp-includes/js/dist/vendor/react.js` 的 `ReactVersion`）。我们不用它，因为 bundle 自包含；但如果哪天要改成读 WP 的那份，先读这个文件确认版本，再按「同页两个副本」的风险表逐项验证——2026-11-24 走过一遍，包体小 74/80 KB，随后被开发者否掉。
@@ -78,11 +78,21 @@ assets/ui/src/
     transport.js       ← ajax() 直接转发 admin.api，reloadWithToast() 走 sessionStorage 跨重载
     format.js          ← 数字 / 字节 / 日期格式化
   deletes/
-    index.jsx          ← 挂在 .sakura-admin[data-sakura-page="storage-deletes"] 的 <main>
-    app.jsx            ← 外壳：筛选/分页 URL、轮询与退避、重试/丢弃/导出、操作后的 snapshot 合并
-    transport.js       ← REST /storage/deletes 与 /retry /drop，导出仍走 admin-post
-    live.jsx           ← 实时面板：四计数、堆叠进度、速率/ETA/下次到期、本次打开后进度、正在执行
-    table.jsx          ← 完整队列表（含已完成）、筛选 chip、勾选、每行进度、分页
+    index.jsx app.jsx live.jsx table.jsx transport.js
+  rewrite/
+    index.jsx app.jsx target.jsx scan.jsx preview.jsx run.jsx history.jsx status.js transport.js
+  cost/
+    index.jsx app.jsx transport.js
+  files/
+    index.jsx app.jsx form.jsx policy.jsx appearance.jsx color.js entry-gate.jsx
+  files-users/ files-queue/ files-log/
+    index.jsx app.jsx（+ sanction.jsx / caps.jsx）
+  zibll/
+    index.jsx app.jsx diagnostics.jsx payment.jsx entry.jsx gate.jsx bonus.jsx plans.jsx grants.jsx reconcile.jsx controls.jsx form.jsx
+  performance/
+    index.jsx app.jsx
+  shared/
+    ui.jsx
 ```
 
 规矩：
@@ -134,7 +144,7 @@ useEffect( () => {
 
 ## 5. 动作（Actions）与表单
 
-我们是 React 19.3，Actions 模型（`useActionState` / `useOptimistic` / async `startTransition` / 表单 `action`）**都可用**。但现有四个页签仍是手写 `saving` + `try/catch`，这是历史写法，不是禁令：
+我们是 React 19.3，Actions 模型（`useActionState` / `useOptimistic` / async `startTransition` / 表单 `action`）**都可用**。但现有页面仍以手写 `saving` + `try/catch` 为主，这是历史写法，不是禁令：
 
 - **新写的保存动作优先 `useActionState`**：`const [ state, action, pending ] = useActionState( save, null )`，把 `pending` 交给 `BusyLabel`、把 `state.notice` 交给 `Prompt`。省掉三份手写状态（`saving` / `error` / `notice`）。
 - **老的别一次性全换**。真正的收益在于少写状态机；批量重写会掩盖回归。按页签逐个迁移，并在提交信息里写清「哪个页签换成了 Actions」。
@@ -206,22 +216,22 @@ git diff --check
 - [ ] 键盘：Tab 不出弹窗、Esc 关闭、焦点回触发元素
 - [ ] 1440 与 390 两个宽度：无横向溢出，控制台 0 error / 0 warning
 
-## 11. 现状盘点（2026-11-25）
+## 11. 现状盘点（2026-11-26，1.29.0）
 
 对 `assets/ui/src` 的实测统计，写在这里是为了让下一次改动知道「已经站在哪」：
 
 | 项 | 数量 | 结论 |
 |---|---|---|
-| 文件 / 行数 | 85 个 / 13,758 行 | 规模可控；文件空间设置岛 7 个文件 / 499 行、文件空间三页 8 个文件 / 1,548 行（另有 4 个共享文件 / 250 行）、子比专属岛 12 个文件 / 1,301 行、性能优化岛 2 个文件 / 269 行、链接改写岛 9 个文件 / 876 行、费用估算岛 3 个文件 / 359 行 |
-| `useState` | 111 | 集中在各页 `app.jsx` 与卡片的 draft/saved |
-| `useEffect` | 29 | 全部带清理或只读依赖键（click / popstate / keydown / 定时器 / 值变化） |
-| `useRef` / `useCallback` | 23 / 7 | 合理个例 |
-| `useMemo` / `memo` / `createContext` | 1 / 0 / 0 | 既存的 1 处不在本次两页；本轮未新增 |
+| 文件 / 行数 | 85 个 / 13,758 行 | 16 个页面入口 + 13 个 bundle；storage 9、sync 13、deletes 5、rewrite 9、cost 3、files 11、files-users/queue/log 8、image 8、system 4、zibll 12、performance 2、shared 1 |
+| `useState` | 214 | 集中在各页 `app.jsx` 与卡片的 draft/saved（含 import 计数） |
+| `useEffect` | 62 | 全部带清理或只读依赖键（click / popstate / keydown / 定时器 / 值变化） |
+| `useRef` / `useCallback` | 45 / 12 | 合理个例 |
+| `useMemo` / `memo` / `createContext` | 3 / 0 / 0 | 仅为稳定引用与大列表渲染；未引入 Compiler |
 | `forwardRef` / `PropTypes` / `defaultProps` / class 组件 | 0 | 无旧写法残留 |
-| `dangerouslySetInnerHTML` | 4 | 全部是服务端字符串（品牌 SVG、tagline、弹窗图标、吉祥物） |
+| `dangerouslySetInnerHTML` | 7 | 全部是服务端字符串（品牌 SVG、tagline、弹窗图标、吉祥物） |
 | 下标作 key | 6 | 全部是静态字符串列表（hint / warning / note / card.desc / 告警行） |
 | React 19 Actions（`useActionState` / `useOptimistic`） | 0 | 19.3 已具备，现有页签仍是手写 `saving`；按 §5 逐个页签迁移，不批量重写 |
-| 打包产物 | `files.js` 231 KB（236,609 B）/ `files-users.js` 237 KB（242,342 B）/ `files-queue.js` 240 KB（246,145 B）/ `files-log.js` 228 KB（233,052 B）/ `zibll.js` 254 KB（260,254 B）/ `performance.js` 227 KB（232,623 B）/ `image.js` 255 KB（260,977 B）/ `storage.js` 255 KB（260,731 B）/ `sync.js` 267 KB（273,075 B）/ `deletes.js` 241 KB（246,604 B）/ `rewrite.js` 239 KB（244,258 B）/ `cost.js` 228 KB（233,857 B）/ `system.js` 232 KB（237,621 B） | React 19.3.1 minified；18.3.1 版是 176/153 KB，差 74/80 KB，由开发者决定接受 |
+| 打包产物 | `files.js` 231 KB（236,601 B）/ `files-users.js` 237 KB（242,334 B）/ `files-queue.js` 240 KB（246,137 B）/ `files-log.js` 228 KB（233,044 B）/ `zibll.js` 254 KB（260,246 B）/ `performance.js` 227 KB（232,615 B）/ `image.js` 255 KB（260,969 B）/ `storage.js` 255 KB（260,837 B）/ `sync.js` 267 KB（273,702 B）/ `deletes.js` 241 KB（246,596 B）/ `rewrite.js` 239 KB（244,609 B）/ `cost.js` 228 KB（233,873 B）/ `system.js` 232 KB（237,637 B） | React 19.3.1 minified；18.3.1 版是 176/153 KB，差 74/80 KB，由开发者决定接受 |
 
 结论：**没有需要立刻返工的旧版写法**；基线与 `package.json` 一致（`^19.0.0` → 19.3.1）。下一步真正有价值的是按 §5 把保存动作迁到 `useActionState`，而不是先加 `memo`。
 
@@ -279,7 +289,7 @@ git diff --check
 
 ### 11.6 文件空间三页岛（1.28.8-beta-60）
 
-- **一个 payload，三个入口**：`src/UserFiles/Admin/Files_Admin_Payload.php` 按 `files-users` / `files-queue` / `files-log` 输出 `page/head/cards/config`；页面参数复用 `Page::page_data()` 的 strings，不复制第二份文案。`includes/views/files-admin-island.php` 打印同一个 bootstrap id，`assets/ui/src/files/shared/` 提供 transport、Pager、EmptyState 与挂载器，三个入口分别打 `files-users.js` / `files-queue.js` / `files-log.js`。
+- **一个 payload，三个入口**：`src/UserFiles/Admin/Files_Admin_Payload.php` 按 `files-users` / `files-queue` / `files-log` 输出 `page/head/cards/config`；页面参数复用 `Page::page_data()` 的 strings，不复制第二份文案。`includes/views/files-admin-island.php` 打印同一个 bootstrap id，三个入口分别打 `files-users.js` / `files-queue.js` / `files-log.js`，各自目录下共享 transport/Pager/空态。
 - **业务逻辑零迁移**：用户容量、处罚、审核、预览、批次执行、停止、审计仍走原来的 `sufm/v1/admin/*`；React 只负责列表状态、按钮启用条件与刷新时机。权限矩阵仍是原生 `admin-post.php` 表单（`sufm_save_caps` + `_wpnonce` + 锁定管理员行），保存后按旧 notice 参数回流。
 - **用户容量**：搜索、25/50/100 分页、刷新、同步容量（1.2s 轮询）、重置容量确认、每行 MB 输入与保存、用法条、处罚徽标与处罚弹窗。处罚弹窗保留服务端下发的类型/期限/理由/建议，永久禁上传必须输入登录名；撤销走 `admin/sanctions/{id}/revoke`。
 - **审核与执行**：状态筛选、用户搜索、分页、批准/驳回/撤销、申请文件预览、已批准勾选、范围预览与哈希、短语 `删除`、建立批次、4s 批次轮询与停止。卡片顺序沿用 `Layout::PAGES['files-queue']`：执行卡与权限矩阵在第一行、申请队列在第二行；不要在 payload 里另写一份顺序。

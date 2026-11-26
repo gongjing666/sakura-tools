@@ -74,7 +74,10 @@ export default function BehaviourCard( { card, strings, saving, onSave, askRisk 
 		const opening = draft.no_local_saving && ! saved.no_local_saving;
 
 		if ( opening && ! card.frozen ) {
-			askRisk( () => onSave( body( true ) ) );
+			askRisk(
+				() => onSave( body( true ) ),
+				() => setDraft( ( current ) => ( { ...current, no_local_saving: saved.no_local_saving } ) )
+			);
 
 			return;
 		}

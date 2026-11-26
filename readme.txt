@@ -2,9 +2,9 @@
 Contributors: nboke
 Tags: image optimization, webp, avif, imagick, media library
 Requires at least: 6.4
-Tested up to: 7.1.4
+Tested up to: 7.1.5
 Requires PHP: 8.2
-Stable tag: 1.28.8-beta-64
+Stable tag: 1.29.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -79,6 +79,16 @@ Access Key 和 Secret 会加密后存进数据库，页面和源码都不会显�
 插件目前没有接管这个跳转。等出现「既要防直链、又要保留购买校验」的需求时再研发，方向是在主题之前拦截下载请求，由插件代理输出或签发短时有效的预签名地址；若暂时需要这层保护，请关闭「上传后删除本地文件」，让文件保留在本地。
 
 == Changelog ==
+
+= 1.29.0 =
+
+* 重构：**后台 16 个页面的内容区全部迁为 React 岛**（13 个 bundle）——顶栏、页签条、页头与首帧仍由 PHP 输出，内容区由 payload + bootstrap JSON 挂载；旧 PHP 视图与 assets/ui/js/pages/*.js 只在 bundle 不可读时作为回退，正常请求不再下载旧页脚本。
+* 新增：对象存储五页（连接、同步中心、删除队列、链接改写、费用估算）、文件空间五页（设置、用户容量、审核与执行、最近操作、子比专属）与子比增强「性能优化」完成迁岛；同步中心数字实时派生、删除队列完成态/实时进度、链接改写作用域筛选与费用估算保留。
+* 调整：后台共享组件补齐 Card / Field / Badge / PageHead / Prompt；移动端状态记录式表格、卡片动作槽、10px 胶囊间距、字段宽度上限与禁用页签锁图标统一到共享层；性能优化页两卡改为 6/6 等宽。
+* 调整：React 19.3.1、esbuild 构建链与 13 个提交进仓库的 dist 产物；PHP 侧保留 8.2 语法下限 / 8.4 生产运行时的静态检查。
+* 移除：1.28.8 曾短暂上线的「文件空间 → 媒体管理」页签；媒体库回到唯一下架入口，Takedown 仍只有一份实现。
+* 修复：后台表格在 390px 下胶囊独占一行、移动端卡片留白、锁图标缺失、保存卡按钮位置与系统设置运行时表的布局回归。
+* 影响范围：不新增表结构，不改既有 option 键、钩子语义与数据格式；升级无需手工迁移。测试基线 918 tests / 3889 assertions / 6 skipped。
 
 = 1.28.8 =
 

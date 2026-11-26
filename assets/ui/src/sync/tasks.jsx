@@ -5,6 +5,7 @@
  * the full-reconcile mode, the queue hand-off and the R18 exit all stay on the
  * server where they were.
  */
+import { useEffect, useRef } from 'react';
 import { Card, Badge } from '../shared/ui.jsx';
 
 export default function TasksCard( { card, view, rows, scan, strings, locked, frozen, indexEnabled, onAction } ) {
@@ -13,6 +14,38 @@ export default function TasksCard( { card, view, rows, scan, strings, locked, fr
 	const resumable = Boolean( scan.resumable );
 	const percent = Math.round( Number( view.coverage || 0 ) );
 	const activity = buildActivity( rows );
+	const fizzRef = useRef( null );
+	const popRef = useRef( null );
+
+	useEffect( () => {
+		if ( window.matchMedia && window.matchMedia( '(prefers-reduced-motion: reduce)' ).matches ) {
+			return;
+		}
+
+		const sprinkle = ( host, count, sizeMin, sizeMax, durMin, durMax ) => {
+			if ( ! host ) {
+				return;
+			}
+
+			host.replaceChildren();
+
+			for ( let i = 0; i < count; i += 1 ) {
+				const bubble = document.createElement( 'i' );
+				const size = sizeMin + Math.random() * ( sizeMax - sizeMin );
+				const duration = durMin + Math.random() * ( durMax - durMin );
+
+				bubble.style.width = size.toFixed( 1 ) + 'px';
+				bubble.style.height = size.toFixed( 1 ) + 'px';
+				bubble.style.left = ( 3 + Math.random() * 92 ).toFixed( 1 ) + '%';
+				bubble.style.animationDuration = duration.toFixed( 2 ) + 's';
+				bubble.style.animationDelay = '-' + ( Math.random() * duration ).toFixed( 2 ) + 's';
+				host.appendChild( bubble );
+			}
+		};
+
+		sprinkle( fizzRef.current, 22, 3, 8, 1.8, 3.6 );
+		sprinkle( popRef.current, 7, 4, 6, 2.2, 3.8 );
+	}, [] );
 
 	return (
 		<Card card={ card }>
@@ -38,9 +71,9 @@ export default function TasksCard( { card, view, rows, scan, strings, locked, fr
 					aria-label="同步覆盖进度"
 				>
 					<span className="progress__bar" style={ { width: Math.min( 100, Math.max( 0, Number( view.coverage || 0 ) ) ) + '%' } }>
-						<span className="progress__fizz" aria-hidden="true" />
+						<span ref={ fizzRef } className="progress__fizz" aria-hidden="true" />
 					</span>
-					<span className="progress__pop" aria-hidden="true" />
+					<span ref={ popRef } className="progress__pop" aria-hidden="true" />
 				</div>
 				<div className="progress-meta">
 					<span>

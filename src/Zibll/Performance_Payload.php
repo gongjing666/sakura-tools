@@ -309,6 +309,8 @@ final class Performance_Payload {
 			'ackLabel'     => __( '我了解风险，仍要在这个版本上启用', 'sakura-imgopt' ),
 			'ackHint'      => __( '确认只在本次保存时生效，不会被记住；下次保存仍需要重新勾选。', 'sakura-imgopt' ),
 			'invalidNotice' => __( '开关是开着的，但缓存与当前主题版本、站点地址或授权内容对不上，因此没有生效。请重新保存，或点「重新验证」再做一次。', 'sakura-imgopt' ),
+			'statusProject' => __( '项目', 'sakura-imgopt' ),
+			'statusValue'   => __( '当前值', 'sakura-imgopt' ),
 			'statusNote'   => __( '缓存与主题版本、站点地址、授权内容绑定；换域名、改授权或换主题都会让它自动失效。复验按上面设置的有效期排程，到期后自动重新预热。', 'sakura-imgopt' ),
 		);
 	}

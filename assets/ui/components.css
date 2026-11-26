@@ -1023,6 +1023,13 @@
 	padding: 8px 10px;
 }
 
+/* Record tables put a badge beside its value: share one baseline and use the
+ * 10px control gap, never a page-local 8px copy. */
+.sakura-admin .table td .badge {
+	margin-inline-start: var(--g-check-gap);
+	vertical-align: baseline;
+}
+
 .sakura-admin .table-scroll {
 	overflow-x: auto;
 	max-width: 100%;

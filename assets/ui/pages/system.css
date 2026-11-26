@@ -28,13 +28,6 @@
 	vertical-align: baseline;
 }
 
-/* 值与胶囊共用一条基线、固定 8px 间隙。胶囊靠 vertical-align: middle
- * 对齐时，pill 外框比文字高，看起来浮在字上面还紧贴着字。 */
-.sakura-admin[data-sakura-page="system-settings"] .table td .badge {
-	margin: 0 0 0 8px;
-	vertical-align: baseline;
-}
-
 /* 状态列只有一颗胶囊时它自己就是行首，不要再缩进。 */
 .sakura-admin[data-sakura-page="system-settings"] .table--checks td:nth-child(2) .badge {
 	margin-inline-start: 0;
@@ -225,7 +218,7 @@
 		display: flex;
 		flex-wrap: wrap;
 		align-items: baseline;
-		column-gap: 8px;
+		column-gap: var(--g-check-gap);
 		row-gap: 3px;
 		flex: 1 1 0;
 		min-width: 0;

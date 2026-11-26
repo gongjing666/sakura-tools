@@ -194,10 +194,10 @@ final class Layout {
 		'zibll-performance' => array(
 			'order' => array( 'license-cache', 'cache-status' ),
 			'cards' => array(
-				// The switch needs room for its explanation and the manual
-				// re-check; the readout is a short key/value table.
-				'license-cache' => array( 1, 1, 7 ),
-				'cache-status'  => array( 1, 8, 5 ),
+				// Equal columns: the settings and the readout are one review
+				// surface, and a 7/5 split made the right table feel secondary.
+				'license-cache' => array( 1, 1, 6 ),
+				'cache-status'  => array( 1, 7, 6 ),
 			),
 		),
 

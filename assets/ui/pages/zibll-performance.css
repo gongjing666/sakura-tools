@@ -73,10 +73,74 @@
 	font-size: var(--g-fs-meta);
 }
 
-/* Stacked rows already repeat the row label through td[data-label]; the <th>
- * would print it a second time above the value. */
-@media (max-width: 782px) {
-	.sakura-admin[data-sakura-page="zibll-performance"] .table--responsive th {
+.sakura-admin[data-sakura-page="zibll-performance"] .zibll-status-table th:first-child,
+.sakura-admin[data-sakura-page="zibll-performance"] .zibll-status-table td:first-child {
+	width: 34%;
+}
+
+.sakura-admin[data-sakura-page="zibll-performance"] .zibll-status-value {
+	color: var(--g-ink);
+	font-variant-numeric: tabular-nums;
+	font-weight: 600;
+}
+
+/* Narrow screens use record rows, not table--responsive's label/value grid:
+ * the value, badge and note share one flowing line so the badge never gets a
+ * row of its own. Mirrors the runtime card on the system settings page. */
+@media (max-width: 900px) {
+	.sakura-admin[data-sakura-page="zibll-performance"] .zibll-status-table,
+	.sakura-admin[data-sakura-page="zibll-performance"] .zibll-status-table tbody {
+		display: block;
+	}
+
+	.sakura-admin[data-sakura-page="zibll-performance"] .zibll-status-table thead {
 		display: none;
+	}
+
+	.sakura-admin[data-sakura-page="zibll-performance"] .zibll-status-table tr {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: baseline;
+		gap: 2px 12px;
+		padding: 9px 0;
+		border-top: 1px solid var(--g-line-soft);
+	}
+
+	.sakura-admin[data-sakura-page="zibll-performance"] .zibll-status-table tbody tr:first-child {
+		padding-top: 2px;
+		border-top: 0;
+	}
+
+	.sakura-admin[data-sakura-page="zibll-performance"] .zibll-status-table td {
+		display: block;
+		padding: 0;
+		border: 0;
+		text-align: left;
+	}
+
+	.sakura-admin[data-sakura-page="zibll-performance"] .zibll-status-table td::before {
+		display: none;
+	}
+
+	.sakura-admin[data-sakura-page="zibll-performance"] .zibll-status-table td:first-child {
+		flex: 0 0 92px;
+		width: auto;
+		color: var(--g-muted);
+		font-size: 12.5px;
+	}
+
+	.sakura-admin[data-sakura-page="zibll-performance"] .zibll-status-table td:last-child {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: baseline;
+		column-gap: var(--g-check-gap);
+		row-gap: 3px;
+		flex: 1 1 0;
+		min-width: 0;
+	}
+
+	.sakura-admin[data-sakura-page="zibll-performance"] .zibll-status-table .zibll-meta {
+		flex: 1 0 100%;
+		margin-top: 0;
 	}
 }

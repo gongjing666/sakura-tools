@@ -190,13 +190,19 @@ function CacheStatus( { card, strings } ) {
 	return (
 		<Card card={ card }>
 			<div className="table-scroll">
-				<table className="table table--compact table--responsive">
+				<table className="table table--compact table--records zibll-status-table">
+					<thead>
+						<tr>
+							<th scope="col">{ strings.statusProject }</th>
+							<th scope="col">{ strings.statusValue }</th>
+						</tr>
+					</thead>
 					<tbody>
 						{ rows.map( ( row ) => (
 							<tr key={ row.key }>
-								<th scope="row">{ row.label }</th>
-								<td data-label={ row.label }>
-									{ row.value }
+								<td data-label={ strings.statusProject }>{ row.label }</td>
+								<td data-label={ strings.statusValue }>
+									<span className="zibll-status-value">{ row.value }</span>
 									{ row.badge && row.badge.text ? <Badge tone={ row.badge.tone }>{ row.badge.text }</Badge> : null }
 									{ row.meta ? <span className="zibll-meta">{ row.meta }</span> : null }
 								</td>

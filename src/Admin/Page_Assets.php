@@ -50,6 +50,7 @@ final class Page_Assets {
 		'files-users'         => 'assets/ui/dist/files-users.js',
 		'files-queue'         => 'assets/ui/dist/files-queue.js',
 		'files-log'           => 'assets/ui/dist/files-log.js',
+		'files-zibll'         => 'assets/ui/dist/zibll.js',
 	);
 
 	/**

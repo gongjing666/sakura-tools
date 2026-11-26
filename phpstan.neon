@@ -22,13 +22,6 @@ parameters:
     reportUnmatchedIgnoredErrors: true
 
     ignoreErrors:
-        # Views are plain templates included from inside a method, so phpstan
-        # analyses them as standalone files and cannot see the variables the
-        # caller assigned. PHPCS covers their escaping and i18n instead.
-        -
-            message: '#Variable \$(entry_status|files_enabled|files_entry|enabled) might not be defined\.#'
-            path: includes/views/*
-
         # ZibPay/zibpay_* live in the active theme (zibll), not in this plugin.
         # The calls are guarded by class_exists()/function_exists() and by
         # try/catch, so a theme without them degrades to the plain path.

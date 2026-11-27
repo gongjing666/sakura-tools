@@ -91,6 +91,7 @@ final class Rewrite_Payload {
 			'version' => SAKURA_TOOLS_VERSION,
 			'page'    => $page,
 			'head'    => UI\Page::head_data( $page ),
+			'chrome'  => Shell::header_data( 'storage', 'rewrite' ),
 			'cards'   => $cards,
 			'config'  => $config,
 		);

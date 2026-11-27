@@ -12,9 +12,9 @@ namespace Sakura\ImageOptimizer\Tests;
 use PHPUnit\Framework\TestCase;
 use ReflectionProperty;
 use Sakura\ImageOptimizer\Thumbnail\Settings;
-use Sakura\ImageOptimizer\Thumbnail_Optimizer_Module;
+use Sakura\ImageOptimizer\Modules\Thumbnail_Optimizer_Module;
 
-require_once dirname( __DIR__ ) . '/includes/class-thumbnail-optimizer-module.php';
+require_once dirname( __DIR__ ) . '/src/Modules/Thumbnail_Optimizer_Module.php';
 
 /**
  * A style name, a media host and a processing template all encode one carrier:

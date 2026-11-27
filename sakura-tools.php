@@ -3,7 +3,7 @@
  * Plugin Name: 樱花工具箱
  * Plugin URI:  https://www.nboke.com
  * Description: 模块化 WordPress 媒体工具箱：图片压缩、缩略图控制、媒体库整理与 S3 云存储，可按需启用。
- * Version:     1.29.0
+ * Version:     1.29.0-beta-36
  * Requires at least: 6.4
  * Requires PHP: 8.2
  * License:     GPL-2.0-or-later
@@ -19,7 +19,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 // ── 常量 ──────────────────────────────────────────────
-define( 'SAKURA_TOOLS_VERSION', '1.29.0' );
+define( 'SAKURA_TOOLS_VERSION', '1.29.0-beta-36' );
 
 // Fallback mount for the space expansion module (see PATCH 26).
 add_action(
@@ -36,25 +36,10 @@ define( 'SAKURA_TOOLS_URL', plugin_dir_url( __FILE__ ) );
 define( 'SAKURA_TOOLS_INC', SAKURA_TOOLS_PATH . 'includes/' );
 
 // ── 自动加载 ──────────────────────────────────────────
-// 新代码位于 src/，按 PSR-4 映射；旧代码保留 includes/class-*.php 兼容映射。
-//
-// ⚠ includes/class-*.php 仍在生产承重，不是死代码。它们靠下面的回落分支按
-//   file_exists() 加载，删掉任何一行都会在运行时 fatal，而平时不报错。
-//   改动该目录前先对照这张清单，删一个就从这里删一行：
-//     backup                        → Plugin::boot() 的每日清理 cron
-//     file-system                   → 压缩管线的移动/删除/路径校验
-//     gd-handler / imagick-handler  → 图片转换与压缩
-//     image-processor               → 处理器工厂
-//     media-library-module          → 媒体库模块
-//     image-optimizer-module        → 优化器模块
-//     thumbnail-optimizer-module    → 缩略图流程
-//     thumbnail-manager             → 缩略图仓储
-//     animation-detector            → 动图检测
-//     stats                         → 统计仓储
-//     s3-storage-module             → S3 存储模块
-//     s3-doge-cloud                 → S3 服务商适配
-//     s3-cli                        → WP-CLI 迁移命令（Plugin.php 里 require_once）
-//   迁移到 src/ 时，同步删掉这里对应的行和 phpstan.neon 的 paths 覆盖。
+// 全部类都在 src/，按 PSR-4 映射；includes/ 只剩 PHP 视图（views/），不再有类。
+// 1.29.0-beta-10~16 把原 includes/class-*.php 的 14 个类分批搬进 src/{主题}/，
+// 命名空间与路径一致。原来的 `includes/class-{snake}.php` 回落分支随之删除
+// （beta-16）：目录里已经没有任何类文件，留着只会让人以为还有第二套映射。
 spl_autoload_register(
 	function ( $class_name ) {
 		$prefix = 'Sakura\\ImageOptimizer\\';
@@ -76,12 +61,6 @@ spl_autoload_register(
 		$src_file = SAKURA_TOOLS_PATH . 'src/' . str_replace( '\\', '/', $relative_class ) . '.php';
 		if ( file_exists( $src_file ) ) {
 			require_once $src_file;
-			return;
-		}
-
-		$legacy_file = SAKURA_TOOLS_INC . 'class-' . strtolower( str_replace( '_', '-', $relative_class ) ) . '.php';
-		if ( file_exists( $legacy_file ) ) {
-			require_once $legacy_file;
 		}
 	}
 );

@@ -608,16 +608,16 @@ require_once dirname( __DIR__ ) . '/src/S3/Upload_Capabilities.php';
 require_once dirname( __DIR__ ) . '/src/S3/Synchronous_Uploader.php';
 require_once dirname( __DIR__ ) . '/src/S3/Storage.php';
 require_once dirname( __DIR__ ) . '/src/S3/Migration_Service.php';
-require_once dirname( __DIR__ ) . '/includes/class-animation-detector.php';
-require_once dirname( __DIR__ ) . '/includes/class-stats.php';
-require_once dirname( __DIR__ ) . '/includes/class-file-system.php';
-require_once dirname( __DIR__ ) . '/includes/class-s3-doge-cloud.php';
+require_once dirname( __DIR__ ) . '/src/Image/Animation_Detector.php';
+require_once dirname( __DIR__ ) . '/src/Stats/Stats.php';
+require_once dirname( __DIR__ ) . '/src/Filesystem/File_System.php';
+require_once dirname( __DIR__ ) . '/src/S3/Doge_Cloud.php';
 require_once dirname( __DIR__ ) . '/src/Image/No_Gain_Guard.php';
-require_once dirname( __DIR__ ) . '/includes/class-gd-handler.php';
-require_once dirname( __DIR__ ) . '/includes/class-imagick-handler.php';
-require_once dirname( __DIR__ ) . '/includes/class-backup.php';
-require_once dirname( __DIR__ ) . '/includes/class-image-processor.php';
-require_once dirname( __DIR__ ) . '/includes/class-media-library-module.php';
+require_once dirname( __DIR__ ) . '/src/Image/Handlers/GD_Handler.php';
+require_once dirname( __DIR__ ) . '/src/Image/Handlers/Imagick_Handler.php';
+require_once dirname( __DIR__ ) . '/src/Backup/Backup.php';
+require_once dirname( __DIR__ ) . '/src/Image/Image_Processor.php';
+require_once dirname( __DIR__ ) . '/src/Modules/Media_Library_Module.php';
 require_once dirname( __DIR__ ) . '/src/Thumbnail/Rendition.php';
 require_once dirname( __DIR__ ) . '/src/Thumbnail/Provider.php';
 require_once dirname( __DIR__ ) . '/src/Thumbnail/Providers/Bitiful.php';
@@ -631,10 +631,10 @@ require_once dirname( __DIR__ ) . '/src/Thumbnail/Decorator.php';
 require_once dirname( __DIR__ ) . '/src/Thumbnail/Theme_Bridge.php';
 require_once dirname( __DIR__ ) . '/src/Thumbnail/Theme_Cache.php';
 require_once dirname( __DIR__ ) . '/src/Thumbnail/CLI.php';
-require_once dirname( __DIR__ ) . '/includes/class-thumbnail-optimizer-module.php';
-require_once dirname( __DIR__ ) . '/includes/class-s3-storage-module.php';
-require_once dirname( __DIR__ ) . '/includes/class-image-optimizer-module.php';
-require_once dirname( __DIR__ ) . '/includes/class-thumbnail-manager.php';
+require_once dirname( __DIR__ ) . '/src/Modules/Thumbnail_Optimizer_Module.php';
+require_once dirname( __DIR__ ) . '/src/S3/Storage_Module.php';
+require_once dirname( __DIR__ ) . '/src/Modules/Image_Optimizer_Module.php';
+require_once dirname( __DIR__ ) . '/src/Thumbnail/Thumbnail_Manager.php';
 require_once dirname( __DIR__ ) . '/src/Image/Size_Catalog.php';
 require_once dirname( __DIR__ ) . '/src/Image/Crop_Config_Scanner.php';
 require_once dirname( __DIR__ ) . '/src/Admin/Card_Form.php';
@@ -1218,6 +1218,92 @@ if ( ! function_exists( 'admin_url' ) ) {
 	 */
 	function admin_url( $path = '' ) {
 		return 'https://example.test/wp-admin/' . ltrim( (string) $path, '/' );
+	}
+}
+
+if ( ! function_exists( 'rest_url' ) ) {
+	/**
+	 * Minimal REST base URL shim.
+	 *
+	 * @param string $path Route path.
+	 * @return string
+	 */
+	function rest_url( $path = '' ) {
+		return 'https://example.test/wp-json/' . ltrim( (string) $path, '/' );
+	}
+}
+
+if ( ! function_exists( 'rest_ensure_response' ) ) {
+	/**
+	 * The shim has no response object, so tests assert the array it would carry.
+	 *
+	 * @param mixed $data Response data.
+	 * @return mixed
+	 */
+	function rest_ensure_response( $data ) {
+		return $data;
+	}
+}
+
+if ( ! function_exists( 'register_rest_route' ) ) {
+	/**
+	 * Record registered routes for assertions.
+	 *
+	 * @param string $namespace Namespace.
+	 * @param string $route     Route pattern.
+	 * @param array  $args      Route arguments.
+	 * @return bool
+	 */
+	function register_rest_route( $namespace, $route, $args = array() ) {
+		$GLOBALS['sakura_test_rest_routes'][ $namespace . $route ] = $args;
+
+		return true;
+	}
+}
+
+if ( ! function_exists( 'get_bloginfo' ) ) {
+	/**
+	 * Minimal site-name shim for document titles.
+	 *
+	 * @param string $show Field.
+	 * @return string
+	 */
+	function get_bloginfo( $show = '' ) {
+		return 'name' === $show ? (string) ( $GLOBALS['sakura_test_blogname'] ?? 'Example Site' ) : '';
+	}
+}
+
+if ( ! class_exists( 'WP_REST_Request', false ) ) {
+	/**
+	 * Minimal request double for route callbacks.
+	 */
+	class WP_REST_Request {
+
+		/**
+		 * Parameters.
+		 *
+		 * @var array<string,mixed>
+		 */
+		private $params;
+
+		/**
+		 * Constructor.
+		 *
+		 * @param array<string,mixed> $params Parameters.
+		 */
+		public function __construct( $params = array() ) {
+			$this->params = (array) $params;
+		}
+
+		/**
+		 * Read one parameter.
+		 *
+		 * @param string $key Parameter name.
+		 * @return mixed
+		 */
+		public function get_param( $key ) {
+			return $this->params[ $key ] ?? null;
+		}
 	}
 }
 

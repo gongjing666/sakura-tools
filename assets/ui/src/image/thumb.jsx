@@ -424,7 +424,22 @@ function ThumbCard( { card, rest, strings, onError, onNotice, onServerState } ) 
 				setDraft( payload.values );
 
 				if ( 'sizes' === card.id ) {
-					setBaseline( rows );
+					/*
+					 * Rebuild the grid from what the server stored: merge_sizes() clamps
+					 * quality and carries the fields the table does not edit, so keeping
+					 * the local rows would show values the option does not hold — and mark
+					 * them clean.
+					 */
+					const stored =
+						payload.values.sizes && 'object' === typeof payload.values.sizes
+							? payload.values.sizes
+							: null;
+					const next = stored
+						? rows.map( ( row ) => ( stored[ row.name ] ? { ...row, ...stored[ row.name ] } : row ) )
+						: rows;
+
+					setRows( next );
+					setBaseline( next );
 				}
 			}
 
@@ -447,7 +462,7 @@ function ThumbCard( { card, rest, strings, onError, onNotice, onServerState } ) 
 
 	return (
 		<Card card={ card }>
-			<form className="card__form" id={ card.form.id } onSubmit={ submit }>
+			<form className="card__form" id={ card.form.id } onSubmit={ submit } noValidate>
 				{ 'sizes' === card.id ? (
 					<SizeGrid
 						field={ card.fields.find( ( f ) => 'size-grid' === f.type ) }

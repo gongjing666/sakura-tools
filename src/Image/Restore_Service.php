@@ -9,7 +9,7 @@ declare( strict_types=1 );
 
 namespace Sakura\ImageOptimizer\Image;
 
-use Sakura\ImageOptimizer\Backup;
+use Sakura\ImageOptimizer\Backup\Backup;
 use Sakura\ImageOptimizer\Contracts\Backup_Repository_Interface;
 use Sakura\ImageOptimizer\Contracts\File_System_Interface;
 use Sakura\ImageOptimizer\Filesystem\File_System_Repository;

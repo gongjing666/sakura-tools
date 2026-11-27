@@ -9,6 +9,7 @@ declare( strict_types=1 );
 
 namespace Sakura\ImageOptimizer\Admin\UI;
 
+use Sakura\ImageOptimizer\Admin\App_Manifest;
 use Sakura\ImageOptimizer\Admin\Appearance;
 use Sakura\ImageOptimizer\Admin\Layout;
 use Sakura\ImageOptimizer\Admin\Shell;
@@ -43,6 +44,17 @@ final class Page {
 		$island = ! empty( $args['island'] );
 
 		$classes = 'sakura-admin';
+
+		/*
+		 * The persistent shell's manifest, printed once for every allowlisted
+		 * screen. It lives outside the React root (like each view's own bootstrap)
+		 * so the shell can read it before the content root is taken over.
+		 */
+		if ( '' !== $id && App_Manifest::enabled() ) {
+			echo '<script type="application/json" id="sakura-app-manifest">';
+			echo wp_json_encode( App_Manifest::manifest(), JSON_HEX_TAG | JSON_HEX_AMP | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Encoded with JSON_HEX_TAG.
+			echo '</script>';
+		}
 
 		$style = Appearance::inline_style();
 

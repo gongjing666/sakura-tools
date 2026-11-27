@@ -1,23 +1,43 @@
 /**
- * Ignore rules. A plain POST: the handler redirects back with ignored_saved=1,
- * which is also what the classic page did, so no Ajax path is needed.
+ * Ignore rules. Saved through the sync REST surface; a successful save clears
+ * the field's dirty state by reloading with a toast, the same flow the other
+ * cards use.
  */
+import { useRef, useState } from 'react';
 import { Card } from '../shared/ui.jsx';
+import { post, errorText, toast, reloadWithToast } from './transport.js';
 
-export default function IgnoredCard( { card, view, strings, frozen } ) {
+export default function IgnoredCard( { card, view, strings, config, frozen } ) {
 	const copy = ( strings && strings.cards ) || {};
 	const saved = Boolean( view.ignored_saved );
+	const formRef = useRef( null );
+	const [ busy, setBusy ] = useState( false );
+
+	const submit = ( event ) => {
+		event.preventDefault();
+
+		if ( busy || frozen || ! formRef.current ) {
+			return;
+		}
+
+		setBusy( true );
+
+		const area = formRef.current.querySelector( 'textarea' );
+		const raw = area ? area.value : '';
+
+		post( config, 'ignored', { raw } )
+			.then( () => {
+				reloadWithToast( copy.ignoredSaved || '忽略规则已保存' );
+			} )
+			.catch( ( error ) => {
+				toast( errorText( error, '' ), 'bad' );
+				setBusy( false );
+			} );
+	};
 
 	return (
 		<Card card={ card }>
-			<form
-				className="card__form"
-				id="sakura-s3-ignored-form"
-				method="post"
-				action={ window.sakuraPage && window.sakuraPage.ajaxUrl ? window.sakuraPage.ajaxUrl.replace( 'admin-ajax.php', 'admin-post.php' ) : '' }
-			>
-				<input type="hidden" name="action" value="sakura_s3_ignored_save" />
-				<input type="hidden" name="_wpnonce" value={ ( strings && strings.cards && strings.cards.ignoredNonce ) || '' } />
+			<form className="card__form" id="sakura-s3-ignored-form" ref={ formRef } onSubmit={ submit }>
 				<div className="field-list">
 					<div className="field field--full field--textarea">
 						<div className="field__main">
@@ -43,7 +63,7 @@ export default function IgnoredCard( { card, view, strings, frozen } ) {
 					<p className="small-text">{ ( copy.ignoredNote || '当前 %d 条生效' ).replace( '%d', String( ( view.ignored_rules || '' ).split( '\n' ).filter( Boolean ).length ) ) }</p>
 				</div>
 				<div className="card__savebar">
-					<button type="submit" className="btn btn--primary" disabled={ frozen }>
+					<button type="submit" className="btn btn--primary" disabled={ frozen || busy }>
 						{ copy.ignoredSave || '保存规则' }
 					</button>
 				</div>

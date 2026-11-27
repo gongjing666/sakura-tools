@@ -32,7 +32,7 @@ final class RestoreServiceTest extends TestCase {
 	}
 
 	public function test_image_processor_accepts_injected_repository(): void {
-		$processor = new \Sakura\ImageOptimizer\Image_Processor( new Restore_Fake_Repository() );
+		$processor = new \Sakura\ImageOptimizer\Image\Image_Processor( new Restore_Fake_Repository() );
 		$result    = $processor->restore_attachment( 0 );
 		self::assertFalse( $result['success'] );
 		self::assertSame( '无效的附件 ID', $result['message'] );

@@ -9,7 +9,6 @@ declare( strict_types=1 );
 
 namespace Sakura\ImageOptimizer\Backup;
 
-use Sakura\ImageOptimizer\Backup;
 use Sakura\ImageOptimizer\Contracts\Backup_Repository_Interface;
 
 defined( 'ABSPATH' ) || exit;

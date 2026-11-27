@@ -10,7 +10,6 @@ declare( strict_types=1 );
 namespace Sakura\ImageOptimizer\Stats;
 
 use Sakura\ImageOptimizer\Contracts\Stats_Repository_Interface;
-use Sakura\ImageOptimizer\Stats as Stats_Service;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -29,7 +28,7 @@ final class Stats_Repository implements Stats_Repository_Interface {
 	 * @return void
 	 */
 	public function record( int $attachment_id, array $result, string $source_path, string $mode = 'upload' ): void {
-		Stats_Service::record( $attachment_id, $result, $source_path, $mode );
+		Stats::record( $attachment_id, $result, $source_path, $mode );
 	}
 
 	/**
@@ -38,7 +37,7 @@ final class Stats_Repository implements Stats_Repository_Interface {
 	 * @return array<string, mixed>
 	 */
 	public function get_stats(): array {
-		return Stats_Service::get_stats();
+		return Stats::get_stats();
 	}
 
 	/**
@@ -48,7 +47,7 @@ final class Stats_Repository implements Stats_Repository_Interface {
 	 * @return array<int, array<string, mixed>>
 	 */
 	public function get_logs( int $attachment_id ): array {
-		return Stats_Service::get_logs( $attachment_id );
+		return Stats::get_logs( $attachment_id );
 	}
 
 	/**
@@ -58,7 +57,7 @@ final class Stats_Repository implements Stats_Repository_Interface {
 	 * @return array<int, array<string, mixed>>
 	 */
 	public function get_recent_logs( int $limit = 50 ): array {
-		return Stats_Service::get_recent_logs( $limit );
+		return Stats::get_recent_logs( $limit );
 	}
 
 	/**
@@ -67,6 +66,6 @@ final class Stats_Repository implements Stats_Repository_Interface {
 	 * @return void
 	 */
 	public function reset(): void {
-		Stats_Service::reset();
+		Stats::reset();
 	}
 }

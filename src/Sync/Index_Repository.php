@@ -2212,6 +2212,58 @@ final class Index_Repository {
 	 * @param string   $profile_id Profile.
 	 * @param string[] $keys       Object keys.
 	 */
+	/**
+	 * Strip the extension from an object key.
+	 *
+	 * @param string $key Object key.
+	 * @return string Stem, or an empty string when the key carries no extension.
+	 */
+	public static function stem( string $key ): string {
+		$slash = strrpos( $key, '/' );
+		$dot   = strrpos( $key, '.' );
+
+		// No dot, a dot above the file name, or a dotfile: no extension to strip.
+		if ( false === $dot || 0 === $dot || ( false !== $slash && $dot <= $slash + 1 ) ) {
+			return '';
+		}
+
+		return substr( $key, 0, $dot );
+	}
+
+	/**
+	 * Index keys in this bucket that share the given key stem.
+	 *
+	 * A restore writes the original extension back, so one attachment can leave
+	 * rows for both the webp and the jpg spelling of the same file. Deleting the
+	 * attachment must clear every one of them, not just the key the metadata
+	 * currently points at.
+	 *
+	 * @param string $profile_id Profile id.
+	 * @param string $key        Object key (any extension of the stem).
+	 * @return array<int,string>
+	 */
+	public function keys_by_stem( string $profile_id, string $key ): array {
+		global $wpdb;
+
+		$stem   = self::stem( (string) $key );
+		$bucket = $this->bucket( $profile_id );
+
+		if ( '' === $stem || '' === $bucket ) {
+			return array();
+		}
+
+		$like = $wpdb->esc_like( $stem ) . '.%';
+		$rows = $wpdb->get_col(
+			$wpdb->prepare(
+				"SELECT object_key FROM {$this->index} WHERE target_hash=%s AND object_key LIKE %s", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name from Schema.
+				$bucket,
+				$like
+			)
+		);
+
+		return array_values( array_filter( array_map( 'strval', (array) $rows ), static fn( $k ) => '' !== $k ) );
+	}
+
 	public function forget_local( string $profile_id, array $keys ): void {
 		global $wpdb;
 		$keys = array_values(

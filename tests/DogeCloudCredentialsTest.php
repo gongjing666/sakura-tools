@@ -8,7 +8,7 @@
 declare( strict_types=1 );
 
 use PHPUnit\Framework\TestCase;
-use Sakura\ImageOptimizer\S3_Doge_Cloud;
+use Sakura\ImageOptimizer\S3\Doge_Cloud;
 
 /**
  * 多吉云 reports failures inside a HTTP 200 body (code / msg), so a plain
@@ -47,7 +47,7 @@ final class DogeCloudCredentialsTest extends TestCase {
 			)
 		);
 
-		$bridge = new S3_Doge_Cloud( 'AAAAAAAAAAAAAAAAAAAAAAAA', 'BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB' );
+		$bridge = new Doge_Cloud( 'AAAAAAAAAAAAAAAAAAAAAAAA', 'BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB' );
 
 		$this->assertFalse( $bridge->get_credentials() );
 		$this->assertStringContainsString( 'AccessKey Format Error', $bridge->last_error() );
@@ -65,7 +65,7 @@ final class DogeCloudCredentialsTest extends TestCase {
 			)
 		);
 
-		$bridge = new S3_Doge_Cloud( 'k', 's' );
+		$bridge = new Doge_Cloud( 'k', 's' );
 
 		$this->assertFalse( $bridge->get_credentials() );
 		$this->assertStringContainsString( '401', $bridge->last_error() );
@@ -91,7 +91,7 @@ final class DogeCloudCredentialsTest extends TestCase {
 			)
 		);
 
-		$bridge = new S3_Doge_Cloud( 'key', 'secret' );
+		$bridge = new Doge_Cloud( 'key', 'secret' );
 		$creds  = $bridge->get_credentials();
 
 		$this->assertIsArray( $creds );
@@ -108,7 +108,7 @@ final class DogeCloudCredentialsTest extends TestCase {
 			'body'     => '<html>502</html>',
 		);
 
-		$bridge = new S3_Doge_Cloud( 'k', 's' );
+		$bridge = new Doge_Cloud( 'k', 's' );
 
 		$this->assertFalse( $bridge->get_credentials() );
 		$this->assertNotSame( '', $bridge->last_error() );
@@ -122,7 +122,7 @@ final class DogeCloudCredentialsTest extends TestCase {
 	public function test_does_not_refresh_while_more_than_the_margin_remains(): void {
 		$key    = 'AKID-QUIET';
 		$expiry = time() + 2400;
-		$bridge = new S3_Doge_Cloud( $key, 'SECRET' );
+		$bridge = new Doge_Cloud( $key, 'SECRET' );
 		$this->seed( $key, $expiry );
 		unset( $GLOBALS['sakura_test_last_http'] );
 
@@ -139,7 +139,7 @@ final class DogeCloudCredentialsTest extends TestCase {
 	public function test_refreshes_inside_the_margin(): void {
 		$key     = 'AKID-REFRESH';
 		$expires = time() + 7200;
-		$bridge  = new S3_Doge_Cloud( $key, 'SECRET' );
+		$bridge  = new Doge_Cloud( $key, 'SECRET' );
 		$this->seed( $key, time() + 1200 );
 		$this->respond( $this->success_body( 'AKID-NEW', 'SECRET-NEW', 'TOKEN-NEW', $expires ) );
 		unset( $GLOBALS['sakura_test_last_http'] );
@@ -158,7 +158,7 @@ final class DogeCloudCredentialsTest extends TestCase {
 	public function test_keeps_the_unexpired_token_when_refresh_fails(): void {
 		$key    = 'AKID-FALLBACK';
 		$expiry = time() + 600;
-		$bridge = new S3_Doge_Cloud( $key, 'SECRET' );
+		$bridge = new Doge_Cloud( $key, 'SECRET' );
 		$this->seed( $key, $expiry );
 		$this->respond(
 			array(
@@ -180,7 +180,7 @@ final class DogeCloudCredentialsTest extends TestCase {
 	 */
 	public function test_reports_failure_when_the_expired_token_cannot_be_refreshed(): void {
 		$key    = 'AKID-DEAD';
-		$bridge = new S3_Doge_Cloud( $key, 'SECRET' );
+		$bridge = new Doge_Cloud( $key, 'SECRET' );
 		$this->seed( $key, time() - 10 );
 		$this->respond(
 			array(
@@ -198,7 +198,7 @@ final class DogeCloudCredentialsTest extends TestCase {
 	 */
 	public function test_backs_off_after_a_failure(): void {
 		$key    = 'AKID-BACKOFF';
-		$bridge = new S3_Doge_Cloud( $key, 'SECRET' );
+		$bridge = new Doge_Cloud( $key, 'SECRET' );
 		$this->respond(
 			array(
 				'code' => 503,
@@ -209,7 +209,7 @@ final class DogeCloudCredentialsTest extends TestCase {
 		$this->assertFalse( $bridge->get_credentials_with_expiry() );
 		unset( $GLOBALS['sakura_test_last_http'] );
 
-		$again = new S3_Doge_Cloud( $key, 'SECRET' );
+		$again = new Doge_Cloud( $key, 'SECRET' );
 		$this->assertFalse( $again->get_credentials_with_expiry() );
 		$this->assertFalse( isset( $GLOBALS['sakura_test_last_http'] ), '退避窗口内不该再打接口' );
 		$this->assertStringContainsString( 'busy', $again->last_error() );
@@ -233,12 +233,12 @@ final class DogeCloudCredentialsTest extends TestCase {
 			)
 		);
 
-		$first = new S3_Doge_Cloud( $key, 'SECRET' );
+		$first = new Doge_Cloud( $key, 'SECRET' );
 		$this->assertIsArray( $first->get_credentials_with_expiry(), '旧凭据还没过期，照样能用' );
 
 		unset( $GLOBALS['sakura_test_last_http'] );
 
-		$second = new S3_Doge_Cloud( $key, 'SECRET' );
+		$second = new Doge_Cloud( $key, 'SECRET' );
 		$token  = $second->get_credentials_with_expiry();
 
 		$this->assertIsArray( $token );
@@ -253,7 +253,7 @@ final class DogeCloudCredentialsTest extends TestCase {
 	public function test_expiry_is_the_provider_deadline(): void {
 		$key     = 'AKID-EXPIRY';
 		$expires = time() + 5400;
-		$bridge  = new S3_Doge_Cloud( $key, 'SECRET' );
+		$bridge  = new Doge_Cloud( $key, 'SECRET' );
 		$this->respond( $this->success_body( 'AKID', 'SECRET', 'TOKEN', $expires ) );
 
 		$token = $bridge->get_credentials_with_expiry();

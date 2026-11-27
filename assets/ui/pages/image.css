@@ -729,3 +729,11 @@
 	font-size: 13px;
 	letter-spacing: .01em;
 }
+
+/* 扫描快照与未保存改动并存时，提醒状态列不是按当前草稿算的。 */
+.sakura-admin .sakura-imgopt-scan-stale {
+	margin: 6px 0 0;
+	color: var(--g-warn);
+	font-size: 12.5px;
+	line-height: 1.6;
+}

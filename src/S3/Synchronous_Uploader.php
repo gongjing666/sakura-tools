@@ -9,7 +9,7 @@ declare( strict_types=1 );
 
 namespace Sakura\ImageOptimizer\S3;
 
-use Sakura\ImageOptimizer\File_System;
+use Sakura\ImageOptimizer\Filesystem\File_System;
 use Sakura\ImageOptimizer\Sync\Index_Repository;
 
 defined( 'ABSPATH' ) || exit;

@@ -202,7 +202,7 @@ final class Object_Store {
 		do_action( 'sakura_imgopt_s3_uploaded', $key, $filename, $local_md5, $expected_etag );
 
 		// Only remove the local copy after a confirmed remote success.
-		if ( $delete_local && ! \Sakura\ImageOptimizer\File_System::delete( $filename ) ) {
+		if ( $delete_local && ! \Sakura\ImageOptimizer\Filesystem\File_System::delete( $filename ) ) {
 			call_user_func( $this->log, sprintf( /* translators: %s: local file path. */ __( '远端上传成功，但本地文件删除失败：%s', 'sakura-imgopt' ), $filename ) );
 		}
 		return true;

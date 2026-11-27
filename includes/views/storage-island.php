@@ -4,8 +4,7 @@
  *
  * Included from S3_Storage_Page::render(). The top bar and both tab rows are
  * printed by the server and never redrawn; React replaces the page head and the
- * five cards. The classic form stays as the fallback when the bundle is
- * missing.
+ * five cards. This is the only renderer: there is no classic fallback.
  *
  * @package Sakura_Image_Optimizer
  *

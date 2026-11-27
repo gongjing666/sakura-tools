@@ -9,6 +9,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Card, PageHead, Prompt } from '../shared/ui.jsx';
 import LivePanel from './live.jsx';
 import QueueTable from './table.jsx';
+import DispatchCard from './dispatch.jsx';
 import { exportHref, fetchSnapshot, postAction } from './transport.js';
 
 export default function App( { boot } ) {
@@ -20,6 +21,7 @@ export default function App( { boot } ) {
 	const [ snapshot, setSnapshot ] = useState( boot.snapshot );
 	const [ state, setState ] = useState( boot.snapshot.state || 'all' );
 	const [ page, setPage ] = useState( ( boot.snapshot.pagination || {} ).page || 1 );
+	const [ perPage, setPerPage ] = useState( ( boot.snapshot.pagination || {} ).per_page || 25 );
 	const [ auto, setAuto ] = useState( true );
 	const [ busy, setBusy ] = useState( '' );
 	const [ selected, setSelected ] = useState( [] );
@@ -67,7 +69,7 @@ export default function App( { boot } ) {
 				{
 					state: latest.current.state,
 					page: latest.current.page,
-					per_page: config.per_page || 50,
+					per_page: perPage,
 				},
 				controller.signal
 			);
@@ -91,7 +93,7 @@ export default function App( { boot } ) {
 				inflight.current = null;
 			}
 		}
-	}, [ apply, config.per_page, config.rest, notices.refreshFail ] );
+	}, [ apply, perPage, config.rest, notices.refreshFail ] );
 
 	useEffect( () => {
 		alive.current = true;
@@ -213,7 +215,7 @@ export default function App( { boot } ) {
 				ids,
 				state,
 				page,
-				per_page: config.per_page || 50,
+				per_page: perPage,
 			} );
 
 			if ( answer.snapshot ) {
@@ -287,6 +289,18 @@ export default function App( { boot } ) {
 					</div>
 				) : null }
 
+				<DispatchCard
+					dispatch={ snapshot.dispatch || {} }
+					strings={ strings }
+					rest={ config.rest }
+					onSaved={ ( data ) =>
+						setSnapshot( ( current ) => ( {
+							...current,
+							dispatch: { ...( current.dispatch || {} ), ...data },
+						} ) )
+					}
+				/>
+
 				<Card card={ boot.card } titleProps={ { tabIndex: -1, 'data-sakura-return-target': '1' } }>
 					<LivePanel
 						snapshot={ snapshot }
@@ -305,6 +319,11 @@ export default function App( { boot } ) {
 						onToggleAll={ toggleAll }
 						onFilter={ changeState }
 						onPage={ changePage }
+						perPage={ perPage }
+						onPerPage={ ( size ) => {
+							setPerPage( Number( size ) );
+							setPage( 1 );
+						} }
 						onRetry={ ( ids ) => runAction( 'retry', ids ) }
 						onDrop={ drop }
 

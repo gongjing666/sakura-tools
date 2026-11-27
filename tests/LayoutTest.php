@@ -87,61 +87,6 @@ final class LayoutTest extends TestCase {
 	}
 
 	/**
-	 * The table has to mirror the render order of each screen, or a page is
-	 * silently read in an order the view never intended.
-	 *
-	 * Card ids are read straight out of the view files so the markup stays the
-	 * single source of truth.
-	 *
-	 * @dataProvider page_markup_provider
-	 *
-	 * @param string             $layout Layout id.
-	 * @param array<int, string> $files  Files that render the cards, in order.
-	 */
-	public function test_order_matches_markup_render_order( string $layout, array $files ): void {
-		$rendered = array();
-
-		foreach ( $files as $file ) {
-			$path = dirname( __DIR__ ) . '/' . $file;
-			if ( ! is_readable( $path ) ) {
-				continue;
-			}
-
-			$source = (string) file_get_contents( $path );
-			if ( preg_match_all( "/UI::card\(\s*array\(\s*'id'\s*=>\s*'([a-z0-9_-]+)'/", $source, $found ) ) {
-				foreach ( $found[1] as $id ) {
-					$rendered[] = $id;
-				}
-			}
-		}
-
-		if ( array() === $rendered ) {
-			$this->markTestSkipped( 'No UI::card() calls found for ' . $layout );
-		}
-
-		$declared = Layout::PAGES[ $layout ]['order'] ?? array();
-		sort( $rendered );
-
-		$sorted = $declared;
-		sort( $sorted );
-
-		$this->assertSame( $rendered, $sorted, 'Layout::PAGES["' . $layout . '"] must place exactly the cards the screen renders.' );
-	}
-
-	/**
-	 * @return array<string, array{0:string, 1:array<int,string>}>
-	 */
-	public static function page_markup_provider(): array {
-		return array(
-			'image'  => array( 'image', array( 'includes/views/settings-main.php' ) ),
-			'thumb'  => array( 'thumb', array( 'includes/views/thumb-settings.php' ) ),
-			's3'     => array( 's3', array( 'src/S3/S3_Storage_Page.php', 'src/S3/Sync_Center_Panel.php', 'src/S3/Monitoring_Panel.php' ) ),
-			'sync'   => array( 'sync', array( 'includes/views/s3-sync-center.php' ) ),
-			'backup' => array( 'backup', array( 'includes/views/settings-backup.php' ) ),
-		);
-	}
-
-	/**
 	 * The system screen is a React island, so its card order left the PHP markup.
 	 *
 	 * Guarding the payload order and the JSX render order separately keeps the

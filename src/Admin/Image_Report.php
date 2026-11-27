@@ -11,7 +11,7 @@ namespace Sakura\ImageOptimizer\Admin;
 
 use Sakura\ImageOptimizer\Image\Crop_Config_Scanner;
 use Sakura\ImageOptimizer\Image\Size_Catalog;
-use Sakura\ImageOptimizer\Thumbnail_Manager;
+use Sakura\ImageOptimizer\Thumbnail\Thumbnail_Manager;
 
 defined( 'ABSPATH' ) || exit;
 

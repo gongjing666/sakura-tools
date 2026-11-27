@@ -32,11 +32,6 @@ final class Url_Rewrite_Panel implements Module {
 	public const NONCE = 'sakura_url_rewrite';
 
 	/**
-	 * React island bundle, relative to the plugin root.
-	 */
-	public const BUNDLE = 'assets/ui/dist/rewrite.js';
-
-	/**
 	 * View data cache shared by enqueue and render.
 	 *
 	 * @var array<string,mixed>|null
@@ -82,7 +77,7 @@ final class Url_Rewrite_Panel implements Module {
 	}
 
 	/**
-	 * Only load the page bundle on this tab.
+	 * Load the shared admin stack on this tab.
 	 *
 	 * @param string $hook Current admin page hook.
 	 */
@@ -95,16 +90,6 @@ final class Url_Rewrite_Panel implements Module {
 
 		Page_Assets::set_data( 'storage-rewrite', $this->page_config() );
 		Assets::enqueue_page();
-
-		if ( is_readable( SAKURA_TOOLS_PATH . self::BUNDLE ) ) {
-			wp_enqueue_script(
-				'sakura-admin-rewrite',
-				SAKURA_TOOLS_URL . self::BUNDLE,
-				array( 'sakura-admin-core' ),
-				Page_Assets::asset_version( self::BUNDLE ),
-				true
-			);
-		}
 	}
 
 	/**
@@ -117,20 +102,9 @@ final class Url_Rewrite_Panel implements Module {
 
 		Url_Rewrite_Repository::maybe_install();
 
-		$state        = $this->service->summary();
-		$hosts        = $this->known_hosts();
-		$current_host = $this->current_host();
-		$scope        = $this->scope();
+		$data = ( new \Sakura\ImageOptimizer\Admin\Rewrite_Payload( $this ) )->build();
 
-		if ( is_readable( SAKURA_TOOLS_PATH . self::BUNDLE ) ) {
-			$data = ( new \Sakura\ImageOptimizer\Admin\Rewrite_Payload( $this ) )->build();
-
-			require __DIR__ . '/../../includes/views/rewrite-island.php';
-
-			return;
-		}
-
-		require __DIR__ . '/../../includes/views/storage-url-rewrite.php';
+		require __DIR__ . '/../../includes/views/rewrite-island.php';
 	}
 
 	/**

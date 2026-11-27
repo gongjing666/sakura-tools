@@ -420,10 +420,14 @@ final class Image_Controller {
 			return new WP_REST_Response( array( 'message' => $exception->getMessage() ), 500 );
 		}
 
+		$state = isset( $probe['state'] ) ? (string) $probe['state'] : '';
+
 		return rest_ensure_response(
 			array(
-				'probe' => $probe,
-				'usage' => self::usage( true ),
+				'probe'        => $probe,
+				'usage'        => self::usage( true ),
+				'message'      => Backup_Payload::probe_message( $probe ),
+				'message_tone' => 'exposed' === $state ? 'bad' : ( 'protected' === $state ? 'ok' : 'neutral' ),
 			)
 		);
 	}

@@ -3,14 +3,43 @@
  */
 
 /**
- * Compare plain JSON option values (strings, numbers, booleans, string arrays).
+ * Canonical form of a JSON option value.
+ *
+ * Object keys and array items are sorted, so a value that differs only by the
+ * order of its members is the same value: toggling a checkbox off and on again
+ * must not leave the card dirty (the array really is a set here).
+ *
+ * @param {*} value Value.
+ * @return {string} Comparison key.
+ */
+function canonical( value ) {
+	if ( Array.isArray( value ) ) {
+		return '[' + value.map( canonical ).sort().join( ',' ) + ']';
+	}
+
+	if ( value && 'object' === typeof value ) {
+		return (
+			'{' +
+			Object.keys( value )
+				.sort()
+				.map( ( key ) => JSON.stringify( key ) + ':' + canonical( value[ key ] ) )
+				.join( ',' ) +
+			'}'
+		);
+	}
+
+	return JSON.stringify( value ?? null );
+}
+
+/**
+ * Compare plain JSON option values (strings, numbers, booleans, arrays).
  *
  * @param {*} a Left.
  * @param {*} b Right.
  * @return {boolean} Equal.
  */
 export function same( a, b ) {
-	return JSON.stringify( a ?? null ) === JSON.stringify( b ?? null );
+	return canonical( a ) === canonical( b );
 }
 
 /**

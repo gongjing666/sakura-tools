@@ -51,6 +51,16 @@ final class Deletes_Controller {
 
 		register_rest_route(
 			self::NS,
+			'/storage/deletes/dispatch',
+			array(
+				'methods'             => WP_REST_Server::CREATABLE,
+				'callback'            => array( self::class, 'dispatch' ),
+				'permission_callback' => array( Storage_Controller::class, 'can_manage' ),
+			)
+		);
+
+		register_rest_route(
+			self::NS,
 			'/storage/deletes/(?P<action>retry|drop)',
 			array(
 				'methods'             => WP_REST_Server::CREATABLE,
@@ -88,6 +98,31 @@ final class Deletes_Controller {
 	 * @param WP_REST_Request $request Request.
 	 * @return WP_REST_Response|WP_Error
 	 */
+	/**
+	 * Save the batch dispatch policy and return the refreshed slice.
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return WP_REST_Response
+	 */
+	public static function dispatch( WP_REST_Request $request ): WP_REST_Response {
+		$input = $request->get_json_params();
+
+		if ( ! is_array( $input ) || array() === $input ) {
+			$input = (array) $request->get_params();
+		}
+
+		$policy  = \Sakura\ImageOptimizer\S3\Delete_Batch::save( $input );
+		$payload = new Deletes_Payload();
+		$snap    = $payload->snapshot( 'all', 1, \Sakura\ImageOptimizer\S3\Delete_Batch::read()['batch_size'] );
+
+		return rest_ensure_response(
+			array(
+				'policy' => $policy,
+				'queued' => $snap['dispatch']['queued'] ?? array(),
+			)
+		);
+	}
+
 	public static function mutate( WP_REST_Request $request ) {
 		$action = sanitize_key( (string) $request->get_param( 'action' ) );
 		$ids    = self::ids( $request );
@@ -146,7 +181,7 @@ final class Deletes_Controller {
 			'per_page' => array(
 				'type'    => 'integer',
 				'default' => Deletes_Payload::PER_PAGE,
-				'enum'    => array( 20, 50, 100 ),
+				'enum'    => array( 25, 50, 100 ),
 			),
 		);
 	}
@@ -179,7 +214,7 @@ final class Deletes_Controller {
 	private static function per_page( WP_REST_Request $request ): int {
 		$per_page = (int) $request->get_param( 'per_page' );
 
-		return in_array( $per_page, array( 20, 50, 100 ), true ) ? $per_page : Deletes_Payload::PER_PAGE;
+		return in_array( $per_page, array( 25, 50, 100 ), true ) ? $per_page : Deletes_Payload::PER_PAGE;
 	}
 
 	/**

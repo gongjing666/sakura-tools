@@ -8,7 +8,7 @@
 declare( strict_types=1 );
 
 use PHPUnit\Framework\TestCase;
-use Sakura\ImageOptimizer\Stats;
+use Sakura\ImageOptimizer\Stats\Stats;
 use Sakura\ImageOptimizer\Stats\Stats_Repository;
 
 /**

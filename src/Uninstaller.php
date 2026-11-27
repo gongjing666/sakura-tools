@@ -199,6 +199,12 @@ final class Uninstaller {
 			'sakura_imgopt_thumb_cache_flush',
 			'sakura_imgopt_thumb_stats',
 			'sakura_imgopt_zibll_license_cache',
+			/*
+			 * The 1.29.0 shell experiment switch. Nothing reads it any more, but
+			 * sites that ran a beta still hold the row and would keep it forever
+			 * otherwise.
+			 */
+			'sakura_imgopt_admin_app',
 			'sufm_space_reconcile_last',
 			'sufm_sync_state',
 		);

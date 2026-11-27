@@ -76,7 +76,7 @@ function syncChrome( url ) {
  * @param {Object} props Boot payload.
  * @return {JSX.Element} Page.
  */
-export default function App( { boot } ) {
+export default function App( { boot, embedded = false } ) {
 	const [ payload, setPayload ] = useState( boot );
 	const [ head, setHead ] = useState( boot.head );
 	const [ notice, setNotice ] = useState( null );
@@ -143,6 +143,12 @@ export default function App( { boot } ) {
 	// document. Links to other modules are left alone — those are different
 	// bundles and genuinely different pages.
 	useEffect( () => {
+		// Embedded in the persistent shell: the shell owns navigation and the
+		// chrome, so this island must not intercept clicks or write history.
+		if ( embedded ) {
+			return undefined;
+		}
+
 		const onClick = ( event ) => {
 			if (
 				event.defaultPrevented ||
@@ -179,13 +185,17 @@ export default function App( { boot } ) {
 		document.addEventListener( 'click', onClick );
 
 		return () => document.removeEventListener( 'click', onClick );
-	}, [ open, payload.tab ] );
+	}, [ open, payload.tab, embedded ] );
 
 	// Back / forward: the payload travels in the history entry, so a step back
 	// is a re-render, not a reload. The entry the browser landed on is seeded
 	// with the boot payload first — otherwise stepping back past it would find
 	// no state and force a full load.
 	useEffect( () => {
+		if ( embedded ) {
+			return undefined;
+		}
+
 		if ( ! window.history.state || ! window.history.state.payload ) {
 			window.history.replaceState(
 				{ sakuraTab: boot.tab, payload: boot },
@@ -211,7 +221,7 @@ export default function App( { boot } ) {
 		window.addEventListener( 'popstate', onPop );
 
 		return () => window.removeEventListener( 'popstate', onPop );
-	}, [] );
+	}, [ embedded ] );
 
 	let body = null;
 
@@ -288,12 +298,15 @@ export default function App( { boot } ) {
 
 			<div className="page-body" data-sakura-tab={ payload.tab }>
 				{ error ? (
-					<div className="system-note" role="alert">
+					<div className="system-alert" data-tone="bad" role="alert">
 						<p>{ error }</p>
+						<button type="button" className="btn btn--ghost btn--small" onClick={ () => setError( '' ) }>
+							{ '关闭' }
+						</button>
 					</div>
 				) : null }
 				{ payload.alerts && payload.alerts.length ? (
-					<div className="system-note" data-tone="info">
+					<div className="system-alert">
 						{ payload.alerts.map( ( alert ) => (
 							<p key={ alert.text } data-tone={ alert.tone }>
 								{ alert.title ? <strong>{ alert.title }：</strong> : null }

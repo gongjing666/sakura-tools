@@ -9,18 +9,18 @@ declare( strict_types=1 );
 
 use PHPUnit\Framework\TestCase;
 use Sakura\ImageOptimizer\Contracts\Module;
-use Sakura\ImageOptimizer\Image_Processor;
-use Sakura\ImageOptimizer\Media_Library_Module;
-use Sakura\ImageOptimizer\Thumbnail_Optimizer_Module;
+use Sakura\ImageOptimizer\Image\Image_Processor;
+use Sakura\ImageOptimizer\Modules\Media_Library_Module;
+use Sakura\ImageOptimizer\Modules\Thumbnail_Optimizer_Module;
 use Sakura\ImageOptimizer\S3\Options;
 use Sakura\ImageOptimizer\S3\Storage;
 use Sakura\ImageOptimizer\S3\Storage_Adapter;
 use Sakura\ImageOptimizer\Sync\Attachment_Indexer;
 use Sakura\ImageOptimizer\Sync\Index_Repository;
-use Sakura\ImageOptimizer\S3_Storage_Module;
-use Sakura\ImageOptimizer\Image_Optimizer_Module;
+use Sakura\ImageOptimizer\S3\Storage_Module;
+use Sakura\ImageOptimizer\Modules\Image_Optimizer_Module;
 use Sakura\ImageOptimizer\Support\Hook_Loader;
-use Sakura\ImageOptimizer\Thumbnail_Manager;
+use Sakura\ImageOptimizer\Thumbnail\Thumbnail_Manager;
 
 final class ModuleRegistrationTest extends TestCase {
 
@@ -52,14 +52,17 @@ final class ModuleRegistrationTest extends TestCase {
 	 */
 	private static function module_cases(): array {
 		return array(
-			// The settings module no longer owns a top-level menu: the unified
-			// shell (src/Admin) registers it, so assert on a hook it still queues.
-			'settings'        => array( Image_Optimizer_Module::class, 'admin_init' ),
+			// The module only draws its four screens: the menu comes from src/Admin
+			// and the options are saved through REST, so there is no admin_init hook
+			// left to assert on.
+			'settings'        => array( Image_Optimizer_Module::class, 'admin_enqueue_scripts' ),
 			'media_library'   => array( Media_Library_Module::class, 'wp_ajax_sakura_process_batch' ),
 			'oss_thumbnail'   => array( Thumbnail_Optimizer_Module::class, 'template_redirect' ),
 			'thumbnail'       => array( Thumbnail_Manager::class, 'init' ),
 			'image_processor' => array( Image_Processor::class, 'wp_handle_upload_prefilter' ),
-			's3_settings'     => array( S3_Storage_Module::class, 'admin_post_sakura_s3_save' ),
+			// The connection tab saves through REST; the module only keeps the
+			// monitoring forms, the sync retry endpoint and the assets hook.
+			's3_settings'     => array( Storage_Module::class, 'admin_post_sakura_s3_alerts_save' ),
 			// The monthly calibration owns the cron schedule filter; a missing
 			// registration would silently stop the dashboard from refreshing.
 			'sync_calibrator' => array( \Sakura\ImageOptimizer\Sync\Sync_Calibrator::class, 'cron_schedules' ),
@@ -121,7 +124,7 @@ final class ModuleRegistrationTest extends TestCase {
 		new Thumbnail_Optimizer_Module();
 		new Thumbnail_Manager();
 		new Image_Processor();
-		new S3_Storage_Module();
+		new Storage_Module();
 		new Storage( new Options( array() ) );
 
 		$this->assertSame( array(), $GLOBALS['sakura_test_hooks']['actions'] );

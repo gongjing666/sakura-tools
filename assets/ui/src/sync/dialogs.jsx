@@ -6,7 +6,7 @@
  * navigates or starts a scan through the same handler.
  */
 import { useEffect, useRef, useState } from 'react';
-import { ajax, errorText, toast } from './transport.js';
+import { post, errorText, toast } from './transport.js';
 
 export default function Dialogs( { notice, onClose, config, onScan } ) {
 	if ( ! notice ) {
@@ -43,7 +43,7 @@ function Dialog( { notice, onClose, config, onScan } ) {
 		if ( mute && notice.dismiss ) {
 			setBusy( true );
 
-			ajax( 'sakura_s3_config_notice', { nonce: notice.nonce, dismiss: '1' } )
+			post( config, 'notice', { dismiss: '1' } )
 				.catch( ( error ) => toast( errorText( error, '' ), 'bad' ) )
 				.finally( () => {
 					setBusy( false );

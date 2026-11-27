@@ -111,6 +111,19 @@ final class Delete_Worker implements Module {
 		if ( ! $this->options->is_enabled() || ! $this->options->is_configured() || ! $this->lock( 'run' ) ) {
 			return;
 		}
+
+		$policy = Delete_Batch::read();
+
+		if ( (int) $policy['batch_time'] > 0 && $max_seconds === self::MAX_SECONDS ) {
+			$max_seconds = (int) $policy['batch_time'];
+		}
+
+		if ( ! $this->should_dispatch( $policy ) ) {
+			$this->unlock( 'run' );
+
+			return;
+		}
+
 		$start = time();
 		Profiler::start( 'delete queue tick' );
 		try {
@@ -136,6 +149,53 @@ final class Delete_Worker implements Module {
 		if ( $this->deletes->due_count() > 0 ) {
 			wp_schedule_single_event( time() + 5, self::HOOK );
 		}
+	}
+
+	/**
+	 * Whether this tick may take a batch.
+	 *
+	 * Batching waits for a full batch, a full load (bytes) or the oldest row's
+	 * deadline, whichever comes first. Rows still inside their retry backoff are
+	 * not counted: they would otherwise hold every batch forever.
+	 *
+	 * @param array<string,mixed> $policy Dispatch policy.
+	 * @return bool
+	 */
+	private function should_dispatch( array $policy ): bool {
+		if ( empty( $policy['enabled'] ) || (int) $policy['max_wait'] <= 0 ) {
+			return true;
+		}
+
+		$stats = $this->deletes->queued_stats();
+
+		if ( $stats['count'] <= 0 ) {
+			return false;
+		}
+
+		if ( $stats['count'] >= (int) $policy['batch_size'] ) {
+			return true;
+		}
+
+		$cap = (int) $policy['batch_bytes'] * MB_IN_BYTES;
+
+		if ( $cap > 0 && $stats['bytes'] >= $cap ) {
+			return true;
+		}
+
+		if ( $stats['oldest'] <= 0 ) {
+			return false;
+		}
+
+		$deadline = $stats['oldest'] + (int) $policy['max_wait'];
+
+		if ( time() >= $deadline ) {
+			return true;
+		}
+
+		// Wake exactly when the oldest row reaches its deadline.
+		wp_schedule_single_event( max( time() + 5, $deadline ), self::HOOK );
+
+		return false;
 	}
 
 	/**

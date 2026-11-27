@@ -48,11 +48,33 @@ export function Topbar( { chrome } ) {
 
 	return (
 		<header className="topbar sakura-topbar">
+			<TopbarContent chrome={ chrome } />
+		</header>
+	);
+}
+
+/**
+ * The children of that header.
+ *
+ * Split out for the experimental shell: PHP prints the <header> node and React
+ * hydrates it in place, so this component must return the children only — a
+ * second <header> would nest two bars.
+ *
+ * Keep every run of text a single expression: the HTML parser merges adjacent
+ * text into one node, and hydration compares nodes, not strings.
+ */
+export function TopbarContent( { chrome } ) {
+	if ( ! chrome || ! chrome.brand ) {
+		return null;
+	}
+
+	return (
+		<>
 			<div className="brand">
 				<span className="brand-mark" aria-hidden="true" dangerouslySetInnerHTML={ { __html: chrome.brand.mark } } />
 				<strong>{ chrome.brand.label }</strong>
 				<span className="path">
-					<span className="slash">/</span> { chrome.brand.path }
+					<span className="slash">/</span>{ ' ' + chrome.brand.path }
 				</span>
 			</div>
 
@@ -62,6 +84,7 @@ export function Topbar( { chrome } ) {
 						key={ mod.id }
 						className={ mod.active ? 'sakura-mod is-active' : 'sakura-mod' }
 						href={ mod.url }
+						data-sakura-route={ mod.route }
 						aria-current={ mod.active ? 'page' : undefined }
 					>
 						{ mod.label }
@@ -85,7 +108,7 @@ export function Topbar( { chrome } ) {
 					</a>
 				) ) }
 			</div>
-		</header>
+		</>
 	);
 }
 
@@ -100,12 +123,28 @@ export function Tabs( { chrome } ) {
 
 	return (
 		<nav className="sakura-tabs" aria-label={ chrome.labels.tabs }>
+			<TabsContent chrome={ chrome } />
+		</nav>
+	);
+}
+
+/**
+ * The children of that strip, hydrated into the server-printed <nav>.
+ */
+export function TabsContent( { chrome } ) {
+	if ( ! chrome || ! chrome.tabs || ! chrome.tabs.length ) {
+		return null;
+	}
+
+	return (
+		<>
 			{ chrome.tabs.map( ( tab ) =>
 				tab.enabled ? (
 					<a
 						key={ tab.id }
 						className={ tab.active ? 'sakura-tab is-active' : 'sakura-tab' }
 						href={ tab.url }
+						data-sakura-route={ tab.route }
 						aria-current={ tab.active ? 'page' : undefined }
 					>
 						{ tab.label }
@@ -124,7 +163,7 @@ export function Tabs( { chrome } ) {
 					</span>
 				)
 			) }
-		</nav>
+		</>
 	);
 }
 

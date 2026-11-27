@@ -7,15 +7,14 @@
  */
 import { Badge } from '../shared/ui.jsx';
 
+// Only what this page imports: the shell owns the chrome, so Topbar/Tabs are
+// never rendered here, and a re-export nobody imports is dead weight.
 export {
-	Badge,
 	BusyLabel,
 	Card,
 	Field,
 	PageHead,
 	Prompt,
-	Tabs,
-	Topbar,
 } from '../shared/ui.jsx';
 
 /** The two-column readout table: one record per row on narrow screens. */

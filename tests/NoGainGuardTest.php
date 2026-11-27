@@ -6,10 +6,10 @@
  */
 
 use PHPUnit\Framework\TestCase;
-use Sakura\ImageOptimizer\GD_Handler;
+use Sakura\ImageOptimizer\Image\Handlers\GD_Handler;
 use Sakura\ImageOptimizer\Image\Engine_Manager;
 use Sakura\ImageOptimizer\Image\No_Gain_Guard;
-use Sakura\ImageOptimizer\Imagick_Handler;
+use Sakura\ImageOptimizer\Image\Handlers\Imagick_Handler;
 
 final class NoGainGuardTest extends TestCase {
 

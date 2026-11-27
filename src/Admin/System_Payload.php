@@ -26,10 +26,10 @@ final class System_Payload {
 	/**
 	 * Build the payload.
 	 *
-	 * @param string $page Page id that owns the island.
 	 * @return array<string, mixed>
 	 */
-	public static function build( string $page = 'system-settings' ): array {
+	public static function build(): array {
+		$page     = 'system-settings';
 		$report   = Environment_Report::collect();
 		$php      = $report['php'];
 		$wordpress = $report['wordpress'];
@@ -221,6 +221,13 @@ final class System_Payload {
 		$payload['head']   = UI\Page::head_data( $payload['page'] );
 		$payload['chrome'] = Shell::header_data( 'system', 'settings' );
 
+		/*
+		 * The shell manifest, or null while the experiment is off. The island
+		 * reads `app.enabled` before it takes the chrome over, so a page rendered
+		 * with the switch on but the bundle missing still shows the server frame.
+		 */
+		$payload['app'] = App_Manifest::manifest();
+
 		return $payload;
 	}
 
@@ -230,7 +237,7 @@ final class System_Payload {
 	 * @param array<string,mixed> $payload Payload built so far.
 	 * @return array<string,mixed>
 	 */
-	public static function page_args( array $payload ): array {
+	private static function page_args( array $payload ): array {
 		return array(
 			'id'      => 'system-settings',
 			'module'  => 'system',

@@ -24,7 +24,7 @@ final class Delete_Jobs {
 	/**
 	 * Table schema version.
 	 */
-	public const VERSION = '1.2.3';
+	public const VERSION = '1.3.0';
 
 	/**
 	 * Schema option name.
@@ -122,6 +122,7 @@ final class Delete_Jobs {
 			profile_id varchar(40) NOT NULL DEFAULT '',
 			object_key varbinary(1024) NOT NULL,
 			object_key_hash binary(32) NOT NULL,
+			object_bytes bigint(20) unsigned NOT NULL DEFAULT 0,
 			target_hash char(64) NOT NULL DEFAULT '',
 			state varchar(16) NOT NULL DEFAULT 'queued',
 			attempts smallint(5) unsigned NOT NULL DEFAULT 0,
@@ -173,7 +174,7 @@ final class Delete_Jobs {
 		dbDelta( $sql );
 
 		$columns = (array) $wpdb->get_col( "SHOW COLUMNS FROM {$table}", 0 );
-		if ( ! in_array( 'lease_until', $columns, true ) || ! in_array( 'claim_token', $columns, true ) || ! in_array( 'target_hash', $columns, true ) || ! in_array( 'completed_at', $columns, true ) || ! in_array( 'resolution', $columns, true ) ) {
+		if ( ! in_array( 'lease_until', $columns, true ) || ! in_array( 'claim_token', $columns, true ) || ! in_array( 'target_hash', $columns, true ) || ! in_array( 'completed_at', $columns, true ) || ! in_array( 'resolution', $columns, true ) || ! in_array( 'object_bytes', $columns, true ) ) {
 			do_action( 'sakura_imgopt_s3_log', __( '删除队列表升级未完成：缺少租约、令牌、目标指纹或完成字段，已保留旧版本标记。', 'sakura-imgopt' ) );
 			return;
 		}
@@ -198,7 +199,7 @@ final class Delete_Jobs {
 	 * @param string             $profile_id    Storage profile at enqueue time.
 	 * @return int Accepted keys.
 	 */
-	public function enqueue( int $attachment_id, array $keys, int $delay = 0, string $profile_id = '', string $target_hash = '' ): int {
+	public function enqueue( int $attachment_id, array $keys, int $delay = 0, string $profile_id = '', string $target_hash = '', int $bytes = 0 ): int {
 		global $wpdb;
 
 		self::maybe_install();
@@ -217,11 +218,12 @@ final class Delete_Jobs {
 			$seen[ $key ] = true;
 
 			$values[] = $wpdb->prepare(
-				'(%d, %s, %s, UNHEX(%s), %s, %s, %s, %s, %s)',
+				'(%d, %s, %s, UNHEX(%s), %d, %s, %s, %s, %s, %s)',
 				max( 0, $attachment_id ),
 				$profile_id,
 				$key,
 				bin2hex( hash( 'sha256', $key, true ) ),
+				max( 0, $bytes ),
 				$target_hash,
 				'queued',
 				$next,
@@ -237,11 +239,12 @@ final class Delete_Jobs {
 		foreach ( array_chunk( $values, 100 ) as $chunk ) {
 			$wpdb->query(
 				"INSERT INTO {$this->table}
-					(attachment_id, profile_id, object_key, object_key_hash, target_hash, state, next_at, created_at, updated_at)
+					(attachment_id, profile_id, object_key, object_key_hash, object_bytes, target_hash, state, next_at, created_at, updated_at)
 				VALUES " . implode( ', ', $chunk ) . "
 				ON DUPLICATE KEY UPDATE
 					attachment_id = VALUES(attachment_id),
 					profile_id = VALUES(profile_id),
+					object_bytes = VALUES(object_bytes),
 					target_hash = VALUES(target_hash),
 					attempts = IF(state IN ('dead', 'done'), 0, attempts),
 					claim_token = IF(state IN ('dead', 'done'), '', claim_token),
@@ -380,6 +383,41 @@ final class Delete_Jobs {
 	}
 
 	/**
+	 * Aggregate of rows that may run right now (queued and past next_at).
+	 *
+	 * Retry rows waiting for their backoff are excluded on purpose: they must
+	 * not keep a batch from dispatching.
+	 *
+	 * @return array{count:int,bytes:int,oldest:int}
+	 */
+	public function queued_stats(): array {
+		global $wpdb;
+
+		$now = gmdate( 'Y-m-d H:i:s' );
+		$row = $wpdb->get_row(
+			$wpdb->prepare(
+				"SELECT COUNT(*) AS c, COALESCE(SUM(object_bytes), 0) AS b, MIN(created_at) AS o
+				FROM {$this->table} WHERE state = 'queued' AND next_at <= %s",
+				$now
+			),
+			ARRAY_A
+		);
+
+		/*
+		 * The table stores UTC timestamps. UNIX_TIMESTAMP() would reinterpret them
+		 * in the session timezone, which on a non-UTC site shifts "how long has
+		 * this waited" by the UTC offset — enough to make every batch look overdue.
+		 */
+		$oldest = is_array( $row ) && ! empty( $row['o'] ) ? (int) strtotime( (string) $row['o'] . ' UTC' ) : 0;
+
+		return array(
+			'count'  => is_array( $row ) ? (int) $row['c'] : 0,
+			'bytes'  => is_array( $row ) ? (int) $row['b'] : 0,
+			'oldest' => $oldest,
+		);
+	}
+
+	/**
 	 * Number of due rows.
 	 */
 	public function due_count(): int {
@@ -480,6 +518,50 @@ final class Delete_Jobs {
 	 * @param string $resolution  deleted | kept | skipped.
 	 * @return bool Whether this worker still owned the row.
 	 */
+	/**
+	 * Settle a queued row as deleted because the caller removed the object itself.
+	 *
+	 * The sync centre deletes attachment-backed rows through the kernel, which
+	 * removes the object synchronously. The queue row still exists so the tab can
+	 * list the request; this flips it to "done" instead of leaving a ghost that
+	 * the worker would later answer "kept" for.
+	 *
+	 * @param int      $attachment_id Attachment id (0 for a bare cloud copy).
+	 * @param string   $profile_id    Profile id.
+	 * @param string[] $keys          Object keys that were deleted.
+	 * @return int Rows updated.
+	 */
+	public function settle_deleted( int $attachment_id, string $profile_id, array $keys ): int {
+		global $wpdb;
+
+		self::maybe_install();
+
+		$updated = 0;
+		$now     = gmdate( 'Y-m-d H:i:s' );
+
+		foreach ( $keys as $key ) {
+			$key = (string) $key;
+
+			if ( '' === $key ) {
+				continue;
+			}
+
+			$updated += (int) $wpdb->query(
+				$wpdb->prepare(
+					"UPDATE {$this->table}
+					SET state = 'done', resolution = 'deleted', completed_at = %s, updated_at = %s, last_error = ''
+					WHERE profile_id = %s AND object_key_hash = UNHEX(%s) AND state IN ('queued','running')",
+					$now,
+					$now,
+					$profile_id,
+					bin2hex( hash( 'sha256', $key, true ) )
+				)
+			);
+		}
+
+		return $updated;
+	}
+
 	public function complete( int $id, string $claim_token, string $resolution = 'deleted' ): bool {
 		global $wpdb;
 

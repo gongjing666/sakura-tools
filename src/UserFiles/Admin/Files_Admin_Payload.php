@@ -16,6 +16,7 @@ namespace Nboke\UserFiles\Admin;
 use Nboke\UserFiles\Capabilities;
 use Sakura\ImageOptimizer\Admin\Layout;
 use Sakura\ImageOptimizer\Admin\Registry;
+use Sakura\ImageOptimizer\Admin\Shell;
 use Sakura\ImageOptimizer\Admin\UI;
 
 defined( 'ABSPATH' ) || exit;
@@ -76,6 +77,7 @@ final class Files_Admin_Payload {
 			'version' => defined( 'SAKURA_TOOLS_VERSION' ) ? (string) SAKURA_TOOLS_VERSION : '0',
 			'page'    => $args,
 			'head'    => UI\Page::head_data( $args ),
+			'chrome'  => Shell::header_data( 'files', substr( $page, 6 ) ),
 			'cards'   => $this->cards( $page ),
 			'config'  => array(
 				'restUrl' => esc_url_raw( rest_url( 'sufm/v1/' ) ),

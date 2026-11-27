@@ -14,6 +14,7 @@ use Nboke\UserFiles\Settings;
 use Sakura\ImageOptimizer\Admin\Card_Form;
 use Sakura\ImageOptimizer\Admin\Layout;
 use Sakura\ImageOptimizer\Admin\Registry;
+use Sakura\ImageOptimizer\Admin\Shell;
 use Sakura\ImageOptimizer\Admin\UI;
 
 defined( 'ABSPATH' ) || exit;
@@ -27,11 +28,6 @@ final class Files_Settings_Payload {
 	 * Page id, also the Layout and Page_Assets key.
 	 */
 	public const PAGE = 'files-settings';
-
-	/**
-	 * React island bundle.
-	 */
-	public const BUNDLE = 'assets/ui/dist/files.js';
 
 	/**
 	 * Whole bootstrap document.
@@ -50,6 +46,7 @@ final class Files_Settings_Payload {
 			'version' => defined( 'SAKURA_TOOLS_VERSION' ) ? (string) SAKURA_TOOLS_VERSION : '0',
 			'page'    => $page,
 			'head'    => UI\Page::head_data( $page ),
+			'chrome'  => Shell::header_data( 'files', 'settings' ),
 			'cards'   => $cards,
 			'config'  => $config,
 		);

@@ -39,9 +39,35 @@ final class SystemSettingsTest extends TestCase {
 	}
 
 	/**
-	 * The first module owns the stable top-level address.
+	 * The first module owns the stable top-level address, and the registry is the
+	 * only place that says so — the module used to carry a duplicate constant.
+	 *
+	 * @return void
 	 */
-	public function test_menu_slug_is_top_level(): void {
-		$this->assertSame( 'sakura-tools', System_Settings_Module::MENU_SLUG );
+	public function test_menu_slug_comes_from_the_registry(): void {
+		require_once dirname( __DIR__ ) . '/src/Admin/Registry.php';
+
+		$this->assertSame( 'sakura-tools', \Sakura\ImageOptimizer\Admin\Registry::PARENT );
+	}
+
+	/**
+	 * The page saves through REST only.
+	 *
+	 * It has no options.php form, so the Settings API registration and the
+	 * per-card guard that lived on this module were dead weight (removed in
+	 * 1.29.0-beta-3). This locks the removal so the dead path cannot creep back.
+	 *
+	 * @return void
+	 */
+	public function test_the_page_registers_nothing_for_options_php(): void {
+		require_once dirname( __DIR__ ) . '/src/Support/Hook_Loader.php';
+
+		$module = new System_Settings_Module();
+		$hooks  = new \Sakura\ImageOptimizer\Support\Hook_Loader();
+
+		$module->register_hooks( $hooks );
+
+		$this->assertNotContains( 'admin_init', array_column( $hooks->actions(), 'hook' ) );
+		$this->assertFalse( method_exists( $module, 'register_settings' ) );
 	}
 }

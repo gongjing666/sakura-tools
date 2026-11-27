@@ -53,6 +53,7 @@ final class Cost_Payload {
 			'version' => SAKURA_TOOLS_VERSION,
 			'page'    => $page,
 			'head'    => UI\Page::head_data( $page ),
+			'chrome'  => Shell::header_data( 'storage', 'cost' ),
 			'cards'   => $cards,
 			'config'  => $this->config(),
 		);

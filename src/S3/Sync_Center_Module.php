@@ -108,39 +108,25 @@ final class Sync_Center_Module implements Module {
 	 */
 	public function register_hooks( Hook_Loader $hooks ): void {
 		$hooks->add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_assets' ) );
-		$hooks->add_action( 'wp_ajax_sakura_s3_sync_scan', array( $this, 'ajax_scan' ) );
-		$hooks->add_action( 'wp_ajax_sakura_s3_sync_scan_step', array( $this, 'ajax_scan_step' ) );
-		$hooks->add_action( 'wp_ajax_sakura_s3_sync_cancel', array( $this, 'ajax_cancel' ) );
-		$hooks->add_action( 'wp_ajax_sakura_s3_sync_resume', array( $this, 'ajax_resume' ) );
-		$hooks->add_action( 'wp_ajax_sakura_s3_sync_page', array( $this, 'ajax_page' ) );
-		$hooks->add_action( 'wp_ajax_sakura_s3_sync_preview', array( $this, 'ajax_preview' ) );
-		$hooks->add_action( 'wp_ajax_sakura_s3_sync_test', array( $this, 'ajax_test' ) );
-		$hooks->add_action( 'wp_ajax_sakura_s3_sync_action', array( $this, 'ajax_action' ) );
-		$hooks->add_action( 'wp_ajax_sakura_s3_latency', array( $this, 'ajax_latency' ) );
-		$hooks->add_action( 'wp_ajax_sakura_s3_sync_refresh', array( $this, 'ajax_refresh' ) );
-		$hooks->add_action( 'wp_ajax_sakura_s3_sync_toggle_index', array( $this, 'ajax_toggle_index' ) );
-		$hooks->add_action( 'wp_ajax_sakura_s3_config_notice', array( $this, 'ajax_dismiss_config_notice' ) );
 		$hooks->add_action( 'admin_notices', array( $this, 'admin_notices' ) );
-		$hooks->add_action( 'admin_post_sakura_s3_sync_export', array( $this, 'export_csv' ) );
-		$hooks->add_action( 'admin_post_sakura_s3_ignored_save', array( $this, 'save_ignored_paths' ) );
-		$hooks->add_action( 'admin_post_sakura_s3_media_download', array( $this, 'download_media' ) );
 	}
 
 	/**
 	 * Persist the custom ignore rules from the sync center card.
 	 */
-	public function save_ignored_paths(): void {
-		if ( ! current_user_can( 'manage_options' ) ) {
-			wp_die( esc_html__( '权限不足。', 'sakura-imgopt' ) );
-		}
-
-		check_admin_referer( 'sakura_s3_ignored_save' );
-
-		$raw = isset( $_POST['ignored_paths'] ) ? wp_unslash( $_POST['ignored_paths'] ) : '';
+	/**
+	 * Persist the ignore rules.
+	 *
+	 * @param string $raw Newline-separated rule text.
+	 * @return array<string,mixed>
+	 */
+	public function handle_ignored_save( string $raw ): array {
 		Ignored_Paths::save( $raw );
 
-		wp_safe_redirect( admin_url( 'admin.php?page=' . self::MENU_SLUG . '&t=sync&ignored_saved=1' ) );
-		exit;
+		return array(
+			'saved' => true,
+			'note'  => Ignored_Paths::to_text(),
+		);
 	}
 
 	/**
@@ -157,25 +143,6 @@ final class Sync_Center_Module implements Module {
 
 		\Sakura\ImageOptimizer\Admin\Page_Assets::set_data( 'storage-sync', $this->page_config() );
 		\Sakura\ImageOptimizer\Admin\Assets::enqueue_page();
-
-		/*
-		 * The island bundle is enqueued here, not from Page_Assets: that class
-		 * only knows the stylesheet map and the legacy controller script, and
-		 * every island so far registers its own bundle beside the screen that
-		 * uses it. Same handle shape as the storage page, so a future shared
-		 * bundle can reuse it.
-		 */
-		$bundle = 'assets/ui/dist/sync.js';
-
-		if ( is_readable( SAKURA_TOOLS_PATH . $bundle ) ) {
-			wp_enqueue_script(
-				'sakura-admin-sync',
-				SAKURA_TOOLS_URL . $bundle,
-				array( 'sakura-admin-core' ),
-				\Sakura\ImageOptimizer\Admin\Page_Assets::asset_version( $bundle ),
-				true
-			);
-		}
 	}
 
 	/**
@@ -230,6 +197,8 @@ final class Sync_Center_Module implements Module {
 
 		return array(
 			'ajaxUrl'      => admin_url( 'admin-ajax.php' ),
+			'restUrl'      => esc_url_raw( rest_url( 'sakura-tools/v1' ) ),
+			'restNonce'    => wp_create_nonce( 'wp_rest' ),
 			'searchUrl'    => SAKURA_TOOLS_URL . 'fast-search.php',
 			'searchToken'  => $token,
 			'mediaUrl'     => admin_url( 'upload.php' ),
@@ -237,18 +206,8 @@ final class Sync_Center_Module implements Module {
 			'pageSizes'    => array( 25, 50, 100 ),
 			'logs'         => $this->log_payload( (array) $data['logs'], (int) ( $data['snapshot']['scanned_at'] ?? 0 ) ),
 			'indexEnabled' => Feature::enabled(),
-			'scanNonce'    => wp_create_nonce( 'sakura_s3_sync_scan' ),
-			'retryNonce'   => wp_create_nonce( 'sakura_s3_retry' ),
-			'testNonce'    => wp_create_nonce( 'sakura_s3_sync_test' ),
-			'actionNonce'  => wp_create_nonce( 'sakura_s3_sync_action' ),
 			/* How often the hero pill re-measures the bucket while the page is visible. */
 			'latencyMs'    => 30000,
-			'pageNonce'    => wp_create_nonce( 'sakura_s3_sync_page' ),
-			'previewNonce' => wp_create_nonce( 'sakura_s3_sync_preview' ),
-			'cancelNonce'  => wp_create_nonce( 'sakura_s3_sync_cancel' ),
-			'resumeNonce'  => wp_create_nonce( 'sakura_s3_sync_resume' ),
-			'refreshNonce' => wp_create_nonce( 'sakura_s3_sync_refresh' ),
-			'toggleNonce'  => wp_create_nonce( 'sakura_s3_sync_toggle' ),
 			'strings'      => array(
 				'unknownError'    => __( '操作失败，请稍后重试。', 'sakura-imgopt' ),
 				'latencyOk'       => __( '优秀', 'sakura-imgopt' ),
@@ -354,47 +313,6 @@ final class Sync_Center_Module implements Module {
 
 		$data = $this->page_data();
 
-		$snapshot = $data['snapshot'];
-		$rows = $data['rows'];
-		$counts = $data['counts'];
-		$total = $data['total'];
-		$failed = $data['failed'];
-		$failed_total = $data['failed_total'];
-		$jobs = $data['jobs'];
-		$logs = $data['logs'];
-		$options = $data['options'];
-		$settings_url = $data['settings_url'];
-		$action_nonce = $data['action_nonce'];
-		$scan_nonce = $data['scan_nonce'];
-		$page_nonce = $data['page_nonce'];
-		$page_cursor = $data['page_cursor'];
-		$page_more = $data['page_more'];
-		$summary = $data['summary'];
-		$scan = $data['scan'];
-		$scan_id = $data['scan_id'];
-		$scan_state = $data['scan_state'];
-		$scan_phase = $data['scan_phase'];
-		$scan_resumable = $data['scan_resumable'];
-		$scan_busy = $data['scan_busy'];
-		$retry_nonce = $data['retry_nonce'];
-		$test_nonce = $data['test_nonce'];
-		$export_url = $data['export_url'];
-		$uploads = $data['uploads'];
-		$is_configured = $data['is_configured'];
-		$storage_enabled = $data['is_enabled'];
-		$index_enabled = $data['index_enabled'];
-		$legacy_error = $data['legacy_error'];
-		$legacy_built = $data['legacy_built'];
-		$metrics = $data['metrics'];
-		$jobs_summary = $data['jobs_summary'];
-		$job_rows = $data['job_rows'];
-		$toggle_nonce = $data['toggle_nonce'];
-		$refresh_nonce = $data['refresh_nonce'];
-		// R18: the view needs the pending gate to explain itself and to keep a
-		// single escape hatch (a full reconcile) open.
-		$reconcile_gate = $this->options->reconcile_pending();
-		$reconcile_gate = is_array( $reconcile_gate ) ? $reconcile_gate : array();
-
 		// WP-Cron only advances on traffic, so a site that sat idle for a month
 		// can land here before the monthly event ever ran. Queueing the same
 		// calibration on page view closes that gap; the single event carries
@@ -403,23 +321,9 @@ final class Sync_Center_Module implements Module {
 			Sync_Calibrator::schedule_soon();
 		}
 
-		/*
-		 * React island when the bundle is on disk, classic PHP page otherwise.
-		 *
-		 * The fallback is not dead code: a fresh checkout that has not run
-		 * `npm run build`, or a deploy that dropped assets/ui/dist, still gets a
-		 * working screen instead of an empty shell. Page_Assets gates the legacy
-		 * controller script on the same condition, so exactly one renderer binds.
-		 */
-		$bundle = 'assets/ui/dist/sync.js';
-		if ( is_readable( SAKURA_TOOLS_PATH . $bundle ) ) {
-			$payload = ( new \Sakura\ImageOptimizer\Admin\Sync_Payload( $data, $this->page_config(), $this->options ) )->build();
+		$payload = $this->payload();
 
-			require __DIR__ . '/../../includes/views/sync-island.php';
-			return;
-		}
-
-		require __DIR__ . '/../../includes/views/s3-sync-center.php';
+		require __DIR__ . '/../../includes/views/sync-island.php';
 	}
 
 	/**
@@ -486,164 +390,189 @@ final class Sync_Center_Module implements Module {
 	}
 
 	/**
+	 * Attach an HTTP status to a service error.
+	 *
+	 * @param \WP_Error $error  Service error.
+	 * @param int      $status HTTP status for the reply.
+	 * @return \WP_Error
+	 */
+	private function fail( \WP_Error $error, int $status ): \WP_Error {
+		return new \WP_Error(
+			$error->get_error_code(),
+			$error->get_error_message(),
+			array( 'status' => $status )
+		);
+	}
+
+	/**
 	 * AJAX: start a fresh inventory scan.
 	 */
-	public function ajax_scan(): void {
-		if ( ! current_user_can( 'manage_options' ) ) {
-			wp_send_json_error( array( 'message' => __( '权限不足。', 'sakura-imgopt' ) ), 403 );
-		}
-		check_ajax_referer( 'sakura_s3_sync_scan', 'nonce' );
-
+	/**
+	 * Start a fresh inventory scan.
+	 *
+	 * @return array<string,mixed>|\WP_Error
+	 */
+	public function handle_scan() {
 		// The button says "开始完整核对" and a full pass is what rebuilds the
 		// index for the current bucket; the default argument is incremental,
 		// which trusts the previous bucket's rows.
 		$scan_id = $this->scanner->start( '', 'full' );
 		if ( is_wp_error( $scan_id ) ) {
-			wp_send_json_error( array( 'message' => $scan_id->get_error_message(), 'code' => $scan_id->get_error_code() ), 409 );
+			return $this->fail( $scan_id, 409 );
 		}
 		$result = $this->scanner->tick( (int) $scan_id, 0, self::AJAX_SECONDS );
 		if ( is_wp_error( $result ) ) {
-			wp_send_json_error( array( 'message' => $result->get_error_message(), 'code' => $result->get_error_code() ), 500 );
+			return $this->fail( $result, 500 );
 		}
 		$this->worker->schedule( (int) $scan_id, 2 );
-		wp_send_json_success(
-			array(
-				'scan_id'  => (int) $scan_id,
-				'state'    => $result['state'] ?? 'running',
-				'phase'    => $result['phase'] ?? '',
-				'busy'     => ! empty( $result['busy'] ),
-				'progress' => (int) ( $result['progress'] ?? 0 ),
-				'message'  => $result['message'] ?? '',
-			)
+
+		return array(
+			'scan_id'  => (int) $scan_id,
+			'state'    => $result['state'] ?? 'running',
+			'phase'    => $result['phase'] ?? '',
+			'busy'     => ! empty( $result['busy'] ),
+			'progress' => (int) ( $result['progress'] ?? 0 ),
+			'message'  => $result['message'] ?? '',
 		);
 	}
 
 	/**
 	 * AJAX: advance one scan step.
 	 */
-	public function ajax_scan_step(): void {
-		check_ajax_referer( 'sakura_s3_sync_scan', 'nonce' );
-		if ( ! current_user_can( 'manage_options' ) ) {
-			wp_send_json_error( array( 'message' => __( '权限不足。', 'sakura-imgopt' ) ), 403 );
-		}
-		$scan_id = isset( $_POST['scan_id'] ) ? absint( wp_unslash( $_POST['scan_id'] ) ) : 0;
-		$result  = $this->scanner->tick( $scan_id, 0, self::AJAX_SECONDS );
+	/**
+	 * Advance one scan step.
+	 *
+	 * @param int $scan_id Scan id.
+	 * @return array<string,mixed>|\WP_Error
+	 */
+	public function handle_scan_step( int $scan_id ) {
+		$result = $this->scanner->tick( $scan_id, 0, self::AJAX_SECONDS );
 		if ( is_wp_error( $result ) ) {
-			wp_send_json_error( array( 'message' => $result->get_error_message(), 'code' => $result->get_error_code() ), 500 );
+			return $this->fail( $result, 500 );
 		}
 		$this->worker->schedule( $scan_id, 2 );
 		$summary = isset( $result['summary'] ) ? (array) $result['summary'] : array();
-		wp_send_json_success(
-			array(
-				'scan_id'    => $scan_id,
-				'state'      => $result['state'] ?? 'running',
-				'phase'      => $result['phase'] ?? '',
-				'busy'       => ! empty( $result['busy'] ),
-				'progress'   => (int) ( $result['progress'] ?? 0 ),
-				'message'    => $result['message'] ?? '',
-				'scanned_at' => (int) ( $summary['scanned_at'] ?? 0 ),
-				'counts'     => $summary['counts'] ?? array(),
-				'total'      => (int) ( $summary['total'] ?? 0 ),
-				'resumable'  => ! empty( $summary['resumable'] ),
-			)
+
+		return array(
+			'scan_id'    => $scan_id,
+			'state'      => $result['state'] ?? 'running',
+			'phase'      => $result['phase'] ?? '',
+			'busy'       => ! empty( $result['busy'] ),
+			'progress'   => (int) ( $result['progress'] ?? 0 ),
+			'message'    => $result['message'] ?? '',
+			'scanned_at' => (int) ( $summary['scanned_at'] ?? 0 ),
+			'counts'     => $summary['counts'] ?? array(),
+			'total'      => (int) ( $summary['total'] ?? 0 ),
+			'resumable'  => ! empty( $summary['resumable'] ),
 		);
 	}
 
 	/**
 	 * AJAX: request cancellation of the running scan.
 	 */
-	public function ajax_cancel(): void {
-		check_ajax_referer( 'sakura_s3_sync_cancel', 'nonce' );
-		if ( ! current_user_can( 'manage_options' ) ) {
-			wp_send_json_error( array( 'message' => __( '权限不足。', 'sakura-imgopt' ) ), 403 );
-		}
-		$scan_id = isset( $_POST['scan_id'] ) ? absint( wp_unslash( $_POST['scan_id'] ) ) : 0;
+	/**
+	 * Request cancellation of the running scan.
+	 *
+	 * @param int $scan_id Scan id.
+	 * @return array<string,mixed>|\WP_Error
+	 */
+	public function handle_cancel( int $scan_id ) {
 		if ( $scan_id <= 0 || ! $this->index->cancel_scan( $scan_id ) ) {
-			wp_send_json_error( array( 'message' => __( '该任务已结束，无需停止。', 'sakura-imgopt' ), 'code' => 'sio_not_cancellable' ), 409 );
+			return new \WP_Error(
+				'sio_not_cancellable',
+				__( '该任务已结束，无需停止。', 'sakura-imgopt' ),
+				array( 'status' => 409 )
+			);
 		}
+
 		$scan = $this->index->scan( $scan_id );
-		wp_send_json_success(
-			array(
-				'scan_id' => $scan_id,
-				'state'   => 'cancelled',
-				'phase'   => $scan ? (string) $scan->phase : '',
-				'message' => __( '已请求停止，当前批次结束后生效。', 'sakura-imgopt' ),
-			)
+
+		return array(
+			'scan_id' => $scan_id,
+			'state'   => 'cancelled',
+			'phase'   => $scan ? (string) $scan->phase : '',
+			'message' => __( '已请求停止，当前批次结束后生效。', 'sakura-imgopt' ),
 		);
 	}
 
 	/**
 	 * AJAX: resume the most recent interrupted scan.
 	 */
-	public function ajax_resume(): void {
-		check_ajax_referer( 'sakura_s3_sync_resume', 'nonce' );
-		if ( ! current_user_can( 'manage_options' ) ) {
-			wp_send_json_error( array( 'message' => __( '权限不足。', 'sakura-imgopt' ) ), 403 );
-		}
+	/**
+	 * Resume the most recent interrupted scan.
+	 *
+	 * @return array<string,mixed>|\WP_Error
+	 */
+	public function handle_resume() {
 		$this->guard_reconcile_gate();
 		$scan_id = $this->scanner->resume();
 		if ( is_wp_error( $scan_id ) ) {
-			wp_send_json_error( array( 'message' => $scan_id->get_error_message(), 'code' => $scan_id->get_error_code() ), 409 );
+			return $this->fail( $scan_id, 409 );
 		}
 		$result = $this->scanner->tick( (int) $scan_id, 0, self::AJAX_SECONDS );
 		if ( is_wp_error( $result ) ) {
-			wp_send_json_error( array( 'message' => $result->get_error_message(), 'code' => $result->get_error_code() ), 500 );
+			return $this->fail( $result, 500 );
 		}
 		$this->worker->schedule( (int) $scan_id, 2 );
-		wp_send_json_success(
-			array(
-				'scan_id'  => (int) $scan_id,
-				'state'    => $result['state'] ?? 'running',
-				'phase'    => $result['phase'] ?? '',
-				'busy'     => ! empty( $result['busy'] ),
-				'progress' => (int) ( $result['progress'] ?? 0 ),
-				'message'  => $result['message'] ?? '',
-			)
+
+		return array(
+			'scan_id'  => (int) $scan_id,
+			'state'    => $result['state'] ?? 'running',
+			'phase'    => $result['phase'] ?? '',
+			'busy'     => ! empty( $result['busy'] ),
+			'progress' => (int) ( $result['progress'] ?? 0 ),
+			'message'  => $result['message'] ?? '',
 		);
 	}
 
 	/**
 	 * AJAX: recompute statuses from the existing index without listing S3.
 	 */
-	public function ajax_refresh(): void {
-		check_ajax_referer( 'sakura_s3_sync_refresh', 'nonce' );
-		if ( ! current_user_can( 'manage_options' ) ) {
-			wp_send_json_error( array( 'message' => __( '权限不足。', 'sakura-imgopt' ) ), 403 );
-		}
+	/**
+	 * Recompute statuses from the existing index without listing S3.
+	 *
+	 * @return array<string,mixed>|\WP_Error
+	 */
+	public function handle_refresh() {
 		if ( ! Feature::enabled() ) {
-			wp_send_json_error( array( 'message' => __( '索引已停用，无法刷新差异。', 'sakura-imgopt' ) ), 409 );
+			return new \WP_Error(
+				'sio_index_disabled',
+				__( '索引已停用，无法刷新差异。', 'sakura-imgopt' ),
+				array( 'status' => 409 )
+			);
 		}
+
 		$this->guard_reconcile_gate();
+
 		$summary = $this->scanner->refresh();
 		if ( is_wp_error( $summary ) ) {
-			wp_send_json_error( array( 'message' => $summary->get_error_message(), 'code' => $summary->get_error_code() ), 422 );
+			return $this->fail( $summary, 422 );
 		}
-		wp_send_json_success(
-			array(
-				'message' => __( '已按现有索引重算差异（未列举云端）。', 'sakura-imgopt' ),
-				'counts'  => $summary['counts'],
-				'total'   => (int) $summary['total'],
-			)
+
+		return array(
+			'message' => __( '已按现有索引重算差异（未列举云端）。', 'sakura-imgopt' ),
+			'counts'  => $summary['counts'],
+			'total'   => (int) $summary['total'],
 		);
 	}
 
 	/**
 	 * AJAX: enable or disable the persistent index (rollback switch).
 	 */
-	public function ajax_toggle_index(): void {
-		check_ajax_referer( 'sakura_s3_sync_toggle', 'nonce' );
-		if ( ! current_user_can( 'manage_options' ) ) {
-			wp_send_json_error( array( 'message' => __( '权限不足。', 'sakura-imgopt' ) ), 403 );
-		}
-		$enabled = isset( $_POST['enabled'] ) && '1' === (string) wp_unslash( $_POST['enabled'] );
+	/**
+	 * Enable or disable the persistent index (rollback switch).
+	 *
+	 * @param bool $enabled Whether the index should be on.
+	 * @return array<string,mixed>
+	 */
+	public function handle_toggle_index( bool $enabled ): array {
 		Feature::set( $enabled );
 		Legacy_Snapshot::flush();
 		Log::write( $enabled ? 'Sync index enabled.' : 'Sync index disabled (compat snapshot).' );
-		wp_send_json_success(
-			array(
-				'enabled' => $enabled,
-				'message' => $enabled ? __( '已启用持久索引。', 'sakura-imgopt' ) : __( '已停用持久索引，页面切换到兼容快照。', 'sakura-imgopt' ),
-			)
+
+		return array(
+			'enabled' => $enabled,
+			'message' => $enabled ? __( '已启用持久索引。', 'sakura-imgopt' ) : __( '已停用持久索引，页面切换到兼容快照。', 'sakura-imgopt' ),
 		);
 	}
 
@@ -658,25 +587,25 @@ final class Sync_Center_Module implements Module {
 	 * Older cached scripts still post snooze=1; accepting and ignoring it keeps
 	 * them from resurrecting the retired twelve-hour window.
 	 */
-	public function ajax_dismiss_config_notice(): void {
-		check_ajax_referer( 'sakura_s3_config_notice', 'nonce' );
-
-		if ( ! current_user_can( 'manage_options' ) ) {
-			wp_send_json_error( array( 'message' => __( '权限不足。', 'sakura-imgopt' ) ), 403 );
-		}
-
-		$dismiss = isset( $_POST['dismiss'] ) && is_string( $_POST['dismiss'] ) && '1' === sanitize_text_field( wp_unslash( $_POST['dismiss'] ) );
-
+	/**
+	 * Remember that this operator never wants the dialog again.
+	 *
+	 * @param bool $dismiss Whether the operator muted the dialog.
+	 * @return array<string,mixed>
+	 */
+	public function handle_dismiss_config_notice( bool $dismiss ): array {
 		$user_id = get_current_user_id();
 
 		if ( ! $dismiss ) {
 			delete_user_meta( $user_id, Config_Notice::SNOOZE_META_KEY );
-			wp_send_json_success( array( 'dismissed' => false ) );
+
+			return array( 'dismissed' => false );
 		}
 
 		update_user_meta( $user_id, Config_Notice::META_KEY, '1' );
 		delete_user_meta( $user_id, Config_Notice::SNOOZE_META_KEY );
-		wp_send_json_success( array( 'dismissed' => true ) );
+
+		return array( 'dismissed' => true );
 	}
 
 	/**
@@ -723,36 +652,35 @@ final class Sync_Center_Module implements Module {
 	/**
 	 * AJAX: keyset page for the reconciliation table.
 	 */
-	public function ajax_page(): void {
-		check_ajax_referer( 'sakura_s3_sync_page', 'nonce' );
-		if ( ! current_user_can( 'manage_options' ) ) {
-			wp_send_json_error( array( 'message' => __( '权限不足。', 'sakura-imgopt' ) ), 403 );
-		}
-
+	/**
+	 * Keyset page for the reconciliation table.
+	 *
+	 * @param array<string,mixed> $filters status / search / type / days / cursor / limit.
+	 * @return array<string,mixed>|\WP_Error
+	 */
+	public function handle_page( array $filters ) {
 		$profile = (string) $this->options->active_profile_id();
 		if ( '' === $profile ) {
-			wp_send_json_error( array( 'message' => __( '尚未选择 S3 配置。', 'sakura-imgopt' ) ), 400 );
+			return new \WP_Error( 'sio_no_profile', __( '尚未选择 S3 配置。', 'sakura-imgopt' ), array( 'status' => 400 ) );
 		}
 
-		$status = isset( $_POST['status'] ) ? sanitize_key( wp_unslash( $_POST['status'] ) ) : 'all';
-		$search = isset( $_POST['search'] ) ? sanitize_text_field( wp_unslash( $_POST['search'] ) ) : '';
-		$type   = isset( $_POST['type'] ) ? sanitize_key( wp_unslash( $_POST['type'] ) ) : 'all';
-		$days   = isset( $_POST['days'] ) ? absint( wp_unslash( $_POST['days'] ) ) : 0;
-		$cursor = isset( $_POST['cursor'] ) ? sanitize_text_field( wp_unslash( $_POST['cursor'] ) ) : '';
-		$limit  = isset( $_POST['limit'] ) ? absint( wp_unslash( $_POST['limit'] ) ) : 25;
+		$status = isset( $filters['status'] ) ? sanitize_key( (string) $filters['status'] ) : 'all';
+		$search = isset( $filters['search'] ) ? sanitize_text_field( (string) $filters['search'] ) : '';
+		$type   = isset( $filters['type'] ) ? sanitize_key( (string) $filters['type'] ) : 'all';
+		$days   = isset( $filters['days'] ) ? absint( $filters['days'] ) : 0;
+		$cursor = isset( $filters['cursor'] ) ? sanitize_text_field( (string) $filters['cursor'] ) : '';
+		$limit  = isset( $filters['limit'] ) ? absint( $filters['limit'] ) : 25;
 
 		$page    = $this->index->page( $profile, $status, $search, $type, $days, $cursor, $limit );
 		$summary = $this->index->summary( $profile );
 
-		wp_send_json_success(
-			array(
-				'rows'           => $this->decorate_rows( $page['rows'] ),
-				'cursor'         => $page['cursor'],
-				'has_more'       => $page['has_more'],
-				'counts'         => $summary['counts'],
-				'total'          => $summary['total'],
-				'filtered_total' => $page['matched'],
-			)
+		return array(
+			'rows'           => $this->decorate_rows( $page['rows'] ),
+			'cursor'         => $page['cursor'],
+			'has_more'       => $page['has_more'],
+			'counts'         => $summary['counts'],
+			'total'          => $summary['total'],
+			'filtered_total' => $page['matched'],
 		);
 	}
 
@@ -764,30 +692,31 @@ final class Sync_Center_Module implements Module {
 	 * URL per row would slow down the whole page. The table therefore asks for
 	 * one row's preview the moment a visitor opens the details dialog.
 	 */
-	public function ajax_preview(): void {
-		check_ajax_referer( 'sakura_s3_sync_preview', 'nonce' );
-		if ( ! current_user_can( 'manage_options' ) ) {
-			wp_send_json_error( array( 'message' => __( '权限不足。', 'sakura-imgopt' ) ), 403 );
-		}
-
+	/**
+	 * Full preview payload for one object.
+	 *
+	 * @param string $object_key Raw object key.
+	 * @return array<string,mixed>|\WP_Error
+	 */
+	public function handle_preview( string $object_key ) {
 		$profile = (string) $this->options->active_profile_id();
 		if ( '' === $profile ) {
-			wp_send_json_error( array( 'message' => __( '尚未选择 S3 配置。', 'sakura-imgopt' ) ), 400 );
+			return new \WP_Error( 'sio_no_profile', __( '尚未选择 S3 配置。', 'sakura-imgopt' ), array( 'status' => 400 ) );
 		}
 
-		$key = $this->adapter->normalize_key( isset( $_POST['object_key'] ) ? (string) wp_unslash( $_POST['object_key'] ) : '' );
+		$key = $this->adapter->normalize_key( $object_key );
 		if ( false === $key ) {
-			wp_send_json_error( array( 'message' => __( '对象 Key 无效。', 'sakura-imgopt' ) ), 400 );
+			return new \WP_Error( 'sio_bad_key', __( '对象 Key 无效。', 'sakura-imgopt' ), array( 'status' => 400 ) );
 		}
 
 		$row = $this->index->find_row( $profile, $key );
 		if ( null === $row ) {
-			wp_send_json_error( array( 'message' => __( '索引中没有找到这个文件，请重新对账后再试。', 'sakura-imgopt' ) ), 404 );
+			return new \WP_Error( 'sio_not_indexed', __( '索引中没有找到这个文件，请重新对账后再试。', 'sakura-imgopt' ), array( 'status' => 404 ) );
 		}
 
 		$rows = $this->decorate_rows( array( $row ) );
 
-		wp_send_json_success( array( 'preview' => $rows[0]['preview'] ) );
+		return array( 'preview' => $rows[0]['preview'] );
 	}
 
 	/**
@@ -799,41 +728,39 @@ final class Sync_Center_Module implements Module {
 	 *
 	 * @return void
 	 */
-	public function ajax_latency(): void {
-		check_ajax_referer( 'sakura_s3_sync_action', 'nonce' );
-
-		if ( ! current_user_can( 'manage_options' ) ) {
-			wp_send_json_error( array( 'message' => __( '权限不足。', 'sakura-imgopt' ) ), 403 );
-		}
-
+	/**
+	 * Round-trip time from this server to the bucket.
+	 *
+	 * @return array<string,mixed>|\WP_Error
+	 */
+	public function handle_latency() {
 		if ( ! $this->options->is_enabled() || ! $this->options->is_configured() ) {
-			wp_send_json_error( array( 'message' => __( '对象存储尚未启用。', 'sakura-imgopt' ) ), 400 );
+			return new \WP_Error( 'sio_disabled', __( '对象存储尚未启用。', 'sakura-imgopt' ), array( 'status' => 400 ) );
 		}
 
 		$latency = $this->adapter->probe_latency();
 
 		if ( is_wp_error( $latency ) ) {
-			wp_send_json_error( array( 'message' => $latency->get_error_message() ), 502 );
+			return $this->fail( $latency, 502 );
 		}
 
-		wp_send_json_success(
-			array(
-				'ms' => (int) $latency,
-				'at' => time(),
-			)
+		return array(
+			'ms' => (int) $latency,
+			'at' => time(),
 		);
 	}
 
 	/**
 	 * Measure object-store connectivity with a HEAD bucket request.
 	 */
-	public function ajax_test(): void {
-		check_ajax_referer( 'sakura_s3_sync_test', 'nonce' );
-		if ( ! current_user_can( 'manage_options' ) ) {
-			wp_send_json_error( array( 'message' => __( '权限不足。', 'sakura-imgopt' ) ), 403 );
-		}
+	/**
+	 * Measure object-store connectivity with a HEAD bucket request.
+	 *
+	 * @return array<string,mixed>|\WP_Error
+	 */
+	public function handle_test() {
 		if ( ! $this->options->is_configured() ) {
-			wp_send_json_error( array( 'message' => __( '请先保存完整的 S3 连接配置。', 'sakura-imgopt' ) ), 400 );
+			return new \WP_Error( 'sio_not_configured', __( '请先保存完整的 S3 连接配置。', 'sakura-imgopt' ), array( 'status' => 400 ) );
 		}
 		$options = $this->options->all();
 
@@ -843,7 +770,8 @@ final class Sync_Center_Module implements Module {
 			Client_Factory::preflight( $options );
 		} catch ( \Throwable $e ) {
 			Log::write( __( '同步中心连接测试失败：', 'sakura-imgopt' ) . $e->getMessage() );
-			wp_send_json_error( array( 'message' => $e->getMessage() ), 400 );
+
+			return new \WP_Error( 'sio_probe_client', $e->getMessage(), array( 'status' => 400 ) );
 		}
 
 		/*
@@ -858,34 +786,35 @@ final class Sync_Center_Module implements Module {
 
 		if ( ! $probe['ok'] ) {
 			Log::write( __( '同步中心连接测试失败：', 'sakura-imgopt' ) . $probe['message'] );
-			wp_send_json_error( array( 'message' => $probe['message'], 'code' => $probe['code'] ), 500 );
+
+			return new \WP_Error( (string) $probe['code'], (string) $probe['message'], array( 'status' => 500 ) );
 		}
 
-		wp_send_json_success(
-			array(
-				'latency' => $probe['latency'],
-				'message' => '' !== $probe['message']
-					? $probe['message']
-					: sprintf( /* translators: %d: milliseconds. */ __( '连接正常，headBucket 耗时 %d ms。', 'sakura-imgopt' ), $probe['latency'] ),
-			)
+		return array(
+			'latency' => $probe['latency'],
+			'message' => '' !== $probe['message']
+				? $probe['message']
+				: sprintf( /* translators: %d: milliseconds. */ __( '连接正常，headBucket 耗时 %d ms。', 'sakura-imgopt' ), $probe['latency'] ),
 		);
 	}
 
 	/**
 	 * AJAX: upload, download or delete one object from the current snapshot.
 	 */
-	public function ajax_action(): void {
-		check_ajax_referer( 'sakura_s3_sync_action', 'nonce' );
-		if ( ! current_user_can( 'manage_options' ) ) {
-			wp_send_json_error( array( 'message' => __( '权限不足。', 'sakura-imgopt' ) ), 403 );
-		}
+	/**
+	 * Upload, download, delete or adopt one or more objects.
+	 *
+	 * @param array<string,mixed> $params sync_action / object_key / keys / confirm / offset / seconds.
+	 * @return array<string,mixed>|\WP_Error
+	 */
+	public function handle_action( array $params ) {
 		if ( ! $this->options->is_enabled() || ! $this->options->is_configured() ) {
-			wp_send_json_error( array( 'message' => __( 'S3 配置不完整，无法执行操作。', 'sakura-imgopt' ) ), 400 );
+			return new \WP_Error( 'sio_action', __( 'S3 配置不完整，无法执行操作。', 'sakura-imgopt' ), array( 'status' => 400 ) );
 		}
 		if ( ! Feature::enabled() ) {
-			wp_send_json_error( array( 'message' => __( '持久索引已停用，无法执行行内动作。', 'sakura-imgopt' ) ), 409 );
+			return new \WP_Error( 'sio_action', __( '持久索引已停用，无法执行行内动作。', 'sakura-imgopt' ), array( 'status' => 409 ) );
 		}
-		$type    = isset( $_POST['sync_action'] ) ? sanitize_key( wp_unslash( $_POST['sync_action'] ) ) : '';
+		$type    = isset( $params['sync_action'] ) ? sanitize_key( wp_unslash( $params['sync_action'] ) ) : '';
 		// Adopting media rows only touches the local library, so the gate keeps
 		// it available; uploads, downloads and deletes hit the new bucket with
 		// object keys derived from the old index.
@@ -893,11 +822,11 @@ final class Sync_Center_Module implements Module {
 			$this->guard_reconcile_gate();
 		}
 
-		$key     = isset( $_POST['object_key'] ) ? (string) wp_unslash( $_POST['object_key'] ) : '';
-		$confirm = isset( $_POST['confirm'] ) ? sanitize_text_field( wp_unslash( $_POST['confirm'] ) ) : '';
+		$key     = isset( $params['object_key'] ) ? (string) wp_unslash( $params['object_key'] ) : '';
+		$confirm = isset( $params['confirm'] ) ? sanitize_text_field( wp_unslash( $params['confirm'] ) ) : '';
 		$keys    = array();
-		if ( isset( $_POST['keys'] ) && is_array( $_POST['keys'] ) ) {
-			foreach ( array_slice( array_map( 'strval', wp_unslash( $_POST['keys'] ) ), 0, 200 ) as $batch_key ) {
+		if ( isset( $params['keys'] ) && is_array( $params['keys'] ) ) {
+			foreach ( array_slice( array_map( 'strval', wp_unslash( $params['keys'] ) ), 0, 200 ) as $batch_key ) {
 				$batch_key = ltrim( str_replace( '\\', '/', $batch_key ), '/' );
 				if ( '' !== $batch_key ) {
 					$keys[] = $batch_key;
@@ -907,16 +836,16 @@ final class Sync_Center_Module implements Module {
 		$key     = ltrim( str_replace( '\\', '/', $key ), '/' );
 
 		if ( ! in_array( $type, array( 'upload', 'download', 'delete', 'adopt' ), true ) || ( '' === $key && empty( $keys ) && 'adopt' !== $type ) ) {
-			wp_send_json_error( array( 'message' => __( '操作参数不完整。', 'sakura-imgopt' ) ), 400 );
+			return new \WP_Error( 'sio_action', __( '操作参数不完整。', 'sakura-imgopt' ), array( 'status' => 400 ) );
 		}
 
 		$profile = (string) $this->options->active_profile_id();
 		if ( '' === $profile ) {
-			wp_send_json_error( array( 'message' => __( '尚未选择 S3 配置。', 'sakura-imgopt' ) ), 400 );
+			return new \WP_Error( 'sio_action', __( '尚未选择 S3 配置。', 'sakura-imgopt' ), array( 'status' => 400 ) );
 		}
 
 		if ( 'adopt' === $type ) {
-			$seconds = isset( $_POST['seconds'] ) ? (float) wp_unslash( $_POST['seconds'] ) : 20.0;
+			$seconds = isset( $params['seconds'] ) ? (float) wp_unslash( $params['seconds'] ) : 20.0;
 			$result  = $this->adopt_missing( min( 60.0, max( 3.0, $seconds ) ) );
 
 			$this->index->event(
@@ -938,12 +867,12 @@ final class Sync_Center_Module implements Module {
 
 			$result['message'] = $this->adopt_message( $result );
 			$result['refresh'] = (bool) $result['done'];
-			wp_send_json_success( $result );
+			return $result;
 		}
 
 		if ( ! empty( $keys ) ) {
 			if ( 'delete' === $type && 'DELETE' !== $confirm ) {
-				wp_send_json_error( array( 'message' => __( '批量删除需要输入 DELETE 二次确认。', 'sakura-imgopt' ) ), 400 );
+				return new \WP_Error( 'sio_action', __( '批量删除需要输入 DELETE 二次确认。', 'sakura-imgopt' ), array( 'status' => 400 ) );
 			}
 
 			$eligible = array();
@@ -977,12 +906,12 @@ final class Sync_Center_Module implements Module {
 			}
 
 			if ( 'upload' === $type && $replace > 0 && 'REPLACE' !== $confirm ) {
-				wp_send_json_error( array( 'message' => __( '选中项中有云端已存在的对象；批量覆盖需要再次确认。', 'sakura-imgopt' ) ), 409 );
+				return new \WP_Error( 'sio_action', __( '选中项中有云端已存在的对象；批量覆盖需要再次确认。', 'sakura-imgopt' ), array( 'status' => 409 ) );
 			}
 
 			if ( 'upload' === $type ) {
-				$offset  = isset( $_POST['offset'] ) ? max( 0, (int) wp_unslash( $_POST['offset'] ) ) : 0;
-				$seconds = isset( $_POST['seconds'] ) ? (float) wp_unslash( $_POST['seconds'] ) : 20.0;
+				$offset  = isset( $params['offset'] ) ? max( 0, (int) wp_unslash( $params['offset'] ) ) : 0;
+				$seconds = isset( $params['seconds'] ) ? (float) wp_unslash( $params['seconds'] ) : 20.0;
 				$result  = $this->upload_keys( $eligible, $offset, min( 60.0, max( 3.0, $seconds ) ) );
 
 				$this->index->event(
@@ -1005,12 +934,12 @@ final class Sync_Center_Module implements Module {
 
 				$result['message'] = $this->upload_message( $result );
 				$result['refresh'] = (bool) $result['done'];
-				wp_send_json_success( $result );
+				return $result;
 			}
 
 			if ( 'download' === $type ) {
-				$offset  = isset( $_POST['offset'] ) ? max( 0, (int) wp_unslash( $_POST['offset'] ) ) : 0;
-				$seconds = isset( $_POST['seconds'] ) ? (float) wp_unslash( $_POST['seconds'] ) : 20.0;
+				$offset  = isset( $params['offset'] ) ? max( 0, (int) wp_unslash( $params['offset'] ) ) : 0;
+				$seconds = isset( $params['seconds'] ) ? (float) wp_unslash( $params['seconds'] ) : 20.0;
 				$result  = $this->download_keys( $eligible, $offset, min( 60.0, max( 3.0, $seconds ) ) );
 
 				$this->index->event(
@@ -1033,21 +962,55 @@ final class Sync_Center_Module implements Module {
 
 				$result['message'] = $this->download_message( $result );
 				$result['refresh'] = (bool) $result['done'];
-				wp_send_json_success( $result );
+				return $result;
 			}
 
 			$queued = 0;
+			// Only deletes reach this branch; upload and download returned above.
+			$deletes     = new Delete_Jobs();
+			$target      = \Sakura\ImageOptimizer\S3\Synchronous_Uploader::target_hash_for( $this->options );
+			// The delete queue freezes its own bucket fingerprint (audit A03); the
+			// sync fingerprint is a different shape and makes the worker refuse.
+			$delete_target = Delete_Jobs::target_hash( (array) $this->options->profile_options( $profile ) );
+			$actions     = new Sync_Actions( $this->options, $this->adapter );
+
 			foreach ( $eligible as $batch_key ) {
-				$job = $this->index->enqueue_job( $profile, $batch_key, $type, $queued, $this->adapter->attachment_id_for_key( $batch_key ), \Sakura\ImageOptimizer\S3\Synchronous_Uploader::target_hash_for( $this->options ) );
-				if ( ! is_wp_error( $job ) ) {
+				$attachment_id = (int) $this->adapter->attachment_id_for_key( $batch_key );
+				$bytes         = (int) ( $this->index->find( $profile, $batch_key )['remote_size'] ?? 0 );
+
+				/*
+				 * Delete_Worker only removes orphan keys: it answers "kept" while
+				 * an attachment still references the object. So a row backed by an
+				 * attachment must delete that attachment first — the delete hook
+				 * then queues the now-orphaned key. Only bare cloud copies, which
+				 * nothing references, go straight into the queue.
+				 */
+				// Every request is listed in the queue, whichever path removes the
+				// object: the tab is the operator's record of pending deletes.
+				$deletes->enqueue( $attachment_id, array( $batch_key ), 0, $profile, $delete_target, $bytes );
+
+				if ( $attachment_id > 0 ) {
+					$result = $actions->delete( $batch_key, get_current_user_id() );
+					if ( is_wp_error( $result ) ) {
+						// Leave the row queued so the worker retries the remote side.
+						++$skipped;
+						continue;
+					}
+					$deletes->settle_deleted( $attachment_id, $profile, array( $batch_key ) );
+					// The worker is the one that normally fires object_deleted; this
+					// path removed the object itself, so drop the index row here.
+					$this->index->apply_action( $profile, $batch_key, 'delete' );
 					++$queued;
+					continue;
 				}
+
+				++$queued;
 			}
 			if ( 0 === $queued ) {
-				wp_send_json_error( array( 'message' => __( '没有可入队的对象。', 'sakura-imgopt' ) ), 400 );
+				return new \WP_Error( 'sio_action', __( '没有可入队的对象。', 'sakura-imgopt' ), array( 'status' => 400 ) );
 			}
 
-			Action_Worker::schedule( 15 );
+			Delete_Worker::schedule();
 			$this->index->event(
 				$profile,
 				// Upload and download return above; only destructive deletes reach the queue branch.
@@ -1061,20 +1024,25 @@ final class Sync_Center_Module implements Module {
 				),
 				array( 'action' => $type, 'queued' => $queued, 'skipped' => $skipped )
 			);
-			wp_send_json_success(
-				array(
-					'queued'  => $queued,
-					'skipped' => $skipped,
-					'message' => $skipped > 0
-						? sprintf( /* translators: 1: queued, 2: skipped. */ __( '已将 %1$d 个对象加入后台队列，%2$d 个不符合条件已跳过。', 'sakura-imgopt' ), $queued, $skipped )
-						: sprintf( /* translators: %d: jobs queued. */ __( '已将 %d 个对象加入后台队列。', 'sakura-imgopt' ), $queued ),
-					'refresh' => true,
-				)
+			$message = $skipped > 0
+				? sprintf( /* translators: 1: queued, 2: skipped. */ __( '已将 %1$d 个对象加入后台队列，%2$d 个不符合条件已跳过。', 'sakura-imgopt' ), $queued, $skipped )
+				: sprintf( /* translators: %d: jobs queued. */ __( '已将 %d 个对象加入后台队列。', 'sakura-imgopt' ), $queued );
+
+			// Only deletes reach this branch (upload/download returned above). The
+			// queue removes cloud copies; attachments outside the user file ledger
+			// keep their local file, so the toast says that out loud.
+			$message .= __( '任务进入「删除队列」，失败会自动重试，可在该页签查看进度。队列只删除云端副本；属于用户文件空间的附件才会连同附件记录、本地文件与容量一并释放。', 'sakura-imgopt' );
+
+			return array(
+				'queued'  => $queued,
+				'skipped' => $skipped,
+				'message' => $message,
+				'refresh' => true,
 			);
 		}
 		$row = $this->index->find( $profile, $key );
 		if ( ! is_array( $row ) ) {
-			wp_send_json_error( array( 'message' => __( '该对象不在当前对账索引中，请重新对账后再操作。', 'sakura-imgopt' ) ), 409 );
+			return new \WP_Error( 'sio_action', __( '该对象不在当前对账索引中，请重新对账后再操作。', 'sakura-imgopt' ), array( 'status' => 409 ) );
 		}
 		$row['local']      = (bool) $row['seen_local'];
 		$row['cloud']      = (bool) $row['seen_remote'];
@@ -1084,26 +1052,24 @@ final class Sync_Center_Module implements Module {
 		if ( 'upload' === $type && 0 === (int) $this->adapter->attachment_id_for_key( $key ) && (int) $row['local_size'] > self::QUEUE_THRESHOLD ) {
 			$job = $this->index->enqueue_job( $profile, $key, $type, 0, $this->adapter->attachment_id_for_key( $key ), \Sakura\ImageOptimizer\S3\Synchronous_Uploader::target_hash_for( $this->options ) );
 			if ( is_wp_error( $job ) ) {
-				wp_send_json_error( array( 'message' => $job->get_error_message(), 'code' => $job->get_error_code() ), 422 );
+				return new \WP_Error( $job->get_error_code(), $job->get_error_message(), array( 'status' => 422 ) );
 			}
 			Action_Worker::schedule( 15 );
 			$this->index->event( $profile, 'info', 'action_queued', __( '大文件已加入后台上传队列。', 'sakura-imgopt' ), array( 'key' => $key, 'job' => (int) $job ) );
-			wp_send_json_success(
-				array(
+			return array(
 					'queued'  => true,
 					'message' => __( '文件超过 50 MB，已加入后台队列，完成后刷新即可看到结果。', 'sakura-imgopt' ),
 					'refresh' => true,
-				)
-			);
+				);
 		}
 
 		$actions = new Sync_Actions( $this->options, $this->adapter );
 		if ( 'upload' === $type ) {
 			if ( empty( $row['local'] ) ) {
-				wp_send_json_error( array( 'message' => __( '本地没有该文件，无法上传。', 'sakura-imgopt' ) ), 400 );
+				return new \WP_Error( 'sio_action', __( '本地没有该文件，无法上传。', 'sakura-imgopt' ), array( 'status' => 400 ) );
 			}
 			if ( ! empty( $row['cloud'] ) && 'REPLACE' !== $confirm ) {
-				wp_send_json_error( array( 'message' => __( '云端已存在该对象。重新上传会覆盖远端文件，请确认后再试。', 'sakura-imgopt' ) ), 409 );
+				return new \WP_Error( 'sio_action', __( '云端已存在该对象。重新上传会覆盖远端文件，请确认后再试。', 'sakura-imgopt' ), array( 'status' => 409 ) );
 			}
 			$attachment = (int) $this->adapter->attachment_id_for_key( $key );
 			if ( $attachment > 0 ) {
@@ -1123,23 +1089,52 @@ final class Sync_Center_Module implements Module {
 			}
 		} elseif ( 'download' === $type ) {
 			if ( empty( $row['cloud'] ) || ! empty( $row['local'] ) ) {
-				wp_send_json_error( array( 'message' => __( '该对象不是“仅云端”状态，无需下载。', 'sakura-imgopt' ) ), 400 );
+				return new \WP_Error( 'sio_action', __( '该对象不是“仅云端”状态，无需下载。', 'sakura-imgopt' ), array( 'status' => 400 ) );
 			}
 			$result = $actions->download( $key );
 			$done   = __( '对象已下载到本地。', 'sakura-imgopt' );
 		} else {
 			if ( empty( $row['cloud'] ) ) {
-				wp_send_json_error( array( 'message' => __( '云端没有该对象，无法删除。', 'sakura-imgopt' ) ), 400 );
+				return new \WP_Error( 'sio_action', __( '云端没有该对象，无法删除。', 'sakura-imgopt' ), array( 'status' => 400 ) );
 			}
 			if ( 'DELETE' !== $confirm ) {
-				wp_send_json_error( array( 'message' => __( '删除远端对象需要二次确认。', 'sakura-imgopt' ) ), 400 );
+				return new \WP_Error( 'sio_action', __( '删除远端对象需要二次确认。', 'sakura-imgopt' ), array( 'status' => 400 ) );
 			}
 			$attachment_id = (int) $this->adapter->attachment_id_for_key( $key );
 			$scope_full    = $actions->removes_attachment( $attachment_id );
-			$result        = $actions->delete( $key, get_current_user_id() );
-			$done          = $scope_full
-				? __( '云端对象已删除，附件记录、本地文件与容量已一并释放。', 'sakura-imgopt' )
-				: __( '云端对象已删除。', 'sakura-imgopt' );
+
+			// Same rule as the batch path: an attachment-backed row deletes the
+			// attachment first (its hook queues the now-orphaned key); a bare
+			// cloud copy goes straight into the retry queue.
+			if ( $attachment_id > 0 ) {
+				( new Delete_Jobs() )->enqueue(
+					$attachment_id,
+					array( $key ),
+					0,
+					$profile,
+					Delete_Jobs::target_hash( (array) $this->options->profile_options( $profile ) ),
+					(int) $row['cloud_size']
+				);
+				$result = $actions->delete( $key, get_current_user_id() );
+				if ( ! is_wp_error( $result ) ) {
+					( new Delete_Jobs() )->settle_deleted( $attachment_id, $profile, array( $key ) );
+					$this->index->apply_action( $profile, $key, 'delete' );
+				}
+				$done   = $scope_full
+					? __( '云端对象已删除，附件记录、本地文件与容量已一并释放。', 'sakura-imgopt' )
+					: __( '云端对象已删除。', 'sakura-imgopt' );
+			} else {
+				( new Delete_Jobs() )->enqueue(
+					0,
+					array( $key ),
+					0,
+					$profile,
+					Delete_Jobs::target_hash( (array) $this->options->profile_options( $profile ) )
+				);
+				Delete_Worker::schedule();
+				$result = true;
+				$done   = __( '云端副本已加入删除队列，失败会自动重试。', 'sakura-imgopt' );
+			}
 		}
 
 		if ( 'delete' === $type ) {
@@ -1148,7 +1143,7 @@ final class Sync_Center_Module implements Module {
 
 		if ( is_wp_error( $result ) ) {
 			Metrics::bump( array( 'actions_failed' => 1 ) );
-			wp_send_json_error( array( 'message' => $result->get_error_message(), 'code' => $result->get_error_code() ), 422 );
+			return new \WP_Error( $result->get_error_code(), $result->get_error_message(), array( 'status' => 422 ) );
 		}
 
 		Metrics::bump( array( 'actions_ok' => 1 ) );
@@ -1172,7 +1167,7 @@ final class Sync_Center_Module implements Module {
 
 		$this->index->event( $profile, 'info', 'action_' . $type, $done, array( 'key' => $key ) );
 		Log::write( sprintf( '%s [%s]', $done, $key ) );
-		wp_send_json_success( array( 'message' => $done, 'refresh' => true ) );
+		return array( 'message' => $done, 'refresh' => true );
 	}
 
 	/**
@@ -1501,12 +1496,7 @@ final class Sync_Center_Module implements Module {
 		);
 	}
 
-	public function export_csv(): void {
-		if ( ! current_user_can( 'manage_options' ) ) {
-			wp_die( esc_html__( '权限不足。', 'sakura-imgopt' ) );
-		}
-		check_admin_referer( 'sakura_s3_sync_export' );
-
+	public function serve_export(): void {
 		$profile = (string) $this->options->active_profile_id();
 		if ( '' === $profile ) {
 			wp_die( esc_html__( '尚未选择 S3 配置。', 'sakura-imgopt' ) );
@@ -1604,12 +1594,7 @@ final class Sync_Center_Module implements Module {
 	 * objects are downloaded through a short-lived signed URL, which keeps the
 	 * bytes out of PHP memory and lets the browser resume large transfers.
 	 */
-	public function download_media(): void {
-		if ( ! current_user_can( 'manage_options' ) ) {
-			wp_die( esc_html__( '权限不足。', 'sakura-imgopt' ) );
-		}
-		check_admin_referer( 'sakura_s3_media_download' );
-
+	public function serve_media(): void {
 		$raw_key = isset( $_GET['key'] ) ? sanitize_text_field( wp_unslash( $_GET['key'] ) ) : '';
 		$key     = $this->adapter->normalize_key( $raw_key );
 		$profile = (string) $this->options->active_profile_id();
@@ -1759,15 +1744,12 @@ final class Sync_Center_Module implements Module {
 			'local'        => $local,
 			'cloud'        => $cloud,
 			'url'          => $url,
-			'download'     => wp_nonce_url(
-				add_query_arg(
-					array(
-						'action' => 'sakura_s3_media_download',
-						'key'    => $key,
-					),
-					admin_url( 'admin-post.php' )
+			'download'     => add_query_arg(
+				array(
+					'key'      => $key,
+					'_wpnonce' => wp_create_nonce( 'wp_rest' ),
 				),
-				'sakura_s3_media_download'
+				rest_url( 'sakura-tools/v1/storage/sync/media' )
 			),
 		);
 	}
@@ -1886,6 +1868,18 @@ final class Sync_Center_Module implements Module {
 	 *
 	 * @return array<string,mixed>
 	 */
+	/**
+	 * The island payload, for the persistent shell's REST read.
+	 *
+	 * Same document the screen renders on a full load, built from the same
+	 * private view data; the shell cannot reach that data any other way.
+	 *
+	 * @return array<string,mixed>
+	 */
+	public function payload(): array {
+		return ( new \Sakura\ImageOptimizer\Admin\Sync_Payload( $this->page_data(), $this->page_config(), $this->options ) )->build();
+	}
+
 	private function view_data(): array {
 		$uploads = wp_upload_dir( null, false );
 		$failed  = array();
@@ -1992,7 +1986,7 @@ final class Sync_Center_Module implements Module {
 
 		$settings_url = add_query_arg(
 			array(
-				'page' => \Sakura\ImageOptimizer\S3_Storage_Module::MENU_SLUG,
+				'page' => \Sakura\ImageOptimizer\S3\Storage_Module::MENU_SLUG,
 			),
 			admin_url( 'admin.php' )
 		);
@@ -2077,8 +2071,6 @@ final class Sync_Center_Module implements Module {
 			'options'      => $this->options,
 			'settings_url' => $settings_url,
 			'action_nonce' => $action_nonce,
-			'scan_nonce'   => wp_create_nonce( 'sakura_s3_sync_scan' ),
-			'page_nonce'   => wp_create_nonce( 'sakura_s3_sync_page' ),
 			'page_cursor'  => $page['cursor'],
 			'page_more'    => $page['has_more'],
 			'summary'      => $summary,
@@ -2089,10 +2081,9 @@ final class Sync_Center_Module implements Module {
 			'scan_resumable' => ! empty( $summary['resumable'] ),
 			'scan_busy'    => ! empty( $summary['busy'] ),
 			'retry_nonce'  => wp_create_nonce( 'sakura_s3_retry' ),
-			'test_nonce'   => wp_create_nonce( 'sakura_s3_sync_test' ),
-			'export_url'   => wp_nonce_url(
-				add_query_arg( array( 'action' => 'sakura_s3_sync_export' ), admin_url( 'admin-post.php' ) ),
-				'sakura_s3_sync_export'
+			'export_url'   => add_query_arg(
+				array( '_wpnonce' => wp_create_nonce( 'wp_rest' ) ),
+				rest_url( 'sakura-tools/v1/storage/sync/export' )
 			),
 			'uploads'      => $uploads,
 			// Two separate facts: the fields can be complete while the master
@@ -2106,8 +2097,6 @@ final class Sync_Center_Module implements Module {
 			'metrics'       => Metrics::snapshot(),
 			'jobs_summary'  => $this->index->jobs_summary( $profile ),
 			'job_rows'      => $this->index->recent_jobs( $profile, 6 ),
-			'toggle_nonce'  => wp_create_nonce( 'sakura_s3_sync_toggle' ),
-			'refresh_nonce' => wp_create_nonce( 'sakura_s3_sync_refresh' ),
 		);
 	}
 }

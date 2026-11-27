@@ -11,8 +11,6 @@ namespace Sakura\ImageOptimizer\Zibll;
 
 use Sakura\ImageOptimizer\Admin\Assets;
 use Sakura\ImageOptimizer\Admin\Card_Form;
-use Sakura\ImageOptimizer\Admin\UI;
-use Sakura\ImageOptimizer\Admin\Page_Assets;
 use Sakura\ImageOptimizer\Admin\Registry;
 use Sakura\ImageOptimizer\Contracts\Module;
 use Sakura\ImageOptimizer\Support\Hook_Loader;
@@ -78,57 +76,14 @@ final class Admin_Module implements Module {
 			return;
 		}
 
-		$bundle = Page_Assets::island_bundle( 'zibll-performance' );
+		$data = ( new Performance_Payload() )->build();
 
-		if ( '' !== $bundle && is_readable( SAKURA_TOOLS_PATH . $bundle ) ) {
-			$data = ( new Performance_Payload() )->build();
-
-			require __DIR__ . '/../../includes/views/zibll-performance-island.php';
-
-			return;
-		}
-
-		$this->render_missing_bundle_notice();
+		require __DIR__ . '/../../includes/views/zibll-performance-island.php';
 	}
 
 	/**
-	 * Fallback when the compiled island bundle is missing.
-	 *
-	 * The old server-rendered view was removed together with the page
-	 * controller, so this path must stay a clear page instead of a fatal include.
-	 *
-	 * @return void
-	 */
-	private function render_missing_bundle_notice(): void {
-		UI::page(
-			array(
-				'id'      => 'zibll-performance',
-				'module'  => 'zibll',
-				'tab'     => 'performance',
-				'eyebrow' => 'ZIBLL / ' . ( defined( 'SAKURA_TOOLS_VERSION' ) ? SAKURA_TOOLS_VERSION : '' ),
-				'title'   => __( '子比增强 · 性能优化', 'sakura-imgopt' ),
-				'lede'    => __( '把主题每页都要跑的授权校验换成一次真实校验后的缓存。', 'sakura-imgopt' ),
-				'status'  => array(
-					'label' => __( '授权缓存', 'sakura-imgopt' ),
-					'value' => __( '资源缺失', 'sakura-imgopt' ),
-					'sub'   => __( '请重新构建或安装完整插件包', 'sakura-imgopt' ),
-					'tone'  => 'bad',
-				),
-			),
-			static function (): void {
-				?>
-				<div class="card-grid" data-sakura-layout="zibll-performance" data-sakura-group="main">
-					<div class="zibll-span-all">
-						<?php UI::alert( __( '页面资源未找到，无法打开性能优化设置。请重新执行构建并确认 assets/ui/dist/performance.js 存在。', 'sakura-imgopt' ), 'bad', __( '资源缺失', 'sakura-imgopt' ) ); ?>
-					</div>
-				</div>
-				<?php
-			}
-		);
-	}
-
-	/**
-	 * Enqueue page assets and the AJAX configuration.
+	 * Load the shared admin stack on this page only; the shell bundle is
+	 * enqueued by Page_Assets::enqueue() and this screen keeps none of its own.
 	 *
 	 * @param string $hook Current admin page hook.
 	 * @return void
@@ -138,18 +93,6 @@ final class Admin_Module implements Module {
 
 		if ( ! Registry::on( 'zibll', 'performance' ) ) {
 			return;
-		}
-
-		$bundle = Page_Assets::island_bundle( 'zibll-performance' );
-
-		if ( '' !== $bundle && is_readable( SAKURA_TOOLS_PATH . $bundle ) ) {
-			wp_enqueue_script(
-				'sakura-admin-zibll-performance',
-				SAKURA_TOOLS_URL . $bundle,
-				array( 'sakura-admin-core' ),
-				Page_Assets::asset_version( $bundle ),
-				true
-			);
 		}
 
 		Assets::enqueue_page();

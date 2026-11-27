@@ -9,7 +9,6 @@ declare( strict_types=1 );
 
 namespace Sakura\ImageOptimizer\Image;
 
-use Sakura\ImageOptimizer\Animation_Detector;
 use Sakura\ImageOptimizer\Contracts\Settings_Repository_Interface;
 use Sakura\ImageOptimizer\Settings\Settings_Repository;
 

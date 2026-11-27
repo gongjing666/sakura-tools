@@ -1134,7 +1134,7 @@ body.upload-php.sufm-tree-active.folded { --sufm-tree-left: 56px; }
 
 **背景**：开发者发来 378px 截图：「禁止 WordPress 裁剪」卡片在窄宽下只露出前 5 列，第 6 列「来源」完全看不见，`medium_large` 还在词中折行。
 
-**实测根因**：React 版 `SizeTable`（`assets/ui/src/image/fields.jsx`）把 `table.sakura-imgopt-size-table` 直接放在卡片里，`image.css` 的 `min-width: 660px`（窄屏 600px）让它固定 600px 宽；卡片 `section.card.card--wide` 是 `overflow-x: clip`，可见右边界只有 358px——「来源」整列表头宽 196.5px，直接落在裁剪区外。旧的 PHP 版（`includes/class-image-optimizer-module.php:584`）外面套了 `.sakura-imgopt-size-scroll`，React 重写时漏掉了这层容器。页面本身没有横溢（`documentElement.scrollWidth` 等于 `clientWidth`），问题只出在卡片内部裁剪。
+**实测根因**：React 版 `SizeTable`（`assets/ui/src/image/fields.jsx`）把 `table.sakura-imgopt-size-table` 直接放在卡片里，`image.css` 的 `min-width: 660px`（窄屏 600px）让它固定 600px 宽；卡片 `section.card.card--wide` 是 `overflow-x: clip`，可见右边界只有 358px——「来源」整列表头宽 196.5px，直接落在裁剪区外。旧的 PHP 版（`src/Image_Optimizer_Module.php:584`）外面套了 `.sakura-imgopt-size-scroll`，React 重写时漏掉了这层容器。页面本身没有横溢（`documentElement.scrollWidth` 等于 `clientWidth`），问题只出在卡片内部裁剪。
 
 **决策**：
 
@@ -1219,3 +1219,261 @@ body.upload-php.sufm-tree-active.folded { --sufm-tree-left: 56px; }
 **代价**：并发下拉在桌面只有 168px，右侧留白较大；这是有意的——「按内容宽度」优先于「填满列」。卡内说明的宽度从此由字段占几格决定，页面 CSS 不能单独调说明的宽度。
 
 **验收**（2026-11-24，demo.77il.cn，1.28.8-beta-44）：1440 下 `.check__lock` 22×22 含 1 个 13×13 的 svg、title 为「已随绑定锁定，不能在这里切换。」、fill 取 `--g-muted`，两个 `.check__state` 仍是「已关闭」；并发字段 550px（= `.field-list` 整行）、说明 550×41、下拉 168×38；390 下说明 322 宽、右缘 356 落在卡片 374 内，下拉 168×38，docW = clientW = 390。并发数 1→2 保存后弹窗「已保存」并回写 2，再改回 1 保存回写 1、保存按钮重新 disabled；console 0 error / 0 warning，debug.log 无新增。
+## `includes/` 搬迁：方案 A 已对两个类执行（2026-11-26，1.29.0-beta-10）
+
+**背景**：上一条「不搬迁」的结论是 2026-11-18 的评估，当时把搬迁当成纯收益工程；此后图片优化的四个页签全部改为 REST + 岛渲染，`Image_Optimizer_Module` 从 1,588 行瘦到 113 行、`Thumbnail_Optimizer_Module` 从 354 行瘦到 333 行，两页的 classic 分支与 Dead Settings API 已删。开发者决定：剩下的技术债与搬迁一起还。
+
+**执行**（方案 A：同 FQCN、只换文件路径）：
+
+- `includes/class-image-optimizer-module.php` → `src/Image_Optimizer_Module.php`
+- `includes/class-thumbnail-optimizer-module.php` → `src/Thumbnail_Optimizer_Module.php`
+- 4 处 `__DIR__ . '/views/settings-island.php'` 改为 `SAKURA_TOOLS_INC . 'views/settings-island.php'`（文件不在 includes/ 后相对路径失效）
+- `tests/bootstrap.php` 与 `tests/ThumbnailSwitchNoticeTest.php` 的 require 路径同步；autoloader 的旧类清单删掉这两行
+- `phpstan.neon` 同时扫描 `includes` 与 `src`，无需改
+
+**验证**：928 tests / 3,952 assertions 全绿、phpstan `[OK]`、phpcs / PHPCompatibility 0 错；实验站四个图像页签 + 批量优化回归通过。
+
+**第二批**（1.29.0-beta-12，同样按方案 A）：`Stats` → `src/Stats.php`、`Backup` → `src/Backup.php`、`File_System` → `src/File_System.php`、`Animation_Detector` → `src/Animation_Detector.php`。这四个类没有 `__DIR__` 相对路径、不注册任何钩子，只被仓储/管线通过 FQCN 调用，改动面只有 4 行测试 require、autoloader 清单与两处注释。
+
+**第三批**（1.29.0-beta-13）：`Thumbnail_Manager` → `src/Thumbnail_Manager.php`、`Image_Processor` → `src/Image_Processor.php`、`GD_Handler` → `src/GD_Handler.php`、`Imagick_Handler` → `src/Imagick_Handler.php`。这四个是图片优化菜单的执行者：`Thumbnail_Manager` 挂 `intermediate_image_sizes` / `wp_generate_attachment_metadata` 实现「尺寸裁剪」，`Image_Processor` 挂 `wp_handle_upload*` / `wp_handle_sideload*` / `delete_attachment` 实现重命名、压缩与附件删除，GD/Imagick 是转换后端。搬完用「上传 → 转 WebP → 生成子尺寸 → 备份还原」跑了一遍回归。
+
+**第四批**（1.29.0-beta-14）：`Media_Library_Module` → `src/Media_Library_Module.php`（1,029 行，媒体库批量优化/还原的入口与进度页）。只有一处 `__DIR__ . '/views/media-progress.php'`，改成 `SAKURA_TOOLS_INC`。回归：批量优化队列、进度页、单附件还原、媒体库列表与网格。
+
+**未做**：其余 3 个旧类仍在 `includes/`（`S3_Storage_Module`、`S3_Doge_Cloud`、`S3_CLI`）。它们都在上传/删除/S3 主链路上，或依赖 CLI 入口，搬家前要先跑一轮上传与前台回归。
+
+## `includes/` 搬迁：beta-15 按骨架二次归位（2026-11-26）
+
+**问题**：beta-10~14 的搬迁只做「同 FQCN、只换路径」（方案 A），11 个类因此全部落在 `src/` 根目录，与 `01-架构与装配.md` §2 的骨架（根目录只放 5 个生命周期类）不符，并出现 `src/Stats.php` 与 `src/Stats/`、`src/Backup.php` 与 `src/Backup/` 两处同名并列。
+
+**根因**：autoloader 是 `Sakura\ImageOptimizer\{rel}` → `src/{rel}.php`，物理路径与命名空间一一对应；方案 A 不改命名空间，就只能放根目录。
+
+**做法**（1.29.0-beta-15，纯改名不动逻辑）：
+
+| 旧位置 | 归位后 | 命名空间 |
+|---|---|---|
+| `src/Stats.php` | `src/Stats/Stats.php` | `…\Stats` |
+| `src/Backup.php` | `src/Backup/Backup.php` | `…\Backup` |
+| `src/File_System.php` | `src/Filesystem/File_System.php` | `…\Filesystem` |
+| `src/Animation_Detector.php` | `src/Image/Animation_Detector.php` | `…\Image` |
+| `src/Image_Processor.php` | `src/Image/Image_Processor.php` | `…\Image` |
+| `src/GD_Handler.php` `src/Imagick_Handler.php` | `src/Image/Handlers/…` | `…\Image\Handlers` |
+| `src/Thumbnail_Manager.php` | `src/Thumbnail/Thumbnail_Manager.php` | `…\Thumbnail` |
+| 三个 `*_Module.php` | `src/Modules/…` | `…\Modules` |
+
+连带修改：约 30 处 `use`/FQCN、`tests/bootstrap.php` 与 3 个测试文件的 require、同命名空间里已多余的 `use`（`Stats_Repository` 的别名、`Backup_Repository` / `Exposure_Probe` / `File_System_Repository` / `File_Processor`）、以及 4 个「搬到别的命名空间后仍以非限定名调用 `File_System`」的文件（补 `use`）。
+
+**为什么改命名空间而不是用 class_alias 兼容旧名**：这些类只被插件自身引用，没有外部消费者；漏改的地方由 PHPStan 的 `class.notFound` 与运行时 fatal 立刻暴露，比留一层别名更干净。
+
+**验证**：928 tests / 3,952 assertions、phpstan `[OK]`、phpcs 与 PHPCompatibility 0 错；`src/` 根目录回到文档规定的 5 个文件；实验站跑上传→转 WebP→四页签→媒体库→批量还原。
+
+## `includes/` 搬迁收尾：beta-16（2026-11-26）
+
+**第五批（最后 3 个类）**：
+
+| 旧位置 | 新位置 | 新 FQCN |
+|---|---|---|
+| `includes/class-s3-storage-module.php` | `src/S3/Storage_Module.php` | `…\S3\Storage_Module` |
+| `includes/class-s3-doge-cloud.php` | `src/S3/Doge_Cloud.php` | `…\S3\Doge_Cloud` |
+| `includes/class-s3-cli.php` | `src/S3/CLI.php` | `…\S3\CLI` |
+
+连带的真清理（都已确认零引用 / 有 REST 对应）：
+
+- `Storage_Module` 删掉 7 个被 REST 取代的端点：`save`（`admin_post_sakura_s3_save`）、`delete_profile`（`admin_post_sakura_s3_delete`）、`upload_metrics`、`doge_buckets`、`probe_connection`、`probe_profile`、`toggle_profile`，以及随之失去调用方的 `saver()` / `redirect()` 与 `$saver` 属性。保留仍活的：`admin_post_sakura_s3_alerts_{save,test}`、`admin_post_sakura_s3_prometheus_rotate`（`S3\Monitoring_Panel` 仍是 classic 表单）、`wp_ajax_sakura_s3_retry`（同步中心）、`admin_enqueue_scripts`。
+- `S3_CLI` 文件末尾的 `WP_CLI::add_command()` 改成 `CLI::register()`，`Plugin::boot()` 里删掉手工 `require_once`，改调 `\Sakura\ImageOptimizer\S3\CLI::register()`。
+- 删掉 `class_alias(…'S3_Storage_Module', …'S3_Settings')`（1.7.0 更名兼容名，全仓零引用，且原名已不存在会直接告警）。
+- **删掉 autoloader 的 `includes/class-{snake}.php` 回落分支**：`includes/` 已没有任何类文件，留着只会让人以为还有第二套映射。
+
+**现状**：`src/` 根目录 5 个生命周期类 + 主题目录；`includes/` 只有 `views/`。
+
+**验证**：928 tests / 3,952 assertions、phpstan `[OK]`（含 `method.unused`）、phpcs 与 PHPCompatibility 0 错；实验站上传 4 张真实图片跑通转码 → S3 同步 → URL 改写，连接页保存/切换/探测/删除走 REST 并还原，`wp sakura-s3` 命令可用。
+
+## 修复：还原后再优化，删除附件会留下孤儿索引行（2026-11-26，1.29.0-beta-17）
+
+**症状**：同步中心「补建媒体库记录（N）」显示还有 N 条，但本地/云端/已同步三个数字互相矛盾；受影响的是「一键还原 → 再优化 → 删除」这条路径上的文件。
+
+**根因**：`Restore_Service` 还原时把原图扩展名写回（`.webp` → `.jpg`），随后再优化又把附件指回 `.webp`。索引里因此同时存在同一 stem 的两行（`.jpg` 与 `.webp`）。`Attachment_Indexer::forget_attachment()` 只用 `_wp_attached_file`（此时是 `.webp`）反查键，`.jpg` 那行匹配不上，删除附件后 `seen_local` 永远停在 1，被当成「已同步」永久计入。
+
+**修复**（不改数据模型）：
+
+- `Index_Repository::stem()`：去掉扩展名取 stem（含 dotfile / 目录名带点号的边界）。
+- `Index_Repository::keys_by_stem()`：按 `target_hash` + `LIKE <stem>.%` 取同一 bucket 内同 stem 的所有键。
+- `Attachment_Indexer::forget_attachment()`：在原有精确键之外，再按主文件 stem 取兄弟键，统一交给既有的 `forget_local()` 处理（状态与计数的逻辑不复制）。
+
+**测试**：`tests/IndexStemTest.php`（3 个用例锁住 stem 的三种边界）。
+
+**实验站验证**（完整复现原场景）：上传 → 还原（索引出现 `.jpg` + `.webp` 两行）→ 再优化（附件回到 `.webp`）→ 删除附件 → **两行都降到 `seen_local=0`**，`count_missing()` 保持 0；修复前 `.jpg` 行会停在 `seen_local=1`。
+
+## 同步中心迁移到 REST：第一阶段（2026-11-26，1.29.0-beta-18）
+
+**背景**：同步中心是最后一块 admin-ajax 区域（12 个 `wp_ajax_sakura_s3_sync_*` + 3 个 `admin_post_*`）。原注释写明「故意复用 admin-ajax，避免两套代码漂移」，所以迁移的第一条约束是**不复制业务逻辑**：把处理器从 ajax 回调里提取成 `handle_*()`（返回数组或 `WP_Error`），ajax 与 REST 两个入口共用同一份实现。
+
+**本阶段迁移（按端点为单位，整体搬完再验证）**：
+
+| 端点 | 旧 | 新 |
+|---|---|---|
+| 开新扫描 | `wp_ajax_sakura_s3_sync_scan` | `POST /wp-json/sakura-tools/v1/storage/sync/scan` |
+| 推进扫描 | `wp_ajax_..._scan_step` | `POST .../storage/sync/scan/step` |
+| 停止扫描 | `wp_ajax_..._sync_cancel` | `POST .../storage/sync/scan/cancel` |
+| 继续扫描 | `wp_ajax_..._sync_resume` | `POST .../storage/sync/scan/resume` |
+| 重算差异 | `wp_ajax_..._sync_refresh` | `POST .../storage/sync/refresh` |
+
+- 新增 `src/Admin/Rest/Sync_Controller.php`，由 `Storage_Routes::register()` 无条件挂上（`/wp-json` 不是 admin screen，挂 admin 模块里会 404）。
+- `page_config()` 补 `restUrl` / `restNonce`；`assets/ui/src/sync/transport.js` 新增 `post()`；`app.jsx` 的 5 处调用切到 REST。
+- 旧的 5 个 `ajax_*` 适配器与钩子注册一并删除（不留双入口）；`send_json()` 在其余端点迁完前暂时移除。
+
+**验证**：`POST .../refresh` → 200 `{counts:{synced:13}, total:13}`；`POST .../scan/step` 传 `scan_id=0` → 500 `sio_scan_missing`（错误映射正确）；无 nonce → 401 `rest_forbidden`；UI 点「开始完整核对」→ `POST .../scan` 200，最近核对时间更新为当天；旧的 `admin-ajax.php?action=sakura_s3_sync_scan` 返回 400/`0`。
+
+**剩余**：`page` / `preview` / `latency` / `test` / `action`（含批量上传下载删除）/ `toggle` / `config_notice`，以及两个文件下载入口（CSV 导出、下载到媒体库）与忽略规则表单——下载类继续留在 admin-post（流式文件，不适合 REST）。
+
+## 同步中心迁移到 REST：第二阶段（2026-11-26，1.29.0-beta-19）
+
+再迁 5 个端点，同样按「提取 `handle_*()` → 加 REST 路由 → 前端切换 → 删旧 ajax 注册」整体搬：
+
+| 端点 | 新路由 |
+|---|---|
+| 文件核对分页 | `POST /storage/sync/page` |
+| 单文件预览 | `POST /storage/sync/preview` |
+| 存储桶延迟 | `POST /storage/sync/latency` |
+| 持久索引开关 | `POST /storage/sync/toggle` |
+| 配置提示静音 | `POST /storage/sync/notice` |
+
+`page` 的过滤参数改为数组入参（`handle_page( array $filters )`），REST 侧从 JSON body 取，不再读 `$_POST`。
+
+**验证**：`page` 200 返回 13 行；`toggle` 关闭/开启各 200 且消息正确（测试后已恢复开启）；`notice` 200 `{dismissed:true}`；`preview` 从详情按钮触发 200；延迟胶囊由 REST `latency` 驱动（85–90 ms）。旧 ajax 动作 `page/preview/latency/toggle_index/config_notice` 全部返回 400/`0`。测试产生的「提示已静音」用户 meta 已删除。
+
+**仍留在旧通道**：`sakura_s3_sync_test`（连接测试）、`sakura_s3_sync_action`（批量上传/下载/删除）、忽略规则保存（admin-post 表单）、CSV 导出与「下载到媒体库」两个文件响应入口。
+
+## 同步中心迁移到 REST：第三阶段（2026-11-27，1.29.0-beta-20）
+
+迁移最后 4 个非批量端点，同步中心至此只剩 `action`（批量上传/下载/删除）在 admin-ajax：
+
+| 端点 | 新路由 | 说明 |
+|---|---|---|
+| 连接测试 | `POST /storage/sync/test` | 与设置页同一套 `Connection_Probe`，错误码/状态保留 |
+| 忽略规则保存 | `POST /storage/sync/ignored` | 表单改为 JS 提交，成功后 reload+toast |
+| CSV 导出 | `GET /storage/sync/export?_wpnonce=…` | `rest_pre_serve_request` 逃生口 + `serve_export()` 原样流式输出 |
+| 下载到媒体库 | `GET /storage/sync/media?key=…&_wpnonce=…` | 同上，`serve_media()` 原样流式输出 |
+
+两个下载入口按「B 方案」迁：不重写响应体，路由回调通过 `rest_pre_serve_request` 调用原来的流式方法并 `exit`，因此 CSV 与文件下载的代码路径与迁移前完全一致；认证改用 REST 的 cookie + `_wpnonce` 查询参数（链接无法带 `X-WP-Nonce` 头）。
+
+**验证**：`test` 200 `{latency:203}`；`ignored` 200 `{saved:true}`；`export` 200 `text/csv` 且首行为表头；`media` 200 `image/webp`、`Content-Disposition: attachment`、199,282 字节；旧 `ajax.php?action=sakura_s3_sync_test` 400/`0`，旧 `admin-post.php?action=sakura_s3_sync_export` 400。
+
+**测试数据**：下载测试新建的 3 个附件已删除（媒体库删除守卫会拒绝直接删除，验证清理用 `remove_all_filters('pre_delete_attachment')` 绕过），`s3_options` 备份后恢复，统计复原 35/34。
+
+## 清理：同步中心 payload 里失效的 nonce（2026-11-27，1.29.0-beta-21）
+
+REST 迁移后，页面配置里 8 个 camelCase nonce（`scan`/`test`/`page`/`preview`/`cancel`/`resume`/`refresh`/`toggle`）与 5 个 snake_case 视图键已无人引用，一并删除；`Sync_Payload::strings()` 里的 `ignoredNonce`（原 admin-post 表单用）也删除。
+
+保留下来的只有三个：`restNonce`（REST cookie 认证）、`actionNonce` 与 `retryNonce`（批量动作与重试仍是 admin-ajax）。
+
+**验证**：页面 13 行、0 错误；`config` 的 nonce 只剩 `restNonce` / `retryNonce` / `actionNonce`。
+
+## 同步中心迁移到 REST：第四阶段（action）（2026-11-27，1.29.0-beta-22）
+
+最后一个 admin-ajax 端点 `sakura_s3_sync_action` 迁到 `POST /storage/sync/action`，按「处理器提取 + 路由 + 前端切换 + 删注册」整体搬。
+
+**做法**：300 行的 `ajax_action()` 用脚本按括号匹配整体转换——`wp_send_json_error( array( 'message' => X ), N )` → `return new WP_Error( 'sio_action', X, array( 'status' => N ) )`，`wp_send_json_success( Y )` → `return Y`，`$_POST` → `$params`；两处 `array( 'code' => … )` 形式的错误由脚本手工修正（`$job->get_error_code()` / `$result->get_error_code()`）。
+
+前端 4 处 `ajax( 'sakura_s3_sync_action', … )` 改 `post( config, 'action', … )`；`page_config()` 的 `actionNonce` 删除，`retryNonce` 保留（重试仍是 admin-ajax）。
+
+**验证（实验站）**：
+
+- `{sync_action:'bogus'}` → 400「操作参数不完整。」
+- `{sync_action:'delete', keys:[…], confirm:''}` → 400「批量删除需要输入 DELETE 二次确认。」
+- `{sync_action:'adopt', seconds:5}` → 200 `{total:3, adopted:0, skipped:3}`
+- 真实单条删除：上传 `verify-2.jpg`（附件 81）→ `{sync_action:'delete', keys:[key], confirm:'DELETE'}` → 200 `{queued:1, skipped:0}`；触发 `sakura_imgopt_sync_job_tick` 后**索引行消失**
+- 旧 `admin-ajax.php?action=sakura_s3_sync_action` → 400/`0`
+
+**关于「队列删除不删附件」的更正**：复查 Sync_Actions::delete() 后确认，删除范围由 removes_attachment() 决定——只有归入用户文件账本（Files 生命周期为 active/deleting）的附件才走 MODE_FULL（删附件、本地文件、退容量），普通媒体库附件一律 MODE_REMOTE_ONLY（只删远端对象）。实测行内删除普通附件返回「云端对象已删除。」而非「…一并释放」，与队列行为一致。**此前记录的「两条路径不一致」是误判，已更正。**
+
+## 文案：批量删除入队提示补上作用范围（2026-11-27，1.29.0-beta-24）
+
+批量删除的**确认弹窗**本来就写明了范围（`batchDeleteDesc` / `batchDeleteNote`：「属于用户文件空间的附件会连同附件记录、本地文件与容量一起删除；其它对象只删云端副本」），实测确实渲染。缺的是**入队后的结果提示**：过去只说「已将 N 个对象加入后台队列。」，没有说明普通附件的本地文件仍在。
+
+现在 delete 分支的 message 追加一句：「队列只删除云端副本；属于用户文件空间的附件才会连同附件记录、本地文件与容量一并释放。」（`delete` 是走到该分支的唯一动作，upload/download 早已 return，所以不再写 `if` 判断，否则 PHPStan 会报 always-true。）
+
+**验证**：`POST /storage/sync/action` 批量删除一个测试附件 → 200，message 为「已将 1 个对象加入后台队列。队列只删除云端副本；属于用户文件空间的附件才会连同附件记录、本地文件与容量一并释放。」
+
+**更正**：此前两条记录分别写「两条路径不一致」「界面上读不出来」，复查源码与实测后均为误判，已在本文档更正。
+
+## 修复：同步中心删除只进同步队列，删除队列页永远为空（2026-11-27，1.29.0-beta-25）
+
+**现象**：在同步中心删除只存在于云端的对象，提示「已加入后台队列」，但「删除队列」页（`storage&t=deletes`）没有任何记录；只有过一会儿在同步日志卡片里刷新才能看到已完成。
+
+**根因**：两个队列。同步中心的批量删除写进同步 `jobs` 表（`Action_Worker` 处理），而「删除队列」页读的是 `Delete_Jobs`（`wp_sio_s3_deletes`，由 `delete_attachment` 钩子填充）。纯云端对象没有附件，永远不会进 `Delete_Jobs`，所以那页为空。
+
+**修复**：`handle_action()` 的批量删除按归属分流——`Sync_Actions::removes_attachment()` 为假（无用户文件账本的云端副本）的走 `Delete_Jobs::enqueue()`，其余仍走同步队列，保证容量结算路径不变。`Delete_Worker` 完成时会触发 `sakura_imgopt_s3_object_deleted`，既有的 `Attachment_Indexer::forget_remote()` 会清掉同步索引行。
+
+**踩到的两个坑**：
+
+1. `target_hash` 传错。同步队列用 `Synchronous_Uploader::target_hash_for()`，删除队列要 `Delete_Jobs::target_hash( profile_options )`；传错会让 worker 判定「存储目标已变更」，任务永远 queued（`last_error` 写明「已停止删除以避免误删」）。
+2. PHPStan 的 always-true/false：`'delete' === $type`（upload/download 已提前 return）与 `'' === $profile`（`active_profile_id()` 此时非空）都会报，按提示去掉。
+
+**验证（实验站，beta-25）**：
+
+- 用生产备份目录 `/www/wwwroot/www.nboke.com/.../sakura-imgopt-backup/2026/11/` 复制一张图（未改动源目录），上传为无附件的云端对象 → 扫描得到 cloud-only 行
+- REST 删除 → `wp_sio_s3_deletes` 新增一行（`attachment_id=0`, `state=queued`），同步 `jobs` 表无记录
+- 删除队列页**立即**渲染出该行：`#120 … 排队 0 / 8 等待执行`
+- 执行 worker → `state=done`；对象不存在（`exists=[]`）；同步索引行被清（`index_rows=0`）
+
+## 同步中心收尾：retry 迁 REST + 全页回归（2026-11-27，1.29.0-beta-27）
+
+`Storage_Module::retry_failed()` 提取为 `handle_retry( int $attachment_id )`（返回数组或 `WP_Error`），新增 `POST /storage/sync/retry`；前端 `post( config, 'retry', { attachment_id: 0 } )`。同时删除 `wp_ajax_sakura_s3_retry` 注册、`retryNonce` 配置，`transport.js` 里已无人使用的 `ajax()` 包装与那段「故意保留 admin-ajax」的注释一并删除。
+
+至此同步中心 **13 个端点全部 REST**，页面配置只剩一个 `restNonce`（`actionNonce`/`retryNonce` 都已消失）。
+
+**验证**：`POST .../retry` → 400 `sio_nothing_to_retry`「没有可重试的上传或删除任务。」（当前确实没有失败任务）；旧 `admin-ajax.php?action=sakura_s3_retry` → 400/`0`；`config` nonce 列表只剩 `restNonce`。
+
+**全页回归（12 个页面逐一加载）**：`sakura-tools`、`image&t=rules|thumb|backup|stats`、`storage&t=connection|sync|deletes|rewrite|cost`、`files`、`zibll` —— 全部 `skeleton=false`、`fatal=false`、顶栏存在、卡片正常渲染，版本号一致。
+
+**交互抽测**（本轮改动相关）：扫描开跑与最近核对时间刷新、延迟胶囊（REST）、分页、预览、忽略规则保存、索引开关、批量删除入队（进删除队列）、CSV 导出（`text/csv`）、下载到媒体库（`image/webp` + `Content-Disposition`）、retry 端点错误分支。图片规则页「保存设置」在无改动时被禁用（脏状态守卫），未触发请求，属预期。
+
+## 删除队列收口：同步中心的删除全部登记到队列（2026-11-27，1.29.0-beta-31）
+
+**设计冲突**：`Delete_Worker` 只删孤儿对象——只要还有附件引用该 key 就判 `kept` 并结束。所以「先进队列再等 worker 删有引用的对象」行不通（实测两条任务都 `done/kept`，对象仍在）。
+
+**最终实现**：
+
+1. 同步中心每一条删除（批量/行内）**先** `Delete_Jobs::enqueue()` 登记一行，队列页立刻可见；
+2. 有附件的行仍由内核 `Sync_Actions::delete()` 同步删除（附件、本地文件、容量、远端）；
+3. 内核对远端是同步删除（`Deletion::enqueue_remote_retry` 只在失败时补队），所以成功后用新增的 `Delete_Jobs::settle_deleted()` 把登记行直接结算为 `done/deleted`，不留 `kept` 幽灵；删除失败则保持 `queued`，由 worker 按退避重试；
+4. 内核删完不会触发 `object_deleted`（那是 worker 发的），因此这条路径额外调用 `Index_Repository::apply_action(...,'delete')` 清索引行；
+5. 纯云端对象（无附件）仍直接入队，由 worker 删除 + 重试。
+
+**验证（实验站 beta-31，图片来自生产备份目录的副本）**：
+
+| 检查 | 结果 |
+|---|---|
+| 批量删除 2 个已同步附件 | `{queued:2}` |
+| 队列行 | `#127/#128 → done / deleted`（不再是 kept） |
+| 云端对象 | `objects_exist → []` |
+| 同步索引 | `idx=0` |
+| 媒体库记录 | 保留（`MODE_REMOTE_ONLY` 设计如此） |
+
+此前 β-29 的失败尝试已回滚，本轮为最终实现；测试附件 95–98 已清理，统计复原，生产备份目录未改动（38 个文件）。
+
+## 删除队列批量调度（2026-11-27，1.29.0-beta-35）
+
+按 [docs/plans/2026-11-27-delete-queue-batching.md](plans/2026-11-27-delete-queue-batching.md) 实现，React 卡片 + REST 保存，无 PHP 直出、无 admin-ajax。
+
+**四层改动**：
+
+1. 数据层：`Delete_Jobs::VERSION` 1.2.3 → 1.3.0，新增 `object_bytes` 列；`enqueue()` 增加第 6 个参数 `$bytes`；新增 `queued_stats()` 返回「可执行件数 / 累计体积 / 最早等待时间」。
+2. 调度层：`Delete_Batch` 选项类（enabled / batch_size / max_wait / batch_time / batch_bytes，带范围钳制）；`Delete_Worker::should_dispatch()` 按「够件数 / 够体积 / 等够时间」三条件放行，不满足时按最早任务的截止时间精确安排单次事件；周期事件保留作兜底。
+3. 接口层：payload 增加 `dispatch` 段（policy + queued）；新增 `POST /storage/deletes/dispatch`。
+4. 界面层：`assets/ui/src/deletes/dispatch.jsx`，卡片置于「队列明细」上方，开关 + 4 个数值 + 实时状态行。
+
+**验证中发现的真 bug（已修）**：`queued_stats()` 最初用 `UNIX_TIMESTAMP(MIN(created_at))` 取最早时间，而表里存的是 UTC；`UNIX_TIMESTAMP()` 按会话时区（Asia/Shanghai）解析，导致「等了多久」被算早 8 小时，「等够就走」条件永远成立，攒批形同虚设。改为取回原始时间串并用 `strtotime($x . ' UTC')` 解析。
+
+**验收（实验站 beta-35，逐条实测）**：
+
+| 用例 | 结果 |
+|---|---|
+| 卡片渲染 | 默认 20 / 300 / 500 / 20，开关开 |
+| REST 保存 | 200，选项落库 |
+| 1 件、每车 5、等待 300s | `should_dispatch=false`，`run()` 后队列仍为 1 件 |
+| 补到 5 件 | `run()` 后全部处理，queued=0 |
+| 2 件 × 300 MB、每车 500 MB | 体积条件放行（true） |
+| 等待 0 秒 | 直接放行（true） |
+
+测试数据（gate-* 假行）已删除，选项已恢复默认。

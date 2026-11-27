@@ -1,9 +1,9 @@
 # 12 React 代码规范
 
-后台的 React 内容区（PHP 外壳 + React 内容区混合渲染；1.29.0 起 16 个后台页面的内容区全部迁岛）怎么写。**先读 [03-后台UI](03-后台UI.md) §9.3 的分工表**——哪块归 PHP、哪块归 React 由那张表定；本篇只讲 React 这一侧怎么写。**本篇管写法，不管视觉**——样式规则在 [03-后台UI](03-后台UI.md)，资源加载在 [10-静态资源手册](10-静态资源手册.md)。
+后台的 React 层（1.29.0 起 16 个后台页面的**外壳与内容区都由 React 拥有**：外壳 `hydrateRoot` 接管 PHP 打印的首帧标记，内容区 `createRoot`）怎么写。**先读 [03-后台UI](03-后台UI.md) §9.3 的分工表**——哪块归 PHP、哪块归 React 由那张表定；本篇只讲 React 这一侧怎么写。**本篇管写法，不管视觉**——样式规则在 [03-后台UI](03-后台UI.md)，资源加载在 [10-静态资源手册](10-静态资源手册.md)。
 
 - 基线版本：`react@19.3.1` / `react-dom@19.3.1`（`package.json` 写 `^19.0.0`，实际解析到 19.3.1，2026-11-24 核对）、`esbuild@0.25.12`
-- **为什么追最新 19**：插件把 React 打进自己的 bundle（`var SakuraUI`，不读 `window.React`），与 wp-admin 自带的 18.3.1 **互不共享**，所以不存在「同页两个副本版本打架」的问题；开发者 2026-11-24 决定以最新版为基准（推翻了当天早些时候「跟随 WordPress」的方案，原因见 `DECISIONS.md`）。代价是包体更大（19 版 `image.js` 254 KB vs 18 版 176 KB），换来 19 的写法（Actions、`ref` 当 prop、`<Ctx value>`）可用。
+- **为什么追最新 19**：插件把 React 打进自己的 bundle（`var SakuraUI`，不读 `window.React`），与 wp-admin 自带的 18.3.1 **互不共享**，所以不存在「同页两个副本版本打架」的问题；开发者 2026-11-24 决定以最新版为基准（推翻了当天早些时候「跟随 WordPress」的方案，原因见 `DECISIONS.md`）。代价是包体更大（19 版单页 bundle 254 KB vs 18 版 176 KB；1.29.0-beta-5 合并成 `admin-app.js` 后 472,007 B，开发期 gzip 约 130 KB），换来 19 的写法（Actions、`ref` 当 prop、`<Ctx value>`）可用。
 - 参考：[React v19 发布说明](https://react.dev/blog/2024/12/05/react-19)、[React 19.2 新特性](https://react.dev/blog/2025/10/01/react-19-2)、[React Compiler](https://react.dev/learn/react-compiler)（仍不用，见 §1）
 - 适用文件：`assets/ui/src/**`（`shared/ui.jsx` 与各页面模块）
 
@@ -12,7 +12,7 @@
 这三条比任何通用 React 最佳实践都优先，因为它们决定了「什么不能做」：
 
 1. **顶栏、页签条、页头、骨架由 PHP 渲染，React 永远不碰它们。** React 的挂载点是 `.sakura-admin > .sakura-admin__main`，只接管 `<main>` 里的内容。理由见 [03-后台UI](03-后台UI.md) §9.3：同模块页签切换不能整页刷新，而顶栏/页签在每个页签里完全一样，重建一次就是一次无意义重绘。
-2. **引导数据是 PHP 写进文档的 JSON，不是接口。** `<script type="application/json" id="sakura-*-bootstrap">` 必须在挂载节点**之外**（`Page::render()` 的 `island` 分支负责），`index.jsx` 读它、`JSON.parse` 失败就显示失败态。REST 只用于**动作**（保存、扫描、翻页、重置），不用于首屏。
+2. **引导数据是 PHP 写进文档的 JSON，不是接口。** `<script type="application/json" id="sakura-*-bootstrap">` 必须在挂载节点**之外**（`Page::render()` 的 `island` 分支负责），`admin-app/index.jsx` 读它、`JSON.parse` 失败就显示失败态。REST 只用于**动作**（保存、扫描、翻页、重置），不用于首屏。
 3. **服务端算出来的东西必须由服务端回传，不在前端猜。** 卡片上的「已保存值」「摘要文案」「派生字符串」（如 `固定文本 · Sakura`）都由 PHP 拼好；保存接口的响应要带回落库后的值，前端拿它覆盖本地状态。**前端复刻业务计算是禁止行为。**
 
 ## 1. 写法对照：旧 React → React 19
@@ -35,7 +35,7 @@
 
 - **不追 React 的新机制，但追新版本。** 版本以最新 19.x 为基准（见文首）；19 的新 API 用不用，看 §5 与附录 A 的逐条判断，不因为「新」就上。
 - **不带 React Compiler。** 构建链是 esbuild，Compiler 需要 Babel/SWC 插件；引入它等于给打包加一整层依赖。因此**手动 memo 只在测量之后加**，不要先验地包 `memo`/`useMemo`。
-- **不用 SSR / `hydrateRoot`。** wp-admin 里我们的 markup 由 PHP 拼、内容由 React 建，两者不是同一棵树，hydration 只会带来 mismatch。零重绘靠「React 不碰顶栏/页签」实现，不靠 hydrate。
+- **不引入 SSR 框架，但外壳用 `hydrateRoot`。** 没有 Next/Remix 那套服务端渲染；`hydrateRoot` 只用在**外壳两个节点**上（`.sakura-topbar`、`.sakura-tabs`），因为 PHP 打印的正是与 `TopbarContent` / `TabsContent` 逐节点同构的标记，hydration 是「接管」而不是「猜」。内容区仍用 `createRoot()`，不做 hydration。守则是「外壳节点不重建」，不是「React 不碰外壳」——1.29.0 起外壳归 React，详见 §12 与 03 篇 §9.3。
 - **不用 CSS-in-JS。** 令牌（`--g-*`）在 `:root` 上，React 同文档自动继承；改用 CSS-in-JS 或 Shadow DOM 会切断继承。
 - **不用 UI 框架**（Ant Design / MUI 等）。见 DECISIONS 2026-11-14、2026-11-23。
 
@@ -45,7 +45,7 @@
 
 1. `npm view react version` 看最新版；记下 `react` 与 `react-dom` 是否是同一版本（两者必须一致）。
 2. 改 `package.json`（保持 `^19.0.0` 这种范围，或临时写死精确版本做对比），`npm install`。
-3. `node bin/build-ui.mjs`，确认产物里 `O.version="<新版本>"`，记下 `image.js` / `system.js` 的新字节数。
+3. `npm run build`，确认 `assets/ui/dist/admin-app.js` 已更新（banner 里有 `sakura-tools admin bundle <版本>`），记下它的大小与 gzip 体积。
 4. 跑 §10 的自检 + 1440/390 的全部 16 个后台页面（至少覆盖系统设置、图像四页、存储五页、文件五页与子比增强）。
 5. 改本文件文首的基线行、§11 的包体数字，再提交。**升级单独一次提交**，不要和功能改动混在一起。
 
@@ -55,53 +55,30 @@
 
 ```
 assets/ui/src/
-  shared/ui.jsx        ← 跨页面的呈现件：Card / Field / BusyLabel / Prompt / Badge / PageHead / …
-  image/
-    index.jsx          ← 唯一入口：找挂载点、读 bootstrap、createRoot
-    app.jsx            ← 外壳：状态、页签切换、错误条、Prompt
-    transport.js       ← 唯一 fetch 出口：call( rest, strings, path, body )
-    rules.jsx thumb.jsx backup.jsx stats.jsx fields.jsx
-  system/
-    index.jsx app.jsx components.jsx boot.js
-  storage/
-    index.jsx          ← 同上，挂在 .sakura-admin[data-sakura-page^="storage-"] 的 <main>
-    app.jsx            ← 外壳：保存 / 切换 / 删除 / 探针 / 风险确认，调度五张卡
-    transport.js       ← 与 image 同签名，路由前缀 /storage
-    dialog.jsx         ← 确认框、切桶提醒、多吉云空间选择与测试结果共用一套 .sakura-modal 标记
-    profiles.jsx connection.jsx behaviour.jsx metrics.jsx monitoring.jsx
-  sync/
-    index.jsx          ← 挂在 .sakura-admin[data-sakura-page="storage-sync"] 的 <main>
-    app.jsx            ← 外壳：扫描 / 续跑 / 刷新 / 取消 / 重试 / 同步记录开关 / 延迟探针，调度七张卡
-    overview.jsx       ← 樱前线与五张 KPI 票根，数据全部来自 payload，不在前端算
-    tasks.jsx health.jsx storage.jsx reconcile.jsx logs.jsx ignored.jsx notes.jsx
-    dialogs.jsx        ← 复刻 Config_Notice 的 setup / paused / reconcile 三个引导弹窗
-    transport.js       ← ajax() 直接转发 admin.api，reloadWithToast() 走 sessionStorage 跨重载
-    format.js          ← 数字 / 字节 / 日期格式化
-  deletes/
-    index.jsx app.jsx live.jsx table.jsx transport.js
-  rewrite/
-    index.jsx app.jsx target.jsx scan.jsx preview.jsx run.jsx history.jsx status.js transport.js
-  cost/
-    index.jsx app.jsx transport.js
-  files/
-    index.jsx app.jsx form.jsx policy.jsx appearance.jsx color.js entry-gate.jsx
-  files-users/ files-queue/ files-log/
-    index.jsx app.jsx（+ sanction.jsx / caps.jsx）
-  zibll/
-    index.jsx app.jsx diagnostics.jsx payment.jsx entry.jsx gate.jsx bonus.jsx plans.jsx grants.jsx reconcile.jsx controls.jsx form.jsx
-  performance/
-    index.jsx app.jsx
-  shared/
-    ui.jsx
+  admin-app/          ← 唯一入口目录：index.jsx 挂载、app.jsx 的 APPS 选页面、shell.jsx/router.js 管 chrome 与导航、transport.js 调 /pages/{page}
+  shared/ui.jsx       ← 跨页面的呈现件：Card / Field / BusyLabel / Prompt / Badge / PageHead / …
+  image/              ← app.jsx（外壳与页签）+ rules / thumb / backup / stats / fields / transport
+  system/             ← app.jsx components.jsx boot.js
+  storage/            ← app.jsx（保存 / 切换 / 删除 / 探针 / 风险确认）+ connection / behaviour / profiles / metrics / monitoring / dialog / transport
+  sync/               ← app.jsx（扫描 / 续跑 / 刷新 / 取消 / 重试 / 同步记录开关 / 延迟探针）+ overview / tasks / health / storage / reconcile / logs / ignored / notes / dialogs / transport / format
+  deletes/            ← app.jsx live.jsx table.jsx transport.js
+  rewrite/            ← app.jsx target.jsx scan.jsx preview.jsx run.jsx history.jsx status.js transport.js
+  cost/               ← app.jsx transport.js
+  files/              ← app.jsx form.jsx policy.jsx appearance.jsx color.js entry-gate.jsx shared/{EmptyState,Pager,transport}
+  files-users/        ← app.jsx sanction.jsx
+  files-queue/        ← app.jsx caps.jsx
+  files-log/          ← app.jsx
+  zibll/              ← app.jsx diagnostics.jsx payment.jsx entry.jsx gate.jsx bonus.jsx plans.jsx grants.jsx reconcile.jsx controls.jsx form.jsx
+  performance/        ← app.jsx
 ```
 
 规矩：
 
-- **一个页签一个文件**，文件名与 `Layout::PAGES` 的 tab 同名；`app.jsx` 只做外壳与调度，不写业务渲染。
+- **一个页面一个目录**（`assets/ui/src/{page}/app.jsx`），目录名对应页面 id；壳与路由只在 `admin-app/`。`app.jsx` 只做外壳与调度，不写业务渲染。
 - **`shared/ui.jsx` 只放跨页面复用的件**。本页专用件（`RuntimeTable`、`SizeGrid`、`KpiBoard`…）留在页面目录。把一次性组件塞进 shared 会把公共 API 变成垃圾场。
 - **共享 `Card` 的卡头动作走 `actions` 槽**：`<Card card={card} actions={<button …>}>`，它渲染在 `<header>` 的 `.card__actions` 里，与 PHP `Card::head()` 同一个位置——有 `kicker` 时 CSS 自动下沉 20px 让按钮顶边与标题首行齐平，≤782px 落到标题下方整行右对齐（见 03 篇 `actions` 那条）。**不要把 `.card__actions` 写进 `card__body`**：那样按钮会跑到标题下方、正文顶部。对象存储「已保存的配置」卡 1.28.8-beta-43 修的就是这个——旧 PHP 页用 `UI::card( 'actions' => … )` 放在卡头，迁成 React 岛时掉进了 body。
 - **冻结 / 锁定的图标只有一个来源**：用 `shared/ui.jsx` 的 `LockIcon`（与 PHP `UI::lock_icon()` 同一段 svg path、同一个 `viewBox`），放进 `.check__lock` 里，`title` 用 payload 的 `strings.lockTitle`。页面里不要手画第二个锁，也不要留 `<span className="check__lock" />` 这种空壳——它只有 22×22 的底色块，看上去就是「锁没了」。对象存储「上传行为」卡冻结行 1.28.8-beta-44 修的就是这个：旧 PHP 页输出 `UI::lock_icon()`，迁成 React 岛时只剩一个空格子，「这里不能改」读不出来。
-- **组件默认导出只给 `index.jsx` 的挂载调用**；页面组件用命名导出，便于测试与引用。
+- **每个页面的 `app.jsx` 用默认导出**，供 `admin-app/app.jsx` 的 `APPS` 表导入；页面内部组件用命名导出，便于测试与引用。
 - **props 来自 payload，不要自己命名一套。** `boot.cards.layout.fields` 就是渲染依据；加字段先改 PHP 的 payload，不在前端硬编码。
 - 命名：组件 `PascalCase`，函数/变量 `camelCase`；与 PHP 侧共享的名字（`data-sakura-card`、`is-active`、`card__savebar`）**逐字对齐**，它们是契约。
 
@@ -180,7 +157,7 @@ useEffect( () => {
 - **文案必须中文**，且说清「发生了什么、怎么办」：网络失败 → 「网络请求失败，服务器没有响应。」；非 2xx → 「服务器返回 %d，请稍后重试。」；服务端 `message` 优先。
 - 错误不吞：显示在卡片上方或页头下方，不要只 `console.error`。
 - 按钮挂起态**不许改宽度**（用 `BusyLabel`，两层文案叠在同一格取较宽者）；挂起期间不要 `disabled`（会丢掉 hover 与焦点），用 `aria-busy` + 提交里防重入。
-- 首帧失败时，骨架要被「失败提示」替换（`index.jsx` 里把 `.sakura-boot` 转失败色并改文案）；没有动作行的页把提示写进 `.page-body`。
+- 首帧失败时，骨架要被「失败提示」替换（`admin-app/index.jsx` 的 `showFailure()` 把 `.sakura-boot` 转失败色并改文案）。
 
 ## 9. 禁止清单
 
@@ -200,7 +177,7 @@ useEffect( () => {
 ## 10. 提交前自检
 
 ```bash
-node bin/build-ui.mjs          # 产物必须重建并提交 assets/ui/dist/*.js
+npm run build                  # 产物必须重建并提交 assets/ui/dist/admin-app.js
 php -l <改动的 PHP 文件>
 node --check <改动的普通 JS>    # .jsx 由 esbuild 编译，无需 node --check
 composer test && composer phpstan && composer lint:strict
@@ -209,20 +186,20 @@ git diff --check
 
 浏览器里逐条过（开发者指定的环境）：
 
-- [ ] 首屏：骨架在、挂载前后页头/卡片位置零位移（`data-sakura-island` 页面不该有 `main` 入场动画）
+- [ ] 首屏：骨架在、挂载前后页头/卡片位置零位移（`main` 的入场动画只播一次）
 - [ ] 保存：不导航、`scrollY` 不变、卡片几何不变、弹窗出现且图标/吉祥物/关闭按钮齐全
 - [ ] 保存后：输入框、状态列、摘要、页头状态卡**都**是落库值
 - [ ] 页签切换：顶栏/页签节点引用不变、`performance` 的 navigation 条目仍为 1
 - [ ] 键盘：Tab 不出弹窗、Esc 关闭、焦点回触发元素
 - [ ] 1440 与 390 两个宽度：无横向溢出，控制台 0 error / 0 warning
 
-## 11. 现状盘点（2026-11-26，1.29.0）
+## 11. 现状盘点（2026-11-26，1.29.0-beta-5）
 
 对 `assets/ui/src` 的实测统计，写在这里是为了让下一次改动知道「已经站在哪」：
 
 | 项 | 数量 | 结论 |
 |---|---|---|
-| 文件 / 行数 | 85 个 / 13,758 行 | 16 个页面入口 + 13 个 bundle；storage 9、sync 13、deletes 5、rewrite 9、cost 3、files 11、files-users/queue/log 8、image 8、system 4、zibll 12、performance 2、shared 1 |
+| 文件 / 行数 | 76 个 / 13,845 行 | 1 个壳入口 + 1 个产物：`admin-app/` 5 个文件，13 个页面目录（image 7、storage 8、sync 12、deletes 4、rewrite 8、cost 2、files 9、files-users 2、files-queue 2、files-log 1、system 3、zibll 11、performance 1），shared 1 |
 | `useState` | 214 | 集中在各页 `app.jsx` 与卡片的 draft/saved（含 import 计数） |
 | `useEffect` | 62 | 全部带清理或只读依赖键（click / popstate / keydown / 定时器 / 值变化） |
 | `useRef` / `useCallback` | 45 / 12 | 合理个例 |
@@ -231,13 +208,13 @@ git diff --check
 | `dangerouslySetInnerHTML` | 7 | 全部是服务端字符串（品牌 SVG、tagline、弹窗图标、吉祥物） |
 | 下标作 key | 6 | 全部是静态字符串列表（hint / warning / note / card.desc / 告警行） |
 | React 19 Actions（`useActionState` / `useOptimistic`） | 0 | 19.3 已具备，现有页签仍是手写 `saving`；按 §5 逐个页签迁移，不批量重写 |
-| 打包产物 | `files.js` 231 KB（236,601 B）/ `files-users.js` 237 KB（242,334 B）/ `files-queue.js` 240 KB（246,137 B）/ `files-log.js` 228 KB（233,044 B）/ `zibll.js` 254 KB（260,246 B）/ `performance.js` 227 KB（232,615 B）/ `image.js` 255 KB（260,969 B）/ `storage.js` 255 KB（260,837 B）/ `sync.js` 267 KB（273,702 B）/ `deletes.js` 241 KB（246,596 B）/ `rewrite.js` 239 KB（244,609 B）/ `cost.js` 228 KB（233,873 B）/ `system.js` 232 KB（237,637 B） | React 19.3.1 minified；18.3.1 版是 176/153 KB，差 74/80 KB，由开发者决定接受 |
+| 打包产物 | `admin-app.js` 461 KB（472,007 B）/ 开发期 gzip 约 130 KB | React 19.3.1 minified，16 个页面共用一个产物；拆分前的 per-page 数据（19.3.1 单页 227–267 KB）已随 1.29.0-beta-5 作废 |
 
 结论：**没有需要立刻返工的旧版写法**；基线与 `package.json` 一致（`^19.0.0` → 19.3.1）。下一步真正有价值的是按 §5 把保存动作迁到 `useActionState`，而不是先加 `memo`。
 
 ### 11.1 待办：sync/ 下未走翻译的中文
 
-「同步中心」迁岛（1.28.8-beta-48）时，为了先保证功能等价，大量文案直接写在 JSX 里。**功能正常**（都有中文，页面显示没错），但绕过了 PHP 的 __() 与 wp_set_script_translations，翻译文件里查不到这些句子。2026-11-25 实测 assets/ui/src/sync/ 共 13 个文件：
+「同步中心」迁岛（1.28.8-beta-48）时，为了先保证功能等价，大量文案直接写在 JSX 里。**功能正常**（都有中文，页面显示没错），但绕过了 PHP 的 __() 与 wp_set_script_translations，翻译文件里查不到这些句子。2026-11-25 实测 assets/ui/src/sync/ 共 13 个文件（当时含 `index.jsx`，该文件已随 1.29.0-beta-5 删除）：
 
 - **直接写死的中文 32 行**，分布在 app.jsx(10)、dialogs.jsx(3)、health.jsx(1)、ignored.jsx(4)、index.jsx(1)、logs.jsx(2)、overview.jsx(1)、reconcile.jsx(6)、storage.jsx(1)、tasks.jsx(3)。主要是六段提示条（停用 / 切换封存 / 兼容模式 / 核对进行中 / 超过 30 天未校准 / 差异告警）、三个引导弹窗的按钮、日志卡的导出与级别筛选、表格 aria-label、索引卡的「N 个文件」。
 - **带 `|| '中文'` 兜底 43 行**，errors/兜底这类写法本身可接受（服务端没给键时仍有可读文案），但其中大部分键其实已经在 Sync_Payload::strings() 里提供了，等于双份维护。
@@ -256,18 +233,18 @@ git diff --check
 - **轮询只有一处**：`app.jsx` 里活动状态 4s、空闲 15s，连续失败按 ×2 退避到 30s；`document.hidden` 时暂停，`visibilitychange` 回来后立即拉一次。定时器在 effect 里 set/clear，不用 `setInterval` 叠请求；`load()` 同时只允许一个请求在飞。
 - **操作不整页刷新**：retry / drop 的响应直接带回新 snapshot，`apply()` 合并；筛选与分页用 `history.replaceState` 写 `state` / `paged`，越界页由服务端夹回范围。
 - **状态语义**：`done` 行保留 7 天（`Delete_Jobs::DONE_RETENTION_DAYS`），worker 每小时最多清一次；重试只覆盖 queued / failed / dead，**不重试 done**（同一 key 可能已被重新上传，重跑会删掉新对象）；已完成记录可导出 CSV。
-- `Page_Assets::ISLAND_BUNDLES` 已登记 `storage-deletes => assets/ui/dist/deletes.js`，旧页脚本不再入队。
+- per-page bundle 已在 1.29.0-beta-5 删除：16 个路由统一由 `admin-app.js` 渲染，没有旧页脚本，也没有 classic 视图兜底。
 
 ### 11.3 链接改写岛（1.28.8-beta-56）
 
-- **PHP 侧两件事分开**：`src/Admin/Rewrite_Payload.php` 只组装 `page/head/cards/config`；`src/S3/Url_Rewrite_Scope.php` 只回答「当前活动配置的附件 URL 路径前缀是什么」。扫描、执行、预览、回滚仍然走原来的 `wp_ajax_sakura_url_rewrite_*`，所以兜底页和岛共用同一套游标、时间盒与账本，不新增 REST。
+- **PHP 侧两件事分开**：`src/Admin/Rewrite_Payload.php` 只组装 `page/head/cards/config`；`src/S3/Url_Rewrite_Scope.php` 只回答「当前活动配置的附件 URL 路径前缀是什么」。扫描、执行、预览、回滚仍然走原来的 `wp_ajax_sakura_url_rewrite_*`，岛与后台服务共用同一套游标、时间盒与账本，不新增 REST。
 - **路径前缀优先级**：活动配置的 `upload_url_path` 有路径就用它的路径；没有路径才回落 `upload_path`。页面只读展示 `/{prefix}/` 与来源，不提供覆盖输入（旧桶前缀不同时，本轮明确不处理）。
 - **URL 级而不是整值替换**：`Link_Rewriter` 构造器第三个参数是 `?string $path_prefix`；传 `null` 保持旧的全域名替换（老测试仍覆盖它），传字符串进入 scoped 模式。scoped 模式先匹配 scheme-qualified URL（`http://`、`https://`、`//`，含 JSON 的 `\/` 写法），再匹配裸 `host/path`；host 必须精确、path 必须以 `/{prefix}/` 开头、大小写敏感；命中的只替换 host，同一行里的其它链接原样保留。序列化数据仍走 `rewrite_value()` 的递归与长度修复。
 - **扫描是粗筛，写库前精确匹配**：`Url_Rewrite_Service::scan_column()` 以旧域名 + 路径前缀（plain 与 JSON escaped 两种 LIKE）做候选集，多个 needle 必须是 `AND (a OR b)`；任务行数是候选行数，执行时 `Link_Rewriter` 再按 URL 精确判断，粗筛到但没命中的行计入「已跳过」。这个区别在页面上由执行卡的第一条 notes 说明。
 - **状态带 scope**：`path_prefix` 写进 `sio_url_rewrite_state`；`scan_step / run_step / preview` 都从 state 取同一个前缀，续跑不会切到另一套规则；旧版本留下的 state 没有这个键时按 `null` 走兼容路径。
-- **UI 文件**：`assets/ui/src/rewrite/` 的 app / target / scan / run / history / preview / status / transport；目标卡用共享 `Field` 渲染两个域名输入与 datalist，scope 用只读提示条；扫描卡负责选择与样例，执行卡负责统计与进度，历史卡负责回滚。`Page_Assets::ISLAND_BUNDLES` 登记 `storage-rewrite => assets/ui/dist/rewrite.js`，bundle 缺失时回落 `storage-url-rewrite.php` 与旧控制器（已实测）。
+- **UI 文件**：`assets/ui/src/rewrite/` 的 app / target / scan / run / history / preview / status / transport；目标卡用共享 `Field` 渲染两个域名输入与 datalist，scope 用只读提示条；扫描卡负责选择与样例，执行卡负责统计与进度，历史卡负责回滚。per-page bundle 与 `storage-url-rewrite.php` 兜底已在 1.29.0-beta-5 删除，改写页只由 `admin-app.js` 渲染。
 - **扫描工具栏**：`.rewrite-toolbar` 是带边框的面板，`.rewrite-presets` 内先放「快捷选择」标签，再放两个 `btn btn--ghost btn--small rewrite-preset`；**不要用 `btn--quiet`**——它在浅色卡片上会变成无边框胶囊，选项与背景融在一起。窄屏（≤600px）工具栏改成两行网格：第一行「全选 + 已选」，第二行「快捷选择 + 两个等宽按钮」。
-- **空状态与自动列名**：`.rewrite-empty-cell` 必须带 `data-label=""`（React 岛和旧页兜底都要），否则 `assets/ui/js/ui.js` 的 `labelCells()` 会把第一列表头「选择/时间」自动补到 `colspan` 合并单元格上；≤782px 时该单元格 `display:block`、隐藏 `::before`，空状态 `min-height:168px` 铺满并居中。
+- **空状态与自动列名**：`.rewrite-empty-cell` 必须带 `data-label=""`（React 岛渲染时也要），否则 `assets/ui/js/ui.js` 的 `labelCells()` 会把第一列表头「选择/时间」自动补到 `colspan` 合并单元格上；≤782px 时该单元格 `display:block`、隐藏 `::before`，空状态 `min-height:168px` 铺满并居中。
 - **测试**：`tests/LinkRewriterTest.php` 新增 scoped 用例（只改附件、保留其它路径/相似域名、JSON 转义、序列化长度、根前缀、编码前缀）；`tests/UrlRewriteScopeTest.php` 覆盖路径优先级、回退、规范化与 payload 形状。
 
 ### 11.4 费用估算岛（1.28.8-beta-56）
@@ -275,17 +252,17 @@ git diff --check
 - **服务端定义表单**：`src/Admin/Cost_Payload.php` 把字段（key/id/type/label/hint/min/max/step/options）、首屏 `Cost_Estimator::estimate(defaults)`、价格基准、口径 notes 与去重后的来源链接一起下发；React 不再自己维护第二份字段表。
 - **重新估算仍走 admin-ajax**：`app.jsx` 只改表单 draft，点「重新估算」把当前值发到 `sakura_storage_cost_estimate`，服务端 `Cost_Estimator::normalize()` 夹紧范围后返回同形状结果；前端用返回值覆盖结果并回填规范化后的输入。
 - **表格与口径**：金额格式化在客户端完成（`Intl.NumberFormat('zh-CN')`，与 PHP `number_format` 的两位小数/千分位一致）；「口径」按钮控制每行的 detail 行，来源链接来自 payload 的 `sources`，notes 来自 `notes`，都不在 JSX 里重写。
-- **无持久化**：这一步没有 option/表写入，刷新即回默认需求；`Page_Assets::ISLAND_BUNDLES` 登记 `storage-cost => assets/ui/dist/cost.js`，bundle 缺失时回落 `storage-cost.php` 与旧控制器（已实测）。
+- **无持久化**：这一步没有 option/表写入，刷新即回默认需求；per-page bundle 与 `storage-cost.php` 兜底已在 1.29.0-beta-5 删除，费用页只由 `admin-app.js` 渲染。
 
 ### 11.5 文件空间设置岛（1.28.8-beta-58）
 
 - **数据与渲染分开**：`src/UserFiles/Admin/Files_Settings_Payload.php` 组装 `page/head/cards/config`，页面参数、入口提示、两张卡、策略字段、主题限制、允许类型与全部文案都在 PHP 侧完成；`includes/views/files-settings-island.php` 只打印 bootstrap 和空 `UI::page()` 外壳，React 通过 `assets/ui/src/files/` 挂载。
-- **健康卡同源**：新增 `src/UserFiles/Admin/Health.php`，从 `Zibll_Bridge::capabilities()/theme()`、`Settings::entry_enabled()` 与 `Entry::status()` 取同一份快照。设置页显示「子比桥接 N/M 项能力 + 主题名 + 前台入口状态/入口标签」；子比专属页仍用同一组桥接数据，旧页兜底也改为 `Health::status()`。
+- **健康卡同源**：新增 `src/UserFiles/Admin/Health.php`，从 `Zibll_Bridge::capabilities()/theme()`、`Settings::entry_enabled()` 与 `Entry::status()` 取同一份快照。设置页显示「子比桥接 N/M 项能力 + 主题名 + 前台入口状态/入口标签」；子比专属页仍用同一组桥接数据，设置页同样改用 `Health::status()`。
 - **保存不另造通道**：两张卡仍是原生 `options.php` 表单。外观卡提交 `tree_style` 与 `folder_accent`，策略卡提交数字字段、主题限制与允许类型；`Settings::sanitize()` 在收到 `sufm_settings[_partial]` 时先合并已存值。**这里必须用模块自己的 `_partial`，不是 `Card_Form::PARTIAL_FIELD` 的 `_sakura_partial`**，否则保存外观会清掉入口开关与主题限制（本轮实测踩到并修复）。
-- **自定义文件夹颜色**：`folder_accent` 支持空 / 六个预设 / `#rrggbb`。`Settings::accent_class()` 对自定义色只输出 `sufm-accent-custom`，`Settings::accent_style()` 输出 `--sufm-folder-ink` 与由该色混白 28% 得到的 `--sufm-folder-fill`。前台用户中心、前台写文章编辑面板和媒体库三处都通过同一对变量取色；预设色仍走旧 CSS 类，不写内联样式。旧页外观卡也补了自定义色单选、取色器、hex 输入和实时预览，bundle 缺失时不会把自定义色写回空值。
+- **自定义文件夹颜色**：`folder_accent` 支持空 / 六个预设 / `#rrggbb`。`Settings::accent_class()` 对自定义色只输出 `sufm-accent-custom`，`Settings::accent_style()` 输出 `--sufm-folder-ink` 与由该色混白 28% 得到的 `--sufm-folder-fill`。前台用户中心、前台写文章编辑面板和媒体库三处都通过同一对变量取色；预设色仍走旧 CSS 类，不写内联样式。外观卡（当时还有旧页版本）也补了自定义色单选、取色器、hex 输入和实时预览；旧页已随 1.29.0-beta-5 删除。
 - **界面**：外观卡保留原左右预览/选择布局与六个预设胶囊，新增自定义颜色行；390px 下改为单列，自定义取色、hex 与按钮换行但不横向溢出。策略卡沿用原分组、字段名与提示，主题限制和允许类型仍在原位置；策略卡头部不再放入口按钮，旧的入口迁移提示已删除。允许类型网格在 ≤782px 被全局规则压成单列时，用文件设置页自己的断点改回两列（390px 实测 139×2，卡片高度 2508→2264）。
-- **兜底与资源**：`Page_Assets::ISLAND_BUNDLES` 登记 `files-settings => assets/ui/dist/files.js`；`Page::render()` 只在 bundle 可读时走岛，否则回到 `userfiles-admin.php` 与旧 `files-settings.js`。`Page::boot_height()` 增加 appearance/settings 的骨架高度，入口关闭时 gate 卡把两张卡整体下移一行。
-- **验收**：1440 与 390 均无页面横溢、控制台 0 error；外观/策略分别保存且互不清空；自定义色保存后三处读到的 ink/fill 一致；预设 amber + mac 仍走原类且无内联变量；bundle 移除后旧页健康卡、表单与自定义色保存仍可用。
+- **兜底与资源**：per-page bundle 与 `userfiles-admin.php` 兜底已在 1.29.0-beta-5 删除，文件空间五个页签只由 `admin-app.js` 渲染。`Page::boot_height()` 增加 appearance/settings 的骨架高度，入口关闭时 gate 卡把两张卡整体下移一行。
+- **验收**：1440 与 390 均无页面横溢、控制台 0 error；外观/策略分别保存且互不清空；自定义色保存后三处读到的 ink/fill 一致；预设 amber + mac 仍走原类且无内联变量。
 
 ### 11.6 文件空间三页岛（1.28.8-beta-60）
 
@@ -294,22 +271,62 @@ git diff --check
 - **用户容量**：搜索、25/50/100 分页、刷新、同步容量（1.2s 轮询）、重置容量确认、每行 MB 输入与保存、用法条、处罚徽标与处罚弹窗。处罚弹窗保留服务端下发的类型/期限/理由/建议，永久禁上传必须输入登录名；撤销走 `admin/sanctions/{id}/revoke`。
 - **审核与执行**：状态筛选、用户搜索、分页、批准/驳回/撤销、申请文件预览、已批准勾选、范围预览与哈希、短语 `删除`、建立批次、4s 批次轮询与停止。卡片顺序沿用 `Layout::PAGES['files-queue']`：执行卡与权限矩阵在第一行、申请队列在第二行；不要在 payload 里另写一份顺序。
 - **最近操作**：服务端只返回当前页，结果/理由/文字筛选都在当前页内做，保持旧语义；分页与刷新回服务端。
-- **验收**：1440/390 三页均无页面横溢、console 0 error；容量保存与清除、处罚弹窗打开/永久输入/申请与撤销、权限矩阵保存、日志筛选均实测；分别移除三个 bundle 后旧页与旧控制器仍可用。390 下用户表按 `data-label` 堆叠，权限矩阵在卡片内完整显示。
+- **验收**：1440/390 三页均无页面横溢、console 0 error；容量保存与清除、处罚弹窗打开/永久输入/申请与撤销、权限矩阵保存、日志筛选均实测。390 下用户表按 `data-label` 堆叠，权限矩阵在卡片内完整显示。
 
 ### 11.7 子比专属岛（1.28.8-beta-61）
 
 - **10 卡 / 7 表单**：`src/UserFiles/Admin/Space_Payload.php` 把诊断、支付方式、前台入口、编辑器面板、门禁、等级/VIP 加成、套餐、授权流水、对账全部转成 `page/head/cards/config`；`assets/ui/src/zibll/` 负责渲染。只读卡不提交表单，7 个可编辑卡仍各自 POST 到 `options.php`，字段名、`option_page`、`_partial`、`allowed_methods_present`、`packages[_present]`、`points_packages[_present]` 与旧页一致。
 - **动态交互留在前端**：套餐新增/删除行、图标媒体选择、等级/VIP 合计、等级规则禁用联动、开关确认、授权延长/撤销、对账 dry-run/apply；授权与对账继续走 `sufm/v1/admin/space/grants`、`.../extend`、`.../revoke` 与 `.../reconcile`，不新增接口。
-- **纯岛页**：旧 `includes/views/userfiles-space-admin.php`、`assets/ui/js/pages/files-zibll.js` 与 `Space_Page::page_data()` 已删除；`Space_Page::render()` 只在 bundle 可读时走岛，bundle 缺失时显示「资源缺失」提示，不再保留旧设置页兜底。主题不可用时仍走原只读提示。
+- **纯岛页**：旧 `includes/views/userfiles-space-admin.php`、`assets/ui/js/pages/files-zibll.js` 与 `Space_Page::page_data()` 已删除；`Space_Page::render()` 权限守卫后直接 `require` 岛视图，没有第二条路径。主题不可用时仍走原只读提示。
 - **验收**：1440/390 无页面横溢、console 0 error；7 个表单逐个无改动保存后两个 option 的 JSON 与备份完全一致；开关关闭保存只改目标键；套餐新增保存后恢复备份；授权延长/撤销与对账检查实测后清理测试数据。
 
 ### 11.8 子比增强 · 性能优化岛（1.28.8-beta-63）
 
 - **2 卡 / 1 表单**：`src/Zibll/Performance_Payload.php` 输出页头、授权缓存卡与状态卡；`assets/ui/src/performance/` 渲染。保存仍走原生 `options.php`，`sakura_imgopt_zibll` 的 `license_cache`、`duration`、`unit` 与 `_sakura_card` / `_sakura_partial` 全部不变。
 - **交互留在前端**：单位选「永久」时禁用时长输入（禁用字段不提交，服务端沿用旧值）；「重新验证」继续调用 `wp_ajax_sakura_zibll_warm`，成功/失败状态与 toast 保持原行为；状态表的版本、缓存时间、来源、有效期、授权到期和下次复验仍由 PHP 预格式化。
-- **纯岛页**：旧 `includes/views/zibll-performance.php` 与 `assets/ui/js/pages/zibll-performance.js` 已删除；bundle 缺失时显示资源缺失提示。页面 CSS 选择器逐个对照新 DOM，全部仍被使用，只删掉了不再生效的 `.zibll-duration .field { margin: 0; }` 冗余规则。
+- **纯岛页**：旧 `includes/views/zibll-performance.php` 与 `assets/ui/js/pages/zibll-performance.js` 已删除；`render()` 权限守卫后直接 `require` 岛视图，没有第二条路径。页面 CSS 选择器逐个对照新 DOM，全部仍被使用，只删掉了不再生效的 `.zibll-duration .field { margin: 0; }` 冗余规则。
 - **布局**：两张卡固定 6/6 等宽；状态卡改用 `table--records`，窄屏按记录行排布，值、胶囊与说明同行流式换行，胶囊不再独占一行。表格胶囊与值统一 `var(--g-check-gap)` 10px，系统设置页的运行时表也复用这条规则。
 - **验收**：1440/390 无页面横溢、console 0 error；无改动保存后 option 逐字节一致；`forever` 保存与回读、开关关闭/重新启用、AJAX 重验均实测，随后恢复原 option。
+
+## 12. 持久壳实验：hydration 契约（2026-11-26，1.29.0-beta-1）
+
+16 个后台页面统一加载 `assets/ui/src/admin-app/` 打出的 `admin-app.js`：PHP 照旧打印顶栏与页签条，React 用 `hydrateRoot()` 就地接管这两个节点，内容区另开 `createRoot()`。**没有开关，也没有第二套渲染路径**（1.29.0-beta-5 起拆掉了实验开关与 per-page bundle）。方案与勘误见 `docs/plans/2026-11-26-admin-persistent-shell.md`。
+
+### 12.1 三条硬规则（违反就整树重绘）
+
+React 19 的 hydration 比对的是**节点和文本**，不是字符串内容：
+
+1. **两个标签之间不能有任何空白。** 换行或缩进会被 HTML 解析成一个文本节点，客户端树里没有它，React 直接抛 `Hydration failed`（实测 React 19，报错里会把那个 `{"\n  "}` 文本节点指出来）。所以 `src/Admin/Shell.php` 用数组拼串输出，不写带缩进的 PHP 模板。
+2. **一段连续文本只能是一个文本节点。** `{' '}{label}` 在客户端是两个节点，浏览器解析出来是一个，同样 mismatch。PHP 打印 `<span class="slash">/</span> 系统设置`，React 就必须写 `{ ' ' + chrome.brand.path }`。
+3. **元素结构逐节点一致。** 标签层级、顺序、文本节点边界都参与比对；属性值的差异**不会**抛 hydration error（生产包也不报），但开发版会对它管理的属性打 mismatch 告警，别指望它兜底——两边仍以 fixture 的逐属性比对为准（`&amp;` 和 `&#038;` 解码后是同一个 URL，属于允许的差异）。
+
+### 12.2 契约测试：`npm run fixture`
+
+- `bin/admin-shell-chrome.php` 让 PHP 输出当前 chrome 数据（**服务端是唯一来源**，React 不自己编）；
+- `bin/admin-shell-fixture.mjs` 用 `renderToStaticMarkup()` 渲染同一份数据，产出 `tests/fixtures/admin-shell.json` 与 `admin-shell.html`（**两个都提交**）；
+- `tests/Admin/ShellMarkupTest.php` 把 PHP 输出与 fixture 都解析成 DOM 逐节点比对，失败时给出第一个差异的字节偏移。
+
+改了 `Shell.php`、`shared/ui.jsx` 的壳部分、或 `Registry` 里的模块/页签名，都要跑一次 `npm run fixture` 并一起提交。**不要手改 fixture 充数。**
+
+### 12.3 首帧不要回写壳（React #424）
+
+`hydrateRoot()` 是异步的。hydration 完成前对同一个 root 调 `render()`，React 会抛 **#424（This root received an early update, before anything was able to hydrate）**，并把整个 root 降级成客户端渲染——正好是这套壳要消除的重绘。所以 `admin-app/index.jsx` 的首帧 `draw()` 传 `chrome: false`：PHP 已经印好同一份 chrome，只有导航时才 `shell.update()`。
+
+### 12.4 页面 App 的 embedded 模式
+
+`image/app.jsx` 自己会拦 `.sakura-tabs a` 并写 `history`。被壳托管的实例必须关掉这套：`<ImageApp boot={boot} embedded />` 会跳过 document 点击监听与 popstate 监听，导航与 chrome 全归 `admin-app/router.js`。新增页面 App 接入壳时照这个模式加 `embedded` 开关，不要让两套导航并存。
+
+
+### 12.6 路由铺满之后的新约定（1.29.0-beta-2）
+
+- `admin-app` 现在装下全部 16 个页面 App，`admin-app/app.jsx` 的 `APPS` 表按**页面 id** 映射；新增页面 = 表里加一行 + 服务端加路由。
+- 壳的 manifest 由 `Page::render()` 统一打印（`#sakura-app-manifest`），不再依赖某个页面的 payload；页面自己的 bootstrap 用**形状**识别（带 `page` 与 `head` 的 JSON 块），因为 id 每页不同。
+- 路由页的脚本只有一个 `admin-app.js`：`Page_Assets::enqueue()` 用 `App_Manifest::is_route()` 把 `pages/{page}.js` 限制在非路由页，路由页没有第二条挂载路径，不需要 `__sakuraShellBooted` 守卫。
+- 首帧不要再回写 hydration root（见 12.3）；导航时才 `shell.update()`。
+### 12.5 怎么判定「hydration 成功」
+
+- 生产包**不打印** mismatch 细节，只会在 console 看到 `Minified React error #418 / #423 / #424`。所以线上验收要同时看：console 没有这三条、且 `.sakura-topbar` / `.sakura-tabs` 在导航前后是**同一个 DOM 引用**、`performance.getEntriesByType('navigation').length` 保持 1。
+- 本地自查：用 `--define:process.env.NODE_ENV='"development"'` 打一份 dev 包，用 `file://` 打开 PHP 输出的壳，console 应零警告。开发版才会把 mismatch 的两棵树打出来。
 
 ## 附录 A　《React 性能优化实战：15 个核心技巧》逐条对照
 
@@ -324,9 +341,9 @@ git diff --check
 | 5 | 拆分大型组件，缩小重渲染范围 | **已在用** | 一页签一文件 + 卡组件。当前最大风险点是 `assets/ui/src/image/fields.jsx`（各类型字段的渲染函数集中在一起，约 500 行）：再长就按 field type 拆文件，而不是靠 `memo` |
 | 6 | `useContext` + `useReducer` 管全局状态，避免 props 透传 | **不用** | 现在 0 个 context。payload 从 `app` 逐层传到卡，深度只有 2–3 层；引入 context 后「哪张卡会重渲」变得不可预测。跨卡共享只有页头 status 与 usage KPI，`app.jsx` 两条 state 足够。`useReducer` 只在**单卡 ≥ 3 个互相约束字段**时考虑（典型是尺寸表的行 + 校验 + 脏值） |
 | 7 | 虚拟列表（`react-window` / `react-virtualized`） | **不用** | 统计页上限 100 行且分页 25/50/100；虚拟化会破坏窄屏 `td[data-label]` 折行与打印 |
-| 8 | 路由懒加载（`React.lazy` + `Suspense`） | **不用** | 后台每页只有一个 bundle，页签切换已是「不重载换内容」；懒加载等于多一次往返 |
+| 8 | 路由懒加载（`React.lazy` + `Suspense`） | **不用** | 后台只有 `admin-app.js`，16 个页面已在首屏加载；页签切换是换数据，懒加载等于多一次往返 |
 | 9 | 组件懒加载（弹窗、抽屉等非首屏） | **不用** | 我们的提示框是 `Prompt`，几十行，且图标/吉祥物是服务端给的字符串；拆包收益为负 |
-| 10 | 优化资源打包（按需引入 UI 库、gzip、图片 WebP + 懒加载） | **部分已在用** | 已做：esbuild `minify` + `define NODE_ENV=production`、单页单 bundle、SVG 内联。不做/不适用：没有 UI 库可「按需引入」；gzip 由 Web 服务器负责；后台没有大图可懒加载 |
+| 10 | 优化资源打包（按需引入 UI 库、gzip、图片 WebP + 懒加载） | **部分已在用** | 已做：esbuild `minify` + `define NODE_ENV=production`、单一 `admin-app.js` 产物、SVG 内联。不做/不适用：没有 UI 库可「按需引入」；gzip 由 Web 服务器负责；后台没有大图可懒加载 |
 | 11 | 预加载关键资源（preload / preconnect） | **有等价物，暂缓** | 我们的等价做法是「悬停/空闲预取页签载荷」（感知卡顿多在网络往返），2026-11-24 讨论后决定暂缓；`preload`/`preconnect` 对同源静态文件收益很小 |
 | 12 | 及时清理定时器与事件监听 | **已在用** | 6 个 effect 全带清理（含 `Prompt` 的 40ms 聚焦定时器）；每个 `addEventListener` 都有对应 `removeEventListener` |
 | 13 | 清理订阅与第三方库实例 | **已在用（当前为空）** | 没有图表/编辑器实例，没有 EventEmitter 类订阅；唯一的外部订阅是 `document` 上的 click / popstate / keydown 三处，都在 effect 清理里撤掉 |

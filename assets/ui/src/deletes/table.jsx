@@ -15,6 +15,8 @@ export default function QueueTable( {
 	onToggleAll,
 	onFilter,
 	onPage,
+	perPage,
+	onPerPage,
 	onRetry,
 	onDrop,
 	onExport,
@@ -214,29 +216,32 @@ export default function QueueTable( {
 				</div>
 			</div>
 
-			{ pages > 1 ? (
-				<nav className="pagination" aria-label={ ( strings.pagination || {} ).label || '' }>
-					<span className="pagination__summary">
-						{ ( ( strings.pagination || {} ).summary || '第 %1$s / %2$s 页 · 共 %3$s 条' )
-							.replace( '%1$s', String( current ) )
-							.replace( '%2$s', String( pages ) )
-							.replace( '%3$s', String( pagination.total || 0 ) ) }
-					</span>
-					<div className="pagination__pages">
-						<button type="button" className="pagination__link" disabled={ current <= 1 } onClick={ () => onPage( current - 1 ) } aria-label={ ( strings.pagination || {} ).prev }>‹</button>
-						{ first > 1 ? <button type="button" className="pagination__link" onClick={ () => onPage( 1 ) }>1</button> : null }
-						{ first > 2 ? <span className="pagination__ellipsis">…</span> : null }
-						{ pageItems.map( ( number ) => (
-							number === current
-								? <span key={ number } className="pagination__link is-current" aria-current="page">{ number }</span>
-								: <button key={ number } type="button" className="pagination__link" onClick={ () => onPage( number ) }>{ number }</button>
-						) ) }
-						{ last < pages - 1 ? <span className="pagination__ellipsis">…</span> : null }
-						{ last < pages ? <button type="button" className="pagination__link" onClick={ () => onPage( pages ) }>{ pages }</button> : null }
-						<button type="button" className="pagination__link" disabled={ current >= pages } onClick={ () => onPage( current + 1 ) } aria-label={ ( strings.pagination || {} ).next }>›</button>
-					</div>
-				</nav>
-			) : null }
+			<div className="pagination">
+				<div className="pagination__sizes" role="group" aria-label={ ( strings.pagination || {} ).perPage || '' }>
+					<span>{ ( strings.pagination || {} ).perPage || '每页' }</span>
+					{ ( [ 25, 50, 100 ] ).map( ( size ) => (
+						<button
+							key={ size }
+							type="button"
+							className={ 'pagination__link' + ( Number( perPage ) === size ? ' is-current' : '' ) }
+							onClick={ () => onPerPage( size ) }
+						>
+							{ size }
+						</button>
+					) ) }
+				</div>
+				<span className="pagination__summary">
+					{ ( ( strings.pagination || {} ).summary || '显示 %1$s–%2$s 项，共 %3$s 项' )
+						.replace( '%1$s', String( pagination.from || 0 ) )
+						.replace( '%2$s', String( pagination.to || 0 ) )
+						.replace( '%3$s', String( pagination.total || 0 ) ) }
+				</span>
+				<div className="pagination__pages" aria-label={ ( strings.pagination || {} ).label || '' }>
+					<button type="button" className="pagination__link" disabled={ current <= 1 } onClick={ () => onPage( current - 1 ) } aria-label={ ( strings.pagination || {} ).prev }>‹</button>
+					<span className="pagination__link is-current">{ current } / { pages }</span>
+					<button type="button" className="pagination__link" disabled={ current >= pages } onClick={ () => onPage( current + 1 ) } aria-label={ ( strings.pagination || {} ).next }>›</button>
+				</div>
+			</div>
 		</>
 	);
 }

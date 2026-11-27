@@ -10,6 +10,7 @@ declare( strict_types = 1 );
 namespace Sakura\ImageOptimizer\Zibll;
 
 use Sakura\ImageOptimizer\Admin\Layout;
+use Sakura\ImageOptimizer\Admin\Shell;
 use Sakura\ImageOptimizer\Admin\UI\Page;
 
 defined( 'ABSPATH' ) || exit;
@@ -52,6 +53,7 @@ final class Performance_Payload {
 			'version' => defined( 'SAKURA_TOOLS_VERSION' ) ? (string) SAKURA_TOOLS_VERSION : '0',
 			'page'    => $page,
 			'head'    => Page::head_data( $page ),
+			'chrome'  => Shell::header_data( 'zibll', 'performance' ),
 			'cards'   => $this->cards( $enabled, $valid, $supported, $version, $state, $cache ),
 			'config'  => array(
 				'action'  => Admin_Module::ACTION,

@@ -50,6 +50,7 @@ final class Storage_Routes implements Module {
 	 */
 	public static function register(): void {
 		Storage_Controller::register();
+		Sync_Controller::register();
 
 		if ( class_exists( Deletes_Controller::class ) ) {
 			Deletes_Controller::register();

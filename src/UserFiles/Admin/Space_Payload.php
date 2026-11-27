@@ -21,6 +21,7 @@ use Nboke\UserFiles\Services\Zibll_Bridge;
 use Nboke\UserFiles\Settings;
 use Nboke\UserFiles\Space_Settings;
 use Sakura\ImageOptimizer\Admin\Layout;
+use Sakura\ImageOptimizer\Admin\Shell;
 use Sakura\ImageOptimizer\Admin\UI;
 
 defined( 'ABSPATH' ) || exit;
@@ -81,6 +82,7 @@ final class Space_Payload {
 			'version' => defined( 'SAKURA_TOOLS_VERSION' ) ? (string) SAKURA_TOOLS_VERSION : '0',
 			'page'    => $page,
 			'head'    => UI\Page::head_data( $page ),
+			'chrome'  => Shell::header_data( 'files', Space_Page::TAB ),
 			'cards'   => $cards,
 			'config'  => array(
 				'restUrl'       => esc_url_raw( rest_url( 'sufm/v1/' ) ),

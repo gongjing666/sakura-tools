@@ -2,7 +2,7 @@
 /**
  * Data the sync center island renders.
  *
- * The classic view in includes/views/s3-sync-center.php still owns the fallback
+ * This payload is the only renderer for the sync tab since 1.29.0-beta-5
  * path (a checkout without a built bundle), so the arithmetic below mirrors that
  * view line for line instead of replacing it: one renderer is always reachable
  * and the other can be compared against it. When a number changes, both files
@@ -798,8 +798,6 @@ final class Sync_Payload {
 	private function strings(): array {
 		return array(
 			'cards' => array(
-				// Nonce for the plain admin-post form on the ignore-rules card.
-				'ignoredNonce'     => wp_create_nonce( 'sakura_s3_ignored_save' ),
 				/* translators: %d: number of active ignore rules. */
 				'ignoredNote'      => __( '当前 %d 条生效', 'sakura-imgopt' ),
 				'ignoredSaved'     => __( '忽略规则已保存', 'sakura-imgopt' ),

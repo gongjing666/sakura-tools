@@ -5,9 +5,11 @@
  * primitives come from assets/ui/components.css.
  */
 
-/* 岛内没有 .page-body 的自动间距（React 根只是一个子节点），KPI 票根与
- * 卡片网格之间要自己补：沿用「卡片间隔」这个设置，改它两处一起变。 */
-.sakura-admin[data-sakura-page="system-settings"] #sakura-system-root .kpis--ticket + .card-grid {
+/* KPI 票根与卡片网格之间跟随「卡片间隔」这个设置，改它两处一起变。
+ * 通用间距（.page-body > :not(:first-child)）用的是 --g-stack，不可配置，
+ * 所以这里换成 --g-grid-gap-y。选择器要对得上真实 DOM：挂载点是
+ * .sakura-admin__main，KPI 行与卡片网格都是 .page-body 的直接子节点。 */
+.sakura-admin[data-sakura-page="system-settings"] .kpis--ticket + .card-grid {
 	margin-top: var(--g-grid-gap-y);
 }
 
@@ -143,17 +145,6 @@
 	color: var(--g-muted);
 	font-size: 12.5px;
 	line-height: 1.6;
-}
-
-@media (max-width: 900px) {
-	/*
-	 * The ticket strip keeps auto-fit down to 782px: forcing two columns while
-	 * the ticket's own ≤782 rules are still off would leave a dashed rule at the
-	 * left edge of the second row, which reads as if the paper were cut.
-	 */
-	.sakura-admin[data-sakura-page="system-settings"] .kpis:not(.kpis--ticket) {
-		grid-template-columns: repeat(2, minmax(0, 1fr));
-	}
 }
 
 @media (max-width: 782px) {

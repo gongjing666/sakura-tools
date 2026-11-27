@@ -24,47 +24,6 @@ final class Page_Assets {
 	private static array $data = array();
 
 	/**
-	 * Pages that a React island has taken over, mapped to the bundle that has
-	 * to exist for the takeover to happen.
-	 *
-	 * The island replaces the whole page body, so the classic page controller
-	 * script that ships beside these tabs has nothing left to bind to — except
-	 * the few ids that both renderers share, which is worse than nothing: the
-	 * click runs twice and the request goes out twice. Skip the legacy script
-	 * while the bundle is there, and keep loading it when the bundle is missing
-	 * so the server-rendered fallback still works.
-	 *
-	 * @var array<string, string>
-	 */
-	private const ISLAND_BUNDLES = array(
-		'image-rules'         => 'assets/ui/dist/image.js',
-		'image-thumb'         => 'assets/ui/dist/image.js',
-		'image-backup'        => 'assets/ui/dist/image.js',
-		'image-stats'         => 'assets/ui/dist/image.js',
-		'storage-connection'  => 'assets/ui/dist/storage.js',
-		'storage-sync'        => 'assets/ui/dist/sync.js',
-		'storage-deletes'     => 'assets/ui/dist/deletes.js',
-		'storage-rewrite'     => 'assets/ui/dist/rewrite.js',
-		'storage-cost'        => 'assets/ui/dist/cost.js',
-		'files-settings'      => 'assets/ui/dist/files.js',
-		'files-users'         => 'assets/ui/dist/files-users.js',
-		'files-queue'         => 'assets/ui/dist/files-queue.js',
-		'files-log'           => 'assets/ui/dist/files-log.js',
-		'files-zibll'         => 'assets/ui/dist/zibll.js',
-		'zibll-performance'   => 'assets/ui/dist/performance.js',
-	);
-
-	/**
-	 * Bundle path declared for a page, or '' when the page is still legacy.
-	 *
-	 * @param string $page Page id.
-	 * @return string Relative plugin path.
-	 */
-	public static function island_bundle( string $page ): string {
-		return self::ISLAND_BUNDLES[ $page ] ?? '';
-	}
-
-	/**
 	 * Attach data to one page. Must run before Assets::enqueue_page().
 	 *
 	 * @param string              $page Page id.
@@ -141,6 +100,25 @@ final class Page_Assets {
 			);
 		}
 
+		/*
+		 * The shell swaps modules in place, so every stylesheet it can reach has to
+		 * be in the document before the first swap — otherwise the incoming page
+		 * paints unstyled for one frame. The handles mirror the normal path, so a
+		 * page that already loaded its own module sheet is not charged twice.
+		 */
+		foreach ( App_Manifest::styles() as $shared_css ) {
+			if ( ! is_readable( SAKURA_TOOLS_PATH . $shared_css ) ) {
+				continue;
+			}
+
+			wp_enqueue_style(
+				$base . '-page-' . basename( $shared_css, '.css' ),
+				SAKURA_TOOLS_URL . $shared_css,
+				array( $base . '-components' ),
+				self::group_version( array( $shared_css ) )
+			);
+		}
+
 		// Optional page-specific stylesheet for tabs that need more than the
 		// shared module styles (for example files-zibll.css). A module with a
 		// single page may ship only this file, so the dependency is added only
@@ -178,8 +156,31 @@ final class Page_Assets {
 			);
 		}
 
+		/*
+		 * The shell owns the content root on every route; there is no second
+		 * renderer, so this is the only React bundle the admin loads. Screens
+		 * outside the route table (the media progress sheet) keep the plain
+		 * classic scripts and must not pay for React.
+		 */
+		$shell_bundle = 'assets/ui/dist/admin-app.js';
+
+		if ( App_Manifest::is_route( $page ) && is_readable( SAKURA_TOOLS_PATH . $shell_bundle ) ) {
+			wp_enqueue_script(
+				$base . '-app',
+				SAKURA_TOOLS_URL . $shell_bundle,
+				array( $base . '-core' ),
+				self::asset_version( $shell_bundle ),
+				true
+			);
+		}
+
+		/*
+		 * Classic controller scripts still serve the screens outside the shell's
+		 * route table (the media progress sheet, for example). Every route in
+		 * App_Manifest is React now, so those never load two handlers.
+		 */
 		$page_js = 'assets/ui/js/pages/' . $page . '.js';
-		if ( is_readable( SAKURA_TOOLS_PATH . $page_js ) && ! self::island_owns( $page ) ) {
+		if ( is_readable( SAKURA_TOOLS_PATH . $page_js ) && ! App_Manifest::is_route( $page ) ) {
 			wp_enqueue_script(
 				$base . '-page-' . $page,
 				SAKURA_TOOLS_URL . $page_js,
@@ -207,24 +208,6 @@ final class Page_Assets {
 
 		wp_localize_script( $base . '-core', 'sakuraPage', $config );
 		wp_set_script_translations( $base . '-core', 'sakura-imgopt', SAKURA_TOOLS_PATH . 'languages' );
-	}
-
-	/**
-	 * Whether a React island has replaced the server-rendered body of one page.
-	 *
-	 * True only when the page is declared in ISLAND_BUNDLES and its bundle is
-	 * actually readable: a missing build means the classic renderer is still
-	 * serving the tab, and that renderer needs its script.
-	 *
-	 * @param string $page Page id.
-	 * @return bool
-	 */
-	private static function island_owns( string $page ): bool {
-		if ( ! isset( self::ISLAND_BUNDLES[ $page ] ) ) {
-			return false;
-		}
-
-		return is_readable( SAKURA_TOOLS_PATH . self::ISLAND_BUNDLES[ $page ] );
 	}
 
 	/**

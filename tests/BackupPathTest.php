@@ -6,7 +6,7 @@
  */
 
 use PHPUnit\Framework\TestCase;
-use Sakura\ImageOptimizer\Backup;
+use Sakura\ImageOptimizer\Backup\Backup;
 
 final class BackupPathTest extends TestCase {
 

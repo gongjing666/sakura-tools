@@ -157,7 +157,7 @@ final class Probe_Runner {
 			);
 		}
 
-		$buckets = ( new \Sakura\ImageOptimizer\S3_Doge_Cloud( $key, $secret ) )->get_buckets();
+		$buckets = ( new \Sakura\ImageOptimizer\S3\Doge_Cloud( $key, $secret ) )->get_buckets();
 		if ( ! is_array( $buckets ) ) {
 			return array(
 				'ok'      => false,

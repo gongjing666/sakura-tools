@@ -16,7 +16,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-/** @var \Sakura\ImageOptimizer\Media_Library_Module $this */
+/** @var \Sakura\ImageOptimizer\Modules\Media_Library_Module $this */
 
 $user_id = get_current_user_id();
 $queue   = get_transient( 'sakura_queue_' . $user_id );

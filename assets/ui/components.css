@@ -3286,3 +3286,53 @@ html.sakura-media-open {
 		display: none;
 	}
 }
+
+/* 岛页的错误条与页级提示：没有这层基础样式时它们会退化成裸段落。 */
+.system-alert {
+	display: flex;
+	gap: 12px;
+	align-items: flex-start;
+	justify-content: space-between;
+	margin: 0 0 var(--g-stack);
+	padding: 10px 14px;
+	border: 1px solid var(--g-line-soft);
+	border-radius: var(--g-radius-card);
+	background: #fff;
+	color: var(--g-muted);
+	font-size: 13px;
+	line-height: 1.6;
+}
+
+.system-alert p {
+	margin: 0;
+}
+
+.system-alert p + p {
+	margin-top: 6px;
+}
+
+.system-alert[data-tone="bad"] {
+	border-color: var(--g-bad-line);
+	background: var(--g-bad-bg);
+	color: var(--g-bad);
+}
+
+.system-alert p[data-tone="warning"] {
+	color: var(--g-warn);
+}
+
+@media (max-width: 600px) {
+	.system-alert {
+		flex-direction: column;
+		align-items: stretch;
+	}
+}
+
+/* Inline note under a card body. The system page had a page-scoped rule for it;
+ * the island pages print the same class, so give it a shared baseline. */
+.system-note {
+	margin: 12px 0 0;
+	color: var(--g-muted);
+	font-size: 12.5px;
+	line-height: 1.6;
+}

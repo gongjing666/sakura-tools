@@ -7,7 +7,7 @@
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Card, Badge } from '../shared/ui.jsx';
-import { ajax, errorText, toast, reloadWithToast } from './transport.js';
+import { post, errorText, toast, reloadWithToast } from './transport.js';
 
 const MAX_SELECT = 100;
 
@@ -171,19 +171,14 @@ export default function ReconcileCard( { card, view, rows, config, strings, lock
 		};
 
 		const fallback = () =>
-			ajax(
-				'sakura_s3_sync_page',
-				{
-					status: params.status,
-					search: params.search,
-					type: params.type,
-					days: params.days,
-					cursor: params.cursor,
-					limit: params.limit,
-					nonce: config.pageNonce,
-				},
-				{ timeout: 30000 }
-			);
+			post( config, 'page', {
+				status: params.status,
+				search: params.search,
+				type: params.type,
+				days: params.days,
+				cursor: params.cursor,
+				limit: params.limit,
+			} );
 
 		const run = async () => {
 			if ( config.searchUrl && config.searchToken ) {
@@ -268,16 +263,11 @@ export default function ReconcileCard( { card, view, rows, config, strings, lock
 			return;
 		}
 
-		ajax(
-			'sakura_s3_sync_action',
-			{
-				sync_action: kind,
-				object_key: row.key,
-				confirm: confirmValue || '',
-				nonce: config.actionNonce,
-			},
-			{ timeout: 120000 }
-		)
+		post( config, 'action', {
+			sync_action: kind,
+			object_key: row.key,
+			confirm: confirmValue || '',
+		} )
 			.then( ( data ) => {
 				if ( data && data.queued ) {
 					toast( data.message || uiText.queued, 'info' );
@@ -323,7 +313,7 @@ export default function ReconcileCard( { card, view, rows, config, strings, lock
 		const payload = row.preview || {};
 
 		if ( ! payload.download && ! payload.url ) {
-			ajax( 'sakura_s3_sync_preview', { object_key: row.key, nonce: config.previewNonce }, { timeout: 25000 } )
+			post( config, 'preview', { object_key: row.key } )
 				.then( ( data ) => {
 					if ( data && data.preview ) {
 						window.SakuraAdmin.ui.mediaPreview( data.preview, { trigger: null } );
@@ -362,18 +352,13 @@ export default function ReconcileCard( { card, view, rows, config, strings, lock
 		let message = '';
 
 		const step = () => {
-			ajax(
-				'sakura_s3_sync_action',
-				{
-					sync_action: kind,
-					keys,
-					offset,
-					seconds: 20,
-					nonce: config.actionNonce,
-					...( confirmValue ? { confirm: confirmValue } : {} ),
-				},
-				{ timeout: 180000 }
-			)
+			post( config, 'action', {
+				sync_action: kind,
+				keys,
+				offset,
+				seconds: 20,
+				...( confirmValue ? { confirm: confirmValue } : {} ),
+			} )
 				.then( ( data ) => {
 					rounds += 1;
 					const processed = Number(
@@ -466,7 +451,7 @@ export default function ReconcileCard( { card, view, rows, config, strings, lock
 		startBatch();
 		setProgress( { done: 0, total: keys.length, text: uiText.batchWorking || '正在处理' } );
 
-		ajax( 'sakura_s3_sync_action', { sync_action: 'delete', keys, confirm: 'DELETE', nonce: config.actionNonce }, { timeout: 60000 } )
+		post( config, 'action', { sync_action: 'delete', keys, confirm: 'DELETE' } )
 			.then( ( data ) => {
 				batchRef.current = false;
 				setProgress( { done: keys.length, total: keys.length, text: uiText.batchWorking || '正在处理' } );
@@ -486,7 +471,7 @@ export default function ReconcileCard( { card, view, rows, config, strings, lock
 		setAdopt( { text: uiText.adoptRunning || '正在补建媒体库记录…' } );
 
 		const step = () => {
-			ajax( 'sakura_s3_sync_action', { sync_action: 'adopt', seconds: 20, nonce: config.actionNonce }, { timeout: 180000 } )
+			post( config, 'action', { sync_action: 'adopt', seconds: 20 } )
 				.then( ( data ) => {
 					total = Number( data.total || total );
 					adopted = Number( data.adopted || adopted );

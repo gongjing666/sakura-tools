@@ -14,7 +14,7 @@
 | 第一次接触，想弄清插件由什么组成 | `docs/开发规则/01-架构与装配.md` |
 | 加设置项、加页面、加 AJAX 动作、加 cron、加 S3 厂商 | `docs/开发规则/02-新增功能.md` |
 | 改后台样式、加卡片、调布局、写页签视图 | `docs/开发规则/03-后台UI.md` |
-| 写后台的 React 内容区（PHP 外壳 + React 内容区混合渲染；1.29.0 起 16 个后台页面的内容区全部迁岛）：分工边界、组件结构、状态与保存、副作用、Actions、性能、DOM 契约、禁止清单 | `docs/开发规则/12-React代码规范.md`（**React 版本追最新 19.x，`package.json` 写 `^19.0.0`、实际 19.3.1；插件自打包，不读 WordPress 自带的 18.3.1**；esbuild 打包，产物 `assets/ui/dist/*.js` 必须提交） |
+| 写后台的 React 层（1.29.0 起外壳与内容区都由 React 拥有：PHP 打首帧标记、`hydrateRoot` 接管外壳、`createRoot` 渲染内容）：分工边界、组件结构、状态与保存、副作用、Actions、性能、DOM 契约、禁止清单 | `docs/开发规则/12-React代码规范.md`（**React 版本追最新 19.x，`package.json` 写 `^19.0.0`、实际 19.3.1；插件自打包，不读 WordPress 自带的 18.3.1**；esbuild 打包，产物 `assets/ui/dist/*.js` 必须提交） |
 | 写 PHP 代码：语言特性能不能用、8.2–8.4 兼容、8.4 弃用、向下兼容与提交前自查 | `docs/开发规则/13-PHP代码规范.md`（**语法按 8.2 写、运行按 8.4 验**；8.3/8.4 的语法硬禁，新 API 要用守卫 + 回落） |
 | 手动调外观：查某个 CSS/JS 管哪块、颜色令牌、怎么覆盖才不被下次更新冲掉 | `docs/开发规则/10-静态资源手册.md` |
 | 加表、加 option、写迁移、改卸载逻辑 | `docs/开发规则/04-数据与存储.md` |
@@ -38,7 +38,7 @@ src/                    新代码（PSR-4 风格）
   Plugin.php            组合根：boot() :71，build_modules() :124
   Admin/                后台信息架构：Registry / Menu / Layout / Page_Assets / Card_Form
   Contracts/Module.php  模块契约 :23
-includes/               1.3–1.9 旧类，仍在承重
+includes/views/        各页的 PHP 视图（岛壳与首帧数据），不含类
 assets/ui/              后台样式与脚本
 docs/                   文档（不进发布包）
 ```
@@ -47,12 +47,12 @@ docs/                   文档（不进发布包）
 
 | 前缀 | 先找 | 找不到再找 |
 |---|---|---|
-| `Sakura\ImageOptimizer\` | `src/{rel}.php` | `includes/class-{lower_snake}.php` |
+| `Sakura\ImageOptimizer\` | `src/{rel}.php` | —（beta-16 起没有回落分支） |
 | `Nboke\UserFiles\` | `src/UserFiles/{rel}.php` | **没有回落** |
 
 新增类只要路径与命名空间对得上就会被自动加载，不需要注册。
 
-**`includes/` 不是死代码。** 那段 15 行 legacy 清单里每个文件都在生产承重，删任何一个都会运行时 fatal 而平时不报错。新代码一律写 `src/`。
+**`includes/` 里已经没有类了**（1.29.0-beta-16）：14 个旧类全部搬进 `src/{主题}/`，命名空间与路径一致，`src/` 根目录只剩 5 个生命周期类；`includes/` 只剩 `views/`（各页 PHP 视图）。autoloader 的 `includes/class-*.php` 回落分支随之删除，类找不到就是找不到。详见 DECISIONS.md 的「`includes/` 搬迁」条。
 
 **钩子先入队，最后统一 `register()`。** 所有 `add_action` / `add_filter` 走 `Hook_Loader`（`src/Support/Hook_Loader.php`）；`register()` 幂等；注册之后再 `add_action` 会立即生效（有代码依赖这个行为）。
 
@@ -75,9 +75,9 @@ docs/                   文档（不进发布包）
 
 页签参数是 `t`，**不是 `tab`**；`Registry::url( $module, $tab )` :213 在默认页签时省略 `t`。`Registry::current()` 对非本插件页面返回 `array( '', '' )`——任何「当前是不是我的页」的判断都必须走它。
 
-**新增一个页签要动九处**（漏一处就是「菜单有但打不开」或「卡片挤成一列」）：`Registry::modules()` 的 tabs、`build_modules()` 里的 `register_renderer`、`Layout::PAGES` :59、`Layout::layout_for_page()` :219 的别名（仅当页面 id ≠ 布局 id）、`src/**/{page}_Payload.php`、`includes/views/{page}-island.php`、`assets/ui/src/{page}/` React 源、`npm run build` 的 dist 产物，以及 `Page_Assets::ISLAND_BUNDLES`/页面模块 enqueue 的页面→bundle 登记；旧 PHP 视图只作为 bundle 缺失时的回退。
+**新增一个页签要动这些地方**（漏一处就是「菜单有但打不开」或「卡片挤成一列」）：`Registry::modules()` 的 tabs、`build_modules()` 里的 `register_renderer`、`Layout::PAGES` :59、`Layout::layout_for_page()` :219 的别名（仅当页面 id ≠ 布局 id）、`src/**/{page}_Payload.php`、`includes/views/{page}-island.php`、`assets/ui/src/{page}/app.jsx`、`assets/ui/src/admin-app/app.jsx` 的 `APPS` 表、`App_Manifest::ROUTES` 的页面 id，以及 `npm run build` 的产物。所有路由共用一个 `admin-app.js`：没有 per-page bundle，也没有经典 PHP 视图可回退。
 
-**后台资源只有一个入口**：`Page_Assets::enqueue( $page )`（`src/Admin/Page_Assets.php:47`）。样式顺序 tokens → base → components → pages/{module} → pages/{page}；脚本顺序 core → api → ui → 岛 bundle（`ISLAND_BUNDLES` 且文件可读）→ 旧 `pages/{page}.js`（仅无可用 bundle 时回退）。版本串由 `group_version()` :175 生成（版本号.mtime.字节数），**改完文件不用手动改版本号浏览器也会重拉**。
+**后台资源只有一个入口**：`Page_Assets::enqueue( $page )`（`src/Admin/Page_Assets.php:47`）。样式顺序 tokens → base → components → pages/{module} → pages/{page}；脚本顺序 core → api → ui → 壳 bundle（`assets/ui/dist/admin-app.js`，所有路由共用）；旧 `pages/{page}.js` 只给非路由页（如媒体处理页）加载。版本串由 `group_version()` :175 生成（版本号.mtime.字节数），**改完文件不用手动改版本号浏览器也会重拉**。
 
 **生命周期四件事**：
 - 激活 `Activation::run()` :22 —— 默认 option → 建表 → 排程 7 处 → **最后才写版本号**（前面任一步失败时升级守卫下次请求还会重跑）
@@ -170,7 +170,7 @@ chown -R www:www .        # 部署后属主会被 git 改成 root，必须修回
 - `dist/` 被 `.gitignore` 忽略，不进版本库。
 - 打包脚本用 `git archive` 只取**已跟踪文件**，然后删掉 `docs/`、`tests/`、`bin/`、`stubs/`、`.github/` 与各配置文件。`docs/` 下的文档不会进发布包，可以放心写细节；**但根目录新增的 `.md` 会进包**，要加进 `bin/build-plugin-zip.sh` 的 `rm -f` 列表。
 - `.agents/worktrees/` 下可能有多份工作副本（未被 git 跟踪），改之前确认自己在哪个分支，别改错副本。
-- 实验站：`https://demo.77il.cn`，宝塔面板本机站点，目录 `/www/wwwroot/demo.77il.cn`（PHP 8.4.28、MariaDB 12.3.2、WP 7.1.5，与生产同版本；DB `demo`、前缀 `wp_`，主题子比已授权，管理员 `yexu`，密码不写进仓库）。装的是同一插件的**实体副本**，不是符号链接，**同步时要整目录拷**，并且必须带上 `assets/ui/dist/`（React 打包产物，`system.js` / `image.js` / `storage.js` / `sync.js` / `deletes.js` / `rewrite.js` / `cost.js` / `files.js` / `files-users.js` / `files-queue.js` / `files-log.js` / `zibll.js` / `performance.js`）：漏了它，系统设置、图像优化、对象存储（含链接改写/费用估算）页的脚本 404，页面会永远停在「正在读取页面信息…」的骨架屏。用这条命令，排除项里写 `/dist`（锚定根目录），**不要写 `dist`**——那样会把 `assets/ui/dist` 一起排掉：
+- 实验站：`https://demo.77il.cn`，宝塔面板本机站点，目录 `/www/wwwroot/demo.77il.cn`（PHP 8.4.28、MariaDB 12.3.2、WP 7.1.5，与生产同版本；DB `demo`、前缀 `wp_`，主题子比已授权，管理员 `yexu`，密码不写进仓库）。装的是同一插件的**实体副本**，不是符号链接，**同步时要整目录拷**，并且必须带上 `assets/ui/dist/admin-app.js`（唯一的 React 打包产物，16 个后台页面共用）：漏了它，所有后台页面的脚本都 404，页面会永远停在「正在读取页面信息…」的骨架屏。用这条命令，排除项里写 `/dist`（锚定根目录），**不要写 `dist`**——那样会把 `assets/ui/dist` 一起排掉：
 
 ```bash
 rsync -a --delete --exclude .git --exclude .agents --exclude .dsh-ops --exclude node_modules \

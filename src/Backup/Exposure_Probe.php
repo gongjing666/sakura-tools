@@ -13,7 +13,6 @@ declare( strict_types=1 );
 
 namespace Sakura\ImageOptimizer\Backup;
 
-use Sakura\ImageOptimizer\Backup;
 
 defined( 'ABSPATH' ) || exit;
 

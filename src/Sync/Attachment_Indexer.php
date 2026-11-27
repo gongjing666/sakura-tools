@@ -96,10 +96,42 @@ final class Attachment_Indexer implements Module {
 			return;
 		}
 
-		$keys = array_keys( $this->keys_for_attachment( $attachment_id ) );
-		if ( $keys ) {
-			$this->index->forget_local( $this->options->active_profile_id(), $keys );
+		$profile = $this->options->active_profile_id();
+		$keys    = array_keys( $this->keys_for_attachment( $attachment_id ) );
+
+		/*
+		 * A restore writes the original extension back and a later optimisation
+		 * converts it again, so the index can hold rows for both spellings of the
+		 * same file. The metadata only names the current one; without this the older
+		 * row survives the delete and shows up as a phantom "synced" entry.
+		 */
+		$primary = $this->primary_key( $attachment_id );
+		if ( '' !== $primary ) {
+			$keys = array_merge( $keys, $this->index->keys_by_stem( $profile, $primary ) );
 		}
+
+		$keys = array_values( array_unique( array_filter( array_map( 'strval', $keys ) ) ) );
+
+		if ( $keys ) {
+			$this->index->forget_local( $profile, $keys );
+		}
+	}
+
+	/**
+	 * Object key of the attachment's current primary file.
+	 *
+	 * @param int $attachment_id Attachment id.
+	 * @return string Key, or '' when the attachment has no file.
+	 */
+	private function primary_key( int $attachment_id ): string {
+		$relative = (string) get_post_meta( $attachment_id, '_wp_attached_file', true );
+		if ( '' === $relative ) {
+			return '';
+		}
+
+		$prefix = trim( str_replace( '\\', '/', $this->options->upload_path() ), '/' );
+
+		return '' === $prefix ? $relative : $prefix . '/' . $relative;
 	}
 
 	/**

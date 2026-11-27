@@ -130,7 +130,7 @@ function PolicyCard( { card, rest, strings, onError, onNotice, onSaved } ) {
 
 	return (
 		<Card card={ card }>
-			<form className="card__form" id={ card.form.id } onSubmit={ submit }>
+			<form className="card__form" id={ card.form.id } onSubmit={ submit } noValidate>
 				<div className="field-list">
 					{ card.fields.map( ( field ) => {
 						const id = field.id || 'sakura_imgopt_' + field.name;
@@ -141,7 +141,6 @@ function PolicyCard( { card, rest, strings, onError, onNotice, onSaved } ) {
 							return (
 								<div className={ 'field field--switch' + ( field.full ? ' field--full' : '' ) } key={ field.name }>
 									<label className="check" htmlFor={ id }>
-										<input type="hidden" value="0" />
 										<input
 											id={ id }
 											type="checkbox"
@@ -254,7 +253,7 @@ export default function BackupPage( { boot, onError, onNotice, onUsage } ) {
 			}
 
 			if ( payload.message ) {
-				setMessage( { text: payload.message, tone: 'ok' } );
+				setMessage( { text: payload.message, tone: payload.message_tone || 'ok' } );
 			}
 
 			if ( payload.probe ) {

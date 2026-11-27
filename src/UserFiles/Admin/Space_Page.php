@@ -16,7 +16,6 @@ namespace Nboke\UserFiles\Admin;
 use Nboke\UserFiles\Services\Zibll_Bridge;
 use Nboke\UserFiles\Space_Settings;
 use Sakura\ImageOptimizer\Admin\Assets;
-use Sakura\ImageOptimizer\Admin\Page_Assets;
 use Sakura\ImageOptimizer\Admin\Registry;
 use Sakura\ImageOptimizer\Admin\UI;
 use Sakura\ImageOptimizer\Support\Hook_Loader;
@@ -119,18 +118,6 @@ final class Space_Page {
 		}
 
 		Assets::enqueue_page();
-
-		$bundle = Page_Assets::island_bundle( 'files-zibll' );
-
-		if ( $available && '' !== $bundle && is_readable( SAKURA_TOOLS_PATH . $bundle ) ) {
-			wp_enqueue_script(
-				'sakura-admin-files-zibll',
-				SAKURA_TOOLS_URL . $bundle,
-				array( 'sakura-admin-core' ),
-				Page_Assets::asset_version( $bundle ),
-				true
-			);
-		}
 	}
 
 	/**
@@ -154,54 +141,9 @@ final class Space_Page {
 			return;
 		}
 
-		$bundle = Page_Assets::island_bundle( 'files-zibll' );
+		$data = ( new Space_Payload() )->build();
 
-		if ( '' !== $bundle && is_readable( SAKURA_TOOLS_PATH . $bundle ) ) {
-			$data = ( new Space_Payload() )->build();
-
-			require SAKURA_TOOLS_PATH . 'includes/views/files-zibll-island.php';
-
-			return;
-		}
-
-		$this->render_missing_bundle_notice();
-	}
-
-	/**
-	 * Fallback when the island bundle is missing from the install.
-	 *
-	 * The old server-rendered settings view was removed together with its
-	 * controller, so this path must still render a clear, safe page instead of a
-	 * fatal include.
-	 *
-	 * @return void
-	 */
-	private function render_missing_bundle_notice(): void {
-		UI::page(
-			array(
-				'id'      => 'files-zibll',
-				'module'  => 'files',
-				'tab'     => self::TAB,
-				'eyebrow' => 'ZIBLL BRIDGE / ' . ( defined( 'SAKURA_TOOLS_VERSION' ) ? SAKURA_TOOLS_VERSION : '' ),
-				'title'   => __( '子比专属', 'sakura-imgopt' ),
-				'lede'    => __( '主题能力、支付通道、前台入口与等级加成集中在这里。', 'sakura-imgopt' ),
-				'status'  => array(
-					'label' => __( '子比桥接', 'sakura-imgopt' ),
-					'value' => __( '资源缺失', 'sakura-imgopt' ),
-					'sub'   => __( '请重新构建或安装完整插件包', 'sakura-imgopt' ),
-					'tone'  => 'bad',
-				),
-			),
-			static function (): void {
-				?>
-				<div class="card-grid" data-sakura-layout="files-space" data-sakura-group="main">
-					<div class="zibll-span-all">
-						<?php UI::alert( __( '页面资源未找到，无法打开子比专属设置。请重新执行构建并确认 assets/ui/dist/zibll.js 存在。', 'sakura-imgopt' ), 'bad', __( '资源缺失', 'sakura-imgopt' ) ); ?>
-					</div>
-				</div>
-				<?php
-			}
-		);
+		require SAKURA_TOOLS_PATH . 'includes/views/files-zibll-island.php';
 	}
 
 	/**

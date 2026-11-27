@@ -198,7 +198,7 @@ namespace Sakura\ImageOptimizer\Admin;
 
 - 新文件**必须**带 `declare( strict_types=1 );`，且放在 namespace 之前。
 - 现有覆盖：`src/` 233 个文件里 215 个已声明，18 个没有（`src/S3/` 11 个、`src/Admin/` 4 个、`src/Sync/` 2 个、`src/UserFiles/` 1 个；`src/Zibll/` 已全覆盖）。**不要批量补**：strict_types 会改变参数强制转换行为，给旧文件补等于一次行为变更，必须单独提交并跑三道关。改到哪个文件、确认测试过了，再顺手补。
-- `includes/` 的 14 个旧类只有 1 个声明；23 个视图模板里有 2 个（视图只在 bundle 不可读时作回退）。两者都保持原样：旧类是兼容层，视图是回退层，都不做风格迁移。
+- `includes/` 的 14 个旧类只有 1 个声明；`includes/views/` 的模板（岛挂载视图与非路由页）里只有 2 个。两者都保持原样：旧类是兼容层，模板只打印 bootstrap 与外壳，不做风格迁移。
 - 直访守卫：`src/` 里 221/233 有 `defined( 'ABSPATH' )` 守卫。新文件照写。
 - 类文件不 `exit`、不输出、不产生副作用；钩子注册一律走 `register_hooks()`（见 [01-架构与装配](01-架构与装配.md)）。
 

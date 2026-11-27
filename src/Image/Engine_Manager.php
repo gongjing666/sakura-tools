@@ -9,8 +9,8 @@ declare( strict_types=1 );
 
 namespace Sakura\ImageOptimizer\Image;
 
-use Sakura\ImageOptimizer\GD_Handler;
-use Sakura\ImageOptimizer\Imagick_Handler;
+use Sakura\ImageOptimizer\Image\Handlers\GD_Handler;
+use Sakura\ImageOptimizer\Image\Handlers\Imagick_Handler;
 
 defined( 'ABSPATH' ) || exit;
 

@@ -11,6 +11,7 @@ use Sakura\ImageOptimizer\Admin\UI\Page;
 use Sakura\ImageOptimizer\Admin\Rest\Image_Controller;
 use Sakura\ImageOptimizer\Backup\Backup_Repository;
 use Sakura\ImageOptimizer\Backup\Exposure_Probe;
+use Sakura\ImageOptimizer\Contracts\Backup_Repository_Interface;
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
@@ -31,13 +32,28 @@ final class Backup_Payload {
 	}
 
 	/**
+	 * Backup persistence boundary.
+	 *
+	 * @var Backup_Repository_Interface
+	 */
+	private Backup_Repository_Interface $backup;
+
+	/**
+	 * Constructor.
+	 *
+	 * @param Backup_Repository_Interface|null $backup Backup repository.
+	 */
+	public function __construct( ?Backup_Repository_Interface $backup = null ) {
+		$this->backup = $backup ?? new Backup_Repository();
+	}
+
+	/**
 	 * Build the payload.
 	 *
 	 * @return array<string,mixed>
 	 */
 	public function build(): array {
-		$backup = new Backup_Repository();
-		$usage  = $backup->get_usage();
+		$usage = $this->backup->get_usage();
 
 		$payload = array(
 			'tab'     => 'backup',
@@ -134,6 +150,30 @@ final class Backup_Payload {
 	}
 
 	/**
+	 * The sentence a probe result turns into.
+	 *
+	 * Shared with the REST endpoint so clicking 检测 updates the KPI and the
+	 * sentence together instead of leaving the sentence on its boot value.
+	 *
+	 * @param array<string,mixed> $probe Stored or fresh probe result.
+	 * @return string
+	 */
+	public static function probe_message( array $probe ): string {
+		$time = isset( $probe['time'] ) ? (int) $probe['time'] : 0;
+
+		if ( $time > 0 && isset( $probe['message'] ) && ( time() - $time ) < DAY_IN_SECONDS ) {
+			return sprintf(
+				/* translators: 1: detection time, 2: detection result. */
+				__( '上次检测（%1$s）：%2$s', 'sakura-imgopt' ),
+				wp_date( 'Y-m-d H:i', $time ),
+				(string) $probe['message']
+			);
+		}
+
+		return __( '尚未检测。点击下面的按钮，服务器会实际请求备份目录里的一个文件来判断。', 'sakura-imgopt' );
+	}
+
+	/**
 	 * Directory exposure card.
 	 *
 	 * @return array<string,mixed>
@@ -147,18 +187,11 @@ final class Backup_Payload {
 		$server  = Exposure_Probe::server();
 		$uploads = wp_upload_dir();
 		$path    = (string) wp_parse_url(
-			trailingslashit( rtrim( (string) $uploads['baseurl'], '/' ) . '/' . \Sakura\ImageOptimizer\Backup::DIR ),
+			trailingslashit( rtrim( (string) $uploads['baseurl'], '/' ) . '/' . \Sakura\ImageOptimizer\Backup\Backup::DIR ),
 			PHP_URL_PATH
 		);
 
-		$message = $fresh && isset( $probe['message'] )
-			? sprintf(
-				/* translators: 1: detection time, 2: detection result. */
-				__( '上次检测（%1$s）：%2$s', 'sakura-imgopt' ),
-				wp_date( 'Y-m-d H:i', $time ),
-				(string) $probe['message']
-			)
-			: __( '尚未检测。点击下面的按钮，服务器会实际请求备份目录里的一个文件来判断。', 'sakura-imgopt' );
+		$message = self::probe_message( is_array( $probe ) ? $probe : array() );
 
 		return $this->card(
 			'policy',

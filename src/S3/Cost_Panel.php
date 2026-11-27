@@ -32,11 +32,6 @@ final class Cost_Panel implements Module {
 	public const NONCE = 'sakura_storage_cost';
 
 	/**
-	 * React island bundle, relative to the plugin root.
-	 */
-	public const BUNDLE = 'assets/ui/dist/cost.js';
-
-	/**
 	 * Config cache shared by enqueue and render.
 	 *
 	 * @var array<string,mixed>|null
@@ -54,7 +49,7 @@ final class Cost_Panel implements Module {
 	}
 
 	/**
-	 * Only load the page bundle on this tab.
+	 * Load the shared admin stack on this tab.
 	 *
 	 * @param string $hook Current admin page hook.
 	 */
@@ -67,16 +62,6 @@ final class Cost_Panel implements Module {
 
 		Page_Assets::set_data( 'storage-cost', $this->page_config() );
 		Assets::enqueue_page();
-
-		if ( is_readable( SAKURA_TOOLS_PATH . self::BUNDLE ) ) {
-			wp_enqueue_script(
-				'sakura-admin-cost',
-				SAKURA_TOOLS_URL . self::BUNDLE,
-				array( 'sakura-admin-core' ),
-				Page_Assets::asset_version( self::BUNDLE ),
-				true
-			);
-		}
 	}
 
 	/**
@@ -89,17 +74,10 @@ final class Cost_Panel implements Module {
 
 		$defaults = Cost_Estimator::defaults();
 		$result   = Cost_Estimator::estimate( $defaults );
-		$priced   = Cost_Estimator::PRICED_AT;
 
-		if ( is_readable( SAKURA_TOOLS_PATH . self::BUNDLE ) ) {
-			$data = ( new \Sakura\ImageOptimizer\Admin\Cost_Payload( $result ) )->build();
+		$data = ( new \Sakura\ImageOptimizer\Admin\Cost_Payload( $result ) )->build();
 
-			require __DIR__ . '/../../includes/views/cost-island.php';
-
-			return;
-		}
-
-		require __DIR__ . '/../../includes/views/storage-cost.php';
+		require __DIR__ . '/../../includes/views/cost-island.php';
 	}
 
 	/**

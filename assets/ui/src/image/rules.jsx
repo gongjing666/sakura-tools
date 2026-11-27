@@ -61,7 +61,7 @@ function SettingsCard( { card, rest, strings, sections, scanned, scan, scanning,
 
 	return (
 		<Card card={ card }>
-			<form className="card__form" id={ card.form.id } onSubmit={ submit }>
+			<form className="card__form" id={ card.form.id } onSubmit={ submit } noValidate>
 				<div className="field-list">
 					{ card.fields.map( ( field ) => {
 						if ( 'size-table' === field.type ) {
@@ -73,6 +73,7 @@ function SettingsCard( { card, rest, strings, sections, scanned, scan, scanning,
 									disabled={ draft.disabled_sizes }
 									onChange={ change }
 									scanned={ scanned }
+									stale={ !! scanned && dirty }
 									onScan={ scan }
 									scanning={ scanning }
 									scanLabel={ strings.scan }

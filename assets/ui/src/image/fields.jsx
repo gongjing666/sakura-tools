@@ -136,7 +136,7 @@ export function ImageField( { field, value, values, onChange, group } ) {
 							<label className="check" key={ option.value }>
 								<input
 									type="checkbox"
-									name={ `${ field.name }[]` }
+									name={ field.name }
 									value={ option.value }
 									checked={ selected.includes( option.value ) }
 									onChange={ ( event ) => {
@@ -165,7 +165,7 @@ export function ImageField( { field, value, values, onChange, group } ) {
 							<label className="format-box" key={ option.value }>
 								<input
 									type="checkbox"
-									name={ `${ field.name }[]` }
+									name={ field.name }
 									value={ option.value }
 									checked={ selected.includes( option.value ) }
 									onChange={ ( event ) => {
@@ -290,6 +290,7 @@ export function SizeTable( {
 	disabled,
 	onChange,
 	scanned,
+	stale,
 	onScan,
 	scanning,
 	scanLabel,
@@ -322,6 +323,11 @@ export function SizeTable( {
 				</button>
 				<span className="sakura-imgopt-scan-summary">{ summary }</span>
 			</div>
+			{ stale ? (
+				<p className="sakura-imgopt-scan-stale" role="status">
+					{ '表格里的「生成状态」来自上次扫描；保存后按新设置重新计算。' }
+				</p>
+			) : null }
 			<div className="table-scroll">
 				<table className="sakura-imgopt-size-table">
 					<thead>
@@ -348,7 +354,7 @@ export function SizeTable( {
 									<td className="sakura-imgopt-col-check">
 										<input
 											type="checkbox"
-											name="sakura_imgopt_disabled_sizes[]"
+											name="disabled_sizes"
 											value={ row.name }
 											checked={ checked }
 											aria-label={ `${ section.columns[ 0 ] } ${ row.name }` }
@@ -398,7 +404,7 @@ export function SizeTable( {
 				</div>
 			) : null }
 			{ wpConfig ? <p className="description">{ wpConfig }</p> : null }
-			{ section.notes.map( ( note, index ) => (
+			{ ( section.notes || [] ).map( ( note, index ) => (
 				<p className="description" key={ index }>
 					{ note }
 				</p>

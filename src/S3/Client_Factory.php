@@ -12,7 +12,7 @@ namespace Sakura\ImageOptimizer\S3;
 use Sakura\Vendor\Aws\Credentials\Credentials;
 use Sakura\Vendor\Aws\S3\S3Client;
 use Sakura\Vendor\GuzzleHttp\Promise\Create;
-use Sakura\ImageOptimizer\S3_Doge_Cloud;
+use Sakura\ImageOptimizer\S3\Doge_Cloud;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -99,7 +99,7 @@ final class Client_Factory {
 		 * 传闭包而不是数组是关键——SDK 的 ClientResolver::_apply_credentials()
 		 * 见到 callable 就原样放行、不包 CredentialProvider，签名中间件于是
 		 * **每签一次名**都调一次这个闭包（Middleware::signer()）。续期就发生在
-		 * 这里：把「还剩多久」交给 S3_Doge_Cloud 自己判断，工厂不管。
+		 * 这里：把「还剩多久」交给 Doge_Cloud 自己判断，工厂不管。
 		 *
 		 * 两条硬约束，改的时候别丢：
 		 * - 必须返回 Promise（Create::promiseFor / rejectionFor），签名中间件
@@ -109,7 +109,7 @@ final class Client_Factory {
 		$credentials = $static;
 		if ( 'dogecloud' === $provider ) {
 			$credentials = static function () use ( $static ) {
-				$bridge = new S3_Doge_Cloud( $static['key'], $static['secret'] );
+				$bridge = new Doge_Cloud( $static['key'], $static['secret'] );
 				$token  = $bridge->get_credentials_with_expiry();
 
 				if ( ! is_array( $token ) ) {
@@ -181,7 +181,7 @@ final class Client_Factory {
 			return;
 		}
 
-		$bridge = new S3_Doge_Cloud( (string) ( $options['key'] ?? '' ), (string) ( $options['secret'] ?? '' ) );
+		$bridge = new Doge_Cloud( (string) ( $options['key'] ?? '' ), (string) ( $options['secret'] ?? '' ) );
 		if ( is_array( $bridge->get_credentials_with_expiry() ) ) {
 			return;
 		}

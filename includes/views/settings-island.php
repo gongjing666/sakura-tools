@@ -4,8 +4,7 @@
  *
  * Included from Image_Optimizer_Module::render_page(). The island draws the tab
  * strip, the page head and the cards from the bootstrap JSON below; the server
- * keeps the root node, the menu highlight, and the classic form as a fallback
- * when the bundle is missing.
+ * keeps the root node and the menu highlight.
  *
  * @package Sakura_Image_Optimizer
  *

@@ -31,6 +31,13 @@ use Sakura\ImageOptimizer\Sync\Scan_Worker;
 use Sakura\ImageOptimizer\Sync\Sync_Calibrator;
 use Sakura\ImageOptimizer\Support\Hook_Loader;
 use Sakura\ImageOptimizer\Support\Profiler;
+use Sakura\ImageOptimizer\Backup\Backup;
+use Sakura\ImageOptimizer\Image\Image_Processor;
+use Sakura\ImageOptimizer\Thumbnail\Thumbnail_Manager;
+use Sakura\ImageOptimizer\Modules\Media_Library_Module;
+use Sakura\ImageOptimizer\Modules\Image_Optimizer_Module;
+use Sakura\ImageOptimizer\Modules\Thumbnail_Optimizer_Module;
+use Sakura\ImageOptimizer\S3\Storage_Module;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -112,14 +119,14 @@ final class Plugin {
 		}
 
 		if ( defined( 'WP_CLI' ) && WP_CLI ) {
-			require_once SAKURA_TOOLS_INC . 'class-s3-cli.php';
 			if ( class_exists( '\WP_CLI' ) ) {
+				\Sakura\ImageOptimizer\S3\CLI::register();
 				\WP_CLI::add_command( 'sakura-sync', \Sakura\ImageOptimizer\Sync\CLI::class );
 				\WP_CLI::add_command( 'sakura-thumb', \Sakura\ImageOptimizer\Thumbnail\CLI::class );
 			}
 		}
 
-		// Backup is a legacy class (includes/class-backup.php) and still load-bearing;
+		// Backup is a legacy class (src/Backup.php) and still load-bearing;
 		// read the manifest in sakura-tools.php before touching that directory.
 		$this->hooks->add_action( 'sakura_imgopt_daily_backup_cleanup', array( Backup::class, 'clean_expired' ) );
 		Profiler::measure(
@@ -151,7 +158,7 @@ final class Plugin {
 
 		if ( is_admin() ) {
 			$system_settings = new Admin\System_Settings_Module();
-			$image_optimizer = new Image_Optimizer_Module( $stats, $backup, $settings );
+			$image_optimizer = new Image_Optimizer_Module( $stats, $backup );
 			$modules[]       = $system_settings;
 			$modules[]       = $image_optimizer;
 
@@ -194,7 +201,7 @@ final class Plugin {
 		$modules[]    = new Verify_Worker( $s3_options, $sync_index );
 
 		if ( is_admin() ) {
-			$s3_storage  = new S3_Storage_Module();
+			$s3_storage  = new Storage_Module();
 			$sync_center = new Sync_Center_Module( $s3_options, $s3_adapter, null, $sync_index, $sync_scanner, $sync_worker );
 
 			$modules[] = $s3_storage;
@@ -237,6 +244,9 @@ final class Plugin {
 		$modules[] = new Admin\Rest\System_Routes();
 		$modules[] = new Admin\Rest\Image_Routes();
 		$modules[] = new Admin\Rest\Storage_Routes();
+
+		// 后台外壳的路由表：同样必须无条件装配，导航时的 /pages/{page} 取数才不会是 404。
+		$modules[] = new Admin\Rest\Page_Routes();
 
 		// 用户文件空间：前台、REST 与后台审核页都挂在这个模块上。
 		$modules[] = new \Nboke\UserFiles\Module();

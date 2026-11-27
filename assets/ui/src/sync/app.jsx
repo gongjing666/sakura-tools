@@ -16,7 +16,7 @@ import LogsCard from './logs.jsx';
 import IgnoredCard from './ignored.jsx';
 import NotesCard from './notes.jsx';
 import Dialogs from './dialogs.jsx';
-import { ajax, errorText, toast, restoreToast, reloadWithToast } from './transport.js';
+import { post, errorText, toast, restoreToast, reloadWithToast } from './transport.js';
 import { Frontline, KpiStrip } from './overview.jsx';
 
 export default function App( { boot } ) {
@@ -57,7 +57,7 @@ export default function App( { boot } ) {
 					return;
 				}
 
-				ajax( 'sakura_s3_sync_scan_step', { scan_id: scanId, nonce: config.scanNonce }, { timeout: 30000 } )
+				post( config, 'scan/step', { scan_id: scanId } )
 					.then( ( data ) => {
 						if ( token !== tokenRef.current ) {
 							resolve( { state: 'detached' } );
@@ -99,10 +99,9 @@ export default function App( { boot } ) {
 		}
 
 		busyRef.current = true;
-		const action = 'resume' === mode ? 'sakura_s3_sync_resume' : 'sakura_s3_sync_scan';
-		const nonce = 'resume' === mode ? config.resumeNonce : config.scanNonce;
+		const path = 'resume' === mode ? 'scan/resume' : 'scan';
 
-		ajax( action, { nonce }, { timeout: 60000 } )
+		post( config, path )
 			.then( ( data ) => {
 				const state = String( data.state || '' );
 
@@ -157,7 +156,7 @@ export default function App( { boot } ) {
 		busyRef.current = true;
 		const restore = button ? window.SakuraAdmin.ui.busy( button, true ) : null;
 
-		ajax( 'sakura_s3_sync_refresh', { nonce: config.refreshNonce }, { timeout: 60000 } )
+		post( config, 'refresh' )
 			.then( ( data ) => {
 				reloadWithToast( data.message || stringsAll.refreshed );
 			} )
@@ -174,7 +173,7 @@ export default function App( { boot } ) {
 	};
 
 	const cancelScan = () => {
-		ajax( 'sakura_s3_sync_cancel', { scan_id: Number( live.scan.id || 0 ), nonce: config.cancelNonce }, { timeout: 30000 } )
+		post( config, 'scan/cancel', { scan_id: Number( live.scan.id || 0 ) } )
 			.then( () => {
 				++tokenRef.current;
 				reloadWithToast( stringsAll.cancelled, 'warn' );
@@ -185,7 +184,7 @@ export default function App( { boot } ) {
 	};
 
 	const retryAll = () => {
-		ajax( 'sakura_s3_retry', { _ajax_nonce: config.retryNonce, attachment_id: '0' }, { timeout: 120000 } )
+		post( config, 'retry', { attachment_id: 0 } )
 			.then( ( data ) => {
 				reloadWithToast( data.message || stringsAll.retryDone );
 			} )
@@ -195,11 +194,7 @@ export default function App( { boot } ) {
 	};
 
 	const toggleIndex = () => {
-		ajax(
-			'sakura_s3_sync_toggle_index',
-			{ enabled: indexEnabled ? '0' : '1', nonce: config.toggleNonce },
-			{ timeout: 30000 }
-		)
+		post( config, 'toggle', { enabled: indexEnabled ? '0' : '1' } )
 			.then( ( data ) => {
 				reloadWithToast( data.message || stringsAll.actionDone );
 			} )
@@ -211,7 +206,7 @@ export default function App( { boot } ) {
 	const testConnection = ( button ) => {
 		const restore = button ? window.SakuraAdmin.ui.busy( button, true ) : null;
 
-		ajax( 'sakura_s3_sync_test', { nonce: config.testNonce }, { timeout: 30000 } )
+		post( config, 'test' )
 			.then( ( data ) => {
 				toast( data.message || stringsAll.testDone );
 				const pill = document.querySelector( '.status-card__ping' );
@@ -269,6 +264,7 @@ export default function App( { boot } ) {
 						card={ findCard( boot.cards, 'ignored' ) }
 						view={ view }
 						strings={ strings }
+						config={ config }
 						frozen={ frozen }
 					/>
 					<TasksCard
@@ -478,7 +474,7 @@ function LatencyPill( { config, strings } ) {
 				return;
 			}
 
-			ajax( 'sakura_s3_latency', { nonce: config.actionNonce }, { timeout: 12000 } )
+			post( config, 'latency' )
 				.then( ( data ) => {
 					const ms = Number( data.ms || 0 );
 					recent.push( ms );

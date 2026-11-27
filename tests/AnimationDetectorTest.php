@@ -6,7 +6,7 @@
  */
 
 use PHPUnit\Framework\TestCase;
-use Sakura\ImageOptimizer\Animation_Detector;
+use Sakura\ImageOptimizer\Image\Animation_Detector;
 
 final class AnimationDetectorTest extends TestCase {
 

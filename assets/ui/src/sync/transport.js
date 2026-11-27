@@ -1,13 +1,43 @@
 /**
- * admin-ajax calls for the sync screen.
+ * POST one REST route under /storage/sync/.
  *
- * The island deliberately keeps using the twelve admin-ajax endpoints the
- * classic controller used instead of inventing a REST surface: those handlers
- * already carry the R18 gate, the nonce checks and the queueing rules, and a
- * second code path is a second place for them to drift.
+ * The handlers answer with the same shapes the admin-ajax endpoints used, so a
+ * response is merged straight into state; failures carry { message } and are
+ * thrown as Error(message), exactly like errorText() expects.
+ *
+ * @param {Object} config Payload config (restUrl + restNonce).
+ * @param {string} path   Route path under /storage/sync/, e.g. 'scan/step'.
+ * @param {Object} body   JSON body.
+ * @return {Promise<Object>} Decoded response.
  */
-export function ajax( action, data, options ) {
-	return window.SakuraAdmin.api.ajax( action, data, options || {} );
+export function post( config, path, body ) {
+	const base = String( config.restUrl || '' ).replace( /\/$/, '' );
+
+	return fetch( base + '/storage/sync/' + path, {
+		method: 'POST',
+		credentials: 'same-origin',
+		headers: {
+			'Content-Type': 'application/json',
+			'X-WP-Nonce': config.restNonce || '',
+		},
+		body: JSON.stringify( body || {} ),
+	} ).then( ( response ) =>
+		response.text().then( ( raw ) => {
+			let data = null;
+
+			try {
+				data = raw ? JSON.parse( raw ) : null;
+			} catch ( error ) {
+				data = null;
+			}
+
+			if ( ! response.ok ) {
+				throw new Error( errorText( { payload: data }, config.strings && config.strings.unknownError ) );
+			}
+
+			return data || {};
+		} )
+	);
 }
 
 export function errorText( error, fallback ) {

@@ -6,6 +6,7 @@
 	"license": "GPL-2.0-or-later",
 	"scripts": {
 		"build": "node bin/build-ui.mjs",
+		"fixture": "node bin/admin-shell-fixture.mjs",
 		"watch": "node bin/build-ui.mjs --watch"
 	},
 	"dependencies": {

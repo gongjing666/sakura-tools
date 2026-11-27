@@ -18,6 +18,7 @@ use Sakura\ImageOptimizer\Admin\Rest\Storage_Controller;
 use Sakura\ImageOptimizer\Admin\UI;
 use Sakura\ImageOptimizer\Admin\UI\Modal;
 use Sakura\ImageOptimizer\S3\Delete_Jobs;
+use Sakura\ImageOptimizer\S3\Delete_Batch;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -34,7 +35,7 @@ final class Deletes_Payload {
 	/**
 	 * Default rows per page.
 	 */
-	public const PER_PAGE = 50;
+	public const PER_PAGE = 25;
 
 	/**
 	 * Window used for the throughput line.
@@ -77,6 +78,7 @@ final class Deletes_Payload {
 			'version'  => SAKURA_TOOLS_VERSION,
 			'page'     => $page_args,
 			'head'     => UI\Page::head_data( $page_args ),
+			'chrome'   => Shell::header_data( 'storage', 'deletes' ),
 			'card'     => $this->card(),
 			'snapshot' => $snapshot,
 			'config'   => $this->config(),
@@ -94,7 +96,7 @@ final class Deletes_Payload {
 	 */
 	public function snapshot( string $state = 'all', int $page = 1, int $per_page = self::PER_PAGE ): array {
 		$state    = $this->normalize_state( $state );
-		$per_page = in_array( $per_page, array( 20, 50, 100 ), true ) ? $per_page : self::PER_PAGE;
+		$per_page = in_array( $per_page, array( 25, 50, 100 ), true ) ? $per_page : self::PER_PAGE;
 
 		$counts   = $this->jobs->counts();
 		$activity = $this->jobs->activity( self::RECENT_MINUTES );
@@ -137,6 +139,10 @@ final class Deletes_Payload {
 				'retention_days'        => Delete_Jobs::DONE_RETENTION_DAYS,
 			),
 			'running'         => array_map( array( $this, 'running_row' ), $running ),
+			'dispatch'        => array(
+				'policy' => Delete_Batch::read(),
+				'queued' => $this->jobs->queued_stats(),
+			),
 			'rows'            => array_map( array( $this, 'row' ), $rows ),
 			'pagination'      => array(
 				'page'     => $page,
@@ -337,8 +343,9 @@ final class Deletes_Payload {
 			),
 			'pagination'       => array(
 				'label'   => __( '队列分页', 'sakura-imgopt' ),
-				/* translators: 1: current page, 2: total pages, 3: total rows. */
-				'summary' => __( '第 %1$s / %2$s 页 · 共 %3$s 条', 'sakura-imgopt' ),
+				/* translators: 1: first row shown, 2: last row shown, 3: total rows. */
+				'summary' => __( '显示 %1$s–%2$s 项，共 %3$s 项', 'sakura-imgopt' ),
+				'perPage' => __( '每页', 'sakura-imgopt' ),
 				'prev'    => __( '上一页', 'sakura-imgopt' ),
 				'next'    => __( '下一页', 'sakura-imgopt' ),
 			),

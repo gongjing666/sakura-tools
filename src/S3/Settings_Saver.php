@@ -2,7 +2,7 @@
 namespace Sakura\ImageOptimizer\S3;
 
 use Sakura\ImageOptimizer\Admin\Card_Form;
-use Sakura\ImageOptimizer\S3_Storage_Module;
+use Sakura\ImageOptimizer\S3\Storage_Module;
 use Sakura\ImageOptimizer\Sync\Index_Repository;
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -563,7 +563,7 @@ final class Settings_Saver {
 
 	/** Redirect to the S3 settings page; never returns. */
 	private function redirect( array $args = array() ): void {
-		wp_safe_redirect( add_query_arg( array_merge( array( 'page' => S3_Storage_Module::MENU_SLUG ), $args ), admin_url( 'admin.php' ) ) );
+		wp_safe_redirect( add_query_arg( array_merge( array( 'page' => Storage_Module::MENU_SLUG ), $args ), admin_url( 'admin.php' ) ) );
 		exit;
 	}
 

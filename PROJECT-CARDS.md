@@ -1,4 +1,4 @@
-<!-- deep-ptc:project-cards v1 next=R9,F45,Q7,T32 -->
+<!-- deep-ptc:project-cards v1 next=R9,F45,Q7,T33 -->
 # Project cards
 
 > Maintained by Deep PTC in DeepSeek Harness: edit in a Deep PTC conversation, view 特点卡片 / Project cards.
@@ -65,7 +65,7 @@
 
 
 ## Completed tasks / 已完成任务
-<!-- card id=tasks kind=tasks rev=31 updated=2026-11-26T02:33:04.460Z -->
+<!-- card id=tasks kind=tasks rev=32 updated=2026-11-26T03:19:30.817Z -->
 
 - **T1** [done] 为 sakura-tools 插件补一篇 PHP 代码规范文档（docs/开发规则/），以 PHP 8.2–8.4 兼容 (11/24)
 - **T2** [done] 文档中所有描述实验站的地方（AGENTS.md、05 篇、09 篇、11 篇、03 篇、docs/验收脚本/README — 实验站 demo.77il.cn 的新部署（宝塔本机 /www/wwwroot/demo.77il.cn，PHP 8.4.28 + MariaDB 12.3.2）已写进 AGENTS.md 与 05/09/11/03 篇、验收脚本，并写入记忆；文档不含密码，凭据只在 /root/.dsh/secrets/demo-77il-login.txt；本地提交 f343907，未 push。 (11/24)
@@ -98,6 +98,7 @@
 - **T29** [done] 在主题不是子比时被禁用的两个 Zibll 页签按钮内补上锁的 SVG 图标。 — 两个禁用子比页签补上统一锁 SVG；PHP/React 双路径与 1440/390 验证通过，版本 1.28.8-beta-62。 (11/26)
 - **T30** [done] 把子比增强模块的性能优化页重构为 PHP 外壳 + React 内容区。 — 性能优化页迁纯 React 岛；2 卡/1 表单、开关/时长/forever/重验与 1440/390 验证通过，旧 PHP/JS 已清理，版本 1.28.8-beta-63。 (11/26)
 - **T31** [done] 调整性能优化页两张卡为一行等宽，并修正授权缓存状态胶囊的间距与移动端布局。 — 性能优化页两卡改为 6/6 等宽；状态卡改记录式窄屏布局，胶囊与值统一 10px，1440/390 验证通过，版本 1.28.8-beta-64。 (11/26)
+- **T32** [done] 以当前版本为基准，收集全部重构改动，逐份核对并更新 docs/开发规则 下的文档，修正语义冲突。 — docs/开发规则 全量对账完成；1.29.0 已提交、推送 GitHub（v1.29.0 Release）并部署生产，16 个后台页与前台冒烟通过。 (11/26)
 
 
 ## 生产环境与部署事实

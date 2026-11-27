@@ -10,7 +10,6 @@ declare( strict_types=1 );
 namespace Nboke\UserFiles\Admin;
 
 use Nboke\UserFiles\Capabilities;
-use Nboke\UserFiles\Frontend\Entry;
 use Nboke\UserFiles\Frontend\Providers\Generic;
 use Nboke\UserFiles\Settings;
 use Sakura\ImageOptimizer\Admin\Assets;
@@ -36,11 +35,6 @@ final class Page {
 	 * Legacy layout page key.
 	 */
 	public const PAGE = 'files';
-
-	/**
-	 * React island bundle for the settings tab.
-	 */
-	public const BUNDLE = 'assets/ui/dist/files.js';
 
 	/**
 	 * Tabs migrated to the new UI stack.
@@ -186,7 +180,7 @@ final class Page {
 	}
 
 	/**
-	 * Load the UI stack for the four core tabs.
+	 * Load the shared admin stack for the four core tabs.
 	 *
 	 * Page data must be attached before Assets::enqueue_page() runs because the
 	 * localized config is printed from Page_Assets::enqueue().
@@ -210,20 +204,6 @@ final class Page {
 
 		Page_Assets::set_data( $page, $this->page_data( $page ) );
 		Assets::enqueue_page();
-
-		$bundle = Page_Assets::island_bundle( $page );
-
-		if ( '' !== $bundle && is_readable( SAKURA_TOOLS_PATH . $bundle ) ) {
-			$handle = 'files-settings' === $page ? 'sakura-admin-files' : 'sakura-admin-' . $page;
-
-			wp_enqueue_script(
-				$handle,
-				SAKURA_TOOLS_URL . $bundle,
-				array( 'sakura-admin-core' ),
-				Page_Assets::asset_version( $bundle ),
-				true
-			);
-		}
 	}
 
 	/**
@@ -433,37 +413,16 @@ final class Page {
 
 		$page = Route::current_page();
 
-		$bundle = Page_Assets::island_bundle( $page );
+		if ( 'files-settings' === $page ) {
+			$data = ( new Files_Settings_Payload() )->build();
 
-		if ( '' !== $bundle && is_readable( SAKURA_TOOLS_PATH . $bundle ) ) {
-			if ( 'files-settings' === $page ) {
-				$data = ( new Files_Settings_Payload() )->build();
+			require SAKURA_TOOLS_PATH . 'includes/views/files-settings-island.php';
 
-				require SAKURA_TOOLS_PATH . 'includes/views/files-settings-island.php';
-
-				return;
-			}
-
-			if ( in_array( $page, array( 'files-users', 'files-queue', 'files-log' ), true ) ) {
-				$data = ( new Files_Admin_Payload() )->build( $page );
-
-				require SAKURA_TOOLS_PATH . 'includes/views/files-admin-island.php';
-
-				return;
-			}
-		}
-
-		$view = SAKURA_TOOLS_PATH . 'includes/views/userfiles-admin.php';
-
-		if ( ! is_readable( $view ) ) {
 			return;
 		}
 
-		$enabled      = Settings::entry_enabled();
-		$settings     = Settings::get();
-		$entry        = new Entry();
-		$entry_status = $entry->status();
+		$data = ( new Files_Admin_Payload() )->build( $page );
 
-		include $view;
+		require SAKURA_TOOLS_PATH . 'includes/views/files-admin-island.php';
 	}
 }

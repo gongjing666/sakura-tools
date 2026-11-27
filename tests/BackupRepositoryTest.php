@@ -8,7 +8,7 @@
 declare( strict_types=1 );
 
 use PHPUnit\Framework\TestCase;
-use Sakura\ImageOptimizer\Backup;
+use Sakura\ImageOptimizer\Backup\Backup;
 use Sakura\ImageOptimizer\Backup\Backup_Repository;
 
 final class BackupRepositoryTest extends TestCase {

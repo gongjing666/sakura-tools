@@ -15,18 +15,18 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * Registers the top-level menu, renders the environment sheet and owns the
- * global card-gap and appearance settings.
+ * Registers the top-level menu and renders the environment sheet.
  *
  * The page owns the `sakura-tools` slug so the plugin's first screen stays at
  * a stable address; the image optimizer moved to `sakura-tools-optimize`.
+ *
+ * Saving the two layout options moved to `POST /sakura-tools/v1/system/layout`
+ * (see System_Layout_Settings) when the sheet became a React island: the
+ * Settings API registration and the `Card_Form::guard_options()` call that used
+ * to live here only existed to make an `options.php` form safe, and there is no
+ * such form any more.
  */
 class System_Settings_Module implements Module {
-
-	/**
-	 * Top-level menu slug.
-	 */
-	public const MENU_SLUG = 'sakura-tools';
 
 	/**
 	 * Register hooks.
@@ -34,47 +34,11 @@ class System_Settings_Module implements Module {
 	 * @param Hook_Loader $hooks Hook loader.
 	 */
 	public function register_hooks( Hook_Loader $hooks ): void {
-		$hooks->add_action( 'admin_init', array( $this, 'register_settings' ) );
 		$hooks->add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_admin_assets' ) );
-	}
-
-	/**
-	 * Register the writable settings on this page: card gaps and appearance.
-	 */
-	public function register_settings(): void {
-		register_setting(
-			'sakura_imgopt_basic',
-			Layout::GAPS_OPTION,
-			array(
-				'type'              => 'array',
-				'sanitize_callback' => array( Layout::class, 'sanitize_gaps' ),
-				'default'           => Layout::DEFAULT_GAPS,
-				'show_in_rest'      => false,
-			)
-		);
-
-		register_setting(
-			'sakura_imgopt_basic',
-			Appearance::OPTION,
-			array(
-				'type'              => 'array',
-				'sanitize_callback' => array( Appearance::class, 'sanitize' ),
-				'default'           => Appearance::DEFAULTS,
-				'show_in_rest'      => false,
-			)
-		);
-
-		Card_Form::guard_options(
-			'sakura_imgopt_basic',
-			array(
-				'layout' => array( Layout::GAPS_OPTION, Appearance::OPTION ),
-			)
-		);
 	}
 
 	// The menu is registered by Admin\Menu from Admin\Registry; this module only
 	// owns the environment report screen.
-
 
 	/**
 	 * Render the page.
@@ -93,10 +57,10 @@ class System_Settings_Module implements Module {
 	}
 
 	/**
-	 * Load the new admin UI stack on this page only.
+	 * Load the shared admin stack on this page only.
 	 *
-	 * The bundle is built from `assets/ui/src/system/` by `bin/build-ui.mjs` and
-	 * committed, because the release zip only carries tracked files.
+	 * The shell bundle itself is enqueued by Page_Assets::enqueue(); this screen
+	 * keeps no bundle of its own.
 	 *
 	 * @param string $hook Current admin page hook.
 	 */
@@ -107,19 +71,5 @@ class System_Settings_Module implements Module {
 
 		unset( $hook );
 		Assets::enqueue_page();
-
-		$bundle = 'assets/ui/dist/system.js';
-
-		if ( ! is_readable( SAKURA_TOOLS_PATH . $bundle ) ) {
-			return;
-		}
-
-		wp_enqueue_script(
-			'sakura-admin-system',
-			SAKURA_TOOLS_URL . $bundle,
-			array( 'sakura-admin-core' ),
-			Page_Assets::asset_version( $bundle ),
-			true
-		);
 	}
 }

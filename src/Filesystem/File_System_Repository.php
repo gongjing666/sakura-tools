@@ -10,7 +10,6 @@ declare( strict_types=1 );
 namespace Sakura\ImageOptimizer\Filesystem;
 
 use Sakura\ImageOptimizer\Contracts\File_System_Interface;
-use Sakura\ImageOptimizer\File_System;
 
 defined( 'ABSPATH' ) || exit;
 

@@ -8,7 +8,7 @@
  *
  * @package Sakura_Image_Optimizer
  *
- * @var array<string, mixed> $payload Storage_Payload::build() output.
+ * @var array<string, mixed> $payload App_Manifest::payload( 'storage-connection' ) output.
  */
 
 use Sakura\ImageOptimizer\Admin\UI;

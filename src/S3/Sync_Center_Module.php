@@ -9,6 +9,7 @@ declare( strict_types=1 );
 
 namespace Sakura\ImageOptimizer\S3;
 
+use Sakura\ImageOptimizer\Admin\App_Manifest;
 use Sakura\ImageOptimizer\Contracts\Module;
 use Sakura\ImageOptimizer\Sync\Action_Worker;
 use Sakura\ImageOptimizer\Sync\Feature;
@@ -146,7 +147,7 @@ final class Sync_Center_Module implements Module {
 	}
 
 	/**
-	 * View data, computed once per request for both enqueue config and render.
+	 * View data, computed once per request for the payload builders.
 	 *
 	 * @return array<string,mixed>
 	 */
@@ -159,52 +160,39 @@ final class Sync_Center_Module implements Module {
 	}
 
 	/**
-	 * Format sync events for the client-side log list.
+	 * Format a timestamp, with a fallback for the minimal test shim.
 	 *
-	 * @param array<int,array<string,mixed>> $logs      Raw log rows.
-	 * @param int                            $scan_time Last scan timestamp.
-	 * @return array<int,array<string,string>>
+	 * WordPress always provides wp_date(); the page-contract test loads this
+	 * module against a shim that does not, and the payload must stay buildable
+	 * there.
+	 *
+	 * @param string $format    Date format.
+	 * @param int    $timestamp Unix timestamp.
+	 * @return string
 	 */
-	private function log_payload( array $logs, int $scan_time ): array {
-		$payload = array();
-
-		foreach ( $logs as $log ) {
-			$level           = (string) ( $log['level'] ?? 'info' );
-			$badge           = 'error' === $level ? 'bad' : ( 'warning' === $level ? 'warn' : 'info' );
-			$label           = 'error' === $level ? __( '错误', 'sakura-imgopt' ) : ( 'warning' === $level ? __( '警告', 'sakura-imgopt' ) : __( '信息', 'sakura-imgopt' ) );
-			$payload[]       = array(
-				'time'    => wp_date( 'H:i:s', (int) ( $log['time'] ?? 0 ) ),
-				'level'   => $level,
-				'message' => (string) ( $log['message'] ?? '' ),
-				'badge'   => $badge,
-				'label'   => $label,
-				'scan'    => 'scan: ' . ( $scan_time ? gmdate( 'Ymd-His', $scan_time ) : '—' ),
-			);
-		}
-
-		return $payload;
+	private function date_label( string $format, int $timestamp ): string {
+		return function_exists( 'wp_date' ) ? (string) wp_date( $format, $timestamp ) : (string) gmdate( $format, $timestamp );
 	}
 
+
 	/**
-	 * Data handed to the sync page controller through window.sakuraPage.data.
+	 * Client data folded into the payload's data block.
+	 *
+	 * Endpoints and nonce live in `rest`; everything here is content the island
+	 * needs to build requests and labels.
 	 *
 	 * @return array<string,mixed>
 	 */
 	private function page_config(): array {
-		$data    = $this->page_data();
 		$profile = (string) $this->options->active_profile_id();
 		$token   = '' !== $profile ? Search_Token::create( (int) get_current_user_id(), $profile, 1800 ) : null;
 
 		return array(
-			'ajaxUrl'      => admin_url( 'admin-ajax.php' ),
-			'restUrl'      => esc_url_raw( rest_url( 'sakura-tools/v1' ) ),
-			'restNonce'    => wp_create_nonce( 'wp_rest' ),
 			'searchUrl'    => SAKURA_TOOLS_URL . 'fast-search.php',
 			'searchToken'  => $token,
 			'mediaUrl'     => admin_url( 'upload.php' ),
 			'pageSize'     => 25,
 			'pageSizes'    => array( 25, 50, 100 ),
-			'logs'         => $this->log_payload( (array) $data['logs'], (int) ( $data['snapshot']['scanned_at'] ?? 0 ) ),
 			'indexEnabled' => Feature::enabled(),
 			/* How often the hero pill re-measures the bucket while the page is visible. */
 			'latencyMs'    => 30000,
@@ -311,44 +299,26 @@ final class Sync_Center_Module implements Module {
 			return;
 		}
 
-		$data = $this->page_data();
+		$payload = App_Manifest::payload( 'storage-sync' );
+
+		if ( null === $payload ) {
+			return;
+		}
+
+		$view = isset( $payload['data']['view'] ) && is_array( $payload['data']['view'] ) ? $payload['data']['view'] : array();
 
 		// WP-Cron only advances on traffic, so a site that sat idle for a month
 		// can land here before the monthly event ever ran. Queueing the same
 		// calibration on page view closes that gap; the single event carries
-		// WordPress' own ten-minute duplicate guard.
-		if ( $this->is_calibration_stale( $data ) ) {
+		// WordPress' own ten-minute duplicate guard. The builder already measured
+		// staleness against the same scan row and window.
+		if ( ! empty( $view['index_enabled'] ) && ! empty( $view['storage_enabled'] ) && ! empty( $view['calibrate_stale'] ) ) {
 			Sync_Calibrator::schedule_soon();
 		}
-
-		$payload = $this->payload();
 
 		require __DIR__ . '/../../includes/views/sync-island.php';
 	}
 
-	/**
-	 * Whether the stored cloud numbers are older than the calibration window.
-	 *
-	 * @param array<string,mixed> $data View data.
-	 * @return bool
-	 */
-	private function is_calibration_stale( array $data ): bool {
-		if ( empty( $data['index_enabled'] ) || empty( $data['is_enabled'] ) ) {
-			return false;
-		}
-
-		$scan = is_object( $data['scan'] ) ? $data['scan'] : null;
-		if ( ! $scan || in_array( (string) $scan->state, array( 'queued', 'running' ), true ) ) {
-			return false;
-		}
-
-		$scanned = (int) ( $data['snapshot']['scanned_at'] ?? 0 );
-		if ( $scanned <= 0 ) {
-			return false;
-		}
-
-		return ( time() - $scanned ) >= Sync_Calibrator::STALE_SECONDS;
-	}
 
 	/**
 	 * How long one browser-driven tick may run before yielding to WP-Cron.
@@ -1656,11 +1626,15 @@ final class Sync_Center_Module implements Module {
 		$upload_path = trim( (string) $this->options->upload_path(), '/' );
 		$uploads     = wp_upload_dir( null, false );
 		$upload_dir  = wp_normalize_path( (string) ( $uploads['basedir'] ?? '' ) );
-		$content_dir = wp_normalize_path( WP_CONTENT_DIR );
-		if ( '' !== $upload_dir && 0 === strpos( $upload_dir, $content_dir ) ) {
+		$content_dir = defined( 'WP_CONTENT_DIR' ) ? wp_normalize_path( (string) WP_CONTENT_DIR ) : '';
+		if ( '' !== $content_dir && '' !== $upload_dir && 0 === strpos( $upload_dir, $content_dir ) ) {
 			$local_base = untrailingslashit( content_url( substr( $upload_dir, strlen( $content_dir ) ) ) );
-		} else {
+		} elseif ( function_exists( 'content_url' ) ) {
 			$local_base = untrailingslashit( content_url( '/uploads' ) );
+		} else {
+			// The contract test's shim has neither the constant nor the helper;
+			// preview URLs are irrelevant there, so an empty base is correct.
+			$local_base = '';
 		}
 		$cloud_base  = untrailingslashit( (string) ( $options['upload_url_path'] ?? '' ) );
 		$public      = 'public-read' === $this->options->object_acl();
@@ -1740,7 +1714,7 @@ final class Sync_Center_Module implements Module {
 			'size'         => $size,
 			'size_label'   => Inventory::format_bytes( $size ),
 			'mtime'        => $mtime,
-			'mtime_label'  => $mtime ? wp_date( 'Y/m/d H:i', $mtime ) : '—',
+			'mtime_label'  => $mtime ? $this->date_label( 'Y/m/d H:i', $mtime ) : '—',
 			'local'        => $local,
 			'cloud'        => $cloud,
 			'url'          => $url,

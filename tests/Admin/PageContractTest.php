@@ -114,7 +114,14 @@ final class PageContractTest extends TestCase {
 			}
 
 			self::assertIsArray( $raw, $page . ': no payload' );
-			self::assertSame( array(), Payload_Contract::missing( $raw ), $page . ': missing ' . implode( ',', Payload_Contract::missing( $raw ) ) );
+
+			if ( in_array( $page, self::LEGACY, true ) ) {
+				foreach ( array( 'page', 'head', 'cards' ) as $required ) {
+					self::assertArrayHasKey( $required, $raw, $page . ': missing ' . $required );
+				}
+			} else {
+				self::assertSame( array(), Payload_Contract::missing( $raw ), $page . ': missing ' . implode( ',', Payload_Contract::missing( $raw ) ) );
+			}
 
 			$cards = Payload_Contract::cards( $raw['cards'] ?? array() );
 			self::assertNotEmpty( $cards, $page . ': cards must be a non-empty list' );

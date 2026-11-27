@@ -4,8 +4,9 @@ import { Card, Badge } from '../shared/ui.jsx';
 
 const DEFAULT_VISIBLE = 6;
 
-export default function LogsCard( { card, logs, config, strings } ) {
+export default function LogsCard( { card, logs, data, strings } ) {
 	const copy = strings.logs || {};
+	const ui = strings.ui || {};
 	const [ level, setLevel ] = useState( 'all' );
 	const [ visible, setVisible ] = useState( DEFAULT_VISIBLE );
 	const list = Array.isArray( logs ) ? logs : [];
@@ -19,7 +20,7 @@ export default function LogsCard( { card, logs, config, strings } ) {
 	const remaining = filtered.length - shown.length;
 
 	const exportHref = () => {
-		const url = new URL( config.exportUrl || window.location.href, window.location.href );
+		const url = new URL( data.exportUrl || window.location.href, window.location.href );
 
 		return url.toString();
 	};
@@ -29,12 +30,12 @@ export default function LogsCard( { card, logs, config, strings } ) {
 			card={ card }
 			actions={
 				<a className="btn btn--ghost btn--small" href={ exportHref() }>
-					导出差异表格（CSV）
+					{ ui.exportCsv || '导出差异表格（CSV）' }
 				</a>
 			}
 		>
 			<div className="log-toolbar">
-				<div className="filter-chips" aria-label="日志级别">
+				<div className="filter-chips" aria-label={ ui.logLevelAria || '日志级别' }>
 					{ [ 'all', 'error', 'warning', 'info' ].map( ( value ) => (
 						<button
 							key={ value }

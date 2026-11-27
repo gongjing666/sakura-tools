@@ -7,9 +7,11 @@
  */
 import { useEffect, useRef } from 'react';
 import { Card, Badge } from '../shared/ui.jsx';
+import { format } from './format.js';
 
 export default function TasksCard( { card, view, rows, scan, strings, locked, frozen, indexEnabled, onAction } ) {
 	const s = strings.tasks || {};
+	const ui = strings.ui || {};
 	const running = Boolean( scan.running );
 	const resumable = Boolean( scan.resumable );
 	const percent = Math.round( Number( view.coverage || 0 ) );
@@ -54,7 +56,7 @@ export default function TasksCard( { card, view, rows, scan, strings, locked, fr
 					<div>
 						<div className="task-summary__title">
 							<strong>{ s.latest || '最近一次全量核对' }</strong>
-							<Badge tone={ scan.state_tone || 'neutral' }>{ scan.state_label || '未开始' }</Badge>
+							<Badge tone={ scan.state_tone || 'neutral' }>{ scan.state_label || ui.notStarted || '未开始' }</Badge>
 						</div>
 						<p className="small-text" data-state={ scan.state || '' }>
 							{ scan.meta_text || '' }
@@ -68,7 +70,7 @@ export default function TasksCard( { card, view, rows, scan, strings, locked, fr
 					aria-valuenow={ percent }
 					aria-valuemin={ 0 }
 					aria-valuemax={ 100 }
-					aria-label="同步覆盖进度"
+					aria-label={ ui.progressAria || '同步覆盖进度' }
 				>
 					<span className="progress__bar" style={ { width: Math.min( 100, Math.max( 0, Number( view.coverage || 0 ) ) ) + '%' } }>
 						<span ref={ fizzRef } className="progress__fizz" aria-hidden="true" />
@@ -77,7 +79,7 @@ export default function TasksCard( { card, view, rows, scan, strings, locked, fr
 				</div>
 				<div className="progress-meta">
 					<span>
-						<strong>{ view.synced }</strong> / { view.total } 个文件 · 本地 { view.local_files } · 云端 { view.cloud_objects }
+						<strong>{ view.synced }</strong> / { view.total } { format( ui.filesCount || '个文件 · 本地 %1$s · 云端 %2$s', view.local_files, view.cloud_objects ) }
 					</span>
 					<span>{ indexEnabled ? s.liveRead : s.compatRead }</span>
 				</div>
@@ -158,9 +160,9 @@ export default function TasksCard( { card, view, rows, scan, strings, locked, fr
 					{ activity.days.map( ( day ) => (
 						<div className="activity__day" key={ day.key }>
 							<div className="activity__bars">
-								<span className="activity__bar activity__bar--ok" style={ { height: day.okHeight + 'px' } } title={ day.label + '：正常 ' + day.ok } />
+								<span className="activity__bar activity__bar--ok" style={ { height: day.okHeight + 'px' } } title={ format( ui.activityOk || '%1$s：正常 %2$s', day.label, day.ok ) } />
 								{ day.failHeight > 0 ? (
-									<span className="activity__bar activity__bar--bad" style={ { height: day.failHeight + 'px' } } title={ day.label + '：失败 ' + day.fail } />
+									<span className="activity__bar activity__bar--bad" style={ { height: day.failHeight + 'px' } } title={ format( ui.activityBad || '%1$s：失败 %2$s', day.label, day.fail ) } />
 								) : null }
 							</div>
 							<span className="activity__label">{ day.label }</span>

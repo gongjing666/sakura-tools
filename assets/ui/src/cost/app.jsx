@@ -5,8 +5,8 @@
  * first result) comes from the PHP payload; the browser only edits the demand
  * and swaps in the server's normalized result.
  */
-import { useState } from 'react';
-import { Card, Field, PageHead } from '../shared/ui.jsx';
+import { useRef, useState } from 'react';
+import { Card, Field, PageHead, Prompt } from '../shared/ui.jsx';
 import { estimate } from './transport.js';
 
 const NUMBER_FORMAT = new Intl.NumberFormat( 'zh-CN', {
@@ -20,29 +20,11 @@ function money( value ) {
 	return '¥' + NUMBER_FORMAT.format( Number.isFinite( parsed ) ? parsed : 0 );
 }
 
-function errorText( error, fallback ) {
-	if ( error && error.payload ) {
-		if ( error.payload.data && error.payload.data.message ) {
-			return String( error.payload.data.message );
-		}
-
-		if ( error.payload.message ) {
-			return String( error.payload.message );
-		}
-	}
-
-	if ( error && error.message ) {
-		return String( error.message );
-	}
-
-	return fallback || '';
-}
-
-function valuesFrom( config ) {
-	const input = ( config.result || {} ).input || {};
+function valuesFrom( data ) {
+	const input = ( data.result || {} ).input || {};
 	const next = {};
 
-	( config.fields || [] ).forEach( ( field ) => {
+	( data.fields || [] ).forEach( ( field ) => {
 		next[ field.key ] = String( input[ field.key ] !== undefined ? input[ field.key ] : field.value );
 	} );
 
@@ -184,14 +166,42 @@ function FragmentRow( { row, rowKey, detailId, traffic, string, open, onToggle }
 	);
 }
 
+/**
+ * Page root.
+ *
+ * @param {Object} props Boot payload.
+ * @return {JSX.Element} Page.
+ */
 export default function App( { boot } ) {
-	const config = boot.config || {};
-	const strings = config.strings || {};
-	const [ values, setValues ] = useState( () => valuesFrom( config ) );
-	const [ result, setResult ] = useState( config.result || {} );
+	const data = boot.data || {};
+	const strings = boot.strings || {};
+	const rest = boot.rest || {};
+	const [ values, setValues ] = useState( () => valuesFrom( data ) );
+	const [ result, setResult ] = useState( data.result || {} );
 	const [ busy, setBusy ] = useState( false );
 	const [ status, setStatus ] = useState( '' );
 	const [ open, setOpen ] = useState( {} );
+	const [ notice, setNotice ] = useState( null );
+	const opener = useRef( null );
+
+	const notify = ( message, tone ) => {
+		if ( ! message ) {
+			return;
+		}
+
+		opener.current = document.querySelector( '[data-sakura-return-target]' );
+
+		setNotice( {
+			tone,
+			kicker: strings.noticeKicker,
+			title: 'bad' === tone ? strings.noticeErrorTitle : strings.noticeTitle,
+			message,
+			closeLabel: strings.close,
+			closeIcon: strings.closeIcon,
+			mascot: strings.mascot,
+			button: strings.dismiss,
+		} );
+	};
 
 	const onChange = ( key, value ) => {
 		setValues( ( current ) => ( { ...current, [ key ]: value } ) );
@@ -206,17 +216,17 @@ export default function App( { boot } ) {
 		setStatus( strings.estimating );
 
 		try {
-			const next = await estimate( config, values );
+			const next = await estimate( rest, values, strings );
 
 			setResult( next || {} );
-			setValues( valuesFrom( { ...config, result: next || {} } ) );
+			setValues( valuesFrom( { ...data, result: next || {} } ) );
 			setStatus( strings.done );
-			window.SakuraAdmin.ui.toast( strings.done, 'ok', { duration: 4200 } );
+			notify( strings.done, 'ok' );
 		} catch ( error ) {
-			const message = errorText( error, strings.unknown );
+			const message = error && error.message ? String( error.message ) : strings.unknown;
 
 			setStatus( message );
-			window.SakuraAdmin.ui.toast( message, 'bad', { duration: 6000 } );
+			notify( message, 'bad' );
 		} finally {
 			setBusy( false );
 		}
@@ -236,7 +246,7 @@ export default function App( { boot } ) {
 			<div className="page-body">
 				<Card card={ byId.demand } titleProps={ { tabIndex: -1, 'data-sakura-return-target': '1' } }>
 					<div className="cost-form">
-						{ ( config.fields || [] ).map( ( field ) => (
+						{ ( data.fields || [] ).map( ( field ) => (
 							<Field
 								key={ field.key }
 								field={ field }
@@ -254,7 +264,7 @@ export default function App( { boot } ) {
 					</div>
 					<div className="alert alert--info" role="status">
 						<div className="alert__body">
-							{ ( strings.alert || '' ).replace( '%s', config.pricedAt || '' ) }
+							{ ( strings.alert || '' ).replace( '%s', data.pricedAt || '' ) }
 						</div>
 					</div>
 				</Card>
@@ -270,11 +280,15 @@ export default function App( { boot } ) {
 
 				<Card card={ byId.notes }>
 					<ul className="notes-list">
-						{ ( config.notes || [] ).map( ( note, index ) => <li key={ index }>{ note }</li> ) }
+						{ ( data.notes || [] ).map( ( note, index ) => <li key={ index }>{ note }</li> ) }
 					</ul>
-					{ sourceList( config.sources, strings ) }
+					{ sourceList( data.sources, strings ) }
 				</Card>
 			</div>
+
+			{ notice ? (
+				<Prompt notice={ notice } onClose={ () => setNotice( null ) } returnFocus={ opener } />
+			) : null }
 		</>
 	);
 }

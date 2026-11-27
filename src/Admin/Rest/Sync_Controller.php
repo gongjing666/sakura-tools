@@ -2,9 +2,9 @@
 /**
  * REST surface for the sync centre's scan lifecycle.
  *
- * The handlers live on Sync_Center_Module so the admin-ajax adapters and these
- * routes share one implementation: no controller copies the reconcile gate, the
- * scan state machine or the queue rules.
+ * The handlers live on Sync_Center_Module so the page payload and these routes
+ * share one implementation: no controller copies the reconcile gate, the scan
+ * state machine or the queue rules.
  *
  * @package Sakura_Image_Optimizer
  */
@@ -27,8 +27,11 @@ final class Sync_Controller {
 
 	/**
 	 * Namespace shared with the other storage routes.
+	 *
+	 * Public because the page payload names this controller's base route through
+	 * Payload_Contract::rest_for() instead of hard-coding the path twice.
 	 */
-	private const NS = 'sakura-tools/v1';
+	public const NS = 'sakura-tools/v1';
 
 	/**
 	 * Register the routes.

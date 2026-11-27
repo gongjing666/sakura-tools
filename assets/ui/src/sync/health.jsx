@@ -3,9 +3,11 @@
  * local-only controls that stay usable while the page is gated.
  */
 import { Card } from '../shared/ui.jsx';
+import { format } from './format.js';
 
-export default function HealthCard( { card, view, strings, config, frozen, indexEnabled, onToggle, onTest } ) {
+export default function HealthCard( { card, view, strings, data, frozen, indexEnabled, onToggle, onTest } ) {
 	const h = strings.health || {};
+	const ui = strings.ui || {};
 	const healthy = view.is_configured && view.storage_enabled;
 	const healthText = ! view.is_configured ? h.unhealthyConfig : ! view.storage_enabled ? h.unhealthyOff : h.healthy;
 	const d = h.dash || '—';
@@ -54,7 +56,14 @@ export default function HealthCard( { card, view, strings, config, frozen, index
 					<div className="health__row">
 						<dt>{ h.metrics }</dt>
 						<dd className="health__mono">
-							页面 { view.metrics.pages } · 批次 { view.metrics.batches } · 均 { view.metrics.batch_ms } ms · 429 { view.metrics.s429 } · 5xx { view.metrics.s5xx }
+							{ format(
+								ui.healthMetrics || '页面 %1$s · 批次 %2$s · 均 %3$s ms · 429 %4$s · 5xx %5$s',
+								view.metrics.pages,
+								view.metrics.batches,
+								view.metrics.batch_ms,
+								view.metrics.s429,
+								view.metrics.s5xx
+							) }
 						</dd>
 					</div>
 					<div className="health__row">
@@ -73,7 +82,7 @@ export default function HealthCard( { card, view, strings, config, frozen, index
 					<button type="button" className="btn btn--small" disabled={ frozen } onClick={ ( event ) => onTest( event.currentTarget ) }>
 						{ h.test }
 					</button>
-					<a className="btn btn--ghost btn--small" href={ config.settingsUrl || '#' }>
+					<a className="btn btn--ghost btn--small" href={ data.settingsUrl || '#' }>
 						{ h.manage }
 					</a>
 				</div>

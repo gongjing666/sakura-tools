@@ -136,7 +136,7 @@ final class Payload_Contract {
 			$normalised[] = $card;
 		}
 
-		return array_values( $normalised );
+		return $normalised;
 	}
 
 	/**

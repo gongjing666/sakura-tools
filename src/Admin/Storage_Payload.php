@@ -46,32 +46,51 @@ final class Storage_Payload {
 	public function build(): array {
 		$page = $this->page_args();
 
+		$rest = Payload_Contract::rest_for(
+			rest_url( Storage_Controller::NS . '/storage' ),
+			'storage-connection'
+		);
+
+		// Extra endpoints stay named, absolute URLs: the client must never derive
+		// one route from another by string surgery (14-后台页面契约 §3).
+		$rest['metrics']    = array(
+			'refresh' => esc_url_raw( rest_url( Storage_Controller::NS . '/storage/metrics' ) ),
+		);
+		$rest['monitoring'] = array(
+			'save'   => esc_url_raw( rest_url( Storage_Controller::NS . '/storage/monitoring' ) ),
+			'test'   => esc_url_raw( rest_url( Storage_Controller::NS . '/storage/monitoring/test' ) ),
+			'rotate' => esc_url_raw( rest_url( Storage_Controller::NS . '/storage/monitoring/rotate' ) ),
+		);
+
 		return array(
-			'version'    => SAKURA_TOOLS_VERSION,
-			'status'     => $this->status(),
-			'alerts'     => $this->alerts(),
-			'notice'     => S3_Storage_Page::notice_payload(),
-			'page'       => $page,
-			'head'       => UI\Page::head_data( $page ),
-			'chrome'     => Shell::header_data( 'storage', 'connection' ),
-			'rest'       => array(
-				'url'        => esc_url_raw( rest_url( Storage_Controller::NS . '/storage' ) ),
-				'nonce'      => wp_create_nonce( 'wp_rest' ),
-				'metrics'    => array(
-					'refresh' => esc_url_raw( rest_url( Storage_Controller::NS . '/storage/metrics' ) ),
-				),
-				'monitoring' => array(
-					'save'   => esc_url_raw( rest_url( Storage_Controller::NS . '/storage/monitoring' ) ),
-					'test'   => esc_url_raw( rest_url( Storage_Controller::NS . '/storage/monitoring/test' ) ),
-					'rotate' => esc_url_raw( rest_url( Storage_Controller::NS . '/storage/monitoring/rotate' ) ),
-				),
-			),
-			'strings'    => $this->strings(),
-			'profiles'   => $this->profiles(),
-			'connection' => $this->connection(),
-			'behaviour'  => $this->behaviour(),
-			'metrics'    => self::section( 'Sakura\\ImageOptimizer\\Admin\\Storage_Metrics_Card' ),
-			'monitoring' => self::section( 'Sakura\\ImageOptimizer\\Admin\\Storage_Monitoring_Card' ),
+			'version' => SAKURA_TOOLS_VERSION,
+			'alerts'  => $this->alerts(),
+			'notice'  => S3_Storage_Page::notice_payload(),
+			'page'    => $page,
+			'head'    => UI\Page::head_data( $page ),
+			'chrome'  => Shell::header_data( 'storage', 'connection' ),
+			'cards'   => $this->cards(),
+			'strings' => $this->strings(),
+			'rest'    => $rest,
+		);
+	}
+
+	/**
+	 * The five cards, in Layout::PAGES['s3'] order.
+	 *
+	 * Each card carries its own data; React looks one up by id and hands the
+	 * whole array to <Card>. A page-level copy of the same values would be a
+	 * second source of truth the shell would have to keep in step.
+	 *
+	 * @return array<int,array<string,mixed>>
+	 */
+	private function cards(): array {
+		return array(
+			$this->profiles(),
+			$this->connection(),
+			$this->behaviour(),
+			self::section( 'Sakura\\ImageOptimizer\\Admin\\Storage_Metrics_Card' ),
+			self::section( 'Sakura\\ImageOptimizer\\Admin\\Storage_Monitoring_Card' ),
 		);
 	}
 
@@ -259,6 +278,17 @@ final class Storage_Payload {
 			'closeDialog'         => __( '知道了', 'sakura-imgopt' ),
 			'confirmDelete'       => __( '确认删除', 'sakura-imgopt' ),
 			'lockTitle'           => __( '已随绑定锁定，不能在这里切换。', 'sakura-imgopt' ),
+			'failed'              => __( '请求失败，请稍后重试。', 'sakura-imgopt' ),
+			'network'             => __( '网络请求失败，服务器没有响应。', 'sakura-imgopt' ),
+			'closeLabel'          => __( '关闭', 'sakura-imgopt' ),
+			'closeIcon'           => UI\Modal::close_icon(),
+			'mascot'              => UI\Modal::mascot(),
+			// Dialog kickers live here so no JSX file carries copy of its own.
+			'kickers'             => array(
+				'storage'       => 'OBJECT STORAGE',
+				'doge'          => 'DOGECLOUD',
+				'behaviourRisk' => 'BEHAVIOUR / RISK',
+			),
 		);
 	}
 

@@ -14,28 +14,6 @@ export const DEFAULTS = {
 	shadow: 'default',
 };
 
-/**
- * Read the inline payload printed by the view.
- *
- * @return {object|null} Payload, or null when the page was rendered without one.
- */
-export function readBootstrap() {
-	const node = document.getElementById( 'sakura-system-bootstrap' );
-
-	if ( ! node ) {
-		return null;
-	}
-
-	try {
-		return JSON.parse( node.textContent || '{}' );
-	} catch ( error ) {
-		// A broken payload must be loud in the console but must not take the
-		// rest of the admin down: the shell is still server-rendered.
-		console.error( 'sakura-tools: the system payload could not be parsed', error );
-
-		return null;
-	}
-}
 
 /**
  * Flatten the layout fields into the shape the REST route and the canvas take.

@@ -2,11 +2,11 @@
  * The sync center island.
  *
  * The server decides every number; this component arranges them and owns the
- * interactions the classic controller used to bind by hand. Requests still go
- * to the same admin-ajax handlers, so scan/refresh/retry/adopt behave exactly
- * as they did before the move.
+ * interactions. Mutations go through REST, are followed by `rest.refresh`, and
+ * the returned payload replaces what is on screen — the document is never
+ * rebuilt.
  */
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { PageHead } from '../shared/ui.jsx';
 import TasksCard from './tasks.jsx';
 import HealthCard from './health.jsx';
@@ -15,34 +15,69 @@ import ReconcileCard from './reconcile.jsx';
 import LogsCard from './logs.jsx';
 import IgnoredCard from './ignored.jsx';
 import NotesCard from './notes.jsx';
-import Dialogs from './dialogs.jsx';
-import { post, errorText, toast, restoreToast, reloadWithToast } from './transport.js';
+import { post, refresh, errorText, toast } from './transport.js';
+import { format } from './format.js';
 import { Frontline, KpiStrip } from './overview.jsx';
 
 export default function App( { boot } ) {
-	const config = boot.config || {};
+	const rest = boot.rest || {};
 	const strings = boot.strings || {};
-	const view = boot.view || {};
-	const [ live, setLive ] = useState( () => ( {
-		scan: view.scan || {},
-		rows: boot.rows || [],
-		logs: boot.logs || [],
+	const [ page, setPage ] = useState( () => ( {
+		data: boot.data || {},
+		cards: Array.isArray( boot.cards ) ? boot.cards : [],
+		scan: ( boot.data && boot.data.view && boot.data.view.scan ) || {},
+		revision: 0,
 	} ) );
-	const [ notice, setNotice ] = useState( null );
 	const [ error, setError ] = useState( '' );
 	const tokenRef = useRef( 0 );
 	const busyRef = useRef( false );
 
+	const data = page.data;
+	const view = data.view || {};
+	const cards = page.cards;
+	const stringsAll = useMemo( () => ( { ...strings, ...( data.strings || {} ) } ), [ strings, data.strings ] );
+
 	const locked = Boolean( view.locked );
 	const frozen = Boolean( view.frozen );
-	const gated = Boolean( view.reconcile_gated );
 	const indexEnabled = Boolean( view.index_enabled );
 
-	const stringsAll = useMemo( () => ( { ...strings, ...( config.strings || {} ) } ), [ strings, config.strings ] );
+	/** Replace what the first paint showed with a freshly fetched payload. */
+	const adopt = useCallback( ( payload ) => {
+		if ( ! payload || ! payload.data || 'object' !== typeof payload.data ) {
+			return;
+		}
 
-	useEffect( () => {
-		restoreToast();
+		const next = payload.data;
+
+		setPage( ( current ) => ( {
+			data: next,
+			cards: Array.isArray( payload.cards ) ? payload.cards : current.cards,
+			scan: ( next.view && next.view.scan ) || current.scan,
+			revision: current.revision + 1,
+		} ) );
+		setError( '' );
 	}, [] );
+
+	/**
+	 * Refresh the page after a mutation, then report. This replaces the document
+	 * reload the classic page did: the payload carries view / rows / logs / cards.
+	 *
+	 * @param {string} message Copy from the response or strings.
+	 * @param {string} tone    Toast tone.
+	 * @return {Promise<void>}
+	 */
+	const settle = useCallback( async ( message, tone ) => {
+		try {
+			adopt( await refresh( rest, stringsAll ) );
+		} catch ( failure ) {
+			// The mutation itself succeeded; a stale screen is the only cost, and the
+			// next action rebuilds it.
+		}
+
+		if ( message ) {
+			toast( message, tone );
+		}
+	}, [ adopt, rest, stringsAll ] );
 
 	/** Non-stale guard for polling: a new scan replaces the old follower. */
 	const follow = ( scanId ) => {
@@ -57,33 +92,33 @@ export default function App( { boot } ) {
 					return;
 				}
 
-				post( config, 'scan/step', { scan_id: scanId } )
-					.then( ( data ) => {
+				post( rest, 'scan/step', { scan_id: scanId }, stringsAll )
+					.then( ( result ) => {
 						if ( token !== tokenRef.current ) {
 							resolve( { state: 'detached' } );
 							return;
 						}
 
-						setLive( ( current ) => ( {
+						setPage( ( current ) => ( {
 							...current,
 							scan: {
 								...current.scan,
-								id: Number( data.scan_id || scanId ),
-								state: String( data.state || '' ),
-								phase: String( data.phase || '' ),
-								running: 'queued' === data.state || 'running' === data.state,
-								processed: Number( data.processed || 0 ),
-								busy: Boolean( data.busy ),
+								id: Number( result.scan_id || scanId ),
+								state: String( result.state || '' ),
+								phase: String( result.phase || '' ),
+								running: 'queued' === result.state || 'running' === result.state,
+								processed: Number( result.processed || 0 ),
+								busy: Boolean( result.busy ),
 							},
 						} ) );
 
-						if ( 'queued' === data.state || 'running' === data.state ) {
+						if ( 'queued' === result.state || 'running' === result.state ) {
 							attempt = Math.min( attempt + 1, delays.length - 1 );
 							window.setTimeout( step, delays[ attempt ] );
 							return;
 						}
 
-						resolve( data );
+						resolve( result );
 					} )
 					.catch( reject );
 			};
@@ -101,47 +136,48 @@ export default function App( { boot } ) {
 		busyRef.current = true;
 		const path = 'resume' === mode ? 'scan/resume' : 'scan';
 
-		post( config, path )
-			.then( ( data ) => {
-				const state = String( data.state || '' );
+		post( rest, path, {}, stringsAll )
+			.then( ( result ) => {
+				const state = String( result.state || '' );
 
-				if ( ! data.scan_id ) {
+				if ( ! result.scan_id ) {
 					throw new Error( stringsAll.unknownError );
 				}
 
 				if ( 'done' === state ) {
-					reloadWithToast( data.message || stringsAll.done );
-					return null;
+					return settle( result.message || stringsAll.done );
 				}
 
 				if ( 'queued' !== state && 'running' !== state ) {
-					reloadWithToast( data.message || stringsAll.done );
-					return null;
+					return settle( result.message || stringsAll.done );
 				}
 
-				setLive( ( current ) => ( {
+				setPage( ( current ) => ( {
 					...current,
 					scan: {
 						...current.scan,
-						id: Number( data.scan_id ),
+						id: Number( result.scan_id ),
 						state,
-						phase: String( data.phase || '' ),
+						phase: String( result.phase || '' ),
 						running: true,
-						processed: Number( ( data.progress && data.progress.processed ) || 0 ),
+						processed: Number( ( result.progress && result.progress.processed ) || 0 ),
 					},
 				} ) );
 
-				return follow( data.scan_id ).then( ( final ) => {
-					reloadWithToast(
+				return follow( result.scan_id ).then( ( final ) => {
+					// A cancel (or a newer scan) already settled this through its own path.
+					if ( 'detached' === ( final && final.state ) ) {
+						return undefined;
+					}
+
+					return settle(
 						( final && final.message ) || stringsAll.done,
 						'cancelled' === ( final && final.state ) ? 'warn' : 'ok'
 					);
-
-					return null;
 				} );
 			} )
-			.catch( ( err ) => {
-				toast( errorText( err, stringsAll.unknownError ), 'bad' );
+			.catch( ( failure ) => {
+				toast( errorText( failure, stringsAll.unknownError ), 'bad' );
 			} )
 			.finally( () => {
 				busyRef.current = false;
@@ -156,12 +192,10 @@ export default function App( { boot } ) {
 		busyRef.current = true;
 		const restore = button ? window.SakuraAdmin.ui.busy( button, true ) : null;
 
-		post( config, 'refresh' )
-			.then( ( data ) => {
-				reloadWithToast( data.message || stringsAll.refreshed );
-			} )
-			.catch( ( err ) => {
-				toast( errorText( err, stringsAll.unknownError ), 'bad' );
+		post( rest, 'refresh', {}, stringsAll )
+			.then( ( result ) => settle( result.message || stringsAll.refreshed ) )
+			.catch( ( failure ) => {
+				toast( errorText( failure, stringsAll.unknownError ), 'bad' );
 			} )
 			.finally( () => {
 				if ( restore ) {
@@ -173,60 +207,51 @@ export default function App( { boot } ) {
 	};
 
 	const cancelScan = () => {
-		post( config, 'scan/cancel', { scan_id: Number( live.scan.id || 0 ) } )
+		post( rest, 'scan/cancel', { scan_id: Number( page.scan.id || 0 ) }, stringsAll )
 			.then( () => {
 				++tokenRef.current;
-				reloadWithToast( stringsAll.cancelled, 'warn' );
+
+				return settle( stringsAll.cancelled, 'warn' );
 			} )
-			.catch( ( err ) => {
-				toast( errorText( err, stringsAll.cancelFailed ), 'bad' );
+			.catch( ( failure ) => {
+				toast( errorText( failure, stringsAll.cancelFailed ), 'bad' );
 			} );
 	};
 
 	const retryAll = () => {
-		post( config, 'retry', { attachment_id: 0 } )
-			.then( ( data ) => {
-				reloadWithToast( data.message || stringsAll.retryDone );
-			} )
-			.catch( ( err ) => {
-				toast( errorText( err, stringsAll.unknownError ), 'bad' );
+		post( rest, 'retry', { attachment_id: 0 }, stringsAll )
+			.then( ( result ) => settle( result.message || stringsAll.retryDone ) )
+			.catch( ( failure ) => {
+				toast( errorText( failure, stringsAll.unknownError ), 'bad' );
 			} );
 	};
 
 	const toggleIndex = () => {
-		post( config, 'toggle', { enabled: indexEnabled ? '0' : '1' } )
-			.then( ( data ) => {
-				reloadWithToast( data.message || stringsAll.actionDone );
-			} )
-			.catch( ( err ) => {
-				toast( errorText( err, stringsAll.unknownError ), 'bad' );
+		post( rest, 'toggle', { enabled: indexEnabled ? '0' : '1' }, stringsAll )
+			.then( ( result ) => settle( result.message || stringsAll.actionDone ) )
+			.catch( ( failure ) => {
+				toast( errorText( failure, stringsAll.unknownError ), 'bad' );
 			} );
 	};
 
 	const testConnection = ( button ) => {
 		const restore = button ? window.SakuraAdmin.ui.busy( button, true ) : null;
 
-		post( config, 'test' )
-			.then( ( data ) => {
-				toast( data.message || stringsAll.testDone );
+		post( rest, 'test', {}, stringsAll )
+			.then( ( result ) => {
+				toast( result.message || stringsAll.testDone );
 				const pill = document.querySelector( '.status-card__ping' );
 
-				if ( pill && data.latency != null ) {
-					const text = pill.querySelector( '.status-card__ping-text' );
+				if ( pill && result.latency != null ) {
+					const ms = pill.querySelector( '[data-sakura-ping-ms]' );
 
-					if ( text ) {
-						text.textContent = 'headBucket';
-
-						const ms = pill.querySelector( '[data-sakura-ping-ms]' );
-
-						if ( ms ) {
-							ms.textContent = Number( data.latency ) + ' ms';
-						}
+					if ( ms ) {
+						ms.textContent = Number( result.latency ) + ' ms';
 					}
 				}
 			} )
-			.catch( ( err ) => {
-				toast( errorText( err, stringsAll.unknownError ), 'bad' );
+			.catch( ( failure ) => {
+				toast( errorText( failure, stringsAll.unknownError ), 'bad' );
 			} )
 			.finally( () => {
 				if ( restore ) {
@@ -245,7 +270,10 @@ export default function App( { boot } ) {
 		'test-connection': testConnection,
 	};
 
-	const setRows = ( rows ) => setLive( ( current ) => ( { ...current, rows } ) );
+	const setRows = ( rows ) => setPage( ( current ) => ( {
+		...current,
+		data: { ...current.data, rows },
+	} ) );
 
 	return (
 		<>
@@ -258,20 +286,21 @@ export default function App( { boot } ) {
 				) : null }
 				<Notices view={ view } strings={ stringsAll } onScan={ actions.scan } onToggle={ toggleIndex } />
 				<Frontline frontline={ view.frontline } />
-				<KpiStrip kpis={ view.kpis } />
+				<KpiStrip kpis={ view.kpis } label={ ( stringsAll.ui || {} ).summaryAria } />
 				<div className="card-grid" data-sakura-layout={ boot.page.id }>
 					<IgnoredCard
-						card={ findCard( boot.cards, 'ignored' ) }
-						view={ view }
-						strings={ strings }
-						config={ config }
+						card={ findCard( cards, 'ignored' ) }
+						data={ data }
+						strings={ stringsAll }
+						rest={ rest }
 						frozen={ frozen }
+						onRefresh={ settle }
 					/>
 					<TasksCard
-						card={ findCard( boot.cards, 'tasks' ) }
+						card={ findCard( cards, 'tasks' ) }
 						view={ view }
-						rows={ boot.rows }
-						scan={ live.scan }
+						rows={ data.rows }
+						scan={ page.scan }
 						strings={ stringsAll }
 						locked={ locked }
 						frozen={ frozen }
@@ -279,58 +308,50 @@ export default function App( { boot } ) {
 						onAction={ actions }
 					/>
 					<HealthCard
-						card={ findCard( boot.cards, 'health' ) }
+						card={ findCard( cards, 'health' ) }
 						view={ view }
 						strings={ stringsAll }
-						config={ config }
+						data={ data }
 						frozen={ frozen }
 						indexEnabled={ indexEnabled }
 						onToggle={ toggleIndex }
 						onTest={ actions[ 'test-connection' ] }
 					/>
 					<StorageCard
-						card={ findCard( boot.cards, 'storage' ) }
+						card={ findCard( cards, 'storage' ) }
 						view={ view }
-						scan={ live.scan }
+						scan={ page.scan }
 						strings={ stringsAll }
 						locked={ locked }
 						frozen={ frozen }
 						onScan={ actions.scan }
 						onResume={ actions.resume }
 					/>
-					<NotesCard card={ findCard( boot.cards, 'notes' ) } notes={ strings.notes } />
+					<NotesCard card={ findCard( cards, 'notes' ) } notes={ strings.notes } />
 					<ReconcileCard
-						card={ findCard( boot.cards, 'reconcile' ) }
+						card={ findCard( cards, 'reconcile' ) }
 						view={ view }
-						rows={ live.rows }
-						config={ config }
+						rows={ data.rows }
+						rest={ rest }
+						data={ data }
 						strings={ stringsAll }
 						locked={ locked }
 						frozen={ frozen }
-						gated={ gated }
+						revision={ page.revision }
 						onScan={ actions.scan }
 						onRows={ setRows }
+						onRefresh={ settle }
 						onError={ setError }
-						onNotice={ setNotice }
 					/>
 					<LogsCard
-						card={ findCard( boot.cards, 'logs' ) }
-						logs={ live.logs }
-						config={ config }
+						card={ findCard( cards, 'logs' ) }
+						logs={ data.logs }
+						data={ data }
 						strings={ stringsAll }
 					/>
 				</div>
 			</div>
-			<Dialogs
-				notice={ notice }
-				onClose={ () => setNotice( null ) }
-				config={ config }
-				onScan={ () => {
-					setNotice( null );
-					actions.scan();
-				} }
-			/>
-			<LatencyPill config={ config } strings={ stringsAll } />
+			<LatencyPill rest={ rest } data={ data } strings={ stringsAll } />
 		</>
 	);
 }
@@ -341,12 +362,14 @@ function findCard( cards, id ) {
 
 /** The state strips above the grid, in the same order the classic page used. */
 function Notices( { view, strings, onScan, onToggle } ) {
+	const ui = strings.ui || {};
+	const scan = view.scan || {};
 	const items = [];
 
 	if ( view.frozen ) {
 		items.push(
 			<div className="notice-inline notice-inline--warn" role="status" key="frozen">
-				<p>对象存储已停用：核对、上传、下载与删除都暂时停下，下方的数字停留在停用之前。重新启用后可以继续。</p>
+				<p>{ ui.frozen }</p>
 			</div>
 		);
 	}
@@ -354,9 +377,7 @@ function Notices( { view, strings, onScan, onToggle } ) {
 	if ( view.reconcile_gated ) {
 		const from = view.reconcile_gate && view.reconcile_gate.from ? view.reconcile_gate.from : '';
 		const bucket = view.reconcile_gate && view.reconcile_gate.bucket ? view.reconcile_gate.bucket : '';
-		const text = from
-			? '存储目标已从「' + from + '」切换到当前配置（桶 ' + bucket + '），下方的数字还是上一个桶的。下载、上传、删除与刷新差异暂时停下，点「开始完整核对」重建索引后自动恢复。'
-			: '存储目标已切换，下方的数字还是上一个桶的。下载、上传、删除与刷新差异暂时停下，点「开始完整核对」重建索引后自动恢复。';
+		const text = from ? format( ui.gatedFrom, from, bucket ) : ui.gated;
 
 		items.push(
 			<div className="notice-inline notice-inline--warn" role="status" key="gated">
@@ -368,7 +389,7 @@ function Notices( { view, strings, onScan, onToggle } ) {
 	if ( ! view.index_enabled ) {
 		items.push(
 			<div className="alert alert--warn" role="status" key="compat">
-				<strong className="alert__title">兼容模式</strong>
+				<strong className="alert__title">{ ui.compatTitle }</strong>
 				<div className="alert__body" dangerouslySetInnerHTML={ { __html: view.legacy_message || '' } } />
 				<div className="button-row">
 					<button
@@ -378,17 +399,17 @@ function Notices( { view, strings, onScan, onToggle } ) {
 						disabled={ view.frozen }
 						onClick={ onToggle }
 					>
-						启用同步记录
+						{ ui.enableIndex }
 					</button>
 				</div>
 			</div>
 		);
 	}
 
-	if ( view.scan.running || view.scan.resumable ) {
-		const text = view.scan.running
-			? '核对进行中（' + ( view.scan.phase_label || '准备中' ) + '，已处理 ' + view.scan.processed + ' 个），可关闭页面由后台继续；也可随时停止。'
-			: '上一次核对中断，同步记录仍可用；点击“继续核对”会从断点续跑，不会产生重复行。';
+	if ( scan.running || scan.resumable ) {
+		const text = scan.running
+			? format( ui.scanRunning, scan.phase_label || ui.scanPhaseFallback, scan.processed )
+			: ui.scanInterrupted;
 
 		items.push(
 			<div className="notice-inline notice-inline--info" role="status" key="scan">
@@ -400,10 +421,10 @@ function Notices( { view, strings, onScan, onToggle } ) {
 	if ( view.calibrate_stale && ! view.locked ) {
 		items.push(
 			<div className="notice-inline notice-inline--warn" role="status" key="calibrate">
-				<p>云端数据已超过 30 天未校准，期间的对象增删不会体现在下方统计里。校准会自动排队，也可以用下面的按钮现在开始。</p>
+				<p>{ ui.calibrate }</p>
 				<div className="button-row">
 					<button type="button" className="btn btn--small" disabled={ view.frozen } onClick={ onScan }>
-						立即校准
+						{ ui.calibrateNow }
 					</button>
 				</div>
 			</div>
@@ -416,16 +437,7 @@ function Notices( { view, strings, onScan, onToggle } ) {
 				<div
 					className="alert__body"
 					dangerouslySetInnerHTML={ {
-						__html:
-							'最近一次全量核对发现 <strong>' +
-							view.difference +
-							' 项差异</strong>：' +
-							view.pending +
-							' 个只在本地上传、' +
-							view.failed_count +
-							' 个上传失败、' +
-							view.remote +
-							' 个只在云端。建议先处理失败项，再执行批量上传（按附件补齐全部分辨率并逐个校验）。',
+						__html: format( ui.diff, view.difference, view.pending, view.failed_count, view.remote ),
 					} }
 				/>
 			</div>
@@ -440,7 +452,7 @@ function Notices( { view, strings, onScan, onToggle } ) {
 }
 
 /** Hero pill: re-measures the bucket every 30s while the tab is visible. */
-function LatencyPill( { config, strings } ) {
+function LatencyPill( { rest, data, strings } ) {
 	useEffect( () => {
 		const pill = document.querySelector( '[data-sakura-ping]' );
 
@@ -474,9 +486,9 @@ function LatencyPill( { config, strings } ) {
 				return;
 			}
 
-			post( config, 'latency' )
-				.then( ( data ) => {
-					const ms = Number( data.ms || 0 );
+			post( rest, 'latency', {}, strings )
+				.then( ( result ) => {
+					const ms = Number( result.ms || 0 );
 					recent.push( ms );
 
 					while ( recent.length > 3 ) {
@@ -498,7 +510,7 @@ function LatencyPill( { config, strings } ) {
 		const start = () => {
 			stopped = false;
 			measure();
-			timer = window.setInterval( measure, Number( config.latencyMs || 30000 ) );
+			timer = window.setInterval( measure, Number( data.latencyMs || 30000 ) );
 		};
 
 		const stop = () => {
@@ -525,7 +537,7 @@ function LatencyPill( { config, strings } ) {
 			stop();
 			document.removeEventListener( 'visibilitychange', onVisibility );
 		};
-	}, [ config, strings ] );
+	}, [ rest, data, strings ] );
 
 	return null;
 }

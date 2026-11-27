@@ -2,13 +2,13 @@
  * Entry point for the experimental persistent admin shell.
  *
  * The page arrives as server HTML: top bar, tab strip and content frame are
- * printed by PHP. With `sakura_imgopt_admin_app` on, this bundle hydrates the two
- * chrome nodes in place and takes over the content root, so opening another
- * module or tab swaps the body without a document navigation.
+ * printed by PHP. This bundle hydrates the two chrome nodes in place and takes
+ * over the content root, so opening another module or tab swaps the body
+ * without a document navigation.
  *
- * Everything here is inert unless the payload carries a manifest
- * (`app.enabled`): without it the page keeps the server frame, and a missing
- * bundle or an older cached view still renders the ordinary system island.
+ * The manifest decides whether the shell boots. Without it (an older cached
+ * view, a page outside the allowlist) the page keeps the server frame and the
+ * island still renders its content.
  */
 import { createRoot } from 'react-dom/client';
 
@@ -99,8 +99,7 @@ function readManifest() {
 	}
 }
 
-// The dedicated block wins; the system payload still carries its own copy.
-const app = readManifest() || ( boot && boot.app ? boot.app : null );
+const app = readManifest();
 
 if ( ! mainEl ) {
 	// No content root on this render: leave the server frame alone.

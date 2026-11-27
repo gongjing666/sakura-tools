@@ -1,13 +1,14 @@
 /**
  * Reconciliation table: filters, selection, row actions, batch transfer.
  *
- * The endpoints are the ones the classic controller used, including the
- * fast-search path that keeps typing responsive on large indexes and the
- * page endpoint that falls back when the token is missing.
+ * Reads and actions go through the sync REST routes; confirmation uses the
+ * shared Dialog, and every successful mutation refreshes the page payload
+ * instead of reloading the document.
  */
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Card, Badge } from '../shared/ui.jsx';
-import { post, errorText, toast, reloadWithToast } from './transport.js';
+import { Dialog } from '../shared/Dialog.jsx';
+import { post, errorText, toast } from './transport.js';
 
 const MAX_SELECT = 100;
 
@@ -39,8 +40,7 @@ function phpBytes( bytes ) {
 /**
  * Both the page endpoint and fast-search hand back raw index rows, while the
  * first-screen payload is built in PHP and already carries display fields.
- * Reloading used to drop those, so the type / size / status / changed columns
- * came back blank. Rebuild the same shape here so both paths render alike.
+ * Rebuild the same shape here so both paths render alike.
  */
 function normalizeRow( row, statusLabels ) {
 	const key = String( row.key || '' );
@@ -73,16 +73,17 @@ function normalizeRow( row, statusLabels ) {
 	} );
 }
 
-export default function ReconcileCard( { card, view, rows, config, strings, locked, frozen, gated, onScan, onRows, onError } ) {
+export default function ReconcileCard( { card, view, rows, rest, data, strings, locked, frozen, revision, onScan, onRows, onRefresh, onError } ) {
 	const s = strings.reconcile || {};
-	const uiText = config.strings || {};
-	const labels = config.labels || {};
-	const statusLabels = config.statusLabels || {};
+	const uiText = strings;
+	const ui = strings.ui || {};
+	const labels = data.labels || {};
+	const statusLabels = data.statusLabels || {};
 	const [ filter, setFilter ] = useState( 'all' );
 	const [ search, setSearch ] = useState( '' );
 	const [ type, setType ] = useState( 'all' );
 	const [ days, setDays ] = useState( 'all' );
-	const [ pageSize, setPageSize ] = useState( Number( config.pageSize || 25 ) );
+	const [ pageSize, setPageSize ] = useState( Number( data.pageSize || 25 ) );
 	const [ cursor, setCursor ] = useState( view.page_cursor || '' );
 	const [ history, setHistory ] = useState( [ '' ] );
 	const [ page, setPage ] = useState( 1 );
@@ -93,14 +94,59 @@ export default function ReconcileCard( { card, view, rows, config, strings, lock
 	const [ busy, setBusy ] = useState( false );
 	const [ progress, setProgress ] = useState( null );
 	const [ adopt, setAdopt ] = useState( null );
+	const [ dialog, setDialog ] = useState( null );
+	const [ syncedRevision, setSyncedRevision ] = useState( revision );
 	const requestRef = useRef( 0 );
 	const batchRef = useRef( false );
+
+	// A payload refresh replaces the rows with the default first page; reset the
+	// table controls with it, the way the full reload used to. Render-phase state
+	// updates keep this out of an effect.
+	if ( revision !== syncedRevision ) {
+		setSyncedRevision( revision );
+		setFilter( 'all' );
+		setSearch( '' );
+		setType( 'all' );
+		setDays( 'all' );
+		setPage( 1 );
+		setCursor( view.page_cursor || '' );
+		setHistory( [ '' ] );
+		setHasMore( Boolean( view.page_more ) );
+		setTotal( Number( view.total || 0 ) );
+		setMatched( Number( view.total || 0 ) );
+		setSelection( {} );
+	}
 
 	const filtered = 'all' !== filter || search.trim() || 'all' !== type || 'all' !== days;
 	const base = filtered ? matched : total;
 	const start = rows.length ? ( page - 1 ) * pageSize + 1 : 0;
 	const end = Math.min( ( page - 1 ) * pageSize + rows.length, base );
 	const summaryTemplate = filtered ? uiText.summaryFiltered || uiText.summary : uiText.summary;
+
+	/** Ask with the shared Dialog and resolve with the operator's answer. */
+	const ask = ( options ) => new Promise( ( resolve ) => {
+		setDialog( { ...options, resolve } );
+	} );
+
+	const answer = ( value ) => {
+		const open = dialog;
+
+		setDialog( null );
+
+		if ( ! open ) {
+			return;
+		}
+
+		open.resolve( value );
+
+		// Cancelling is already handled by Dialog.close(); confirming unmounts
+		// the card, so the trigger has to get focus back here.
+		if ( value && open.returnFocus && open.returnFocus.current ) {
+			const opener = open.returnFocus.current;
+
+			window.setTimeout( () => opener.focus( { preventScroll: true } ), 0 );
+		}
+	};
 
 	const selectedKeys = ( kind ) =>
 		rows
@@ -171,23 +217,23 @@ export default function ReconcileCard( { card, view, rows, config, strings, lock
 		};
 
 		const fallback = () =>
-			post( config, 'page', {
+			post( rest, 'page', {
 				status: params.status,
 				search: params.search,
 				type: params.type,
 				days: params.days,
 				cursor: params.cursor,
 				limit: params.limit,
-			} );
+			}, strings );
 
 		const run = async () => {
-			if ( config.searchUrl && config.searchToken ) {
+			if ( data.searchUrl && data.searchToken ) {
 				try {
 					const query = new URLSearchParams( {
-						u: String( config.searchToken.u ),
-						e: String( config.searchToken.e ),
-						p: String( config.searchToken.p ),
-						s: String( config.searchToken.s ),
+						u: String( data.searchToken.u ),
+						e: String( data.searchToken.e ),
+						p: String( data.searchToken.p ),
+						s: String( data.searchToken.s ),
 						status: params.status,
 						search: params.search,
 						type: params.type,
@@ -195,7 +241,7 @@ export default function ReconcileCard( { card, view, rows, config, strings, lock
 						cursor: params.cursor,
 						limit: String( params.limit ),
 					} );
-					const response = await fetch( config.searchUrl + '?' + query.toString(), {
+					const response = await fetch( data.searchUrl + '?' + query.toString(), {
 						credentials: 'same-origin',
 					} );
 					const payload = await response.json();
@@ -214,16 +260,16 @@ export default function ReconcileCard( { card, view, rows, config, strings, lock
 		};
 
 		run()
-			.then( ( data ) => {
+			.then( ( result ) => {
 				if ( seq !== requestRef.current ) {
 					return;
 				}
 
-				onRows( Array.isArray( data.rows ) ? data.rows.map( ( row ) => normalizeRow( row, statusLabels ) ) : [] );
-				setCursor( data.cursor || '' );
-				setHasMore( Boolean( data.has_more ) );
-				setTotal( Number( data.total || 0 ) );
-				setMatched( typeof data.filtered_total !== 'undefined' && data.filtered_total !== null ? Number( data.filtered_total ) : filtered ? Number( data.total || 0 ) : Number( data.total || 0 ) );
+				onRows( Array.isArray( result.rows ) ? result.rows.map( ( row ) => normalizeRow( row, statusLabels ) ) : [] );
+				setCursor( result.cursor || '' );
+				setHasMore( Boolean( result.has_more ) );
+				setTotal( Number( result.total || 0 ) );
+				setMatched( typeof result.filtered_total !== 'undefined' && result.filtered_total !== null ? Number( result.filtered_total ) : Number( result.total || 0 ) );
 				setPage( nextPage );
 				setSelection( {} );
 				onError( '' );
@@ -263,45 +309,45 @@ export default function ReconcileCard( { card, view, rows, config, strings, lock
 			return;
 		}
 
-		post( config, 'action', {
+		post( rest, 'action', {
 			sync_action: kind,
 			object_key: row.key,
 			confirm: confirmValue || '',
-		} )
-			.then( ( data ) => {
-				if ( data && data.queued ) {
-					toast( data.message || uiText.queued, 'info' );
-					window.setTimeout( () => window.location.reload(), 1600 );
-					return;
-				}
-
-				reloadWithToast( data.message || uiText.actionDone );
-			} )
-			.catch( ( error ) => toast( errorText( error, uiText.unknownError ), 'bad' ) );
+		}, strings )
+			.then( ( result ) => onRefresh().then( () => toast(
+				result.message || ( result.queued ? uiText.queued : uiText.actionDone ),
+				result.queued ? 'info' : 'ok'
+			) ) )
+			.catch( ( error ) => {
+				toast( errorText( error, uiText.unknownError ), 'bad' );
+			} );
 	};
 
-	const confirmDelete = async ( row ) => {
-		const ok = await window.SakuraAdmin.ui.confirm(
-			( uiText.deleteHead || '云端对象「%s」会被永久删除。' ).replace( '%s', row.name ),
-			{
-				title: uiText.deleteTitleShort || uiText.deleteTitle,
-				note: uiText.deleteNote || '',
-				items: [ row.name + ( row.cloud_label ? ' · ' + row.cloud_label : '' ) ],
-				confirmText: uiText.deleteConfirm || '永久删除',
-				danger: true,
-			}
-		);
+	const confirmDelete = async ( row, opener ) => {
+		const ok = await ask( {
+			tone: 'bad',
+			title: uiText.deleteTitleShort || uiText.deleteTitle,
+			message: ( uiText.deleteHead || '云端对象「%s」会被永久删除。' ).replace( '%s', row.name ),
+			items: [ row.name + ( row.cloud_label ? ' · ' + row.cloud_label : '' ) ],
+			children: uiText.deleteNote ? <p className="small-text">{ uiText.deleteNote }</p> : null,
+			confirmLabel: uiText.deleteConfirm || '永久删除',
+			cancelLabel: ui.cancel || '取消',
+			returnFocus: { current: opener || null },
+		} );
 
 		if ( ok ) {
 			rowAction( 'delete', row, 'DELETE' );
 		}
 	};
 
-	const confirmReplace = async ( row ) => {
-		const ok = await window.SakuraAdmin.ui.confirm( uiText.replaceDesc, {
+	const confirmReplace = async ( row, opener ) => {
+		const ok = await ask( {
+			tone: 'warn',
 			title: uiText.replaceTitle,
-			confirmText: uiText.replaceConfirm,
-			danger: true,
+			message: uiText.replaceDesc,
+			confirmLabel: uiText.replaceConfirm,
+			cancelLabel: ui.cancel || '取消',
+			returnFocus: { current: opener || null },
 		} );
 
 		if ( ok ) {
@@ -313,10 +359,10 @@ export default function ReconcileCard( { card, view, rows, config, strings, lock
 		const payload = row.preview || {};
 
 		if ( ! payload.download && ! payload.url ) {
-			post( config, 'preview', { object_key: row.key } )
-				.then( ( data ) => {
-					if ( data && data.preview ) {
-						window.SakuraAdmin.ui.mediaPreview( data.preview, { trigger: null } );
+			post( rest, 'preview', { object_key: row.key }, strings )
+				.then( ( result ) => {
+					if ( result && result.preview ) {
+						window.SakuraAdmin.ui.mediaPreview( result.preview, { trigger: null } );
 					}
 				} )
 				.catch( ( error ) => toast( errorText( error, uiText.previewError ), 'bad' ) );
@@ -335,9 +381,15 @@ export default function ReconcileCard( { card, view, rows, config, strings, lock
 	const finishBatch = ( message, tone ) => {
 		setProgress( ( current ) => ( current ? { ...current, done: current.total } : current ) );
 		window.setTimeout( () => {
-			reloadWithToast( message || uiText.actionDone, tone || 'ok' );
-		}, 500 );
-		onError( '' );
+			onRefresh().then( () => {
+				batchRef.current = false;
+				setBusy( false );
+				setProgress( null );
+				setSelection( {} );
+				onError( '' );
+				toast( message || uiText.actionDone, tone || 'ok' );
+			} );
+		}, 400 );
 	};
 
 	const batchTransfer = ( kind, keys, confirmValue ) => {
@@ -352,21 +404,21 @@ export default function ReconcileCard( { card, view, rows, config, strings, lock
 		let message = '';
 
 		const step = () => {
-			post( config, 'action', {
+			post( rest, 'action', {
 				sync_action: kind,
 				keys,
 				offset,
 				seconds: 20,
 				...( confirmValue ? { confirm: confirmValue } : {} ),
-			} )
-				.then( ( data ) => {
+			}, strings )
+				.then( ( result ) => {
 					rounds += 1;
 					const processed = Number(
-						data.offset != null
-							? data.offset
-							: Number( data.uploaded || 0 ) + Number( data.downloaded || 0 ) + Number( data.skipped || 0 ) + Number( data.failed || 0 )
+						result.offset != null
+							? result.offset
+							: Number( result.uploaded || 0 ) + Number( result.downloaded || 0 ) + Number( result.skipped || 0 ) + Number( result.failed || 0 )
 					);
-					message = data.message || message;
+					message = result.message || message;
 
 					if ( processed > offset ) {
 						offset = processed;
@@ -374,9 +426,8 @@ export default function ReconcileCard( { card, view, rows, config, strings, lock
 
 					setProgress( { done: Math.min( offset || keys.length, keys.length ), total: keys.length, text: uiText.batchWorking || '正在处理' } );
 
-					if ( data.done || offset >= keys.length || rounds > 200 ) {
-						batchRef.current = false;
-						finishBatch( message, Number( data.failed || 0 ) > 0 ? 'warn' : 'ok' );
+					if ( result.done || offset >= keys.length || rounds > 200 ) {
+						finishBatch( message, Number( result.failed || 0 ) > 0 ? 'warn' : 'ok' );
 						return;
 					}
 
@@ -392,7 +443,7 @@ export default function ReconcileCard( { card, view, rows, config, strings, lock
 		step();
 	};
 
-	const batchUpload = async () => {
+	const batchUpload = async ( opener ) => {
 		const keys = selectedKeys( 'upload' );
 
 		if ( ! keys.length ) {
@@ -403,10 +454,14 @@ export default function ReconcileCard( { card, view, rows, config, strings, lock
 		const replace = rows.filter( ( row ) => selection[ row.key ] && row.cloud ).length;
 
 		if ( replace > 0 ) {
-			const ok = await window.SakuraAdmin.ui.confirm(
-				( uiText.batchReplace || '' ).replace( '%d', String( replace ) ),
-				{ title: uiText.replaceTitle, confirmText: uiText.replaceConfirm, danger: true }
-			);
+			const ok = await ask( {
+				tone: 'warn',
+				title: uiText.replaceTitle,
+				message: ( uiText.batchReplace || '' ).replace( '%d', String( replace ) ),
+				confirmLabel: uiText.replaceConfirm,
+				cancelLabel: ui.cancel || '取消',
+				returnFocus: { current: opener || null },
+			} );
 
 			if ( ! ok ) {
 				return;
@@ -419,7 +474,7 @@ export default function ReconcileCard( { card, view, rows, config, strings, lock
 		batchTransfer( 'upload', keys, '' );
 	};
 
-	const batchDelete = async () => {
+	const batchDelete = async ( opener ) => {
 		const keys = selectedKeys( 'delete' );
 
 		if ( ! keys.length ) {
@@ -433,16 +488,16 @@ export default function ReconcileCard( { card, view, rows, config, strings, lock
 			listed.push( ( uiText.batchDeleteMore || '' ).replace( '%d', String( keys.length - listed.length ) ) );
 		}
 
-		const ok = await window.SakuraAdmin.ui.confirm(
-			( uiText.batchDeleteHead || uiText.batchDeleteDesc ).replace( '%d', String( keys.length ) ),
-			{
-				title: uiText.batchDeleteTitle,
-				note: uiText.batchDeleteNote || '',
-				items: listed,
-				confirmText: ( uiText.batchDeleteConfirm || '' ).replace( '%d', String( keys.length ) ),
-				danger: true,
-			}
-		);
+		const ok = await ask( {
+			tone: 'bad',
+			title: uiText.batchDeleteTitle,
+			message: ( uiText.batchDeleteHead || uiText.batchDeleteDesc ).replace( '%d', String( keys.length ) ),
+			items: listed,
+			children: uiText.batchDeleteNote ? <p className="small-text">{ uiText.batchDeleteNote }</p> : null,
+			confirmLabel: ( uiText.batchDeleteConfirm || '' ).replace( '%d', String( keys.length ) ),
+			cancelLabel: ui.cancel || '取消',
+			returnFocus: { current: opener || null },
+		} );
 
 		if ( ! ok ) {
 			return;
@@ -451,11 +506,10 @@ export default function ReconcileCard( { card, view, rows, config, strings, lock
 		startBatch();
 		setProgress( { done: 0, total: keys.length, text: uiText.batchWorking || '正在处理' } );
 
-		post( config, 'action', { sync_action: 'delete', keys, confirm: 'DELETE' } )
-			.then( ( data ) => {
-				batchRef.current = false;
+		post( rest, 'action', { sync_action: 'delete', keys, confirm: 'DELETE' }, strings )
+			.then( ( result ) => {
 				setProgress( { done: keys.length, total: keys.length, text: uiText.batchWorking || '正在处理' } );
-				finishBatch( data.message || uiText.actionDone, 'ok' );
+				finishBatch( result.message || uiText.actionDone, 'ok' );
 			} )
 			.catch( ( error ) => {
 				batchRef.current = false;
@@ -471,16 +525,16 @@ export default function ReconcileCard( { card, view, rows, config, strings, lock
 		setAdopt( { text: uiText.adoptRunning || '正在补建媒体库记录…' } );
 
 		const step = () => {
-			post( config, 'action', { sync_action: 'adopt', seconds: 20 } )
-				.then( ( data ) => {
-					total = Number( data.total || total );
-					adopted = Number( data.adopted || adopted );
+			post( rest, 'action', { sync_action: 'adopt', seconds: 20 }, strings )
+				.then( ( result ) => {
+					total = Number( result.total || total );
+					adopted = Number( result.adopted || adopted );
 					const text = ( uiText.adoptRunning || '' ) + ' ' + adopted + ' / ' + total;
 					setAdopt( { text } );
 
-					if ( data.done || Number( data.remaining || 0 ) <= 0 ) {
+					if ( result.done || Number( result.remaining || 0 ) <= 0 ) {
 						setAdopt( null );
-						reloadWithToast( data.message || uiText.adoptDone );
+						onRefresh().then( () => toast( result.message || uiText.adoptDone ) );
 						return;
 					}
 
@@ -518,7 +572,7 @@ export default function ReconcileCard( { card, view, rows, config, strings, lock
 					<button type="button" className="btn btn--primary btn--small" disabled={ frozen } onClick={ onScan }>
 						{ s.scanAgain }
 					</button>
-					<a className="btn btn--ghost btn--small" href={ config.exportUrl }>
+					<a className="btn btn--ghost btn--small" href={ data.exportUrl }>
 						{ s.export }
 					</a>
 					<button
@@ -533,7 +587,7 @@ export default function ReconcileCard( { card, view, rows, config, strings, lock
 			}
 		>
 			<div className="recon-toolbar">
-				<div className="filter-chips" role="tablist" aria-label="差异筛选">
+				<div className="filter-chips" role="tablist" aria-label={ ui.filterAria || '差异筛选' }>
 					{ Object.keys( s.filters || {} ).map( ( value ) => (
 						<button
 							key={ value }
@@ -596,13 +650,13 @@ export default function ReconcileCard( { card, view, rows, config, strings, lock
 						<strong>{ selectedCount }</strong> { s.selected } <span className="small-text">{ s.maxSelect }</span>
 					</span>
 					<div className="button-row">
-						<button type="button" className="btn btn--quiet btn--small" disabled={ locked } onClick={ batchUpload }>
+						<button type="button" className="btn btn--quiet btn--small" disabled={ locked } onClick={ ( event ) => batchUpload( event.currentTarget ) }>
 							{ s.batchUpload }
 						</button>
 						<button type="button" className="btn btn--quiet btn--small" disabled={ locked } onClick={ () => batchTransfer( 'download', selectedKeys( 'download' ), '' ) }>
 							{ s.batchDownload }
 						</button>
-						<button type="button" className="btn btn--danger btn--small" disabled={ locked } onClick={ batchDelete }>
+						<button type="button" className="btn btn--danger btn--small" disabled={ locked } onClick={ ( event ) => batchDelete( event.currentTarget ) }>
 							{ s.batchDelete }
 						</button>
 						<button type="button" className="btn btn--quiet btn--small" onClick={ () => setSelection( {} ) }>
@@ -622,8 +676,8 @@ export default function ReconcileCard( { card, view, rows, config, strings, lock
 					</div>
 				</div>
 			) : null }
-			<div className="table-scroll">
-				<table className="table table--responsive" aria-label="本地与云端文件核对">
+			<div className="table-scroll" aria-busy={ busy ? 'true' : undefined }>
+				<table className="table table--responsive" aria-label={ ui.tableAria || '本地与云端文件核对' }>
 					<thead>
 						<tr>
 							<th className="cell-select">
@@ -653,7 +707,7 @@ export default function ReconcileCard( { card, view, rows, config, strings, lock
 										className="row-select"
 										value={ row.key }
 										checked={ Boolean( selection[ row.key ] ) }
-										aria-label={ '选择 ' + row.name }
+										aria-label={ ( ui.selectRowAria || '选择 %s' ).replace( '%s', row.name ) }
 										onChange={ () => toggleRow( row.key ) }
 									/>
 								</td>
@@ -687,7 +741,7 @@ export default function ReconcileCard( { card, view, rows, config, strings, lock
 									<div className="action-cell">
 										{ rowActionButton( row, labels, locked, { rowAction, confirmReplace, confirmDelete } ) }
 										{ row.cloud ? (
-											<button type="button" className="link-btn link-btn--danger" disabled={ locked } onClick={ () => confirmDelete( row ) }>
+											<button type="button" className="link-btn link-btn--danger" disabled={ locked } onClick={ ( event ) => confirmDelete( row, event.currentTarget ) }>
 												{ labels.delete || '删除' }
 											</button>
 										) : null }
@@ -711,9 +765,9 @@ export default function ReconcileCard( { card, view, rows, config, strings, lock
 				</table>
 			</div>
 			<div className="pagination">
-				<div className="pagination__sizes" role="group" aria-label="每页显示行数">
-					<span>{ s.perPage }</span>
-					{ ( config.pageSizes || [ 25, 50, 100 ] ).map( ( size ) => (
+				<div className="pagination__sizes" role="group" aria-label={ ui.sizesAria || '每页显示行数' }>
+					<span>{ ui.perPage || '每页' }</span>
+					{ ( data.pageSizes || [ 25, 50, 100 ] ).map( ( size ) => (
 						<button
 							key={ size }
 							type="button"
@@ -734,7 +788,7 @@ export default function ReconcileCard( { card, view, rows, config, strings, lock
 						.replace( '%2$s', String( end ) )
 						.replace( '%3$s', String( base ) ) }
 				</span>
-				<div className="pagination__pages" aria-label="分页">
+				<div className="pagination__pages" aria-label={ ui.pagesAria || '分页' }>
 					<button
 						type="button"
 						className="pagination__link"
@@ -765,8 +819,23 @@ export default function ReconcileCard( { card, view, rows, config, strings, lock
 					</button>
 				</div>
 			</div>
-			{ gated ? null : null }
-			{ busy ? null : null }
+
+			{ dialog ? (
+				<Dialog
+					tone={ dialog.tone || 'warn' }
+					kicker={ ui.dialogKicker || 'RECONCILIATION' }
+					title={ dialog.title }
+					message={ dialog.message }
+					items={ dialog.items }
+					confirmLabel={ dialog.confirmLabel }
+					cancelLabel={ dialog.cancelLabel }
+					returnFocus={ dialog.returnFocus }
+					onConfirm={ () => answer( true ) }
+					onClose={ () => answer( false ) }
+				>
+					{ dialog.children }
+				</Dialog>
+			) : null }
 		</Card>
 	);
 }
@@ -783,7 +852,7 @@ function rowActionButton( row, labels, locked, handlers ) {
 				type="button"
 				className="link-btn"
 				disabled={ locked }
-				onClick={ () => ( row.cloud ? handlers.confirmReplace( row ) : handlers.rowAction( 'upload', row, '' ) ) }
+				onClick={ ( event ) => ( row.cloud ? handlers.confirmReplace( row, event.currentTarget ) : handlers.rowAction( 'upload', row, '' ) ) }
 			>
 				{ reupload }
 			</button>
@@ -812,7 +881,7 @@ function rowActionButton( row, labels, locked, handlers ) {
 
 	if ( 'mismatch' === row.status ) {
 		return (
-			<button type="button" className="link-btn" disabled={ locked } onClick={ () => handlers.confirmReplace( row ) }>
+			<button type="button" className="link-btn" disabled={ locked } onClick={ ( event ) => handlers.confirmReplace( row, event.currentTarget ) }>
 				{ reupload }
 			</button>
 		);

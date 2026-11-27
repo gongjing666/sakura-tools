@@ -4,33 +4,41 @@
  * The first paint comes from the PHP bootstrap; every later number comes from
  * the polling snapshot. The server owns all derived values (states, rates,
  * ETAs, labels), this component owns selection, dialogs and the polling loop.
+ *
+ * The payload is the six-key page contract: boot.cards[0] is the queue card,
+ * boot.data carries the snapshot, the polling cadence and the export URL, and
+ * boot.rest is the base of the write routes.
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { Dialog } from '../shared/Dialog.jsx';
 import { Card, PageHead, Prompt } from '../shared/ui.jsx';
+import DispatchCard from './dispatch.jsx';
 import LivePanel from './live.jsx';
 import QueueTable from './table.jsx';
-import DispatchCard from './dispatch.jsx';
 import { exportHref, fetchSnapshot, postAction } from './transport.js';
 
 export default function App( { boot } ) {
-	const config = boot.config || {};
+	const data = boot.data || {};
 	const strings = boot.strings || {};
-	const actions = strings.actions || {};
+	const rest = boot.rest || {};
+	const initial = data.snapshot || {};
+	const cards = Array.isArray( boot.cards ) ? boot.cards : [];
 	const notices = strings.notices || {};
 	const [ head, setHead ] = useState( boot.head );
-	const [ snapshot, setSnapshot ] = useState( boot.snapshot );
-	const [ state, setState ] = useState( boot.snapshot.state || 'all' );
-	const [ page, setPage ] = useState( ( boot.snapshot.pagination || {} ).page || 1 );
-	const [ perPage, setPerPage ] = useState( ( boot.snapshot.pagination || {} ).per_page || 25 );
+	const [ snapshot, setSnapshot ] = useState( initial );
+	const [ state, setState ] = useState( initial.state || 'all' );
+	const [ page, setPage ] = useState( ( initial.pagination || {} ).page || 1 );
+	const [ perPage, setPerPage ] = useState( ( initial.pagination || {} ).per_page || data.per_page || 25 );
 	const [ auto, setAuto ] = useState( true );
 	const [ busy, setBusy ] = useState( '' );
 	const [ selected, setSelected ] = useState( [] );
 	const [ notice, setNotice ] = useState( null );
 	const [ error, setError ] = useState( '' );
 	const [ failures, setFailures ] = useState( 0 );
+	const [ dropIds, setDropIds ] = useState( null );
 	const baseline = useRef( {
-		done: ( boot.snapshot.counts || {} ).done || 0,
-		pending: ( ( boot.snapshot.counts || {} ).queued || 0 ) + ( ( boot.snapshot.counts || {} ).running || 0 ),
+		done: ( initial.counts || {} ).done || 0,
+		pending: ( ( initial.counts || {} ).queued || 0 ) + ( ( initial.counts || {} ).running || 0 ),
 	} );
 	const latest = useRef( { state, page } );
 	const inflight = useRef( null );
@@ -65,12 +73,13 @@ export default function App( { boot } ) {
 
 		try {
 			const next = await fetchSnapshot(
-				config.rest,
+				rest,
 				{
 					state: latest.current.state,
 					page: latest.current.page,
 					per_page: perPage,
 				},
+				strings,
 				controller.signal
 			);
 
@@ -93,7 +102,7 @@ export default function App( { boot } ) {
 				inflight.current = null;
 			}
 		}
-	}, [ apply, perPage, config.rest, notices.refreshFail ] );
+	}, [ apply, perPage, rest, notices.refreshFail, strings ] );
 
 	useEffect( () => {
 		alive.current = true;
@@ -127,8 +136,8 @@ export default function App( { boot } ) {
 
 		const pending = ( snapshot.counts || {} ).queued || 0;
 		const running = ( snapshot.counts || {} ).running || 0;
-		const base = pending + running > 0 ? ( config.poll || {} ).active : ( config.poll || {} ).idle;
-		const cap = ( config.poll || {} ).max || 30000;
+		const base = pending + running > 0 ? ( data.poll || {} ).active : ( data.poll || {} ).idle;
+		const cap = ( data.poll || {} ).max || 30000;
 		const delay = Math.min( cap, ( base || 15000 ) * Math.pow( 2, Math.min( 3, failures ) ) );
 
 		timer.current = window.setTimeout( load, delay );
@@ -138,7 +147,7 @@ export default function App( { boot } ) {
 				window.clearTimeout( timer.current );
 			}
 		};
-	}, [ auto, snapshot, failures, load, config.poll ] );
+	}, [ auto, snapshot, failures, load, data.poll ] );
 
 	useEffect( () => {
 		const onVisibility = () => {
@@ -211,12 +220,12 @@ export default function App( { boot } ) {
 		setBusy( action );
 
 		try {
-			const answer = await postAction( config.rest, action, {
+			const answer = await postAction( rest, action, {
 				ids,
 				state,
 				page,
 				per_page: perPage,
-			} );
+			}, strings );
 
 			if ( answer.snapshot ) {
 				apply( answer.snapshot );
@@ -246,17 +255,7 @@ export default function App( { boot } ) {
 			return;
 		}
 
-		window.SakuraAdmin.ui
-			.confirm( strings.dropConfirm.text, {
-				title: strings.dropConfirm.title,
-				confirmText: strings.dropConfirm.confirm,
-				danger: true,
-			} )
-			.then( ( confirmed ) => {
-				if ( confirmed ) {
-					runAction( 'drop', ids );
-				}
-			} );
+		setDropIds( ids );
 	};
 
 	const refresh = () => {
@@ -277,6 +276,7 @@ export default function App( { boot } ) {
 			button: ( strings.notice || {} ).button,
 		}
 		: null;
+	const dropConfirm = strings.dropConfirm || {};
 
 	return (
 		<>
@@ -292,16 +292,16 @@ export default function App( { boot } ) {
 				<DispatchCard
 					dispatch={ snapshot.dispatch || {} }
 					strings={ strings }
-					rest={ config.rest }
-					onSaved={ ( data ) =>
+					rest={ rest }
+					onSaved={ ( answered ) =>
 						setSnapshot( ( current ) => ( {
 							...current,
-							dispatch: { ...( current.dispatch || {} ), ...data },
+							dispatch: { ...( current.dispatch || {} ), ...answered },
 						} ) )
 					}
 				/>
 
-				<Card card={ boot.card } titleProps={ { tabIndex: -1, 'data-sakura-return-target': '1' } }>
+				<Card card={ cards[0] || {} } titleProps={ { tabIndex: -1, 'data-sakura-return-target': '1' } }>
 					<LivePanel
 						snapshot={ snapshot }
 						strings={ strings }
@@ -328,12 +328,31 @@ export default function App( { boot } ) {
 						onDrop={ drop }
 
 						busy={ busy }
-						exportHref={ exportHref( ( config.export || {} ).url || '', selectedRows.map( ( row ) => row.id ) ) }
+						exportHref={ exportHref( ( data.export || {} ).url || '', selectedRows.map( ( row ) => row.id ) ) }
 					/>
 				</Card>
 			</div>
 
 			{ prompt ? <Prompt notice={ prompt } onClose={ () => setNotice( null ) } /> : null }
+
+			{ dropIds ? (
+				<Dialog
+					tone="bad"
+					kicker={ notices.kicker }
+					title={ dropConfirm.title }
+					message={ dropConfirm.text }
+					confirmLabel={ dropConfirm.confirm }
+					cancelLabel={ strings.cancel }
+					busy={ busy === 'drop' }
+					onConfirm={ () => {
+						const ids = dropIds;
+
+						setDropIds( null );
+						runAction( 'drop', ids );
+					} }
+					onClose={ () => setDropIds( null ) }
+				/>
+			) : null }
 		</>
 	);
 }

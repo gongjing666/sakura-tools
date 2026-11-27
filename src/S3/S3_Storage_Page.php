@@ -1,6 +1,7 @@
 <?php
 namespace Sakura\ImageOptimizer\S3;
 
+use Sakura\ImageOptimizer\Admin\App_Manifest;
 use Sakura\ImageOptimizer\Admin\Storage_Payload;
 use Sakura\ImageOptimizer\Admin\UI;
 
@@ -17,12 +18,24 @@ final class S3_Storage_Page {
 		$this->options = $options;
 	}
 
+	/**
+	 * Render the screen.
+	 *
+	 * The payload comes from the contract-checked manifest, so this first paint
+	 * and GET /pages/storage-connection cannot disagree. The injected reader is
+	 * the fallback for a checkout where the manifest does not know the route yet.
+	 */
 	public function render(): void {
 		if ( ! current_user_can( 'manage_options' ) ) {
 			return;
 		}
 
-		$payload = ( new Storage_Payload( $this->options ) )->build();
+		$payload = App_Manifest::payload( 'storage-connection' );
+
+		if ( null === $payload ) {
+			$payload = ( new Storage_Payload( $this->options ) )->build();
+		}
+
 		require SAKURA_TOOLS_PATH . 'includes/views/storage-island.php';
 	}
 

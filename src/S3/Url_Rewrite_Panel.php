@@ -9,9 +9,12 @@ declare( strict_types=1 );
 
 namespace Sakura\ImageOptimizer\S3;
 
+use Sakura\ImageOptimizer\Admin\App_Manifest;
 use Sakura\ImageOptimizer\Admin\Assets;
 use Sakura\ImageOptimizer\Admin\Page_Assets;
 use Sakura\ImageOptimizer\Admin\Registry;
+use Sakura\ImageOptimizer\Admin\Rewrite_Payload;
+use Sakura\ImageOptimizer\Admin\UI\Modal;
 use Sakura\ImageOptimizer\Contracts\Module;
 use Sakura\ImageOptimizer\Support\Hook_Loader;
 
@@ -20,16 +23,11 @@ defined( 'ABSPATH' ) || exit;
 /**
  * Wires the storage/rewrite tab: one scan, one run, one ledger.
  *
- * Every endpoint is capability- and nonce-checked here; the service underneath
- * owns cursors and time boxes, so the browser can drop a request at any point
- * and continue from the next click.
+ * The actions live in Rest\Rewrite_Controller; the service underneath owns
+ * cursors and time boxes, so the browser can drop a request at any point and
+ * continue from the next click.
  */
 final class Url_Rewrite_Panel implements Module {
-
-	/**
-	 * Nonce action shared by the screen and its endpoints.
-	 */
-	public const NONCE = 'sakura_url_rewrite';
 
 	/**
 	 * View data cache shared by enqueue and render.
@@ -68,12 +66,6 @@ final class Url_Rewrite_Panel implements Module {
 	 */
 	public function register_hooks( Hook_Loader $hooks ): void {
 		$hooks->add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_assets' ) );
-		$hooks->add_action( 'wp_ajax_sakura_url_rewrite_scan', array( $this, 'ajax_scan' ) );
-		$hooks->add_action( 'wp_ajax_sakura_url_rewrite_scan_step', array( $this, 'ajax_scan_step' ) );
-		$hooks->add_action( 'wp_ajax_sakura_url_rewrite_run', array( $this, 'ajax_run' ) );
-		$hooks->add_action( 'wp_ajax_sakura_url_rewrite_preview', array( $this, 'ajax_preview' ) );
-		$hooks->add_action( 'wp_ajax_sakura_url_rewrite_revert', array( $this, 'ajax_revert' ) );
-		$hooks->add_action( 'wp_ajax_sakura_url_rewrite_reset', array( $this, 'ajax_reset' ) );
 	}
 
 	/**
@@ -88,7 +80,6 @@ final class Url_Rewrite_Panel implements Module {
 			return;
 		}
 
-		Page_Assets::set_data( 'storage-rewrite', $this->page_config() );
 		Assets::enqueue_page();
 	}
 
@@ -102,13 +93,18 @@ final class Url_Rewrite_Panel implements Module {
 
 		Url_Rewrite_Repository::maybe_install();
 
-		$data = ( new \Sakura\ImageOptimizer\Admin\Rewrite_Payload( $this ) )->build();
+		$data = App_Manifest::payload( Rewrite_Payload::PAGE );
+
+		if ( null === $data ) {
+			return;
+		}
 
 		require __DIR__ . '/../../includes/views/rewrite-island.php';
 	}
 
 	/**
-	 * Config handed to assets/ui/js/pages/storage-rewrite.js.
+	 * View data handed to Rewrite_Payload: scan state, hosts, scope, batch and
+	 * the copy the island reads from payload.strings.
 	 *
 	 * @return array<string,mixed>
 	 */
@@ -127,14 +123,19 @@ final class Url_Rewrite_Panel implements Module {
 		}
 
 		return array(
-			'ajaxUrl'     => admin_url( 'admin-ajax.php' ),
-			'nonce'       => wp_create_nonce( self::NONCE ),
 			'state'       => $this->data_cache['state'],
 			'hosts'       => $this->data_cache['hosts'],
 			'currentHost' => $this->data_cache['currentHost'],
 			'scope'       => $this->data_cache['scope'],
 			'batch'       => Url_Rewrite_Service::BATCH,
 			'strings'     => array(
+				'close'            => __( '关闭', 'sakura-imgopt' ),
+				'dismiss'          => __( '知道了', 'sakura-imgopt' ),
+				'closeIcon'        => Modal::close_icon(),
+				'mascot'           => Modal::mascot(),
+				'noticeKicker'     => 'LINK REWRITE',
+				'noticeTitle'      => __( '改写任务', 'sakura-imgopt' ),
+				'noticeErrorTitle' => __( '操作没有完成', 'sakura-imgopt' ),
 				'scanning'     => __( '正在扫描数据库…', 'sakura-imgopt' ),
 				'scanDone'     => __( '扫描完成，请勾选要改写的值。', 'sakura-imgopt' ),
 				'scanEmpty'    => __( '数据库里没有找到使用该域名的值。', 'sakura-imgopt' ),
@@ -303,120 +304,5 @@ final class Url_Rewrite_Panel implements Module {
 		}
 
 		return $host;
-	}
-
-	/**
-	 * Shared guard for every endpoint.
-	 */
-	private function guard(): void {
-		if ( ! current_user_can( 'manage_options' ) ) {
-			wp_send_json_error( array( 'message' => __( '权限不足。', 'sakura-imgopt' ) ), 403 );
-		}
-
-		check_ajax_referer( self::NONCE, 'nonce' );
-	}
-
-	/**
-	 * Send a service result or its error.
-	 *
-	 * @param array<string,mixed>|\WP_Error $result Result.
-	 */
-	private function respond( $result ): void {
-		if ( is_wp_error( $result ) ) {
-			wp_send_json_error(
-				array(
-					'message' => $result->get_error_message(),
-					'code'    => $result->get_error_code(),
-				),
-				409
-			);
-		}
-
-		wp_send_json_success( $result );
-	}
-
-	/**
-	 * Post scalar helper.
-	 *
-	 * @param string $key Field.
-	 */
-	private function post_string( string $key ): string {
-		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- guard() verified the nonce.
-		return isset( $_POST[ $key ] ) && is_string( $_POST[ $key ] ) ? sanitize_text_field( wp_unslash( $_POST[ $key ] ) ) : '';
-	}
-
-	/**
-	 * Post integer helper.
-	 *
-	 * @param string $key Field.
-	 */
-	private function post_int( string $key ): int {
-		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- guard() verified the nonce.
-		return isset( $_POST[ $key ] ) ? (int) wp_unslash( $_POST[ $key ] ) : 0;
-	}
-
-	/**
-	 * AJAX: start a scan.
-	 */
-	public function ajax_scan(): void {
-		$this->guard();
-		Url_Rewrite_Repository::maybe_install();
-
-		$this->respond( $this->service->start( $this->post_string( 'from' ), $this->post_string( 'to' ), $this->scope()->path_prefix() ) );
-	}
-
-	/**
-	 * AJAX: continue the scan.
-	 */
-	public function ajax_scan_step(): void {
-		$this->guard();
-
-		$this->respond( $this->service->scan_step() );
-	}
-
-	/**
-	 * AJAX: run one rewrite batch.
-	 */
-	public function ajax_run(): void {
-		$this->guard();
-		Url_Rewrite_Repository::maybe_install();
-
-		$selection = array();
-		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- guard() verified the nonce.
-		if ( isset( $_POST['tasks'] ) && is_array( $_POST['tasks'] ) ) {
-			// phpcs:ignore WordPress.Security.NonceVerification.Missing -- guard() verified the nonce.
-			$selection = array_map( 'intval', (array) wp_unslash( $_POST['tasks'] ) );
-		}
-
-		$this->respond( $this->service->run_step( $selection, $this->post_int( 'batch' ) ) );
-	}
-
-	/**
-	 * AJAX: sample rows for one task.
-	 */
-	public function ajax_preview(): void {
-		$this->guard();
-
-		$this->respond( $this->service->preview( $this->post_int( 'index' ) ) );
-	}
-
-	/**
-	 * AJAX: roll back one ledger batch.
-	 */
-	public function ajax_revert(): void {
-		$this->guard();
-		Url_Rewrite_Repository::maybe_install();
-
-		$this->respond( $this->service->revert_step( $this->post_string( 'runId' ), $this->post_int( 'after' ), $this->post_int( 'batch' ) ) );
-	}
-
-	/**
-	 * AJAX: drop the scan state.
-	 */
-	public function ajax_reset(): void {
-		$this->guard();
-		Url_Rewrite_Repository::maybe_install();
-
-		$this->respond( $this->service->reset() );
 	}
 }

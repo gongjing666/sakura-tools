@@ -214,14 +214,18 @@ final class System_Payload {
 		 * UI::page() not to print the regions keeps the page at exactly one of
 		 * each without the markup belonging to two places.
 		 */
-		$payload['data'] = array(
-			'status' => isset( $payload['status'] ) ? $payload['status'] : array(),
-			'score'  => isset( $payload['score'] ) ? $payload['score'] : array(),
-			'kpis'   => isset( $payload['kpis'] ) ? $payload['kpis'] : array(),
-		);
-		$payload['cards'] = array_values( (array) $payload['cards'] );
+		$status = $payload['status'];
+		$score  = $payload['score'];
+		$kpis   = $payload['kpis'];
 
 		unset( $payload['status'], $payload['score'], $payload['kpis'] );
+
+		$payload['data'] = array(
+			'status' => $status,
+			'score'  => $score,
+			'kpis'   => $kpis,
+		);
+		$payload['cards'] = array_values( (array) $payload['cards'] );
 
 		$payload['page']   = self::page_args( $payload );
 		$payload['head']   = UI\Page::head_data( $payload['page'] );

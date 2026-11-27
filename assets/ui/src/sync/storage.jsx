@@ -3,9 +3,11 @@
  * that explains why there is nothing to draw.
  */
 import { Card } from '../shared/ui.jsx';
+import { format } from './format.js';
 
 export default function StorageCard( { card, view, scan, strings, locked, frozen, onScan, onResume } ) {
 	const s = strings.storage || {};
+	const ui = strings.ui || {};
 	const state = view.mix_state || 'unscanned';
 	const empty = 'unscanned' === state || 'scanning' === state || 'interrupted' === state;
 	const title = view.mix_title || '';
@@ -47,13 +49,13 @@ export default function StorageCard( { card, view, scan, strings, locked, frozen
 							<div
 								className="storage-mix__donut"
 								role="img"
-								aria-label="云端文件体积分布"
+								aria-label={ ui.mixAria || '云端文件体积分布' }
 								style={ { background: view.mix_gradient } }
 							>
 								<div className="storage-mix__center">
 									<strong>{ view.cloud_value_label }</strong>
 									<span>
-										{ view.cloud_unit } · { view.cloud_objects } 个文件
+										{ view.cloud_unit } · { format( ui.storageFiles || '%s 个文件', view.cloud_objects ) }
 									</span>
 								</div>
 							</div>

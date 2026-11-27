@@ -29,11 +29,13 @@ defined( 'ABSPATH' ) || exit;
 final class Storage_Routes implements Module {
 
 	/**
-	 * Controllers the delegated cards own, if they are present.
+	 * Card and action controllers the storage tabs own, if they are present.
 	 */
 	private const CARD_CONTROLLERS = array(
 		'Storage_Metrics_Controller',
 		'Storage_Monitoring_Controller',
+		'Rewrite_Controller',
+		'Cost_Controller',
 	);
 
 	/**

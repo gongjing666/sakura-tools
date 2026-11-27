@@ -1,10 +1,9 @@
 /**
  * Which page app renders a payload.
  *
- * Every screen already exports `App({ boot })` — the islands were written that
- * way so the same component could be handed a REST refresh. The shell only has
- * to pick one; image is the only app that knows how to navigate itself, so it is
- * told to stay out of history and clicks while it is embedded.
+ * Every screen exports `App({ boot })`; the shell only has to pick one. The
+ * shell owns navigation, so no page app listens for tab clicks or writes
+ * history by itself.
  */
 
 import CostApp from '../cost/app.jsx';
@@ -55,10 +54,6 @@ export function PageContent( { page, boot } ) {
 
 	if ( ! App ) {
 		return null;
-	}
-
-	if ( ImageApp === App ) {
-		return <ImageApp boot={ boot } embedded />;
 	}
 
 	return <App boot={ boot } />;

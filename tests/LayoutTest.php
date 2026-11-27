@@ -99,7 +99,7 @@ final class LayoutTest extends TestCase {
 		$this->assertSame( $declared, System_Payload::card_ids() );
 
 		$source = (string) file_get_contents( dirname( __DIR__ ) . '/assets/ui/src/system/app.jsx' );
-		preg_match_all( '/<Card card=\{\s*(?:boot\.cards\.([a-z_]+)|(layoutCard))\s*\}/', $source, $found );
+		preg_match_all( '/<Card card=\{\s*(?:cards\.([a-z_]+)|(layoutCard))\s*\}/', $source, $found );
 
 		$rendered = array();
 		foreach ( $found[0] as $index => $markup ) {

@@ -8,7 +8,7 @@
  *
  * @package Sakura_Image_Optimizer
  *
- * @var array<string,mixed> $data Deletes_Payload::build() output.
+ * @var array<string,mixed> $payload App_Manifest::payload output.
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -20,11 +20,11 @@ if ( ! current_user_can( 'manage_options' ) ) {
 }
 
 echo '<script type="application/json" id="sakura-deletes-bootstrap">';
-echo wp_json_encode( $data, JSON_HEX_TAG | JSON_HEX_AMP | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Encoded with JSON_HEX_TAG.
+echo wp_json_encode( $payload, JSON_HEX_TAG | JSON_HEX_AMP | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Encoded with JSON_HEX_TAG.
 echo '</script>';
 
 \Sakura\ImageOptimizer\Admin\UI::page(
-	$data['page'],
+	$payload['page'],
 	static function (): void {
 		// Empty on purpose: the React tree fills the body once it mounts.
 	}

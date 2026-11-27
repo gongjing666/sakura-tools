@@ -494,6 +494,9 @@ if ( ! class_exists( 'WP_Query', false ) ) {
 		/** @var int[] */
 		public array $posts;
 
+		/** @var int */
+		public int $found_posts = 0;
+
 		/** @param array<string,mixed> $args Query args. */
 		public function __construct( $args = array() ) {
 			unset( $args );
@@ -2078,6 +2081,12 @@ if ( ! function_exists( 'wp_count_attachments' ) ) {
 }
 if ( ! function_exists( 'get_terms' ) ) {
 	function get_terms( $args = array() ) {
+		return array();
+	}
+}
+
+if ( ! function_exists( 'dbDelta' ) ) {
+	function dbDelta( $queries = '' ) {
 		return array();
 	}
 }

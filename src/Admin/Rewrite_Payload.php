@@ -15,11 +15,10 @@ use Sakura\ImageOptimizer\S3\Url_Rewrite_Panel;
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Assembles the page arguments and the one config document the island reads.
+ * Assembles the page arguments and the document the island reads.
  *
- * The scan/run/revert endpoints stay admin-ajax: the service already owns the
- * cursor and time box, and the legacy fallback keeps working against the same
- * actions when the bundle is missing.
+ * The scan/run/revert actions are REST now; the service still owns the cursor
+ * and the time box, and the payload carries the rest block the transport needs.
  */
 final class Rewrite_Payload {
 
@@ -50,19 +49,20 @@ final class Rewrite_Payload {
 	 * @return array<string,mixed>
 	 */
 	public function build(): array {
-		$config = $this->panel->page_config();
-		$state  = isset( $config['state'] ) && is_array( $config['state'] ) ? $config['state'] : array();
-		$cards  = $this->cards();
-		$page   = $this->page_args( $state, $cards, (string) ( $config['currentHost'] ?? '' ) );
+		$data    = $this->panel->page_config();
+		$state   = isset( $data['state'] ) && is_array( $data['state'] ) ? $data['state'] : array();
+		$strings = isset( $data['strings'] ) && is_array( $data['strings'] ) ? $data['strings'] : array();
+		$cards   = $this->cards();
+		$page    = $this->page_args( $state, $cards, (string) ( $data['currentHost'] ?? '' ) );
 
-		$config['form'] = array(
+		unset( $data['strings'] );
+
+		$data['form'] = array(
 			'from' => (string) ( $state['from'] ?? '' ),
-			'to'   => '' !== (string) ( $state['to'] ?? '' ) ? (string) $state['to'] : (string) ( $config['currentHost'] ?? '' ),
+			'to'   => '' !== (string) ( $state['to'] ?? '' ) ? (string) $state['to'] : (string) ( $data['currentHost'] ?? '' ),
 		);
 
-		$strings = isset( $config['strings'] ) && is_array( $config['strings'] ) ? $config['strings'] : array();
-
-		$config['targetFields'] = array(
+		$data['targetFields'] = array(
 			array(
 				'key'          => 'from',
 				'id'           => 'rewrite-from',
@@ -93,7 +93,9 @@ final class Rewrite_Payload {
 			'head'    => UI\Page::head_data( $page ),
 			'chrome'  => Shell::header_data( 'storage', 'rewrite' ),
 			'cards'   => $cards,
-			'config'  => $config,
+			'strings' => $strings,
+			'rest'    => Payload_Contract::rest_for( rest_url( Rest\Rewrite_Controller::NS . '/storage/rewrite' ), self::PAGE ),
+			'data'    => $data,
 		);
 	}
 

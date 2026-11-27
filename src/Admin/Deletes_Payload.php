@@ -75,14 +75,17 @@ final class Deletes_Payload {
 		$page_args = $this->page_args( $snapshot );
 
 		return array(
-			'version'  => SAKURA_TOOLS_VERSION,
-			'page'     => $page_args,
-			'head'     => UI\Page::head_data( $page_args ),
-			'chrome'   => Shell::header_data( 'storage', 'deletes' ),
-			'card'     => $this->card(),
-			'snapshot' => $snapshot,
-			'config'   => $this->config(),
-			'strings'  => $this->strings(),
+			'version' => SAKURA_TOOLS_VERSION,
+			'page'    => $page_args,
+			'head'    => UI\Page::head_data( $page_args ),
+			'chrome'  => Shell::header_data( 'storage', 'deletes' ),
+			'cards'   => array( $this->card() ),
+			'data'    => $this->data( $snapshot ),
+			'strings' => $this->strings(),
+			'rest'    => Payload_Contract::rest_for(
+				rest_url( Storage_Controller::NS . '/storage/deletes' ),
+				self::PAGE
+			),
 		);
 	}
 
@@ -119,7 +122,7 @@ final class Deletes_Payload {
 		return array(
 			'state'           => $state,
 			'generated_at'    => time(),
-			'generated_label' => wp_date( 'H:i:s' ),
+			'generated_label' => $this->date_label( 'H:i:s', time() ),
 			'counts'          => $counts,
 			'activity'        => array(
 				'pending'               => $pending,
@@ -132,7 +135,7 @@ final class Deletes_Payload {
 				'eta_label'             => null === $eta ? __( '暂无速度数据', 'sakura-imgopt' ) : $this->duration_label( $eta, true ),
 				'next_due_in'           => $next_in,
 				'next_due_label'        => null === $next_in ? __( '没有排队任务', 'sakura-imgopt' ) : $this->countdown_label( $next_in ),
-				'last_done_label'       => $last_done > 0 ? wp_date( 'm-d H:i:s', $last_done ) : __( '暂无完成记录', 'sakura-imgopt' ),
+				'last_done_label'       => $last_done > 0 ? $this->date_label( 'm-d H:i:s', $last_done ) : __( '暂无完成记录', 'sakura-imgopt' ),
 				'last_activity_seconds' => $last_activity > 0 ? max( 0, time() - $last_activity ) : null,
 				'stalled'               => $stalled,
 				'stalled_label'         => $stalled ? $this->stalled_label( $last_activity ) : '',
@@ -211,23 +214,23 @@ final class Deletes_Payload {
 	}
 
 	/**
-	 * Client configuration: polling cadence, REST base and export endpoint.
+	 * Page-wide data: the live snapshot plus the client's polling and export
+	 * settings. The REST base is page-level and lives in the payload's top-level
+	 * rest block, so this block does not restate it.
 	 *
+	 * @param array<string,mixed> $snapshot Current snapshot.
 	 * @return array<string,mixed>
 	 */
-	private function config(): array {
+	private function data( array $snapshot ): array {
 		return array(
-			'per_page'  => self::PER_PAGE,
-			'poll'      => array(
+			'snapshot'      => $snapshot,
+			'per_page'      => self::PER_PAGE,
+			'poll'          => array(
 				'active' => 4000,
 				'idle'   => 15000,
 				'max'    => 30000,
 			),
-			'rest'      => array(
-				'url'   => esc_url_raw( rest_url( Storage_Controller::NS . '/storage/deletes' ) ),
-				'nonce' => wp_create_nonce( 'wp_rest' ),
-			),
-			'export'    => array(
+			'export'        => array(
 				'url' => esc_url_raw(
 					add_query_arg(
 						array(
@@ -250,6 +253,9 @@ final class Deletes_Payload {
 	 */
 	private function strings(): array {
 		return array(
+			'failed'           => __( '请求失败，请稍后重试。', 'sakura-imgopt' ),
+			'network'          => __( '网络请求失败，服务器没有响应。', 'sakura-imgopt' ),
+			'cancel'           => __( '取消', 'sakura-imgopt' ),
 			'stateLabels'      => array(
 				'all'     => __( '全部', 'sakura-imgopt' ),
 				'queued'  => __( '排队', 'sakura-imgopt' ),
@@ -262,6 +268,60 @@ final class Deletes_Payload {
 				'deleted' => __( '已删除', 'sakura-imgopt' ),
 				'kept'    => __( '已保留', 'sakura-imgopt' ),
 				'skipped' => __( '已跳过', 'sakura-imgopt' ),
+			),
+			'dispatch'         => array(
+				'kicker'      => 'DISPATCH',
+				'title'       => __( '批量调度', 'sakura-imgopt' ),
+				'desc'        => __( '任务先进队列，凑够一批或等满时间再执行；关闭后立即执行。', 'sakura-imgopt' ),
+				'enabled'     => __( '启用批量调度', 'sakura-imgopt' ),
+				'enabledHint' => __( '关闭后每条删除立即执行，等同原有行为。', 'sakura-imgopt' ),
+				'save'        => __( '保存设置', 'sakura-imgopt' ),
+				'saving'      => __( '保存中…', 'sakura-imgopt' ),
+				'saved'       => __( '已保存，下一批生效。', 'sakura-imgopt' ),
+				'saveFailed'  => __( '保存失败，请稍后重试。', 'sakura-imgopt' ),
+				'fields'      => array(
+					array(
+						'key'   => 'batch_size',
+						'label' => __( '每车件数', 'sakura-imgopt' ),
+						'hint'  => __( '凑满这么多就立即执行', 'sakura-imgopt' ),
+						'unit'  => __( '件', 'sakura-imgopt' ),
+						'min'   => 1,
+						'max'   => 200,
+					),
+					array(
+						'key'   => 'max_wait',
+						'label' => __( '最长等待', 'sakura-imgopt' ),
+						'hint'  => __( '等这么久还没凑够也执行；0 = 立即', 'sakura-imgopt' ),
+						'unit'  => __( '秒', 'sakura-imgopt' ),
+						'min'   => 0,
+						'max'   => 86400,
+					),
+					array(
+						'key'   => 'batch_bytes',
+						'label' => __( '每车最大体积', 'sakura-imgopt' ),
+						'hint'  => __( '达到这个体积就执行；0 = 不限', 'sakura-imgopt' ),
+						'unit'  => __( 'MB', 'sakura-imgopt' ),
+						'min'   => 0,
+						'max'   => 10240,
+					),
+					array(
+						'key'   => 'batch_time',
+						'label' => __( '单次运行上限', 'sakura-imgopt' ),
+						'hint'  => __( '一次最多跑多久，防止请求超时', 'sakura-imgopt' ),
+						'unit'  => __( '秒', 'sakura-imgopt' ),
+						'min'   => 10,
+						'max'   => 60,
+					),
+				),
+				'status'      => array(
+					/* translators: 1: queued rows, 2: queued megabytes, 3: seconds the oldest row has waited. */
+					'waiting'    => __( '候车 %1$s 件 / %2$s MB；最早一件已等 %3$s 秒', 'sakura-imgopt' ),
+					/* translators: %s: seconds until the next forced run. */
+					'due'        => __( '，最迟 %s 秒后执行。', 'sakura-imgopt' ),
+					'checkpoint' => __( '，下个检查点执行。', 'sakura-imgopt' ),
+					'disabled'   => __( '攒批已关闭：任务进入队列后立即执行。', 'sakura-imgopt' ),
+					'empty'      => __( '队列空闲，没有等待中的任务。', 'sakura-imgopt' ),
+				),
 			),
 			'table'            => array(
 				'select'      => __( '选择', 'sakura-imgopt' ),
@@ -314,6 +374,8 @@ final class Deletes_Payload {
 				'runningNow'   => __( '正在执行 #%1$s · %2$s（最近活动 %3$s）', 'sakura-imgopt' ),
 				/* translators: %s: retention in days. */
 				'retention'    => __( '已完成记录保留 %s 天，可导出 CSV 归档。', 'sakura-imgopt' ),
+				/* translators: %s: retention in days. */
+				'purgeAfter'   => __( '%s 天后清理', 'sakura-imgopt' ),
 				'noRunning'    => __( '目前没有正在执行的任务。', 'sakura-imgopt' ),
 			),
 			'actions'          => array(
@@ -411,7 +473,7 @@ final class Deletes_Payload {
 				__( '已完成 %1$s · 已放弃 %2$s · 最近更新 %3$s', 'sakura-imgopt' ),
 				number_format_i18n( $counts['done'] ),
 				number_format_i18n( $dead ),
-				$latest > 0 ? wp_date( 'm-d H:i', $latest ) : __( '暂无记录', 'sakura-imgopt' )
+				$latest > 0 ? $this->date_label( 'm-d H:i', $latest ) : __( '暂无记录', 'sakura-imgopt' )
 			),
 			'tone'   => $tone,
 			'badge'  => $badge,
@@ -470,7 +532,7 @@ final class Deletes_Payload {
 				'kind'    => 'done',
 				'percent' => 100.0,
 				'label'   => $completed > 0
-					? sprintf( /* translators: %s: completion time. */ __( '完成于 %s', 'sakura-imgopt' ), wp_date( 'm-d H:i:s', $completed ) )
+					? sprintf( /* translators: %s: completion time. */ __( '完成于 %s', 'sakura-imgopt' ), $this->date_label( 'm-d H:i:s', $completed ) )
 					: __( '已完成', 'sakura-imgopt' ),
 			);
 		} elseif ( 'dead' === $state ) {
@@ -535,8 +597,8 @@ final class Deletes_Payload {
 			'attempt_percent' => $percent,
 			'progress'        => $progress,
 			'error'           => (string) ( $row['last_error'] ?? '' ),
-			'updated_label'   => $updated > 0 ? wp_date( 'm-d H:i:s', $updated ) : '—',
-			'completed_label' => $completed > 0 ? wp_date( 'm-d H:i:s', $completed ) : '',
+			'updated_label'   => $updated > 0 ? $this->date_label( 'm-d H:i:s', $updated ) : '—',
+			'completed_label' => $completed > 0 ? $this->date_label( 'm-d H:i:s', $completed ) : '',
 			'resolution'      => $resolution,
 			'resolution_label' => '' !== $resolution ? $this->resolution_label( $resolution ) : '',
 			'duration_label'  => ( $completed > 0 && $created > 0 ) ? $this->duration_label( max( 0, $completed - $created ) ) : '',
@@ -587,6 +649,20 @@ final class Deletes_Payload {
 	private function request_page(): int {
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only screen state.
 		return isset( $_GET['paged'] ) ? max( 1, absint( wp_unslash( $_GET['paged'] ) ) ) : 1;
+	}
+
+	/**
+	 * Format a timestamp for display.
+	 *
+	 * wp_date() is the WordPress way (site timezone and locale aware). The
+	 * gmdate() fallback keeps a bare test shim, which does not load the full
+	 * WordPress API, from fataling while building the payload.
+	 *
+	 * @param string $format    Date format understood by both functions.
+	 * @param int    $timestamp Unix timestamp.
+	 */
+	private function date_label( string $format, int $timestamp ): string {
+		return function_exists( 'wp_date' ) ? (string) wp_date( $format, $timestamp ) : gmdate( $format, $timestamp );
 	}
 
 	/**

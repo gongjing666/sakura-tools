@@ -4,56 +4,82 @@
  * The top bar and both tab rows are printed by PHP and never re-drawn. This
  * component owns the page head and the five cards, and keeps them in step with
  * the server: every mutation answers with the recalculated status, alerts and
- * section it touched, and the answer is merged in place rather than triggering
- * a reload.
+ * the card sections it touched, and the answer is merged in place rather than
+ * triggering a reload.
  */
-import { Fragment, useCallback, useState } from 'react';
-import { PageHead } from '../shared/ui.jsx';
+import { Fragment, useCallback, useRef, useState } from 'react';
+import { Dialog } from '../shared/Dialog.jsx';
+import { post } from '../shared/transport.js';
+import { PageHead, Prompt } from '../shared/ui.jsx';
 import BehaviourCard from './behaviour.jsx';
 import ConnectionCard from './connection.jsx';
-import Dialog from './dialog.jsx';
 import MetricsCard from './metrics.jsx';
 import MonitoringCard from './monitoring.jsx';
 import ProfilesCard from './profiles.jsx';
-import { call } from './transport.js';
 
 /** A probe is "fast" below this many milliseconds, same threshold as the old page. */
 const SLOW_MS = 800;
 
 /**
+ * One card from the ordered list, by id.
+ *
+ * @param {Array}  cards Card list from the payload.
+ * @param {string} id    Card id.
+ * @return {Object} Card data, or an empty object when the payload lacks it.
+ */
+function cardById( cards, id ) {
+	return ( Array.isArray( cards ) ? cards : [] ).find( ( card ) => card.id === id ) || {};
+}
+
+/**
  * @param {Object} props      Boot payload.
- * @param {Object} props.boot Storage_Payload::build() output.
+ * @param {Object} props.boot App_Manifest::payload( 'storage-connection' ).
  * @return {JSX.Element} Page.
  */
 export default function App( { boot } ) {
 	const [ payload, setPayload ] = useState( boot );
 	const [ head, setHead ] = useState( boot.head );
 	const [ notice, setNotice ] = useState( null );
-	const [ error, setError ] = useState( '' );
 	const [ dialog, setDialog ] = useState( null );
 	const [ dialogBusy, setDialogBusy ] = useState( false );
 	const [ busyProfile, setBusyProfile ] = useState( '' );
 	const [ savingCard, setSavingCard ] = useState( '' );
 	const [ resetToken, setResetToken ] = useState( 0 );
+	const promptFocus = useRef( null );
 
-	const strings = payload.strings;
-	const rest = payload.rest;
+	const strings = payload.strings || {};
+	const kickers = strings.kickers || {};
+	const rest = payload.rest || {};
+	const cards = Array.isArray( payload.cards ) ? payload.cards : [];
+	const profiles = cardById( cards, 'profiles' );
+	const connection = cardById( cards, 'connection' );
+	const behaviour = cardById( cards, 'behaviour' );
+	const metrics = cardById( cards, 'upload-metrics' );
+	const monitoring = cardById( cards, 'monitoring' );
 
 	/**
 	 * Fold the server's recalculated pieces back into the page.
+	 *
+	 * Writes answer with sections keyed by card id, so the card list is replaced
+	 * item by item instead of growing a second copy of the data at page level.
 	 *
 	 * @param {Object} next Response from any storage route.
 	 * @return {void}
 	 */
 	const merge = useCallback( ( next ) => {
+		if ( ! next ) {
+			return;
+		}
+
+		const sections = next.sections || {};
+
 		setPayload( ( current ) => ( {
 			...current,
-			status: next.status || current.status,
+			cards: ( current.cards || [] ).map( ( card ) => ( sections[ card.id ] ? sections[ card.id ] : card ) ),
 			alerts: Array.isArray( next.alerts ) ? next.alerts : current.alerts,
-			profiles: next.profiles || current.profiles,
-			connection: next.connection || current.connection,
-			behaviour: next.behaviour || current.behaviour,
-			notice: next.notice || null,
+			// The redirect notice belongs to the request that printed the page; a
+			// write from this screen supersedes it.
+			notice: null,
 		} ) );
 
 		if ( next.status ) {
@@ -73,21 +99,21 @@ export default function App( { boot } ) {
 	 * @return {Promise<void>}
 	 */
 	const saveCard = async ( card, body ) => {
+		promptFocus.current = document.querySelector( '[data-sakura-card="' + card + '"] button[type="submit"]' );
 		setSavingCard( card );
-		setError( '' );
 
 		try {
-			const answer = await call( rest, strings, '/cards/' + card, body );
+			const answer = await post( rest, '/cards/' + card, body, strings );
 
 			merge( answer );
 
-			if ( answer.result ) {
-				showNotice( answer.result );
+			if ( answer.notice ) {
+				showNotice( answer.notice );
 			}
 		} catch ( failure ) {
 			showNotice( {
 				tone: 'bad',
-				kicker: 'OBJECT STORAGE',
+				kicker: kickers.storage,
 				title: strings.saveFailed,
 				message: failure.message,
 			} );
@@ -103,20 +129,20 @@ export default function App( { boot } ) {
 	 * @return {Promise<void>}
 	 */
 	const toggle = async ( item ) => {
-		const off = payload.profiles.enabled && ( item.live || item.current );
+		const off = profiles.enabled && ( item.live || item.current );
 
 		setBusyProfile( item.id );
 
 		try {
-			const answer = await call( rest, strings, '/profile', {
+			const answer = await post( rest, '/profile', {
 				profile_id: item.id,
 				intent: off ? 'off' : 'on',
-			} );
+			}, strings );
 
 			merge( answer );
 			showNotice( {
 				tone: 'ok',
-				kicker: 'OBJECT STORAGE',
+				kicker: kickers.storage,
 				title: off ? strings.toggledOff : strings.toggledOn,
 				message: '',
 			} );
@@ -127,7 +153,7 @@ export default function App( { boot } ) {
 		} catch ( failure ) {
 			showNotice( {
 				tone: 'bad',
-				kicker: 'OBJECT STORAGE',
+				kicker: kickers.storage,
 				title: strings.toggleFailed,
 				message: failure.message,
 			} );
@@ -159,13 +185,13 @@ export default function App( { boot } ) {
 		setDialogBusy( true );
 
 		try {
-			const answer = await call( rest, strings, '/profile/delete', { profile_id: item.id } );
+			const answer = await post( rest, '/profile/delete', { profile_id: item.id }, strings );
 
 			merge( answer );
 			setDialog( null );
 			showNotice( {
 				tone: 'ok',
-				kicker: 'OBJECT STORAGE',
+				kicker: kickers.storage,
 				title: answer.message,
 				message: '',
 			} );
@@ -173,7 +199,7 @@ export default function App( { boot } ) {
 			setDialog( null );
 			showNotice( {
 				tone: 'bad',
-				kicker: 'OBJECT STORAGE',
+				kicker: kickers.storage,
 				title: strings.saveFailed,
 				message: failure.message,
 			} );
@@ -183,7 +209,7 @@ export default function App( { boot } ) {
 	};
 
 	/**
-	 * Read one probe verdict into the dialog.
+	 * Read one probe verdict into the prompt.
 	 *
 	 * @param {Object} verdict { ok, message, latency }.
 	 * @param {string} title   Heading for a successful probe.
@@ -201,9 +227,9 @@ export default function App( { boot } ) {
 			message = strings.probeFailed;
 		}
 
-		setDialog( {
-			kind: 'result',
+		showNotice( {
 			tone: verdict.ok ? 'ok' : 'bad',
+			kicker: kickers.storage,
 			title: verdict.ok ? title : strings.probeTitleBad,
 			message,
 		} );
@@ -211,7 +237,7 @@ export default function App( { boot } ) {
 
 	const probeForm = async ( body ) => {
 		try {
-			showProbe( await call( rest, strings, '/probe', body ), strings.probeTitleOk );
+			showProbe( await post( rest, '/probe', body, strings ), strings.probeTitleOk );
 		} catch ( failure ) {
 			showProbe( { ok: false, message: failure.message, latency: 0 }, '' );
 		}
@@ -222,7 +248,7 @@ export default function App( { boot } ) {
 
 		try {
 			showProbe(
-				await call( rest, strings, '/probe/profile', { profile_id: item.id } ),
+				await post( rest, '/probe/profile', { profile_id: item.id }, strings ),
 				strings.probeProfileTitle
 			);
 		} catch ( failure ) {
@@ -241,14 +267,14 @@ export default function App( { boot } ) {
 	 */
 	const resolveDoge = async ( values, apply ) => {
 		try {
-			const answer = await call( rest, strings, '/doge-buckets', values );
+			const answer = await post( rest, '/doge-buckets', values, strings );
 			const data = answer.data || {};
 
 			if ( data.ok && data.match && data.match.bucket ) {
 				apply( data.match );
 				showNotice( {
 					tone: 'ok',
-					kicker: 'DOGECLOUD',
+					kicker: kickers.doge,
 					title: strings.dogeFilled,
 					message: data.message || '',
 				} );
@@ -264,14 +290,14 @@ export default function App( { boot } ) {
 
 			showNotice( {
 				tone: 'bad',
-				kicker: 'DOGECLOUD',
+				kicker: kickers.doge,
 				title: strings.dogeFailed,
 				message: data.message || '',
 			} );
 		} catch ( failure ) {
 			showNotice( {
 				tone: 'bad',
-				kicker: 'DOGECLOUD',
+				kicker: kickers.doge,
 				title: strings.dogeFailed,
 				message: failure.message,
 			} );
@@ -298,7 +324,8 @@ export default function App( { boot } ) {
 	};
 
 	/**
-	 * The open dialog, if any.
+	 * The open dialog, if any. Results go through Prompt; this is only for the
+	 * decisions and choices the cards cannot make on their own.
 	 *
 	 * @return {JSX.Element|null} Dialog.
 	 */
@@ -328,7 +355,7 @@ export default function App( { boot } ) {
 			return (
 				<Dialog
 					tone="bad"
-					kicker="OBJECT STORAGE"
+					kicker={ kickers.storage }
 					title={ dialog.title }
 					message={ dialog.message }
 					items={ dialog.items }
@@ -347,7 +374,7 @@ export default function App( { boot } ) {
 			return (
 				<Dialog
 					tone="warn"
-					kicker="BEHAVIOUR / RISK"
+					kicker={ kickers.behaviourRisk }
 					title={ strings.riskAckTitle }
 					message={ strings.riskAckText }
 					items={ dialog.items }
@@ -375,7 +402,7 @@ export default function App( { boot } ) {
 			return (
 				<Dialog
 					tone="info"
-					kicker="DOGECLOUD"
+					kicker={ kickers.doge }
 					title={ strings.dogePick }
 					message={ dialog.message }
 					confirmLabel={ strings.cancel }
@@ -394,7 +421,7 @@ export default function App( { boot } ) {
 									setDialog( null );
 									showNotice( {
 										tone: 'ok',
-										kicker: 'DOGECLOUD',
+										kicker: kickers.doge,
 										title: strings.dogeFilled,
 										message: '',
 									} );
@@ -409,17 +436,7 @@ export default function App( { boot } ) {
 			);
 		}
 
-		return (
-			<Dialog
-				tone={ dialog.tone || 'info' }
-				kicker="OBJECT STORAGE"
-				title={ dialog.title }
-				message={ dialog.message }
-				confirmLabel={ strings.closeDialog }
-				onConfirm={ () => setDialog( null ) }
-				onClose={ () => setDialog( null ) }
-			/>
-		);
+		return null;
 	};
 
 	return (
@@ -427,12 +444,6 @@ export default function App( { boot } ) {
 			<PageHead head={ head } />
 
 			<div className="page-body">
-				{ error ? (
-					<div className="system-note" role="alert">
-						<p>{ error }</p>
-					</div>
-				) : null }
-
 				{ payload.notice && payload.notice.message ? (
 					<div
 						className={ 'notice-inline notice-inline--' + ( payload.notice.tone || 'info' ) }
@@ -455,7 +466,7 @@ export default function App( { boot } ) {
 
 				<div className="card-grid" data-sakura-layout={ payload.page.id }>
 					<ProfilesCard
-						card={ payload.profiles }
+						card={ profiles }
 						busy={ busyProfile }
 						onAdd={ addProfile }
 						onToggle={ toggle }
@@ -463,7 +474,7 @@ export default function App( { boot } ) {
 						onProbe={ probeProfile }
 					/>
 					<ConnectionCard
-						card={ payload.connection }
+						card={ connection }
 						strings={ strings }
 						saving={ 'connection' === savingCard }
 						resetToken={ resetToken }
@@ -472,15 +483,15 @@ export default function App( { boot } ) {
 						onDoge={ resolveDoge }
 					/>
 					<BehaviourCard
-						card={ payload.behaviour }
+						card={ behaviour }
 						strings={ strings }
 						saving={ 'behaviour' === savingCard }
 						onSave={ ( body ) => saveCard( 'behaviour', body ) }
 						askRisk={ askRisk }
 					/>
-					<MetricsCard section={ payload.metrics } rest={ rest } nonce={ rest.nonce } />
+					<MetricsCard section={ metrics } rest={ rest } nonce={ rest.nonce } />
 					<MonitoringCard
-						section={ payload.monitoring }
+						section={ monitoring }
 						rest={ rest }
 						nonce={ rest.nonce }
 						onSaved={ ( next ) => merge( next ) }
@@ -489,14 +500,16 @@ export default function App( { boot } ) {
 			</div>
 
 			{ notice ? (
-				<Dialog
-					tone={ notice.tone }
-					kicker={ notice.kicker }
-					title={ notice.title }
-					message={ notice.message }
-					confirmLabel={ strings.closeDialog }
-					onConfirm={ () => setNotice( null ) }
+				<Prompt
+					notice={ {
+						...notice,
+						closeLabel: strings.closeLabel,
+						closeIcon: strings.closeIcon,
+						mascot: strings.mascot,
+						button: strings.closeDialog,
+					} }
 					onClose={ () => setNotice( null ) }
+					returnFocus={ promptFocus }
 				/>
 			) : null }
 

@@ -8,7 +8,7 @@
  *
  * @package Sakura_Image_Optimizer
  *
- * @var array<string,mixed> $data Rewrite_Payload::build() output.
+ * @var array<string,mixed> $data App_Manifest::payload( 'storage-rewrite' ) output.
  */
 
 if ( ! defined( 'ABSPATH' ) ) {

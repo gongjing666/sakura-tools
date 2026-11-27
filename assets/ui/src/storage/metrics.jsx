@@ -72,11 +72,11 @@ async function requestSection( url, nonce, strings ) {
 }
 
 /**
- * Route of the card, preferring the one the shell already resolved.
+ * Route of the card, as the payload named it.
  *
- * The bootstrap payload carries rest.url as the base of the storage routes
- * ("/storage"), not of this card, so appending the whole path to it would give
- * "/storage/storage/metrics"; the last segment is therefore tested first.
+ * Both endpoints arrive fully spelled out: rest.metrics.refresh from the page
+ * rest block, card.rest.refresh inside the card. Nothing is derived from
+ * rest.url, so a base URL can never be used to guess a second route.
  *
  * @param {Object} rest REST coordinates from the bootstrap payload.
  * @param {Object} card Card data.
@@ -87,17 +87,7 @@ function metricsUrl( rest, card ) {
 		return rest.metrics.refresh;
 	}
 
-	if ( card.rest && card.rest.refresh ) {
-		return card.rest.refresh;
-	}
-
-	const base = ( rest && rest.url ) || '';
-
-	if ( ! base ) {
-		return '';
-	}
-
-	return /(^|\/)storage$/.test( base ) ? base + '/metrics' : base + '/storage/metrics';
+	return ( card.rest && card.rest.refresh ) || '';
 }
 
 /**

@@ -79,7 +79,7 @@ export default function LivePanel( { snapshot, strings, auto, busy, onToggle, on
 				<div className="queue-live__stat">
 					<span className="queue-live__stat-label">{ live.dead }</span>
 					<strong className="queue-live__stat-value">{ format( counts.dead ) }</strong>
-					<span className="queue-live__stat-sub">{ ( activity.retention_days || 7 ) + ' 天后清理' }</span>
+					<span className="queue-live__stat-sub">{ ( live.purgeAfter || '' ).replace( '%s', String( activity.retention_days || 7 ) ) }</span>
 				</div>
 			</div>
 

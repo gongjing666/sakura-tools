@@ -10,12 +10,12 @@ declare( strict_types=1 );
 namespace Sakura\ImageOptimizer\Admin;
 
 use Sakura\ImageOptimizer\Admin\UI;
+use Sakura\ImageOptimizer\Admin\UI\Modal;
 use Sakura\ImageOptimizer\S3\Cost_Estimator;
-use Sakura\ImageOptimizer\S3\Cost_Panel;
 
 /**
  * The calculator is stateless: this payload carries the fields, the first
- * estimate and every label, and the AJAX endpoint returns the same shape.
+ * estimate and every label, and the REST endpoint returns the same shape.
  */
 final class Cost_Payload {
 
@@ -55,7 +55,9 @@ final class Cost_Payload {
 			'head'    => UI\Page::head_data( $page ),
 			'chrome'  => Shell::header_data( 'storage', 'cost' ),
 			'cards'   => $cards,
-			'config'  => $this->config(),
+			'strings' => $this->strings(),
+			'rest'    => Payload_Contract::rest_for( rest_url( Rest\Cost_Controller::NS . '/storage/cost' ), self::PAGE ),
+			'data'    => $this->data(),
 		);
 	}
 
@@ -142,16 +144,13 @@ final class Cost_Payload {
 	 *
 	 * @return array<string,mixed>
 	 */
-	private function config(): array {
+	private function data(): array {
 		return array(
-			'ajaxUrl'  => admin_url( 'admin-ajax.php' ),
-			'nonce'    => wp_create_nonce( Cost_Panel::NONCE ),
 			'pricedAt' => Cost_Estimator::PRICED_AT,
 			'result'   => $this->result,
 			'fields'   => $this->fields(),
 			'sources'  => $this->sources(),
 			'notes'    => $this->notes(),
-			'strings'  => $this->strings(),
 		);
 	}
 
@@ -334,6 +333,13 @@ final class Cost_Payload {
 	 */
 	private function strings(): array {
 		return array(
+			'close'            => __( '关闭', 'sakura-imgopt' ),
+			'dismiss'          => __( '知道了', 'sakura-imgopt' ),
+			'closeIcon'        => Modal::close_icon(),
+			'mascot'           => Modal::mascot(),
+			'noticeKicker'     => 'COST ESTIMATOR',
+			'noticeTitle'      => __( '估算结果', 'sakura-imgopt' ),
+			'noticeErrorTitle' => __( '估算没有完成', 'sakura-imgopt' ),
 			'estimate'      => __( '重新估算', 'sakura-imgopt' ),
 			'estimating'    => __( '正在估算…', 'sakura-imgopt' ),
 			'done'          => __( '已按当前需求重新估算。', 'sakura-imgopt' ),

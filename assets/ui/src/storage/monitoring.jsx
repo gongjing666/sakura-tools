@@ -188,7 +188,7 @@ function TextRow( { field, value, onChange } ) {
  * The monitoring card.
  *
  * @param {Object}   props           Card props.
- * @param {Object}   props.section   boot.monitoring from Storage_Payload.
+ * @param {Object}   props.section   The monitoring card from boot.cards.
  * @param {Object}   props.rest      boot.rest (REST base URL and nonce).
  * @param {string}   props.nonce     boot.rest.nonce.
  * @param {Function} [props.onSaved] Receives { status, alerts } when a save

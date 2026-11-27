@@ -323,7 +323,11 @@ class Thumbnail_Optimizer_Module implements Module {
 			return;
 		}
 
-		$payload = ( new \Sakura\ImageOptimizer\Admin\Thumb_Payload() )->build();
+		$payload = \Sakura\ImageOptimizer\Admin\App_Manifest::payload( 'image-thumb' );
+
+		if ( null === $payload ) {
+			return;
+		}
 
 		require SAKURA_TOOLS_INC . 'views/settings-island.php';
 	}

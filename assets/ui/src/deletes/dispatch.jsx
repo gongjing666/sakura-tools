@@ -2,21 +2,17 @@
  * Batch dispatch settings for the delete queue.
  *
  * Pure presentation: the policy and the live queue counters arrive in the
- * snapshot, saving goes through the REST route. No server-rendered form.
+ * snapshot, every label arrives in strings.dispatch, and saving goes through
+ * the REST route. No server-rendered form, no copy in this file.
  */
 import { useState } from 'react';
 import { Card } from '../shared/ui.jsx';
 import { postAction } from './transport.js';
 
-const NUMBERS = [
-	{ key: 'batch_size', label: '每车件数', hint: '凑满这么多就立即执行', min: 1, max: 200, unit: '件' },
-	{ key: 'max_wait', label: '最长等待', hint: '等这么久还没凑够也执行；0 = 立即', min: 0, max: 86400, unit: '秒' },
-	{ key: 'batch_bytes', label: '每车最大体积', hint: '达到这个体积就执行；0 = 不限', min: 0, max: 10240, unit: 'MB' },
-	{ key: 'batch_time', label: '单次运行上限', hint: '一次最多跑多久，防止请求超时', min: 10, max: 60, unit: '秒' },
-];
-
 export default function DispatchCard( { dispatch, strings, rest, onSaved } ) {
 	const labels = ( strings && strings.dispatch ) || {};
+	const copy = labels.status || {};
+	const fields = Array.isArray( labels.fields ) ? labels.fields : [];
 	const [ form, setForm ] = useState( dispatch && dispatch.policy ? dispatch.policy : {} );
 	const [ busy, setBusy ] = useState( false );
 	const [ note, setNote ] = useState( '' );
@@ -34,16 +30,16 @@ export default function DispatchCard( { dispatch, strings, rest, onSaved } ) {
 		setBusy( true );
 		setNote( '' );
 
-		postAction( rest, 'dispatch', form )
+		postAction( rest, 'dispatch', form, strings )
 			.then( ( data ) => {
-				setNote( labels.saved || '已保存，下一批生效。' );
+				setNote( labels.saved || '' );
 
 				if ( onSaved ) {
 					onSaved( data );
 				}
 			} )
 			.catch( ( error ) => {
-				setNote( String( ( error && error.message ) || '保存失败，请稍后重试。' ) );
+				setNote( String( ( error && error.message ) || ( labels.saveFailed || '' ) ) );
 			} )
 			.finally( () => setBusy( false ) );
 	};
@@ -54,15 +50,21 @@ export default function DispatchCard( { dispatch, strings, rest, onSaved } ) {
 	const remain = oldest > 0 && wait > 0 ? Math.max( 0, wait - waited ) : 0;
 	const count = Number( queued.count || 0 );
 	const bytes = Number( queued.bytes || 0 );
-	const status = count > 0
-		? ( form.enabled
-			? '候车 ' + count + ' 件 / ' + Math.round( bytes / 1048576 ) + ' MB；最早一件已等 ' + waited + ' 秒'
-				+ ( wait > 0 ? '，最迟 ' + remain + ' 秒后执行。' : '，下个检查点执行。' )
-			: '攒批已关闭：任务进入队列后立即执行。' )
-		: '队列空闲，没有等待中的任务。';
+
+	let status = copy.empty || '';
+
+	if ( count > 0 ) {
+		status = form.enabled
+			? String( copy.waiting || '' )
+				.replace( '%1$s', String( count ) )
+				.replace( '%2$s', String( Math.round( bytes / 1048576 ) ) )
+				.replace( '%3$s', String( waited ) ) +
+				( wait > 0 ? String( copy.due || '' ).replace( '%s', String( remain ) ) : String( copy.checkpoint || '' ) )
+			: String( copy.disabled || '' );
+	}
 
 	return (
-		<Card card={ { id: 'delete-dispatch', kicker: labels.kicker || 'DISPATCH', title: labels.title || '批量调度', description: labels.desc || '任务先进队列，凑够一批或等满时间再执行；关闭后立即执行。' } }>
+		<Card card={ { id: 'delete-dispatch', kicker: labels.kicker, title: labels.title, description: labels.desc } }>
 			<div className="field-list">
 				<div className="field field--check field--full">
 					<div className="field__control">
@@ -74,14 +76,14 @@ export default function DispatchCard( { dispatch, strings, rest, onSaved } ) {
 								onChange={ ( event ) => change( 'enabled', event.target.checked ? 1 : 0 ) }
 							/>
 							<span className="check__text">
-								<strong className="check__title">{ labels.enabled || '启用批量调度' }</strong>
-								<span className="check__hint">{ labels.enabledHint || '关闭后每条删除立即执行，等同原有行为。' }</span>
+								<strong className="check__title">{ labels.enabled }</strong>
+								<span className="check__hint">{ labels.enabledHint }</span>
 							</span>
 						</label>
 					</div>
 				</div>
 
-				{ NUMBERS.map( ( item ) => (
+				{ fields.map( ( item ) => (
 					<div className="field field--limits" key={ item.key }>
 						<div className="field__main">
 							<label className="field__label" htmlFor={ 'dispatch-' + item.key }>{ item.label }</label>
@@ -112,7 +114,7 @@ export default function DispatchCard( { dispatch, strings, rest, onSaved } ) {
 			<div className="card__savebar">
 				{ note ? <span className="card-savebar__note">{ note }</span> : null }
 				<button type="button" className="btn btn--primary" disabled={ busy } onClick={ save }>
-					{ busy ? ( labels.saving || '保存中…' ) : ( labels.save || '保存设置' ) }
+					{ busy ? labels.saving : labels.save }
 				</button>
 			</div>
 		</Card>

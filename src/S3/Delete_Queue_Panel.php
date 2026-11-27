@@ -19,6 +19,7 @@ declare( strict_types=1 );
 
 namespace Sakura\ImageOptimizer\S3;
 
+use Sakura\ImageOptimizer\Admin\App_Manifest;
 use Sakura\ImageOptimizer\Admin\Deletes_Payload;
 use Sakura\ImageOptimizer\Admin\Page_Assets;
 use Sakura\ImageOptimizer\Admin\Registry;
@@ -161,7 +162,11 @@ final class Delete_Queue_Panel {
 			return;
 		}
 
-		$data = ( new Deletes_Payload() )->build();
+		$payload = App_Manifest::payload( Deletes_Payload::PAGE );
+
+		if ( null === $payload ) {
+			return;
+		}
 
 		require __DIR__ . '/../../includes/views/deletes-island.php';
 	}

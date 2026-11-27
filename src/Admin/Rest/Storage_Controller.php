@@ -181,19 +181,23 @@ final class Storage_Controller {
 
 		return rest_ensure_response(
 			array(
-				'card'       => $card,
-				'saved'      => $args,
-				'result'     => array(
+				'card'     => $card,
+				'values'   => $args,
+				'notice'   => array(
 					'tone'    => 'ok',
 					'kicker'  => 'OBJECT STORAGE / SAVED',
 					'title'   => __( '已保存', 'sakura-imgopt' ),
 					'message' => self::saved_message( $args ),
 				),
-				'status'     => $payload->status(),
-				'alerts'     => $payload->alerts(),
-				'profiles'   => $payload->profiles(),
-				'connection' => $payload->connection(),
-				'behaviour'  => $payload->behaviour(),
+				'status'   => $payload->status(),
+				'alerts'   => $payload->alerts(),
+				// The page model is cards; a write answers with the same card
+				// payloads under sections, keyed by card id.
+				'sections' => array(
+					'profiles'   => $payload->profiles(),
+					'connection' => $payload->connection(),
+					'behaviour'  => $payload->behaviour(),
+				),
 			)
 		);
 	}
@@ -230,7 +234,9 @@ final class Storage_Controller {
 				'switch'   => $result['switch'],
 				'status'   => $payload->status(),
 				'alerts'   => $payload->alerts(),
-				'profiles' => $payload->profiles(),
+				'sections' => array(
+					'profiles' => $payload->profiles(),
+				),
 			)
 		);
 	}
@@ -264,8 +270,10 @@ final class Storage_Controller {
 				'message'  => __( '已删除保存的配置。', 'sakura-imgopt' ),
 				'status'   => $payload->status(),
 				'alerts'   => $payload->alerts(),
-				'profiles' => $payload->profiles(),
-				'connection' => $payload->connection(),
+				'sections' => array(
+					'profiles'   => $payload->profiles(),
+					'connection' => $payload->connection(),
+				),
 			)
 		);
 	}

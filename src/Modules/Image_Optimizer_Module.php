@@ -1,6 +1,7 @@
 <?php
 namespace Sakura\ImageOptimizer\Modules;
 
+use Sakura\ImageOptimizer\Admin\App_Manifest;
 use Sakura\ImageOptimizer\Admin\Assets;
 use Sakura\ImageOptimizer\Admin\Backup_Payload;
 use Sakura\ImageOptimizer\Admin\Image_Payload;
@@ -27,28 +28,17 @@ if ( ! defined( 'ABSPATH' ) ) {
 class Image_Optimizer_Module implements Module {
 
 	/**
-	 * Stats persistence boundary.
-	 *
-	 * @var Stats_Repository_Interface
-	 */
-	private Stats_Repository_Interface $stats;
-
-	/**
-	 * Backup persistence boundary.
-	 *
-	 * @var Backup_Repository_Interface
-	 */
-	private Backup_Repository_Interface $backup;
-
-	/**
 	 * Constructor.
+	 *
+	 * The renderers read their payload through App_Manifest, so the module no
+	 * longer owns the repositories; the parameters stay for the composition root
+	 * and for tests that construct it with their own doubles.
 	 *
 	 * @param Stats_Repository_Interface|null  $stats  Stats repository.
 	 * @param Backup_Repository_Interface|null $backup Backup repository.
 	 */
 	public function __construct( ?Stats_Repository_Interface $stats = null, ?Backup_Repository_Interface $backup = null ) {
-		$this->stats  = $stats ?? new Stats_Repository();
-		$this->backup = $backup ?? new Backup_Repository();
+		unset( $stats, $backup );
 	}
 
 	/**
@@ -66,7 +56,11 @@ class Image_Optimizer_Module implements Module {
 	 * @return void
 	 */
 	public function render_page() {
-		$payload = ( new Image_Payload() )->build( 'rules' );
+		$payload = App_Manifest::payload( 'image-rules' );
+
+		if ( null === $payload ) {
+			return;
+		}
 
 		require SAKURA_TOOLS_INC . 'views/settings-island.php';
 	}
@@ -77,7 +71,11 @@ class Image_Optimizer_Module implements Module {
 	 * @return void
 	 */
 	public function render_backup_page() {
-		$payload = ( new Backup_Payload( $this->backup ) )->build();
+		$payload = App_Manifest::payload( 'image-backup' );
+
+		if ( null === $payload ) {
+			return;
+		}
 
 		require SAKURA_TOOLS_INC . 'views/settings-island.php';
 	}
@@ -88,7 +86,11 @@ class Image_Optimizer_Module implements Module {
 	 * @return void
 	 */
 	public function render_stats_page() {
-		$payload = ( new Stats_Payload( $this->stats ) )->build();
+		$payload = App_Manifest::payload( 'image-stats' );
+
+		if ( null === $payload ) {
+			return;
+		}
 
 		require SAKURA_TOOLS_INC . 'views/settings-island.php';
 	}

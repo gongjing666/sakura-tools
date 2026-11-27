@@ -2,11 +2,10 @@
 /**
  * Data the sync center island renders.
  *
- * This payload is the only renderer for the sync tab since 1.29.0-beta-5
- * path (a checkout without a built bundle), so the arithmetic below mirrors that
- * view line for line instead of replacing it: one renderer is always reachable
- * and the other can be compared against it. When a number changes, both files
- * change together.
+ * One builder feeds the first paint, the shell's page route and every
+ * post-action refresh: `rest` names the sync controller's base route and
+ * `data` carries the numbers, table rows, log rows and client configuration
+ * the island renders.
  *
  * @package Sakura_Image_Optimizer
  */
@@ -15,6 +14,8 @@ declare( strict_types=1 );
 
 namespace Sakura\ImageOptimizer\Admin;
 
+use Sakura\ImageOptimizer\Admin\Rest\Sync_Controller;
+use Sakura\ImageOptimizer\Admin\UI\Modal;
 use Sakura\ImageOptimizer\Admin\UI\Page;
 use Sakura\ImageOptimizer\S3\Bucket_Label;
 use Sakura\ImageOptimizer\S3\Ignored_Paths;
@@ -52,7 +53,7 @@ final class Sync_Payload {
 	private Options $options;
 
 	/**
-	 * Client configuration from the module (nonces, URLs, copy).
+	 * Client configuration from the module (URLs, labels, copy).
 	 *
 	 * @var array<string,mixed>
 	 */
@@ -62,7 +63,7 @@ final class Sync_Payload {
 	 * Constructor.
 	 *
 	 * @param array<string,mixed> $data    View data.
-	 * @param array<string,mixed> $config  window.sakuraPage.data, nonces included.
+	 * @param array<string,mixed> $config  Client configuration from the module.
 	 * @param Options|null        $options Storage options.
 	 */
 	public function __construct( array $data, array $config = array(), ?Options $options = null ) {
@@ -85,13 +86,26 @@ final class Sync_Payload {
 			'page'    => $page,
 			'head'    => Page::head_data( $page ),
 			'chrome'  => Shell::header_data( 'storage', 'sync' ),
-			'view'    => $view,
 			'cards'   => $this->cards( $view ),
-			'rows'    => $this->rows(),
-			'logs'    => $this->logs( $view ),
-			'config'  => $this->config( $view ),
 			'strings' => $this->strings(),
+			'rest'    => Payload_Contract::rest_for( rest_url( Sync_Controller::NS . '/storage/sync' ), self::PAGE ),
+			'data'    => $this->data( $view ),
 		);
+	}
+
+	/**
+	 * Format a timestamp, with a fallback for the minimal test shim.
+	 *
+	 * WordPress always provides wp_date(); the page-contract test loads this
+	 * builder against a shim that does not, and the builder must stay loadable
+	 * there.
+	 *
+	 * @param string $format    Date format.
+	 * @param int    $timestamp Unix timestamp.
+	 * @return string
+	 */
+	private function date_label( string $format, int $timestamp ): string {
+		return function_exists( 'wp_date' ) ? (string) wp_date( $format, $timestamp ) : (string) gmdate( $format, $timestamp );
 	}
 
 	/**
@@ -140,7 +154,7 @@ final class Sync_Payload {
 
 		$legacy_error   = isset( $data['legacy_error'] ) ? (string) $data['legacy_error'] : '';
 		$legacy_built   = isset( $data['legacy_built'] ) ? (int) $data['legacy_built'] : 0;
-		$legacy_label   = $legacy_built ? wp_date( 'm-d H:i', $legacy_built ) : '';
+		$legacy_label   = $legacy_built ? $this->date_label( 'm-d H:i', $legacy_built ) : '';
 		$legacy_message = '';
 		$state_label    = '';
 		$state_tone     = 'neutral';
@@ -287,7 +301,7 @@ final class Sync_Payload {
 				$mix_desc = sprintf(
 					/* translators: %s: scan time. */
 					__( '按同步记录实时统计，上传与删除会立刻反映在这里；最近一次完整核对在 %s。', 'sakura-imgopt' ),
-					wp_date( 'm-d H:i', $scan_time )
+					$this->date_label( 'm-d H:i', $scan_time )
 				);
 			} else {
 				$mix_desc = __( '按同步记录实时统计，上传与删除会立刻反映在这里；还没有完整核对记录，跑一次核对可以补齐历史上没有走过插件的对象。', 'sakura-imgopt' );
@@ -299,7 +313,7 @@ final class Sync_Payload {
 		$queue_waiting   = (int) ( $jobs_summary['queued'] ?? 0 ) + (int) ( $jobs_summary['running'] ?? 0 );
 		$queue_dead      = (int) ( $jobs_summary['dead'] ?? 0 );
 
-		$scan_label = $scan_time ? wp_date( 'm-d H:i', $scan_time ) : __( '尚未核对', 'sakura-imgopt' );
+		$scan_label = $scan_time ? $this->date_label( 'm-d H:i', $scan_time ) : __( '尚未核对', 'sakura-imgopt' );
 
 		// KPI strip and the Sakura Frontline rail: the three numbers the page
 		// answers first ("do the three sides agree?"), then the breakdown.
@@ -439,7 +453,7 @@ final class Sync_Payload {
 			'coverage_label'      => number_format_i18n( $coverage, 1 ),
 			'coverage_percent'    => round( $coverage ),
 			'scan_time'      => $scan_time,
-			'scan_label'     => $scan_time ? wp_date( 'm-d H:i', $scan_time ) : __( '尚未核对', 'sakura-imgopt' ),
+			'scan_label'     => $scan_time ? $this->date_label( 'm-d H:i', $scan_time ) : __( '尚未核对', 'sakura-imgopt' ),
 			'scan'           => array(
 				'id'          => (int) ( $data['scan_id'] ?? 0 ),
 				'state'       => $scan_state,
@@ -453,7 +467,7 @@ final class Sync_Payload {
 				'meta_text'   => sprintf(
 					/* translators: 1: scan time, 2: phase. */
 					__( '同步记录表 %1$s · %2$s', 'sakura-imgopt' ),
-					$scan_time ? wp_date( 'm-d H:i', $scan_time ) : __( '尚未核对', 'sakura-imgopt' ),
+					$scan_time ? $this->date_label( 'm-d H:i', $scan_time ) : __( '尚未核对', 'sakura-imgopt' ),
 					$scan_running && '' !== $phase_label ? sprintf( '%s %s', $phase_label, number_format_i18n( $scan_processed ) ) : __( '实时读取', 'sakura-imgopt' )
 				),
 			),
@@ -723,7 +737,7 @@ final class Sync_Payload {
 				'local_removed' => $removed,
 				'cloud'        => $cloud,
 				'mtime'        => $mtime,
-				'date_label'   => $mtime ? wp_date( 'm/d H:i', $mtime ) : '—',
+				'date_label'   => $mtime ? $this->date_label( 'm/d H:i', $mtime ) : '—',
 				'size'         => $size,
 				'size_label'   => $local ? Inventory::format_bytes( $size ) : '—',
 				'cloud_size'   => $csize,
@@ -755,7 +769,7 @@ final class Sync_Payload {
 			$out[] = array(
 				'level'   => $level,
 				'time'    => $time,
-				'time_label' => $time ? wp_date( 'H:i:s', $time ) : '—',
+				'time_label' => $time ? $this->date_label( 'H:i:s', $time ) : '—',
 				'message' => (string) ( $log['message'] ?? '' ),
 				'badge'   => $badge,
 				'label'   => $label,
@@ -767,24 +781,27 @@ final class Sync_Payload {
 	}
 
 	/**
-	 * Client configuration: the same keys the legacy controller reads from
-	 * window.sakuraPage.data, so a request body stays byte-identical.
+	 * Page-wide data: the client configuration plus everything the first paint
+	 * renders, so one REST refresh can replace the island's whole state.
 	 *
 	 * @param array<string,mixed> $view Numbers.
 	 * @return array<string,mixed>
 	 */
-	private function config( array $view ): array {
-		$config = $this->config;
+	private function data( array $view ): array {
+		$data = $this->config;
 
-		$config['exportUrl']   = (string) ( $view['export_url'] ?? '' );
-		$config['settingsUrl'] = (string) ( $view['settings_url'] ?? '' );
-		$config['scanId']      = (int) ( $view['scan']['id'] ?? 0 );
-		$config['scanState']   = (string) ( $view['scan']['state'] ?? '' );
-		$config['resumable']   = (bool) ( $view['scan']['resumable'] ?? false );
-		$config['frozen']      = (bool) ( $view['frozen'] ?? false );
-		$config['gated']       = (bool) ( $view['reconcile_gated'] ?? false );
+		$data['exportUrl']   = (string) ( $view['export_url'] ?? '' );
+		$data['settingsUrl'] = (string) ( $view['settings_url'] ?? '' );
+		$data['scanId']      = (int) ( $view['scan']['id'] ?? 0 );
+		$data['scanState']   = (string) ( $view['scan']['state'] ?? '' );
+		$data['resumable']   = (bool) ( $view['scan']['resumable'] ?? false );
+		$data['frozen']      = (bool) ( $view['frozen'] ?? false );
+		$data['gated']       = (bool) ( $view['reconcile_gated'] ?? false );
+		$data['view']        = $view;
+		$data['rows']        = $this->rows();
+		$data['logs']        = $this->logs( $view );
 
-		return $config;
+		return $data;
 	}
 
 	/**
@@ -797,6 +814,63 @@ final class Sync_Payload {
 	 */
 	private function strings(): array {
 		return array(
+			'close'        => __( '关闭', 'sakura-imgopt' ),
+			'dismiss'      => __( '知道了', 'sakura-imgopt' ),
+			'closeIcon'    => Modal::close_icon(),
+			'mascot'       => Modal::mascot(),
+			'savedNotice'  => array(
+				'tone'    => 'ok',
+				'kicker'  => 'EXCLUSIONS / SAVED',
+				'title'   => __( '忽略规则已保存', 'sakura-imgopt' ),
+				'message' => __( '新规则会从下一次核对开始生效。', 'sakura-imgopt' ),
+			),
+			'failedNotice' => array(
+				'tone'    => 'bad',
+				'kicker'  => 'EXCLUSIONS / ERROR',
+				'title'   => __( '忽略规则未保存', 'sakura-imgopt' ),
+				'message' => __( '保存失败，请稍后重试。', 'sakura-imgopt' ),
+			),
+			'ui'           => array(
+				'frozen'          => __( '对象存储已停用：核对、上传、下载与删除都暂时停下，下方的数字停留在停用之前。重新启用后可以继续。', 'sakura-imgopt' ),
+				/* translators: 1: previous storage target, 2: current bucket. */
+				'gatedFrom'       => __( '存储目标已从「%1$s」切换到当前配置（桶 %2$s），下方的数字还是上一个桶的。下载、上传、删除与刷新差异暂时停下，点「开始完整核对」重建索引后自动恢复。', 'sakura-imgopt' ),
+				'gated'           => __( '存储目标已切换，下方的数字还是上一个桶的。下载、上传、删除与刷新差异暂时停下，点「开始完整核对」重建索引后自动恢复。', 'sakura-imgopt' ),
+				'compatTitle'     => __( '兼容模式', 'sakura-imgopt' ),
+				'enableIndex'     => __( '启用同步记录', 'sakura-imgopt' ),
+				/* translators: 1: scan phase, 2: processed objects. */
+				'scanRunning'     => __( '核对进行中（%1$s，已处理 %2$s 个），可关闭页面由后台继续；也可随时停止。', 'sakura-imgopt' ),
+				'scanPhaseFallback' => __( '准备中', 'sakura-imgopt' ),
+				'scanInterrupted' => __( '上一次核对中断，同步记录仍可用；点击“继续核对”会从断点续跑，不会产生重复行。', 'sakura-imgopt' ),
+				'calibrate'       => __( '云端数据已超过 30 天未校准，期间的对象增删不会体现在下方统计里。校准会自动排队，也可以用下面的按钮现在开始。', 'sakura-imgopt' ),
+				'calibrateNow'    => __( '立即校准', 'sakura-imgopt' ),
+				/* translators: 1: differing items, 2: pending uploads, 3: failed uploads, 4: remote-only objects. */
+				'diff'            => __( '最近一次全量核对发现 <strong>%1$s 项差异</strong>：%2$s 个只在本地上传、%3$s 个上传失败、%4$s 个只在云端。建议先处理失败项，再执行批量上传（按附件补齐全部分辨率并逐个校验）。', 'sakura-imgopt' ),
+				'exportCsv'       => __( '导出差异表格（CSV）', 'sakura-imgopt' ),
+				'logLevelAria'    => __( '日志级别', 'sakura-imgopt' ),
+				'summaryAria'     => __( '同步摘要', 'sakura-imgopt' ),
+				'filterAria'      => __( '差异筛选', 'sakura-imgopt' ),
+				'tableAria'       => __( '本地与云端文件核对', 'sakura-imgopt' ),
+				'sizesAria'       => __( '每页显示行数', 'sakura-imgopt' ),
+				'pagesAria'       => __( '分页', 'sakura-imgopt' ),
+				/* translators: %s: object name. */
+				'selectRowAria'   => __( '选择 %s', 'sakura-imgopt' ),
+				'perPage'         => __( '每页', 'sakura-imgopt' ),
+				/* translators: 1: local files, 2: cloud objects. */
+				'filesCount'      => __( '个文件 · 本地 %1$s · 云端 %2$s', 'sakura-imgopt' ),
+				'progressAria'    => __( '同步覆盖进度', 'sakura-imgopt' ),
+				'mixAria'         => __( '云端文件体积分布', 'sakura-imgopt' ),
+				/* translators: %s: number of cloud objects. */
+				'storageFiles'    => __( '%s 个文件', 'sakura-imgopt' ),
+				/* translators: 1: date label, 2: sample count. */
+				'activityOk'      => __( '%1$s：正常 %2$s', 'sakura-imgopt' ),
+				/* translators: 1: date label, 2: sample count. */
+				'activityBad'     => __( '%1$s：失败 %2$s', 'sakura-imgopt' ),
+				/* translators: 1: pages, 2: batches, 3: average batch time, 4: 429 count, 5: 5xx count. */
+				'healthMetrics'   => __( '页面 %1$s · 批次 %2$s · 均 %3$s ms · 429 %4$s · 5xx %5$s', 'sakura-imgopt' ),
+				'notStarted'      => __( '未开始', 'sakura-imgopt' ),
+				'cancel'          => __( '取消', 'sakura-imgopt' ),
+				'dialogKicker'    => 'RECONCILIATION',
+			),
 			'cards' => array(
 				/* translators: %d: number of active ignore rules. */
 				'ignoredNote'      => __( '当前 %d 条生效', 'sakura-imgopt' ),

@@ -150,13 +150,13 @@ function Kpi( { kpi } ) {
 }
 
 /** Five ticket-stub tiles: the same five the classic page printed. */
-export function KpiStrip( { kpis } ) {
+export function KpiStrip( { kpis, label } ) {
 	if ( ! Array.isArray( kpis ) || ! kpis.length ) {
 		return null;
 	}
 
 	return (
-		<section className="kpis kpis--ticket" id="summary" aria-label="同步摘要">
+		<section className="kpis kpis--ticket" id="summary" aria-label={ label || '同步摘要' }>
 			{ kpis.map( ( kpi, index ) => (
 				<Fragment key={ kpi.label || index }>
 					<Kpi kpi={ kpi } />

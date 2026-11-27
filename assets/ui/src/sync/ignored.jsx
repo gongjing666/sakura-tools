@@ -88,13 +88,6 @@ export default function IgnoredCard( { card, data, strings, rest, frozen, onRefr
 					</button>
 				</div>
 			</form>
-			{ saved ? (
-				<div className="notice-inline notice-inline--ok" role="status">
-					<p>
-						<strong>{ copy.ignoredSaved || '忽略规则已保存' }</strong> — { copy.ignoredSavedBody || '' }
-					</p>
-				</div>
-			) : null }
 			{ notice ? <Prompt notice={ notice } onClose={ () => setNotice( null ) } returnFocus={ saveRef } /> : null }
 		</Card>
 	);

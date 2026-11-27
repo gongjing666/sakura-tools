@@ -4,7 +4,7 @@ Tags: image optimization, webp, avif, imagick, media library
 Requires at least: 6.4
 Tested up to: 7.1.5
 Requires PHP: 8.2
-Stable tag: 1.30.0-beta-1
+Stable tag: 1.30.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -80,6 +80,15 @@ Access Key 和 Secret 会加密后存进数据库，页面和源码都不会显�
 
 == Changelog ==
 
+= 1.30.0 =
+
+* 新增：**后台页面契约**（`docs/开发规则/14-后台页面契约.md` + `tests/Admin/PageContractTest.php`）——16 条后台路由统一成同一份首帧文档：`page / head / chrome / cards / strings / rest` 六个必备键，可选 `version / tab / alerts / notice / data / sections`；卡片按 `cards[]` 顺序渲染、各自带数据，页级状态放 `data`，文案只从 `strings` 取，接口地址与 nonce 只从 `rest` 取。契约测试逐路由校验键、卡片 id、非空字符串与 `rest.url / nonce / refresh`。
+* 调整：**系统设置、图片优化（4 页签）、对象存储（5 页签）全部迁到同一契约**——这 10 个页签不再有各自命名的首帧键，`boot.cards / boot.strings / boot.rest` 一处读取；同步中心的 `view / rows / logs` 折进 `data`，连接配置与删除队列的卡片数据改由 `cards[]` 携带。
+* 调整：**写操作只剩 REST**——连接配置卡、删除队列的重试与丢弃、同步中心的扫描/续扫/取消/重试/刷新/翻页/忽略规则/索引开关/连接测试、链接改写的扫描/执行/回滚、费用估算的重新估算全部 POST 到各自路由；这 10 个页签上原有的 `wp_ajax_` 写入口已删除。
+* 调整：**动作完成后不再整页刷新**——保存、扫描、切换、删除成功后用 `rest.refresh` 拉一次首帧再合并，页面不重载、滚动位置不动；结果统一走共享提示弹窗，确认统一走共享确认弹窗（含 `requireText`、焦点圈定与关闭后焦点回到触发按钮）。
+* 调整：**页面内导航与弹窗各只留一套实现**——删掉对象存储与同步中心各自私有的传输层和第三套弹窗，图片页签不再自己维护页签条与 URL。
+* 修复：**同步中心「忽略规则」整页白屏**——组件引用了已删除的 `saved` 变量，React 渲染时抛 `ReferenceError`，整页停在骨架屏；现在保存结果只由提示弹窗反馈。
+* 影响范围：不新增/不修改表结构与 option 键，不改既有钩子语义；升级无需手工迁移。
 = 1.29.0 =
 
 * 重构：**后台 16 个页面的内容区全部迁为 React 岛**（13 个 bundle）——顶栏、页签条、页头与首帧仍由 PHP 输出，内容区由 payload + bootstrap JSON 挂载；旧 PHP 视图与 assets/ui/js/pages/*.js 只在 bundle 不可读时作为回退，正常请求不再下载旧页脚本。

@@ -158,8 +158,9 @@ for required in \
 	sakura-tools.php \
 	uninstall.php \
 	readme.txt \
-	includes/class-image-processor.php \
 	src/Plugin.php \
+	src/Admin/App_Manifest.php \
+	assets/ui/dist/admin-app.js \
 	vendor/s3/vendor-prefixed/autoload.php; do
 	if ! grep -qxF "sakura-tools/$required" <<< "$LIST"; then
 		echo "Package is missing required file: $required" >&2

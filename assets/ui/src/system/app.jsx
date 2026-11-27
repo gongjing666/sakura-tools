@@ -27,7 +27,8 @@ function sameValues( left, right ) {
 }
 
 export default function App( { boot } ) {
-	const layoutCard = boot.cards.layout;
+	const cards = Object.fromEntries( ( boot.cards || [] ).map( ( card ) => [ card.id, card ] ) );
+	const layoutCard = cards.layout;
 	const [ draft, setDraft ] = useState( () => draftFromFields( layoutCard.fields ) );
 	const [ saved, setSaved ] = useState( () => draftFromFields( layoutCard.fields ) );
 	const [ saving, setSaving ] = useState( false );
@@ -95,23 +96,23 @@ export default function App( { boot } ) {
 			<PageHead head={ boot.head } />
 
 			<div className="page-body">
-					<KpiBoard score={ boot.score } kpis={ boot.kpis } />
+					<KpiBoard score={ boot.data.score } kpis={ boot.data.kpis } />
 
 					<div className="card-grid" data-sakura-layout="system-settings" data-sakura-group="main">
-						<Card card={ boot.cards.runtime }>
-							<RuntimeTable card={ boot.cards.runtime } />
+						<Card card={ cards.runtime }>
+							<RuntimeTable card={ cards.runtime } />
 						</Card>
 
-						<Card card={ boot.cards.engine }>
-							<RuntimeTable card={ boot.cards.engine } />
+						<Card card={ cards.engine }>
+							<RuntimeTable card={ cards.engine } />
 						</Card>
 
-						<Card card={ boot.cards.checks }>
-							<ChecksTable card={ boot.cards.checks } />
+						<Card card={ cards.checks }>
+							<ChecksTable card={ cards.checks } />
 						</Card>
 
-						<Card card={ boot.cards.extensions }>
-							<ExtensionGrid card={ boot.cards.extensions } />
+						<Card card={ cards.extensions }>
+							<ExtensionGrid card={ cards.extensions } />
 						</Card>
 
 						<Card card={ layoutCard } titleProps={ { tabIndex: -1, 'data-sakura-return-target': '' } }>

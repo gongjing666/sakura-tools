@@ -86,7 +86,11 @@ final class Schema {
 	public static function install(): void {
 		global $wpdb;
 
-		require_once ABSPATH . 'wp-admin/includes/upgrade.php';
+		if ( ! function_exists( 'dbDelta' ) ) {
+
+			require_once ABSPATH . 'wp-admin/includes/upgrade.php';
+
+		}
 
 		$previous = (string) get_option( self::OPTION, '' );
 

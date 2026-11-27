@@ -141,6 +141,14 @@ final class Stats_Payload {
 
 		$payload['head'] = Page::head_data( $payload['page'] );
 
+		$payload['data']  = array(
+			'kpis'    => $payload['kpis'],
+			'history' => $payload['history'],
+		);
+		$payload['cards'] = array( $payload['history'] );
+
+		unset( $payload['history'], $payload['kpis'] );
+
 		return $payload;
 	}
 

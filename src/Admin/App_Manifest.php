@@ -195,7 +195,7 @@ final class App_Manifest {
 	}
 
 	/**
-	 * The payload builder for one route.
+	 * The contract-checked payload for one route.
 	 *
 	 * Returns the same array the page's own bootstrap carries, so a fetch after
 	 * navigation and a full reload can never disagree about a value.
@@ -204,6 +204,21 @@ final class App_Manifest {
 	 * @return array<string,mixed>|null Null when the page is not a route.
 	 */
 	public static function payload( string $page ): ?array {
+		$payload = self::raw_payload( $page );
+
+		return null === $payload ? null : Payload_Contract::normalize( $payload, $page );
+	}
+
+	/**
+	 * The payload exactly as the builder returns it.
+	 *
+	 * The contract test inspects this without the normaliser, so a missing key
+	 * fails the test instead of being papered over.
+	 *
+	 * @param string $page Page id.
+	 * @return array<string,mixed>|null Null when the page is not a route.
+	 */
+	public static function raw_payload( string $page ): ?array {
 		switch ( $page ) {
 			case 'system-settings':
 				return System_Payload::build();

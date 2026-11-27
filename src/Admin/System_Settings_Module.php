@@ -51,7 +51,11 @@ class System_Settings_Module implements Module {
 			return;
 		}
 
-		$payload = System_Payload::build();
+		$payload = App_Manifest::payload( 'system-settings' );
+
+		if ( null === $payload ) {
+			return;
+		}
 
 		require SAKURA_TOOLS_INC . 'views/system-settings.php';
 	}

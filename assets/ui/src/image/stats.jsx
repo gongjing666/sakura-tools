@@ -161,8 +161,8 @@ function History( { card, rest, strings, onError } ) {
  */
 export default function StatsPage( { boot, onError, onNotice, onHead } ) {
 	const { strings, rest } = boot;
-	const [ kpis, setKpis ] = useState( boot.kpis || [] );
-	const [ history, setHistory ] = useState( boot.history );
+	const [ kpis, setKpis ] = useState( boot.data.kpis || [] );
+	const [ history, setHistory ] = useState( boot.data.history );
 	const [ resetting, setResetting ] = useState( false );
 
 	const reset = async () => {
@@ -181,8 +181,8 @@ export default function StatsPage( { boot, onError, onNotice, onHead } ) {
 			const payload = await call( rest, strings, '/reset', {} );
 
 			if ( payload.payload ) {
-				setKpis( payload.payload.kpis || [] );
-				setHistory( payload.payload.history || history );
+				setKpis( payload.payload.data.kpis || [] );
+				setHistory( payload.payload.data.history || history );
 
 				if ( payload.payload.head && onHead ) {
 					onHead( payload.payload.head );

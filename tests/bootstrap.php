@@ -7,6 +7,16 @@
 
 define( 'ABSPATH', dirname( __DIR__ ) . '/' );
 
+if ( ! defined( 'SAKURA_TOOLS_PATH' ) ) {
+	define( 'SAKURA_TOOLS_PATH', dirname( __DIR__ ) . '/' );
+}
+if ( ! defined( 'SAKURA_TOOLS_INC' ) ) {
+	define( 'SAKURA_TOOLS_INC', dirname( __DIR__ ) . '/includes/' );
+}
+if ( ! defined( 'SAKURA_TOOLS_URL' ) ) {
+	define( 'SAKURA_TOOLS_URL', 'https://example.test/wp-content/plugins/sakura-tools/' );
+}
+
 if ( ! defined( 'DAY_IN_SECONDS' ) ) {
 	define( 'DAY_IN_SECONDS', 86400 );
 }
@@ -342,7 +352,10 @@ if ( ! function_exists( 'wp_upload_dir' ) ) {
 	 * @return array<string,string>
 	 */
 	function wp_upload_dir() {
-		return array( 'basedir' => $GLOBALS['sakura_test_upload_dir'] ?? sys_get_temp_dir() );
+		return array(
+			'basedir' => $GLOBALS['sakura_test_upload_dir'] ?? sys_get_temp_dir(),
+			'baseurl' => 'https://example.test/uploads',
+		);
 	}
 }
 
@@ -2034,5 +2047,37 @@ if ( ! function_exists( 'wp_get_theme' ) ) {
 		unset( $stylesheet );
 
 		return new Sakura_Test_Theme();
+	}
+}
+
+// ── Additional core shims used by page payload builders ──────────────
+if ( ! function_exists( 'number_format_i18n' ) ) {
+	function number_format_i18n( $number, $decimals = 0 ) {
+		return number_format( (float) $number, (int) $decimals );
+	}
+}
+if ( ! function_exists( 'size_format' ) ) {
+	function size_format( $bytes, $decimals = 0 ) {
+		return number_format( (float) $bytes / 1048576, (int) $decimals ) . ' MB';
+	}
+}
+if ( ! function_exists( 'get_posts' ) ) {
+	function get_posts( $args = array() ) {
+		return array();
+	}
+}
+if ( ! function_exists( 'wp_count_posts' ) ) {
+	function wp_count_posts( $type = 'post' ) {
+		return (object) array( 'publish' => 0 );
+	}
+}
+if ( ! function_exists( 'wp_count_attachments' ) ) {
+	function wp_count_attachments( $mime = '' ) {
+		return (object) array( 'image/jpeg' => 0 );
+	}
+}
+if ( ! function_exists( 'get_terms' ) ) {
+	function get_terms( $args = array() ) {
+		return array();
 	}
 }

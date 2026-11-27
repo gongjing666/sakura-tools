@@ -191,10 +191,7 @@ final class System_Payload {
 				),
 				self::card_ids()
 			),
-			'rest'    => array(
-				'url'   => esc_url_raw( rest_url( Rest\System_Controller::NS . '/system/layout' ) ),
-				'nonce' => wp_create_nonce( 'wp_rest' ),
-			),
+			'rest'    => Payload_Contract::rest_for( rest_url( Rest\System_Controller::NS . '/system/layout' ), 'system-settings' ),
 			'strings' => array(
 				'close'        => __( '关闭', 'sakura-imgopt' ),
 				'dismiss'      => __( '知道了', 'sakura-imgopt' ),
@@ -217,16 +214,18 @@ final class System_Payload {
 		 * UI::page() not to print the regions keeps the page at exactly one of
 		 * each without the markup belonging to two places.
 		 */
+		$payload['data'] = array(
+			'status' => isset( $payload['status'] ) ? $payload['status'] : array(),
+			'score'  => isset( $payload['score'] ) ? $payload['score'] : array(),
+			'kpis'   => isset( $payload['kpis'] ) ? $payload['kpis'] : array(),
+		);
+		$payload['cards'] = array_values( (array) $payload['cards'] );
+
+		unset( $payload['status'], $payload['score'], $payload['kpis'] );
+
 		$payload['page']   = self::page_args( $payload );
 		$payload['head']   = UI\Page::head_data( $payload['page'] );
 		$payload['chrome'] = Shell::header_data( 'system', 'settings' );
-
-		/*
-		 * The shell manifest, or null while the experiment is off. The island
-		 * reads `app.enabled` before it takes the chrome over, so a page rendered
-		 * with the switch on but the bundle missing still shows the server frame.
-		 */
-		$payload['app'] = App_Manifest::manifest();
 
 		return $payload;
 	}
@@ -245,7 +244,7 @@ final class System_Payload {
 			'eyebrow' => 'SYSTEM READOUT / ' . ( isset( $payload['version'] ) ? (string) $payload['version'] : '' ),
 			'title'   => __( '系统设置', 'sakura-imgopt' ),
 			'lede'    => __( '服务器运行参数、PHP 扩展与图像引擎能力在这里核对；卡片间隔、页面宽度与卡片样式也在这里统一设置。', 'sakura-imgopt' ),
-			'status'  => isset( $payload['status'] ) && is_array( $payload['status'] ) ? $payload['status'] : array(),
+			'status'  => isset( $payload['data']['status'] ) && is_array( $payload['data']['status'] ) ? $payload['data']['status'] : array(),
 			'actions' => array(
 				array(
 					'label'   => __( '进入图像优化', 'sakura-imgopt' ),

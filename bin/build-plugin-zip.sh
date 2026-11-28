@@ -127,6 +127,7 @@ rm -f \
 	"$PLUGIN/package.json" \
 	"$PLUGIN/package-lock.json" \
 	"$PLUGIN/phpcs.xml.dist" \
+	"$PLUGIN/phpcs-compat.xml.dist" \
 	"$PLUGIN/phpstan.neon" \
 	"$PLUGIN/phpunit.xml.dist" \
 	"$PLUGIN/DEVELOPMENT.md" \

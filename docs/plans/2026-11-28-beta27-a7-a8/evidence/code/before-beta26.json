@@ -1,0 +1,59 @@
+{
+    "base": "/www/wwwroot/demo.77il.cn/wp-content/plugins/sakura-tools",
+    "warnings": [
+        "Array to string conversion",
+        "Array to string conversion",
+        "Array to string conversion",
+        "Array to string conversion",
+        "Array to string conversion",
+        "Array to string conversion",
+        "Array to string conversion"
+    ],
+    "settings": {
+        "quota_default_bytes": 1048576,
+        "max_file_bytes": 1024,
+        "max_user_files": 1,
+        "daily_upload_bytes": 1048576,
+        "max_folder_depth": 1,
+        "tree_style": "windows",
+        "folder_accent": "",
+        "allowed_types": [
+            "image/webp"
+        ]
+    },
+    "space": {
+        "order_icon": "",
+        "level_rule": {
+            "enabled": true,
+            "points_per_step": 1,
+            "bytes_per_step": 1
+        },
+        "points": {
+            "enabled": true,
+            "points_per_gb": 1,
+            "max_gb_per_order": 1,
+            "daily_cap_gb": 1
+        },
+        "packages": [
+            {
+                "id": "a1",
+                "label": "Array",
+                "bytes": 10737418240,
+                "price": 30,
+                "days": 1,
+                "image": "",
+                "active": true
+            }
+        ],
+        "points_packages": [
+            {
+                "id": "p1",
+                "label": "1GB 扩容包",
+                "gb": 1,
+                "points": 1,
+                "days": 1,
+                "active": true
+            }
+        ]
+    }
+}

@@ -11,7 +11,6 @@ import DeletesApp from '../deletes/app.jsx';
 import FilesApp from '../files/app.jsx';
 import FilesLogApp from '../files-log/app.jsx';
 import FilesQueueApp from '../files-queue/app.jsx';
-import FilesUsersApp from '../files-users/app.jsx';
 import ImageApp from '../image/app.jsx';
 import PerformanceApp from '../performance/app.jsx';
 import RewriteApp from '../rewrite/app.jsx';
@@ -36,7 +35,6 @@ const APPS = {
 	'storage-rewrite': RewriteApp,
 	'storage-cost': CostApp,
 	'files-settings': FilesApp,
-	'files-users': FilesUsersApp,
 	'files-queue': FilesQueueApp,
 	'files-log': FilesLogApp,
 	'files-zibll': ZibllApp,

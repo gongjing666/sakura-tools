@@ -1,0 +1,97 @@
+{
+  "date": "2026-11-28",
+  "version": "1.30.0-beta-32",
+  "tokens": {
+    "fill": "#F585AC",
+    "hover": "#EE6F9B",
+    "line": "#D95B86",
+    "ink": "#3A2333"
+  },
+  "components": {
+    "mainButton": {
+      "selector": ".btn--primary",
+      "text": "保存权限/保存规则",
+      "fill": "rgb(245, 133, 172)",
+      "color": "rgb(58, 35, 51)",
+      "border": "rgb(217, 91, 134)",
+      "height": 36
+    },
+    "activeModule": {
+      "selector": ".sakura-mod.is-active",
+      "text": "文件空间",
+      "fill": "rgb(245, 133, 172)",
+      "color": "rgb(58, 35, 51)"
+    },
+    "activeTab": {
+      "selector": ".sakura-tab.is-active",
+      "text": "审核与处置",
+      "fill": "rgb(245, 133, 172)",
+      "color": "rgb(58, 35, 51)"
+    },
+    "pageSizeCurrent": {
+      "selector": ".pagination__sizes .is-current",
+      "text": "25",
+      "fill": "rgb(245, 133, 172)",
+      "color": "rgb(58, 35, 51)"
+    },
+    "currentPage": {
+      "selector": ".pagination__pages .is-current",
+      "text": "1 / 1",
+      "fill": "rgb(245, 133, 172)",
+      "color": "rgb(58, 35, 51)"
+    },
+    "activeFilterChip": {
+      "selector": ".filter-chip.is-active",
+      "text": "全部11",
+      "fill": "rgb(245, 133, 172)",
+      "color": "rgb(58, 35, 51)"
+    },
+    "wpPrimary": {
+      "selector": ".button-primary",
+      "fill": "rgb(245, 133, 172)",
+      "color": "rgb(58, 35, 51)",
+      "border": "rgb(217, 91, 134)"
+    },
+    "danger": {
+      "selector": ".btn--danger",
+      "backgroundImage": "linear-gradient(140deg, rgb(184,69,47), rgb(166,58,44) 48%, rgb(140,42,30))",
+      "color": "rgb(255, 255, 255)"
+    }
+  },
+  "contrast": {
+    "inkOnPink": 6.02,
+    "whiteOnPink": 2.38
+  },
+  "layout": {
+    "desktopPageScrollWidth": 1440,
+    "mobilePageScrollWidth": 390,
+    "mobileCardHeight": 480
+  },
+  "console": {
+    "logs": 3,
+    "errors": 0,
+    "warnings": 0
+  },
+  "gates": {
+    "tests": 996,
+    "assertions": 4565,
+    "skipped": 5,
+    "phpstan": "OK",
+    "phpcsStrict": 0,
+    "compat": 0,
+    "nodeCheck": true,
+    "diffCheck": 0
+  },
+  "bundle": {
+    "bytes": 493357,
+    "sha256": "21756ec85ef2eb9b05dfa36c1451b93a3f363708aebc153205b73c9767def78a"
+  },
+  "cleanup": {
+    "users": [
+      "yexu"
+    ],
+    "requests": 0,
+    "items": 0,
+    "debugLogLines": 165
+  }
+}

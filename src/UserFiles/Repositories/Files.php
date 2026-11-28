@@ -784,7 +784,7 @@ final class Files {
 	 * @param Folders $folders   Folder repository.
 	 * @return array<int, object>
 	 */
-	public function recursive_files( int $owner_id, int $folder_id, Folders $folders ): array {
+	public function recursive_files( int $owner_id, int $folder_id, Folders $folders, int $limit = 0 ): array {
 		$ids   = array( $folder_id );
 		$queue = array( $folder_id );
 		$seen  = array( $folder_id => true );
@@ -807,12 +807,15 @@ final class Files {
 		$table        = Schema::table( 'files' );
 		$placeholders = implode( ',', array_fill( 0, count( $ids ), '%d' ) );
 		$params       = array_merge( array( $owner_id ), $ids );
+		$sql          = "SELECT * FROM {$table} WHERE owner_id=%d AND lifecycle='active' AND folder_id IN ({$placeholders}) ORDER BY id ASC";
+
+		if ( $limit > 0 ) {
+			$sql     .= ' LIMIT %d';
+			$params[] = $limit;
+		}
 
 		$rows = $wpdb->get_results(
-			$wpdb->prepare(
-				"SELECT * FROM {$table} WHERE owner_id=%d AND lifecycle='active' AND folder_id IN ({$placeholders}) ORDER BY id ASC", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-				$params
-			)
+			$wpdb->prepare( $sql, $params ) // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Placeholders are counted from $ids plus the optional LIMIT.
 		);
 
 		return is_array( $rows ) ? $rows : array();

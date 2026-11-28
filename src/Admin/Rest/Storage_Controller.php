@@ -15,6 +15,7 @@ declare( strict_types=1 );
 
 namespace Sakura\ImageOptimizer\Admin\Rest;
 
+use Sakura\ImageOptimizer\Admin\App_Manifest;
 use Sakura\ImageOptimizer\Admin\Storage_Payload;
 use Sakura\ImageOptimizer\S3\Options;
 use Sakura\ImageOptimizer\S3\Profile_Actions;
@@ -128,7 +129,7 @@ final class Storage_Controller {
 	 * @return true|WP_Error
 	 */
 	public static function can_manage() {
-		if ( current_user_can( 'manage_options' ) ) {
+		if ( App_Manifest::can_view( 'storage-connection' ) ) {
 			return true;
 		}
 

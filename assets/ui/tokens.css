@@ -44,6 +44,23 @@
 	--g-accent-line: #b62f58;
 	--g-accent-glow: rgba(199, 51, 91, .30);
 
+	/* Filled controls that carry a label. 2026-11-28: the developer explicitly
+	 * wants a soft cherry gradient with white labels and no dark fill. The range
+	 * is #F585AC -> #FFD6E5; this is an intentional aesthetic exception, so keep
+	 * labels short and the soft pink text-shadow. Do not "fix" it with a dark
+	 * gradient or dark ink — that is the look the developer rejected. */
+	--g-cta-fill: linear-gradient(140deg, #f585ac 0%, #ffb3ca 56%, #ffd6e5 100%);
+	--g-cta-fill-hover: linear-gradient(140deg, #f06f9e 0%, #ffa8c3 56%, #ffcede 100%);
+	--g-cta-line: #e88aab;
+	--g-cta-ink: #ffffff;
+
+	/* 危险填充：与 --g-bad 同色相，供破坏性按钮（.btn--danger）与危险确认使用。
+	 * 危险按钮会和主按钮并排出现（保存条、对账、撤销），所以不能共用
+	 * --g-cta-fill，否则「删除 / 丢弃」与普通主操作长得一模一样。旧的浅粉端
+	 * 白字只有 2.37:1；这里每一段都 ≥5.34:1（hover 6.44:1 起）。 */
+	--g-danger-fill: linear-gradient(140deg, #b8452f 0%, #a63a2c 48%, #8c2a1e 100%);
+	--g-danger-fill-hover: linear-gradient(140deg, #a63a2c 0%, #9c3325 48%, #82251a 100%);
+
 	/* The pale petal surface. Two places are licensed to use it, both with dark
 	 * ink — white on #FFAACA is only 1.77:1 and can never carry a label:
 	 *   ① 品牌瓦片：30px 方块里只有一颗 18px 的装饰图形，没有文字（开发者 2026-11-20 定）；
@@ -170,6 +187,7 @@
 	--g-radius-md: 16px;
 	--g-radius-sm: 12px;
 	--g-radius-xs: 8px;
+	--g-radius-input: 8px;
 	--g-radius-pill: 999px;
 
 	/* Type */

@@ -1,5 +1,7 @@
-import { useState } from 'react';
-import { confirmAction } from '../files/shared/transport.js';
+import { useRef } from 'react';
+
+/** Shared focus target: a saved card returns Tab focus to its heading. */
+export const cardTitleProps = { tabIndex: -1, 'data-sakura-return-target': '1' };
 
 export function fmt( template, values ) {
 	let index = 0;
@@ -21,33 +23,23 @@ export function FieldRow( { label, hint, children } ) {
 	);
 }
 
-export function Check( { name, label, checked, onChange, extra } ) {
-	return (
-		<label className="check">
-			<input type="checkbox" name={ name } value="1" checked={ checked } onChange={ onChange } />
-			<span className="check__box" aria-hidden="true" />
-			<span className="check__text">{ label }</span>
-			{ extra }
-		</label>
-	);
-}
-
 /**
- * Checkbox switch with the legacy zero fallback and optional confirmation.
+ * Sliding checkbox for one boolean. Confirmation only exists on the switches
+ * that change money or the front-end surface; cancelling restores the node.
  */
-export function Switch( { name, label, checked, onChange, warn, disabled, strings } ) {
-	const [ current, setCurrent ] = useState( checked );
+export function Switch( { label, checked, onChange, warn, strings } ) {
+	const input = useRef( null );
 
 	const handle = ( event ) => {
 		const next = event.target.checked;
 
 		if ( ! warn ) {
-			setCurrent( next );
 			onChange( next );
+
 			return;
 		}
 
-		confirmAction( warn, {
+		confirm( warn, {
 			title: ( strings || {} ).confirmTitle || '',
 			confirmText: ( strings || {} ).confirm || '',
 			cancelText: ( strings || {} ).cancel || '',
@@ -55,21 +47,19 @@ export function Switch( { name, label, checked, onChange, warn, disabled, string
 			tone: 'danger',
 		} ).then( ( ok ) => {
 			if ( ok ) {
-				setCurrent( next );
 				onChange( next );
+			} else if ( input.current ) {
+				input.current.checked = checked;
 			}
 		} );
 	};
 
 	return (
-		<>
-			<input type="hidden" name={ name } value="0" />
-			<label className="check">
-				<input type="checkbox" name={ name } value="1" checked={ current } disabled={ disabled } onChange={ handle } />
-				<span className="check__box" aria-hidden="true" />
-				<span className="check__text">{ label }</span>
-			</label>
-		</>
+		<label className="check">
+			<input ref={ input } type="checkbox" checked={ checked } onChange={ handle } />
+			<span className="check__box" aria-hidden="true" />
+			<span className="check__text">{ label }</span>
+		</label>
 	);
 }
 
@@ -87,4 +77,30 @@ export function formatMb( mb, strings ) {
 	}
 
 	return ( Math.round( value * 10 ) / 10 ) + ' ' + unitMb;
+}
+
+export function toast( message, tone ) {
+	const admin = window.SakuraAdmin;
+
+	if ( message && admin && admin.ui && admin.ui.toast ) {
+		admin.ui.toast( message, tone || 'info' );
+	}
+}
+
+export function confirm( message, options ) {
+	const admin = window.SakuraAdmin;
+
+	if ( admin && admin.ui && admin.ui.confirm ) {
+		return admin.ui.confirm( message, options || {} );
+	}
+
+	return Promise.resolve( window.confirm( [ ( options || {} ).title, message ].filter( Boolean ).join( '\n\n' ) ) );
+}
+
+export function errorText( error, fallback ) {
+	if ( error && error.message ) {
+		return String( error.message );
+	}
+
+	return fallback || '';
 }

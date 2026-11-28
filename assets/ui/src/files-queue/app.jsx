@@ -4,39 +4,32 @@ import Pager from '../files/shared/Pager.jsx';
 import EmptyState from '../files/shared/EmptyState.jsx';
 import { apiGet, apiPost, confirmAction, errorText, fileSize, fill, toast } from '../files/shared/transport.js';
 import CapsMatrix from './caps.jsx';
-
-function statusTone( status ) {
-	if ( status === 'pending_review' || status === 'needs_review' ) {
-		return 'warn';
-	}
-
-	if ( status === 'approved' || status === 'queued' || status === 'executing' ) {
-		return 'info';
-	}
-
-	if ( status === 'completed' ) {
-		return 'ok';
-	}
-
-	if ( status === 'rejected' || status === 'failed' || status === 'partial_failed' ) {
-		return 'bad';
-	}
-
-	return 'neutral';
-}
+import RequestDrawer from './drawer.jsx';
+import UsersCard from './users.jsx';
+import { statusText, statusTone } from './status.js';
 
 /**
- * Review queue, approved selection, batch execution and the capability form.
- * All destructive endpoints are the same ones the legacy controller called;
- * the React layer only decides what is enabled and when to refresh.
+ * Review and disposal workbench: request queue, approved execution, user
+ * capacity and the capability matrix on one page.
+ *
+ * The queue card keeps the original list/filter/review logic; every row also
+ * opens a right-hand detail drawer. The drawer only reads through the existing
+ * REST endpoints, so a failed user lookup never blocks a decision.
  */
 export default function App( { boot } ) {
-	const config = boot.config || {};
-	const strings = config.strings || {};
+	const config = boot.rest || {};
+	const strings = boot.strings || {};
+	const data = boot.data || {};
+	const permissions = data.permissions || {};
+	const canExecute = permissions.execute === true;
+	const canManageUsers = permissions.users === true;
+	const canSync = permissions.sync === true;
+	const canSanction = permissions.sanction === true;
 	const cards = boot.cards || [];
-	const queueCard = cards[ 0 ] || {};
-	const executeCard = cards[ 1 ] || {};
-	const capsCard = cards[ 2 ] || {};
+	const queueCard = cards.find( ( card ) => 'queue' === card.id ) || {};
+	const executeCard = cards.find( ( card ) => 'execute' === card.id ) || {};
+	const usersCard = cards.find( ( card ) => 'users' === card.id ) || {};
+	const capsCard = cards.find( ( card ) => 'capability-matrix' === card.id ) || {};
 	const [ head, setHead ] = useState( boot.head );
 	const [ query, setQuery ] = useState( { page: 1, per: 20, status: '', search: '' } );
 	const [ searchDraft, setSearchDraft ] = useState( '' );
@@ -46,13 +39,59 @@ export default function App( { boot } ) {
 	const [ reload, setReload ] = useState( 0 );
 	const [ approved, setApproved ] = useState( [] );
 	const [ approvedReload, setApprovedReload ] = useState( 0 );
+	const [ approvedQuery, setApprovedQuery ] = useState( { page: 1, per: 20 } );
+	const [ approvedTotal, setApprovedTotal ] = useState( 0 );
 	const [ selected, setSelected ] = useState( [] );
 	const [ preview, setPreview ] = useState( null );
 	const [ previewing, setPreviewing ] = useState( false );
 	const [ phrase, setPhrase ] = useState( '' );
 	const [ batch, setBatch ] = useState( null );
-	const [ busy, setBusy ] = useState( '' );
+	const [ batchError, setBatchError ] = useState( false );
+	const [ busyKeys, setBusyKeys ] = useState( {} );
+	const [ detail, setDetail ] = useState( null );
+	const [ usersReload, setUsersReload ] = useState( 0 );
+	const [ viewUsers ] = useState( () => {
+		try {
+			return 'users' === new URLSearchParams( window.location.search ).get( 'view' );
+		} catch ( error ) {
+			return false;
+		}
+	} );
+	const [ approvedReady, setApprovedReady ] = useState( false );
 	const batchTimer = useRef( 0 );
+	const batchAlive = useRef( true );
+	const batchFailures = useRef( 0 );
+	const detailTrigger = useRef( null );
+
+	const markBusy = ( key, active ) => setBusyKeys( ( current ) => {
+		if ( active ) {
+			return current[ key ] ? current : { ...current, [ key ]: true };
+		}
+
+		if ( ! current[ key ] ) {
+			return current;
+		}
+
+		const next = { ...current };
+		delete next[ key ];
+		return next;
+	} );
+	const busyWith = ( prefix ) => Object.keys( busyKeys ).some( ( key ) => 0 === key.indexOf( prefix ) );
+	const busyIs = ( key ) => Boolean( busyKeys[ key ] );
+
+	const scrollToCard = ( id, behavior ) => {
+		const selector = '.sakura-admin [data-sakura-card="' + id + '"]';
+		const node = document.querySelector( selector ) || document.querySelector( '[data-sakura-card="' + id + '"]' );
+
+		if ( ! node ) {
+			return;
+		}
+
+		const reduce = window.matchMedia && window.matchMedia( '(prefers-reduced-motion: reduce)' ).matches;
+		const mode = 'auto' === behavior || reduce ? 'auto' : 'smooth';
+
+		node.scrollIntoView( { behavior: mode, block: 'start' } );
+	};
 
 	useEffect( () => {
 		const controller = new AbortController();
@@ -97,12 +136,16 @@ export default function App( { boot } ) {
 	}, [ query.page, query.per, query.status, query.search, reload ] );
 
 	useEffect( () => {
+		if ( ! canExecute ) {
+			return undefined;
+		}
+
 		const controller = new AbortController();
 
-		apiGet( config, 'admin/delete-requests', { status: 'approved', page: 1, per_page: 50 }, controller.signal )
+		apiGet( config, 'admin/delete-requests', { status: 'approved', unbatched: 1, page: approvedQuery.page, per_page: approvedQuery.per }, controller.signal )
 			.then( ( data ) => {
-				setApproved( ( data.rows || [] ).filter( ( row ) => ! Number( row.batch_id ) ) );
-				setSelected( [] );
+				setApproved( data.rows || [] );
+				setApprovedTotal( Number( data.total ) || 0 );
 				setPreview( null );
 			} )
 			.catch( ( error ) => {
@@ -111,15 +154,20 @@ export default function App( { boot } ) {
 				}
 
 				setApproved( [] );
+				setApprovedTotal( 0 );
 				toast( errorText( error, strings.approvedLoadFailed ), 'bad' );
-			} );
+			} )
+			.finally( () => setApprovedReady( true ) );
 
 		return () => controller.abort();
-	}, [ approvedReload ] );
+	}, [ approvedReload, approvedQuery.page, approvedQuery.per, canExecute ] );
 
 	useEffect( () => () => {
+		batchAlive.current = false;
+
 		if ( batchTimer.current ) {
 			window.clearTimeout( batchTimer.current );
+			batchTimer.current = 0;
 		}
 	}, [] );
 
@@ -137,10 +185,38 @@ export default function App( { boot } ) {
 	const refreshApproved = () => setApprovedReload( ( value ) => value + 1 );
 
 	const toggleSelected = ( id ) => {
+		const key = Number( id ) || 0;
+
 		setPreview( null );
 		setSelected( ( current ) =>
-			current.includes( id ) ? current.filter( ( value ) => value !== id ) : [ ...current, id ]
+			current.includes( key ) ? current.filter( ( value ) => value !== key ) : [ ...current, key ]
 		);
+	};
+
+	const togglePage = () => {
+		const ids = approved.map( ( row ) => Number( row.id ) );
+		const all = ids.length > 0 && ids.every( ( id ) => selected.includes( id ) );
+
+		setPreview( null );
+		setSelected( ( current ) => ( all
+			? current.filter( ( value ) => ! ids.includes( value ) )
+			: Array.from( new Set( [ ...current, ...ids ] ) ) ) );
+	};
+
+	const openDetail = ( row, trigger ) => {
+		detailTrigger.current = trigger || null;
+		setDetail( row );
+	};
+
+	const closeDetail = () => {
+		const trigger = detailTrigger.current;
+
+		detailTrigger.current = null;
+		setDetail( null );
+
+		if ( trigger && document.contains( trigger ) ) {
+			window.setTimeout( () => trigger.focus( { preventScroll: true } ), 30 );
+		}
 	};
 
 	const review = ( row, decision ) => {
@@ -160,15 +236,19 @@ export default function App( { boot } ) {
 			}
 
 			const key = 'review:' + row.id + ':' + decision;
-			setBusy( key );
+			markBusy( key, true );
 			apiPost( config, 'admin/delete-requests/' + encodeURIComponent( row.id ) + '/review', { decision } )
 				.then( () => {
 					toast( fill( strings.reviewDone || '', values ), 'ok' );
 					setReload( ( value ) => value + 1 );
 					refreshApproved();
+
+					if ( detail && Number( detail.id ) === Number( row.id ) ) {
+						closeDetail();
+					}
 				} )
 				.catch( ( error ) => toast( errorText( error ), 'bad' ) )
-				.finally( () => setBusy( '' ) );
+				.finally( () => markBusy( key, false ) );
 		} );
 	};
 
@@ -187,7 +267,7 @@ export default function App( { boot } ) {
 			}
 
 			const key = 'revoke:' + row.id;
-			setBusy( key );
+			markBusy( key, true );
 			apiPost( config, 'admin/delete-requests/' + encodeURIComponent( row.id ) + '/revoke', { reason: '' } )
 				.then( () => {
 					toast( fill( strings.revokeDone || '', values ), 'ok' );
@@ -195,7 +275,7 @@ export default function App( { boot } ) {
 					refreshApproved();
 				} )
 				.catch( ( error ) => toast( errorText( error ), 'bad' ) )
-				.finally( () => setBusy( '' ) );
+				.finally( () => markBusy( key, false ) );
 		} );
 	};
 
@@ -214,14 +294,14 @@ export default function App( { boot } ) {
 			}
 
 			const key = buttonKey || 'stop:' + batchId;
-			setBusy( key );
+			markBusy( key, true );
 			apiPost( config, 'admin/delete-batches/' + encodeURIComponent( batchId ) + '/stop', {} )
 				.then( () => {
 					toast( fill( strings.stopDone || '', values ), 'warn' );
-					pollBatch( batchId );
+					beginBatchPoll( batchId );
 				} )
 				.catch( ( error ) => toast( errorText( error ), 'bad' ) )
-				.finally( () => setBusy( '' ) );
+				.finally( () => markBusy( key, false ) );
 		} );
 	};
 
@@ -234,7 +314,7 @@ export default function App( { boot } ) {
 		}
 
 		const key = 'files:' + row.id;
-		setBusy( key );
+		markBusy( key, true );
 		apiGet( config, 'admin/delete-requests/' + encodeURIComponent( row.id ) + '/items', {} )
 			.then( ( data ) => {
 				const items = data && Array.isArray( data.items ) ? data.items : [];
@@ -256,7 +336,7 @@ export default function App( { boot } ) {
 				} );
 			} )
 			.catch( ( error ) => toast( errorText( error, strings.filesLoadFailed ), 'bad' ) )
-			.finally( () => setBusy( '' ) );
+			.finally( () => markBusy( key, false ) );
 	};
 
 	const previewScope = () => {
@@ -299,7 +379,7 @@ export default function App( { boot } ) {
 				return;
 			}
 
-			setBusy( 'execute' );
+			markBusy( 'execute', true );
 			apiPost( config, 'admin/delete-batches', { requests: selected, phrase: phrase.trim(), hash: preview.hash } )
 				.then( ( data ) => {
 					const batchId = Number( data.batch_id ) || 0;
@@ -312,12 +392,18 @@ export default function App( { boot } ) {
 					setReload( ( value ) => value + 1 );
 
 					if ( batchId ) {
-						pollBatch( batchId );
+						beginBatchPoll( batchId );
 					}
 				} )
 				.catch( ( error ) => toast( errorText( error ), 'bad' ) )
-				.finally( () => setBusy( '' ) );
+				.finally( () => markBusy( 'execute', false ) );
 		} );
+	};
+
+	const beginBatchPoll = ( batchId ) => {
+		batchFailures.current = 0;
+		setBatchError( false );
+		pollBatch( batchId );
 	};
 
 	const pollBatch = ( batchId ) => {
@@ -326,11 +412,20 @@ export default function App( { boot } ) {
 			batchTimer.current = 0;
 		}
 
+		if ( ! batchAlive.current ) {
+			return;
+		}
+
 		apiGet( config, 'admin/delete-batches/' + encodeURIComponent( batchId ), {} )
 			.then( ( data ) => {
+				if ( ! batchAlive.current ) {
+					return;
+				}
+
 				const next = data.batch || {};
 				const running = next.state === 'queued' || next.state === 'executing';
 
+				batchFailures.current = 0;
 				setBatch( next );
 
 				if ( running ) {
@@ -342,15 +437,50 @@ export default function App( { boot } ) {
 				setReload( ( value ) => value + 1 );
 			} )
 			.catch( ( error ) => {
+				if ( ! batchAlive.current ) {
+					return;
+				}
+
+				batchFailures.current += 1;
+
+				if ( batchFailures.current >= 6 ) {
+					setBatchError( true );
+					toast( strings.batchPollFailed || errorText( error ), 'bad' );
+					return;
+				}
+
 				toast( errorText( error ), 'bad' );
 				batchTimer.current = window.setTimeout( () => pollBatch( batchId ), 6000 );
 			} );
 	};
 
-	const statusLabel = ( status ) => ( strings.statusLabels && strings.statusLabels[ status ] ) || status || '—';
+	const addToExecute = ( row ) => {
+		const id = Number( row.id ) || 0;
+
+		setPreview( null );
+		setApproved( ( current ) => current.some( ( item ) => Number( item.id ) === id ) ? current : [ ...current, row ] );
+		setSelected( ( current ) => current.some( ( value ) => Number( value ) === id ) ? current : [ ...current, id ] );
+		toast( fill( strings.addedToExecute || '', { id: row.id } ), 'ok' );
+		closeDetail();
+		window.setTimeout( () => scrollToCard( 'execute' ), 120 );
+	};
+
+	const handleSanctionSaved = () => setUsersReload( ( value ) => value + 1 );
+
+	const statusLabel = ( status ) => statusText( strings, status );
 	const ownerName = ( row ) => row.owner_name || fill( strings.ownerId || '', { id: row.owner_id } );
 	const selectedCount = selected.length;
 	const batchRunning = batch && ( batch.state === 'queued' || batch.state === 'executing' );
+
+	const detailButton = ( row ) => (
+		<button
+			type="button"
+			className="btn btn--small btn--ghost"
+			onClick={ ( event ) => openDetail( row, event.currentTarget ) }
+		>
+			{ strings.detail || '' }
+		</button>
+	);
 
 	const actionCell = ( row ) => {
 		const status = row.status;
@@ -359,14 +489,15 @@ export default function App( { boot } ) {
 		if ( status === 'pending_review' || status === 'needs_review' ) {
 			return (
 				<div className="queue-actions">
-					<button type="button" className="btn btn--small btn--primary" disabled={ busy.startsWith( 'review:' + row.id ) } onClick={ () => review( row, 'approve' ) }>
+					{ detailButton( row ) }
+					<button type="button" className="btn btn--small btn--primary" disabled={ busyWith( 'review:' + row.id + ':' ) } onClick={ () => review( row, 'approve' ) }>
 						{ strings.approve || '' }
 					</button>
-					<button type="button" className="btn btn--small btn--ghost" disabled={ busy.startsWith( 'review:' + row.id ) } onClick={ () => review( row, 'reject' ) }>
+					<button type="button" className="btn btn--small btn--ghost" disabled={ busyWith( 'review:' + row.id + ':' ) } onClick={ () => review( row, 'reject' ) }>
 						{ strings.reject || '' }
 					</button>
 					{ Number( row.item_count ) > 0 ? (
-						<button type="button" className="btn btn--small btn--ghost" disabled={ busy === 'files:' + row.id } onClick={ ( event ) => openFiles( row, event.currentTarget ) }>
+						<button type="button" className="btn btn--small btn--ghost" disabled={ busyIs( 'files:' + row.id ) } onClick={ ( event ) => openFiles( row, event.currentTarget ) }>
 							{ strings.viewFiles || '' }
 						</button>
 					) : null }
@@ -377,7 +508,8 @@ export default function App( { boot } ) {
 		if ( status === 'approved' ) {
 			return (
 				<div className="queue-actions">
-					<button type="button" className="btn btn--small btn--danger" disabled={ busy === 'revoke:' + row.id } onClick={ () => revoke( row ) }>
+					{ detailButton( row ) }
+					<button type="button" className="btn btn--small btn--danger" disabled={ busyIs( 'revoke:' + row.id ) } onClick={ () => revoke( row ) }>
 						{ strings.revoke || '' }
 					</button>
 				</div>
@@ -387,19 +519,32 @@ export default function App( { boot } ) {
 		if ( ( status === 'queued' || status === 'executing' ) && batchId ) {
 			return (
 				<div className="queue-actions">
-					<button type="button" className="btn btn--small btn--danger" disabled={ busy === 'stop:' + batchId } onClick={ () => stopBatch( batchId, 'stop:' + batchId ) }>
+					{ detailButton( row ) }
+					<button type="button" className="btn btn--small btn--danger" disabled={ busyIs( 'stop:' + batchId ) } onClick={ () => stopBatch( batchId, 'stop:' + batchId ) }>
 						{ strings.stopBatch || '' }
 					</button>
 				</div>
 			);
 		}
 
-		return <span className="text-muted">{ strings.noActions || '—' }</span>;
+		return (
+			<div className="queue-actions">
+				{ detailButton( row ) }
+				<span className="text-muted">{ strings.noActions || '—' }</span>
+			</div>
+		);
 	};
 
 	return (
 		<>
 			<PageHead head={ head } />
+			{ viewUsers && canManageUsers ? (
+				<p className="view-users-jump">
+					<button type="button" className="btn btn--small btn--ghost" onClick={ () => scrollToCard( 'users' ) }>
+						{ strings.viewUsersJump || '' }
+					</button>
+				</p>
+			) : null }
 			<div className="card-grid" data-sakura-layout="files-queue" data-sakura-group="main">
 				<Card card={ queueCard }>
 					<div className="toolbar" role="search">
@@ -409,7 +554,7 @@ export default function App( { boot } ) {
 								value={ query.status }
 								onChange={ ( event ) => setQuery( ( current ) => ( { ...current, page: 1, status: event.target.value } ) ) }
 							>
-								{ ( config.queueStatuses || [] ).map( ( option ) => (
+								{ ( data.queueStatuses || [] ).map( ( option ) => (
 									<option key={ option.value } value={ option.value }>{ option.label }</option>
 								) ) }
 							</select>
@@ -491,7 +636,8 @@ export default function App( { boot } ) {
 					/>
 				</Card>
 
-				<Card card={ executeCard }>
+				{ canExecute && executeCard.id ? (
+					<Card card={ executeCard }>
 					<div className="exec-steps">
 						<section className="exec-step">
 							<header className="exec-step__head">
@@ -501,16 +647,26 @@ export default function App( { boot } ) {
 									<p>{ strings.pickHint || '' }</p>
 								</div>
 								<span className="exec-step__meta">
-									{ selectedCount ? fill( strings.pickCount || '', { count: selectedCount } ) : ( strings.pickNone || '' ) }
+									{ selectedCount ? fill( strings.pickCount || '', { count: selectedCount } ) + ' / ' + approvedTotal : ( strings.pickNone || '' ) }
 								</span>
 							</header>
 							<div className="approved-list">
+								{ approved.length ? (
+									<label className="approved-item approved-item--all">
+										<input
+											type="checkbox"
+											checked={ approved.every( ( row ) => selected.includes( Number( row.id ) ) ) }
+											onChange={ togglePage }
+										/>
+										<span className="approved-item__label">{ strings.selectPage || '' }</span>
+									</label>
+								) : null }
 								{ approved.length ? approved.map( ( row ) => (
 									<label className="approved-item" key={ row.id }>
 										<input
 											type="checkbox"
 											value={ row.id }
-											checked={ selected.includes( row.id ) }
+											checked={ selected.includes( Number( row.id ) ) }
 											onChange={ () => toggleSelected( row.id ) }
 										/>
 										<span className="approved-item__label">{ '#' + row.id + ' · ' + ownerName( row ) }</span>
@@ -520,6 +676,14 @@ export default function App( { boot } ) {
 									<p className="text-muted">{ strings.approvedEmpty || '' }</p>
 								) }
 							</div>
+							<Pager
+								page={ approvedQuery.page }
+								per={ approvedQuery.per }
+								total={ approvedTotal }
+								sizes={ [ 20, 50 ] }
+								strings={ strings }
+								onChange={ ( page, per ) => setApprovedQuery( { page, per } ) }
+							/>
 						</section>
 
 						<section className={ 'exec-step' + ( selectedCount ? '' : ' is-locked' ) }>
@@ -579,7 +743,7 @@ export default function App( { boot } ) {
 								<button
 									type="button"
 									className="btn btn--danger"
-									disabled={ busy === 'execute' || ! selectedCount || ! preview || ! preview.hash }
+									disabled={ busyIs( 'execute' ) || ! selectedCount || ! preview || ! preview.hash }
 									onClick={ execute }
 								>
 									{ strings.executeButton || '' }
@@ -595,18 +759,41 @@ export default function App( { boot } ) {
 										failed: batch.failed_items || 0,
 									} ) }</p>
 									{ batchRunning ? (
-										<button type="button" className="btn btn--small btn--danger" disabled={ busy === 'stop:' + batch.id } onClick={ () => stopBatch( batch.id ) }>
+										<button type="button" className="btn btn--small btn--danger" disabled={ busyIs( 'stop:' + batch.id ) } onClick={ () => stopBatch( batch.id ) }>
 											{ strings.stopBatch || '' }
 										</button>
 									) : null }
 								</div>
 							) : null }
+							{ batchError ? <p className="text-muted">{ strings.batchPollFailed || '' }</p> : null }
 						</section>
 					</div>
-				</Card>
+					</Card>
+				) : null }
 
-				<CapsMatrix card={ capsCard } config={ config } />
+				{ canManageUsers && usersCard.id ? <UsersCard card={ usersCard } rest={ config } strings={ strings } reloadKey={ usersReload } target={ viewUsers } canSanction={ canSanction } canSync={ canSync } /> : null }
+
+				{ capsCard.id ? <CapsMatrix card={ capsCard } rest={ config } strings={ strings } /> : null }
 			</div>
+
+			{ detail ? (
+				<RequestDrawer
+					key={ detail.id }
+					row={ detail }
+					rest={ config }
+					strings={ strings }
+					canExecute={ canExecute }
+					canSanction={ canSanction }
+					statusLabel={ statusLabel }
+					ownerName={ ownerName }
+					busy={ detail && busyWith( 'review:' + detail.id + ':' ) ? 'review:' + detail.id : '' }
+					added={ selected.some( ( id ) => Number( id ) === Number( detail.id ) ) }
+					onClose={ closeDetail }
+					onReview={ ( decision ) => review( detail, decision ) }
+					onAddToExecute={ addToExecute }
+					onSanctionSaved={ handleSanctionSaved }
+				/>
+			) : null }
 		</>
 	);
 }

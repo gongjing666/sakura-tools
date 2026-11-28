@@ -1225,6 +1225,34 @@ if ( ! function_exists( 'home_url' ) ) {
 	}
 }
 
+if ( ! function_exists( 'set_url_scheme' ) ) {
+	/**
+	 * Minimal set_url_scheme shim for payloads that publish an asset URL.
+	 *
+	 * @param string      $url    URL.
+	 * @param string|null $scheme Scheme, or null to keep the URL as is.
+	 * @return string
+	 */
+	function set_url_scheme( $url, $scheme = null ) {
+		if ( null === $scheme ) {
+			return (string) $url;
+		}
+
+		return (string) preg_replace( '#^https?://#', $scheme . '://', (string) $url );
+	}
+}
+
+if ( ! function_exists( 'is_ssl' ) ) {
+	/**
+	 * The fake site is served over https.
+	 *
+	 * @return bool
+	 */
+	function is_ssl() {
+		return true;
+	}
+}
+
 if ( ! function_exists( 'admin_url' ) ) {
 	/**
 	 * Minimal admin_url shim.
@@ -1249,15 +1277,39 @@ if ( ! function_exists( 'rest_url' ) ) {
 	}
 }
 
+if ( ! class_exists( 'WP_REST_Response', false ) ) {
+	/**
+	 * Minimal REST response double exposing the payload via get_data().
+	 */
+	class WP_REST_Response {
+		/** @var mixed */
+		private $data;
+
+		/**
+		 * @param mixed $data Response data.
+		 */
+		public function __construct( $data = null ) {
+			$this->data = $data;
+		}
+
+		/**
+		 * @return mixed
+		 */
+		public function get_data() {
+			return $this->data;
+		}
+	}
+}
+
 if ( ! function_exists( 'rest_ensure_response' ) ) {
 	/**
-	 * The shim has no response object, so tests assert the array it would carry.
+	 * Wrap the payload like WordPress does.
 	 *
 	 * @param mixed $data Response data.
-	 * @return mixed
+	 * @return WP_REST_Response
 	 */
 	function rest_ensure_response( $data ) {
-		return $data;
+		return new WP_REST_Response( $data );
 	}
 }
 
@@ -1289,11 +1341,27 @@ if ( ! function_exists( 'get_bloginfo' ) ) {
 	}
 }
 
+if ( ! function_exists( 'rest_sanitize_boolean' ) ) {
+	/**
+	 * Minimal REST boolean sanitiser for route callback tests.
+	 *
+	 * @param mixed $value Raw value.
+	 * @return bool
+	 */
+	function rest_sanitize_boolean( $value ) {
+		if ( is_string( $value ) ) {
+			return ! in_array( strtolower( $value ), array( '', '0', 'false', 'no', 'off' ), true );
+		}
+
+		return (bool) $value;
+	}
+}
+
 if ( ! class_exists( 'WP_REST_Request', false ) ) {
 	/**
 	 * Minimal request double for route callbacks.
 	 */
-	class WP_REST_Request {
+	class WP_REST_Request implements ArrayAccess {
 
 		/**
 		 * Parameters.
@@ -1320,6 +1388,92 @@ if ( ! class_exists( 'WP_REST_Request', false ) ) {
 		public function get_param( $key ) {
 			return $this->params[ $key ] ?? null;
 		}
+
+		/**
+		 * @param mixed $offset Key.
+		 * @return bool
+		 */
+		public function offsetExists( $offset ): bool {
+			return array_key_exists( $offset, $this->params );
+		}
+
+		/**
+		 * @param mixed $offset Key.
+		 * @return mixed
+		 */
+		public function offsetGet( $offset ): mixed {
+			return $this->params[ $offset ] ?? null;
+		}
+
+		/**
+		 * @param mixed $offset Key.
+		 * @param mixed $value  Value.
+		 * @return void
+		 */
+		public function offsetSet( $offset, $value ): void {
+			if ( null === $offset ) {
+				$this->params[] = $value;
+				return;
+			}
+
+			$this->params[ $offset ] = $value;
+		}
+
+		/**
+		 * @param mixed $offset Key.
+		 * @return void
+		 */
+		public function offsetUnset( $offset ): void {
+			unset( $this->params[ $offset ] );
+		}
+	}
+}
+
+if ( ! function_exists( 'get_current_blog_id' ) ) {
+	/**
+	 * Single-site shim.
+	 *
+	 * @return int
+	 */
+	function get_current_blog_id() {
+		return 1;
+	}
+}
+
+if ( ! function_exists( 'get_user_by' ) ) {
+	/**
+	 * Minimal user lookup: any positive id is a non-admin login "target".
+	 *
+	 * @param string $field Field name.
+	 * @param mixed  $value Value.
+	 * @return object|false
+	 */
+	function get_user_by( $field, $value ) {
+		if ( 'id' !== $field || (int) $value <= 0 ) {
+			return false;
+		}
+
+		return (object) array(
+			'ID'           => (int) $value,
+			'user_login'   => 'target',
+			'user_email'   => 'target@example.test',
+			'display_name' => 'Target',
+		);
+	}
+}
+
+if ( ! function_exists( 'sanitize_user' ) ) {
+	/**
+	 * Minimal sanitize_user shim.
+	 *
+	 * @param string $username Name.
+	 * @param bool   $strict   Unused.
+	 * @return string
+	 */
+	function sanitize_user( $username, $strict = false ) {
+		unset( $strict );
+
+		return trim( (string) $username );
 	}
 }
 
@@ -1682,14 +1836,21 @@ if ( ! function_exists( 'get_attached_file' ) ) {
 
 if ( ! function_exists( 'current_user_can' ) ) {
 	/**
-	 * Capability shim; tests flip $GLOBALS['sakura_test_can'] to deny access.
+	 * Capability shim; tests may set one boolean or a cap => bool map.
 	 *
 	 * @param string $capability Capability name.
 	 * @return bool
 	 */
 	function current_user_can( $capability ) {
-		unset( $capability );
-		return (bool) ( $GLOBALS['sakura_test_can'] ?? true );
+		$can = $GLOBALS['sakura_test_can'] ?? true;
+
+		if ( is_array( $can ) ) {
+			return array_key_exists( (string) $capability, $can )
+				? (bool) $can[ (string) $capability ]
+				: true;
+		}
+
+		return (bool) $can;
 	}
 }
 

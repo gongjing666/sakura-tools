@@ -110,6 +110,89 @@ final class UserFilesCoreTest extends TestCase {
 		$this->assertSame( 0, $clean['site_storage_budget_bytes'] );
 	}
 
+	/**
+	 * A posted array is not an MB number: it must not become 1 MB silently.
+	 *
+	 * @return void
+	 */
+	public function test_megabyte_arrays_are_ignored_instead_of_becoming_one_megabyte(): void {
+		$warnings = array();
+
+		set_error_handler(
+			static function ( int $errno, string $message ) use ( &$warnings ): bool {
+				$warnings[] = $message;
+
+				return true;
+			},
+			E_WARNING | E_USER_WARNING
+		);
+
+		try {
+			$clean = Settings::sanitize(
+				array(
+					'quota_default_bytes_mb'       => array( '512' ),
+					'max_file_bytes_mb'            => array( '1' ),
+					'daily_upload_bytes_mb'        => array( '2048' ),
+					'site_storage_budget_bytes_mb' => array( '4096' ),
+				)
+			);
+		} finally {
+			restore_error_handler();
+		}
+
+		$this->assertSame( array(), $warnings, 'Non-scalar MB input must not raise a conversion warning.' );
+		$this->assertSame( Settings::DEFAULT_QUOTA, $clean['quota_default_bytes'], 'The array is treated as a missing field.' );
+		$this->assertSame( Settings::DEFAULT_MAX_FILE, $clean['max_file_bytes'] );
+		$this->assertSame( 536870912, $clean['daily_upload_bytes'] );
+		$this->assertSame( 0, $clean['site_storage_budget_bytes'] );
+	}
+
+	/**
+	 * Raw byte/int keys are not the MB keys: a posted array must be treated as
+	 * a missing field instead of silently becoming 1 and clamping to the minimum.
+	 *
+	 * @return void
+	 */
+	public function test_raw_byte_and_integer_arrays_are_treated_as_missing(): void {
+		$warnings = array();
+
+		set_error_handler(
+			static function ( int $errno, string $message ) use ( &$warnings ): bool {
+				$warnings[] = $message;
+
+				return true;
+			},
+			E_WARNING | E_USER_WARNING
+		);
+
+		try {
+			$clean = Settings::sanitize(
+				array(
+					'quota_default_bytes' => array( '1' ),
+					'max_file_bytes'      => array( '1' ),
+					'max_user_files'      => array( '1' ),
+					'daily_upload_bytes'  => array( '1' ),
+					'max_folder_depth'    => array( '99' ),
+					'tree_style'          => array( 'mac' ),
+					'folder_accent'       => array( '#000000' ),
+					'allowed_types'       => array( array( 'image/png' ), 'image/webp' ),
+				)
+			);
+		} finally {
+			restore_error_handler();
+		}
+
+		$this->assertSame( array(), $warnings, 'Non-scalar raw fields must not warn.' );
+		$this->assertSame( Settings::DEFAULT_QUOTA, $clean['quota_default_bytes'] );
+		$this->assertSame( Settings::DEFAULT_MAX_FILE, $clean['max_file_bytes'] );
+		$this->assertSame( 1000, $clean['max_user_files'] );
+		$this->assertSame( 536870912, $clean['daily_upload_bytes'] );
+		$this->assertSame( 8, $clean['max_folder_depth'] );
+		$this->assertSame( 'windows', $clean['tree_style'] );
+		$this->assertSame( '', $clean['folder_accent'] );
+		$this->assertSame( array( 'image/webp' ), $clean['allowed_types'] );
+	}
+
 	public function test_sanitize_keeps_zero_for_an_unset_site_budget(): void {
 		$clean = Settings::sanitize( array( 'site_storage_budget_bytes' => 0 ) );
 

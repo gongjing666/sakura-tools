@@ -244,6 +244,7 @@ final class Plugin {
 		$modules[] = new Admin\Rest\System_Routes();
 		$modules[] = new Admin\Rest\Image_Routes();
 		$modules[] = new Admin\Rest\Storage_Routes();
+		$modules[] = new Zibll\Rest\Performance_Routes();
 
 		// 后台外壳的路由表：同样必须无条件装配，导航时的 /pages/{page} 取数才不会是 404。
 		$modules[] = new Admin\Rest\Page_Routes();

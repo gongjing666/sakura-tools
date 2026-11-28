@@ -120,10 +120,26 @@ final class Page {
 			wp_die( esc_html__( '你没有权限下载这个文件。', 'sakura-imgopt' ), '', array( 'response' => 403 ) );
 		}
 
-		check_admin_referer( 'sakura_sufm_download' );
-
 		$attachment = isset( $_GET['attachment'] ) ? absint( $_GET['attachment'] ) : 0;
 		if ( $attachment < 1 ) {
+			wp_die( esc_html__( '文件不存在。', 'sakura-imgopt' ), '', array( 'response' => 404 ) );
+		}
+
+		// The nonce is bound to the attachment id, so one issued link cannot be
+		// replayed with another id in the query string.
+		check_admin_referer( 'sakura_sufm_download_' . $attachment );
+
+		global $wpdb;
+
+		/*
+		 * Object-level authorization: this endpoint serves files that belong to a
+		 * deletion request. Without this check any reviewer could swap the id and
+		 * download any attachment on the site.
+		 */
+		$items = \Nboke\UserFiles\Schema::table( 'delete_request_items' );
+		$owned = (int) $wpdb->get_var( $wpdb->prepare( "SELECT 1 FROM {$items} WHERE attachment_id = %d LIMIT 1", $attachment ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- One indexed lookup; the download itself is not cached either.
+
+		if ( 1 !== $owned ) {
 			wp_die( esc_html__( '文件不存在。', 'sakura-imgopt' ), '', array( 'response' => 404 ) );
 		}
 
@@ -242,6 +258,7 @@ final class Page {
 					'stopBatch'           => __( '停止批次', 'sakura-imgopt' ),
 					'pickNone'            => __( '未选择', 'sakura-imgopt' ),
 					'pickCount'           => __( '已选 {count} 项', 'sakura-imgopt' ),
+					'selectPage'          => __( '全选本页', 'sakura-imgopt' ),
 					'previewButton'       => __( '预览删除范围', 'sakura-imgopt' ),
 					'previewNeed'         => __( '请先勾选至少一条已批准的申请。', 'sakura-imgopt' ),
 					'previewHint'         => __( '先在上一步勾选已批准的申请，再核对范围。', 'sakura-imgopt' ),
@@ -260,6 +277,7 @@ final class Page {
 					'batchState'          => __( '批次 #{id} · {status}', 'sakura-imgopt' ),
 					'batchProgress'       => __( '完成 {done} / {total}，失败 {failed}', 'sakura-imgopt' ),
 					'batchFinished'       => __( '批次 #{id} 已结束。', 'sakura-imgopt' ),
+					'batchPollFailed'     => __( '批次状态连续查询失败，已停止自动刷新。请刷新页面查看结果。', 'sakura-imgopt' ),
 					'updated'             => __( '已更新 #{id}。', 'sakura-imgopt' ),
 					'reviewDone'          => __( '已更新 #{id} 的审核状态。', 'sakura-imgopt' ),
 					'revokeDone'          => __( '已撤销 #{id} 的批准。', 'sakura-imgopt' ),
@@ -383,17 +401,6 @@ final class Page {
 					'resultLabel'       => __( '结果', 'sakura-imgopt' ),
 					'detailLabel'       => __( '说明', 'sakura-imgopt' ),
 					'timeLabel'         => __( '时间', 'sakura-imgopt' ),
-				)
-			);
-		}
-
-		if ( 'files-settings' === $page ) {
-			$data['strings'] = array_merge(
-				$data['strings'],
-				array(
-					'currentSelection' => __( '当前样式：{style}；图标颜色：{accent}。', 'sakura-imgopt' ),
-					'styleFallback'    => __( '跟随样式', 'sakura-imgopt' ),
-					'accentFallback'   => __( '跟随样式', 'sakura-imgopt' ),
 				)
 			);
 		}

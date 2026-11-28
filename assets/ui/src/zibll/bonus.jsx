@@ -1,33 +1,61 @@
-import { useState } from 'react';
 import { Card } from '../shared/ui.jsx';
 import Form from './form.jsx';
-import { FieldRow, fmt, formatMb } from './controls.jsx';
+import { FieldRow, cardTitleProps, fmt, formatMb } from './controls.jsx';
+import { useCardSave, useDraft } from './save.js';
 
-export function Level( { card, strings, config } ) {
+function copyRows( rows ) {
+	return ( Array.isArray( rows ) ? rows : [] ).map( ( row ) => ( { ...row } ) );
+}
+
+export function Level( { card, rest, strings, onSections, onNotice } ) {
 	const data = card.data || {};
-	const option = config.spaceOption;
-	const [ rule, setRule ] = useState( Boolean( ( data.rule || {} ).enabled ) );
-	const [ points, setPoints ] = useState( ( data.rule || {} ).points || '1000' );
-	const [ bytes, setBytes ] = useState( ( data.rule || {} ).bytes_mb || '100' );
-	const [ rows, setRows ] = useState( ( data.rows || [] ).map( ( row ) => ( { ...row } ) ) );
+	const ruleData = data.rule || {};
+	const [ rule, setRule ] = useDraft( Boolean( ruleData.enabled ), Boolean );
+	const [ points, setPoints ] = useDraft( String( ruleData.points ?? '1000' ), String );
+	const [ bytes, setBytes ] = useDraft( String( ruleData.bytes_mb ?? '100' ), String );
+	const [ rows, setRows ] = useDraft( data.rows, copyRows );
+	const [ failure, save, pending ] = useCardSave( { cardId: 'space_level', rest, strings, onSections, onNotice } );
 	const total = rows.reduce( ( sum, row ) => sum + ( Number( row.mb ) || 0 ), 0 );
 
-	const update = ( level, value ) => {
-		setRows( ( current ) => current.map( ( row ) => ( row.level === level ? { ...row, mb: value } : row ) ) );
+	const update = ( level, value ) => setRows( ( current ) => current.map( ( row ) => ( row.level === level ? { ...row, mb: value } : row ) ) );
+
+	const submit = ( event ) => {
+		event.preventDefault();
+
+		if ( pending ) {
+			return;
+		}
+
+		const fields = {
+			level_rule: {
+				enabled: rule ? 1 : 0,
+				points_per_step: points,
+				bytes_per_step_mb: bytes,
+			},
+		};
+
+		// The manual table is disabled while the rule is on, exactly like the
+		// native form left those inputs out of the submission.
+		if ( ! rule ) {
+			fields.level_bonus_mb = rows.reduce( ( map, row ) => {
+				map[ row.level ] = row.mb;
+
+				return map;
+			}, {} );
+		}
+
+		save( fields );
 	};
 
 	return (
-		<Card card={ card }>
-			<Form card={ card }>
+		<Card card={ card } titleProps={ cardTitleProps }>
+			<Form label={ card.save } saving={ strings.saving } pending={ pending } failure={ failure } onSubmit={ submit }>
 				<div className="field-list">
 					<div className="field field--full">
 						<div className="field__control">
-							<input type="hidden" name={ option + '[level_rule][enabled]' } value="0" />
 							<label className="check">
 								<input
 									type="checkbox"
-									name={ option + '[level_rule][enabled]' }
-									value="1"
 									checked={ rule }
 									onChange={ ( event ) => setRule( event.target.checked ) }
 								/>
@@ -40,7 +68,6 @@ export function Level( { card, strings, config } ) {
 						<input
 							type="number"
 							id="space-level-points-step"
-							name={ option + '[level_rule][points_per_step]' }
 							value={ points }
 							min="1"
 							step="100"
@@ -51,7 +78,6 @@ export function Level( { card, strings, config } ) {
 						<input
 							type="number"
 							id="space-level-bytes-step"
-							name={ option + '[level_rule][bytes_per_step_mb]' }
 							value={ bytes }
 							min="0"
 							step="1"
@@ -78,7 +104,6 @@ export function Level( { card, strings, config } ) {
 										<input
 											className="zibll-cell-field"
 											type="number"
-											name={ option + '[level_bonus_mb][' + row.level + ']' }
 											value={ row.mb }
 											min="0"
 											step="1"
@@ -99,19 +124,33 @@ export function Level( { card, strings, config } ) {
 	);
 }
 
-export function Vip( { card, strings, config } ) {
+export function Vip( { card, rest, strings, onSections, onNotice } ) {
 	const data = card.data || {};
-	const option = config.spaceOption;
-	const [ rows, setRows ] = useState( ( data.rows || [] ).map( ( row ) => ( { ...row } ) ) );
+	const [ rows, setRows ] = useDraft( data.rows, copyRows );
+	const [ failure, save, pending ] = useCardSave( { cardId: 'space_vip', rest, strings, onSections, onNotice } );
 	const total = rows.reduce( ( sum, row ) => sum + ( Number( row.mb ) || 0 ), 0 );
 
-	const update = ( vip, value ) => {
-		setRows( ( current ) => current.map( ( row ) => ( row.vip === vip ? { ...row, mb: value } : row ) ) );
+	const update = ( vip, value ) => setRows( ( current ) => current.map( ( row ) => ( row.vip === vip ? { ...row, mb: value } : row ) ) );
+
+	const submit = ( event ) => {
+		event.preventDefault();
+
+		if ( pending ) {
+			return;
+		}
+
+		const fields = rows.reduce( ( map, row ) => {
+			map[ row.vip ] = row.mb;
+
+			return map;
+		}, {} );
+
+		save( { vip_bonus_mb: fields } );
 	};
 
 	return (
-		<Card card={ card }>
-			<Form card={ card }>
+		<Card card={ card } titleProps={ cardTitleProps }>
+			<Form label={ card.save } saving={ strings.saving } pending={ pending } failure={ failure } onSubmit={ submit }>
 				<div className="zibll-vip-grid">
 					{ rows.map( ( row ) => (
 						<div className="zibll-vip-card" key={ row.vip }>
@@ -127,7 +166,6 @@ export function Vip( { card, strings, config } ) {
 									<input
 										id={ 'space-vip-' + row.vip }
 										type="number"
-										name={ option + '[vip_bonus_mb][' + row.vip + ']' }
 										value={ row.mb }
 										min="0"
 										step="1"

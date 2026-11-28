@@ -84,10 +84,6 @@ final class App_Manifest {
 			'module' => 'files',
 			'tab'    => 'settings',
 		),
-		'files-users'        => array(
-			'module' => 'files',
-			'tab'    => 'users',
-		),
 		'files-queue'        => array(
 			'module' => 'files',
 			'tab'    => 'queue',
@@ -253,7 +249,6 @@ final class App_Manifest {
 			case 'files-settings':
 				return ( new Files_Settings_Payload() )->build();
 
-			case 'files-users':
 			case 'files-queue':
 			case 'files-log':
 				return ( new Files_Admin_Payload() )->build( $page );

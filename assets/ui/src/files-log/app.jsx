@@ -23,8 +23,9 @@ function resultTone( value ) {
  * legacy controller; changing a filter does not refetch from the server.
  */
 export default function App( { boot } ) {
-	const config = boot.config || {};
-	const strings = config.strings || {};
+	const config = boot.rest || {};
+	const strings = boot.strings || {};
+	const data = boot.data || {};
 	const card = ( boot.cards || [] )[ 0 ] || {};
 	const [ page, setPage ] = useState( 1 );
 	const [ per, setPer ] = useState( 25 );
@@ -100,7 +101,7 @@ export default function App( { boot } ) {
 						<label className="toolbar__field">
 							<span className="screen-reader-text">{ strings.reasonLabel || '' }</span>
 							<select value={ reason } onChange={ ( event ) => setReason( event.target.value ) }>
-								{ ( config.logReasons || [] ).map( ( option ) => (
+								{ ( data.logReasons || [] ).map( ( option ) => (
 									<option key={ option.value } value={ option.value }>{ option.label }</option>
 								) ) }
 							</select>

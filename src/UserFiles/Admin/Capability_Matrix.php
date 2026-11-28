@@ -17,7 +17,7 @@ use Sakura\ImageOptimizer\Support\Hook_Loader;
 defined( 'ABSPATH' ) || exit;
 
 /**
- * The card edits the six capabilities this plugin owns.
+ * The card edits the capabilities this plugin owns.
  *
  * WordPress' own `delete_posts` / `delete_others_posts` are deliberately out of
  * scope: they are shared with posts, pages and comments, so flipping them from
@@ -45,7 +45,7 @@ final class Capability_Matrix {
 	/**
 	 * The capability labels shown as columns, in the order operators think
 	 * about them: use the space, ask for a delete, review it, delete outright,
-	 * then the media-library extras.
+	 * then the A7 management actions, then the media-library extras.
 	 *
 	 * @return array<string, array{abbr:string,label:string,hint:string}>
 	 */
@@ -59,32 +59,47 @@ final class Capability_Matrix {
 			Capabilities::REQUEST_DELETE => array(
 				'abbr'  => __( '申', 'sakura-imgopt' ),
 				'label' => __( '申请删除', 'sakura-imgopt' ),
-				'hint'  => __( '提交删除申请、撤回待审申请。', 'sakura-imgopt' ),
+				'hint'  => __( '提交或撤回删除申请。', 'sakura-imgopt' ),
 			),
 			Capabilities::REVIEW         => array(
 				'abbr'  => __( '审', 'sakura-imgopt' ),
 				'label' => __( '审核申请', 'sakura-imgopt' ),
-				'hint'  => __( '批准、驳回、撤销申请，并查看申请详情。', 'sakura-imgopt' ),
+				'hint'  => __( '批准、驳回、撤销申请并查看详情。', 'sakura-imgopt' ),
 			),
 			Capabilities::DELETE_FILES   => array(
 				'abbr'  => __( '删', 'sakura-imgopt' ),
 				'label' => __( '直接删除文件', 'sakura-imgopt' ),
-				'hint'  => __( '跳过申请直接删除；仍要 WordPress 的 delete_post 权限，且只能删自己有权删的附件。', 'sakura-imgopt' ),
+				'hint'  => __( '跳过申请直接删除；仍需 delete_post 权限，只能删有权删的附件。', 'sakura-imgopt' ),
+			),
+			Capabilities::MANAGE_USERS => array(
+				'abbr'  => __( '户', 'sakura-imgopt' ),
+				'label' => __( '管理用户容量', 'sakura-imgopt' ),
+				'hint'  => __( '查看用户列表、改单独容量、重置全站容量；不含删除。', 'sakura-imgopt' ),
+			),
+			Capabilities::VIEW_AUDIT => array(
+				'abbr'  => __( '志', 'sakura-imgopt' ),
+				'label' => __( '查看操作日志', 'sakura-imgopt' ),
+				'hint'  => __( '查看删除、审核与权限变更记录；只读。', 'sakura-imgopt' ),
+			),
+			Capabilities::MANAGE_SYNC => array(
+				'abbr'  => __( '同', 'sakura-imgopt' ),
+				'label' => __( '同步与核对', 'sakura-imgopt' ),
+				'hint'  => __( '启动容量同步与核对；不改文件、不审核。', 'sakura-imgopt' ),
 			),
 			Capabilities::MANAGE_MEDIA   => array(
 				'abbr'  => __( '媒', 'sakura-imgopt' ),
 				'label' => __( '媒体库文件夹', 'sakura-imgopt' ),
-				'hint'  => __( '在媒体库整理多用户文件夹。', 'sakura-imgopt' ),
+				'hint'  => __( '整理媒体库多用户文件夹。', 'sakura-imgopt' ),
 			),
 			Capabilities::TRANSFER       => array(
 				'abbr'  => __( '移', 'sakura-imgopt' ),
 				'label' => __( '转移归属', 'sakura-imgopt' ),
-				'hint'  => __( '把媒体库文件转给另一个用户。', 'sakura-imgopt' ),
+				'hint'  => __( '把媒体库文件转给其他用户。', 'sakura-imgopt' ),
 			),
 			Capabilities::SANCTION_USERS => array(
 				'abbr'  => __( '罚', 'sakura-imgopt' ),
 				'label' => __( '处罚用户', 'sakura-imgopt' ),
-				'hint'  => __( '对违规上传者发出警告、限制上传、撤销处罚。删文件不等于能罚人，这两项刻意分开。', 'sakura-imgopt' ),
+				'hint'  => __( '警告、限制上传、撤销处罚；与删除能力分开。', 'sakura-imgopt' ),
 			),
 		);
 	}
@@ -260,7 +275,22 @@ final class Capability_Matrix {
 
 		// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- only used as a boolean lookup below.
 		$posted = isset( $_POST['sufm_caps'] ) ? (array) wp_unslash( $_POST['sufm_caps'] ) : array();
-		$diff   = array();
+		$diff   = self::apply( $posted );
+
+		$target = wp_validate_redirect( (string) wp_get_referer(), Registry::url( 'files', 'queue' ) );
+
+		wp_safe_redirect( add_query_arg( 'sufm_caps', $diff ? 'saved' : 'same', $target ) );
+		exit;
+	}
+
+	/**
+	 * Apply a submitted matrix and audit the diff.
+	 *
+	 * @param array<string,mixed> $posted Role => capability => truthy.
+	 * @return array<int,string> Changed "role:+cap" entries.
+	 */
+	public static function apply( array $posted ): array {
+		$diff = array();
 
 		foreach ( self::roles() as $role_name ) {
 			$role = get_role( $role_name );
@@ -299,9 +329,6 @@ final class Capability_Matrix {
 			);
 		}
 
-		$target = wp_validate_redirect( (string) wp_get_referer(), Registry::url( 'files', 'queue' ) );
-
-		wp_safe_redirect( add_query_arg( 'sufm_caps', $diff ? 'saved' : 'same', $target ) );
-		exit;
+		return $diff;
 	}
 }

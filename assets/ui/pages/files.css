@@ -664,11 +664,13 @@
 	border-color: var(--g-line-strong);
 }
 
+/* 选中色片的字必须压在浅粉上：--g-accent-ink（白）只有 1.2:1，换墨色 11.9:1。
+ * 白字在 --g-cta-fill 淡粉渐变上属开发者指定的审美例外；其他浅粉底仍用墨字。 */
 .sakura-admin[data-sakura-page="files-settings"] .accent-choice.is-selected,
 .sakura-admin[data-sakura-page="files-settings"] .accent-choice:has(input:checked) {
 	border-color: var(--g-accent);
 	background: var(--g-accent-soft);
-	color: var(--g-accent-ink);
+	color: var(--g-ink);
 }
 
 .sakura-admin[data-sakura-page="files-settings"] .accent-choice__dot {
@@ -807,7 +809,7 @@
 	height: 24px;
 	border-radius: 50%;
 	background: var(--g-accent-soft);
-	color: var(--g-accent-ink);
+	color: var(--g-ink); /* 12px 数字压在浅粉上，白字 1.2:1 不可读，墨色 11.9:1 */
 	font-size: 12px;
 	font-weight: 700;
 }
@@ -1400,5 +1402,1109 @@
 	.sakura-admin[data-sakura-page="files-settings"] .accent-custom .btn {
 		flex: 0 0 auto;
 		margin-left: auto;
+	}
+}
+/* ============================================================
+ * Review workbench (files-queue)
+ *
+ * The user capacity card moved here from the retired files-users page, so
+ * its table internals are re-scoped to this page. The request drawer is a
+ * native <dialog> pinned to the right edge; at 390px it becomes full width.
+ * ============================================================ */
+
+.sakura-admin[data-sakura-page="files-queue"] [data-sakura-card="users"] .sakura-files-table {
+	/* The 28%/34%/90px/210px/168px column widths only take effect under fixed
+	   layout; without this line they fall back to content width and a long user
+	   name pushes the table into horizontal scroll. */
+	table-layout: fixed;
+}
+
+.sakura-admin[data-sakura-page="files-queue"] [data-sakura-card="users"] .sakura-files-table th:nth-child(1) {
+	width: 28%;
+}
+
+.sakura-admin[data-sakura-page="files-queue"] [data-sakura-card="users"] .sakura-files-table th:nth-child(2) {
+	width: 34%;
+}
+
+.sakura-admin[data-sakura-page="files-queue"] [data-sakura-card="users"] .sakura-files-table th:nth-child(3) {
+	width: 90px;
+}
+
+.sakura-admin[data-sakura-page="files-queue"] [data-sakura-card="users"] .sakura-files-table th:nth-child(4) {
+	width: 210px;
+	text-align: right;
+}
+
+.sakura-admin[data-sakura-page="files-queue"] [data-sakura-card="users"] .sakura-files-table th:nth-child(5) {
+	width: 168px;
+}
+
+.sakura-admin[data-sakura-page="files-queue"] [data-sakura-card="users"] .sakura-files-table td:nth-child(4) {
+	text-align: right;
+}
+
+.sakura-admin[data-sakura-page="files-queue"] [data-sakura-card="users"] .sakura-files-table td:nth-child(4) .quota-cell {
+	justify-content: flex-end;
+}
+
+.sakura-admin[data-sakura-page="files-queue"] [data-sakura-card="users"] .user-cell {
+	display: grid;
+	gap: 2px;
+	min-width: 0;
+}
+
+.sakura-admin[data-sakura-page="files-queue"] [data-sakura-card="users"] .user-cell strong {
+	font-weight: 600;
+	overflow-wrap: anywhere;
+}
+
+.sakura-admin[data-sakura-page="files-queue"] [data-sakura-card="users"] .user-cell span {
+	font-size: 11.5px;
+	color: var(--g-faint);
+	overflow-wrap: anywhere;
+}
+
+.sakura-admin[data-sakura-page="files-queue"] [data-sakura-card="users"] .usage {
+	display: grid;
+	gap: 5px;
+	min-width: 160px;
+}
+
+.sakura-admin[data-sakura-page="files-queue"] [data-sakura-card="users"] .usage__line {
+	font-size: 12px;
+	color: var(--g-muted);
+	white-space: nowrap;
+}
+
+.sakura-admin[data-sakura-page="files-queue"] [data-sakura-card="users"] .usage__line strong {
+	color: var(--g-ink);
+	font-weight: 600;
+}
+
+.sakura-admin[data-sakura-page="files-queue"] [data-sakura-card="users"] .usage__track {
+	height: 6px;
+	border-radius: 999px;
+	background: var(--g-wash);
+	overflow: hidden;
+}
+
+.sakura-admin[data-sakura-page="files-queue"] [data-sakura-card="users"] .usage__fill {
+	display: block;
+	height: 100%;
+	border-radius: inherit;
+	background: var(--g-accent);
+}
+
+.sakura-admin[data-sakura-page="files-queue"] [data-sakura-card="users"] .usage__fill.is-high {
+	background: var(--g-warn);
+}
+
+.sakura-admin[data-sakura-page="files-queue"] [data-sakura-card="users"] .files-cell {
+	display: grid;
+	gap: 2px;
+	font-size: 12px;
+}
+
+.sakura-admin[data-sakura-page="files-queue"] [data-sakura-card="users"] .files-cell__line {
+	display: flex;
+	align-items: baseline;
+	gap: 3px;
+	white-space: nowrap;
+}
+
+.sakura-admin[data-sakura-page="files-queue"] [data-sakura-card="users"] .files-cell__line strong {
+	color: var(--g-ink);
+	font-size: 13px;
+	font-weight: 600;
+}
+
+.sakura-admin[data-sakura-page="files-queue"] [data-sakura-card="users"] .files-cell span {
+	color: var(--g-faint);
+	font-size: 11.5px;
+}
+
+.sakura-admin[data-sakura-page="files-queue"] [data-sakura-card="users"] .quota-cell {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	min-width: 150px;
+}
+
+.sakura-admin[data-sakura-page="files-queue"] [data-sakura-card="users"] .quota-cell input {
+	width: 96px;
+	min-height: 34px;
+	padding-block: 6px;
+	text-align: right;
+}
+
+.sakura-admin[data-sakura-page="files-queue"] [data-sakura-card="users"] .quota-cell .btn {
+	min-height: 30px;
+	padding-inline: 10px;
+	font-size: 12px;
+}
+
+.sakura-admin[data-sakura-page="files-queue"] [data-sakura-card="users"] .live-note {
+	min-height: 18px;
+	margin: 10px 0 0;
+	font-size: var(--g-fs-meta);
+	color: var(--g-muted);
+}
+
+.sakura-admin[data-sakura-page="files-queue"] [data-sakura-card="users"] .live-note.is-error {
+	color: var(--g-bad);
+}
+
+.sakura-admin[data-sakura-page="files-queue"] [data-sakura-card="users"] .sanction-cell {
+	display: flex;
+	align-items: center;
+	justify-content: flex-end;
+	gap: 8px;
+	min-width: 0;
+}
+
+.sakura-admin[data-sakura-page="files-queue"] [data-sakura-card="users"] .sanction-cell .badge {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.sakura-admin[data-sakura-page="files-queue"] [data-sakura-card="users"] .sanction-cell .btn {
+	flex: none;
+	min-height: 30px;
+	padding-inline: 10px;
+	font-size: 12px;
+}
+
+@media (min-width: 783px) {
+	.sakura-admin[data-sakura-page="files-queue"] [data-sakura-card="users"] .user-cell strong,
+	.sakura-admin[data-sakura-page="files-queue"] [data-sakura-card="users"] .user-cell span {
+		display: block;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+}
+
+@media (max-width: 782px) {
+	.sakura-admin[data-sakura-page="files-queue"] [data-sakura-card="users"] .sakura-files-table th:nth-child(3),
+	.sakura-admin[data-sakura-page="files-queue"] [data-sakura-card="users"] .sakura-files-table th:nth-child(4),
+	.sakura-admin[data-sakura-page="files-queue"] [data-sakura-card="users"] .sakura-files-table th:nth-child(5) {
+		width: auto;
+		text-align: left;
+	}
+
+	.sakura-admin[data-sakura-page="files-queue"] [data-sakura-card="users"] .sakura-files-table td:nth-child(4) {
+		text-align: left;
+	}
+
+	.sakura-admin[data-sakura-page="files-queue"] [data-sakura-card="users"] .sakura-files-table td:nth-child(4) .quota-cell {
+		justify-content: flex-start;
+	}
+
+	.sakura-admin[data-sakura-page="files-queue"] [data-sakura-card="users"] .usage,
+	.sakura-admin[data-sakura-page="files-queue"] [data-sakura-card="users"] .quota-cell {
+		min-width: 0;
+	}
+
+	.sakura-admin[data-sakura-page="files-queue"] [data-sakura-card="users"] .quota-cell {
+		flex-wrap: wrap;
+	}
+
+	.sakura-admin[data-sakura-page="files-queue"] [data-sakura-card="users"] .quota-cell input {
+		flex: 1 1 120px;
+		width: 100%;
+	}
+
+	.sakura-admin[data-sakura-page="files-queue"] [data-sakura-card="users"] .sanction-cell {
+		justify-content: flex-start;
+	}
+}
+
+/* Capability matrix: low-frequency controls, folded by default ---------- */
+
+.sakura-admin[data-sakura-page="files-queue"] [data-sakura-card="capability-matrix"] .caps-fold {
+	margin-top: 2px;
+	border-top: 1px solid var(--g-line-soft);
+}
+
+.sakura-admin[data-sakura-page="files-queue"] .caps-fold__summary {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: baseline;
+	gap: 4px 8px;
+	padding: 11px 2px;
+	color: var(--g-ink-soft);
+	font-size: var(--g-fs-body);
+	font-weight: 600;
+	list-style: none;
+	cursor: pointer;
+}
+
+.sakura-admin[data-sakura-page="files-queue"] .caps-fold__summary::-webkit-details-marker {
+	display: none;
+}
+
+.sakura-admin[data-sakura-page="files-queue"] .caps-fold__summary::before {
+	content: "▸";
+	display: inline-block;
+	width: 1em;
+	color: var(--g-faint);
+	transition: transform var(--g-dur) var(--g-ease);
+}
+
+.sakura-admin[data-sakura-page="files-queue"] .caps-fold[open] > .caps-fold__summary::before {
+	transform: rotate(90deg);
+}
+
+.sakura-admin[data-sakura-page="files-queue"] .caps-fold__summary:focus-visible {
+	outline: 2px solid var(--g-select-focus);
+	outline-offset: 2px;
+	border-radius: var(--g-radius-xs);
+}
+
+.sakura-admin[data-sakura-page="files-queue"] .caps-fold__hint {
+	font-weight: 400;
+	font-size: var(--g-fs-meta);
+	color: var(--g-muted);
+}
+
+.sakura-admin[data-sakura-page="files-queue"] .caps-fold .card__form {
+	margin-top: 4px;
+}
+
+/* Request drawer ------------------------------------------------------- */
+
+.sakura-admin .queue-drawer {
+	position: fixed;
+	inset: 0 0 0 auto;
+	display: none;
+	flex-direction: column;
+	width: min(560px, 100vw);
+	max-width: none;
+	height: 100vh;
+	height: 100dvh;
+	max-height: none;
+	margin: 0;
+	padding: 0;
+	border: 0;
+	border-inline-start: 1px solid var(--g-line-strong);
+	border-radius: 0;
+	background: var(--g-card);
+	color: var(--g-ink);
+	box-shadow: var(--g-shadow-pop);
+	overflow: hidden;
+}
+
+.sakura-admin .queue-drawer[open] {
+	display: flex;
+	animation: sakura-queue-drawer-in 220ms var(--g-ease) both;
+}
+
+.sakura-admin .queue-drawer::backdrop {
+	background: var(--g-overlay);
+}
+
+@keyframes sakura-queue-drawer-in {
+	from {
+		transform: translateX(20px);
+		opacity: 0.35;
+	}
+
+	to {
+		transform: translateX(0);
+		opacity: 1;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.sakura-admin .queue-drawer[open] {
+		animation: none;
+	}
+}
+
+.sakura-admin .queue-drawer__head {
+	display: flex;
+	flex: 0 0 auto;
+	align-items: flex-start;
+	gap: 12px;
+	padding: 18px 20px 14px;
+	border-bottom: 1px solid var(--g-line);
+}
+
+.sakura-admin .queue-drawer__copy {
+	flex: 1 1 auto;
+	min-width: 0;
+}
+
+.sakura-admin .queue-drawer__eyebrow {
+	margin: 0;
+	color: var(--g-faint);
+	font-size: var(--g-fs-eyebrow);
+	font-weight: 700;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+}
+
+.sakura-admin .queue-drawer__title {
+	margin: 3px 0 7px;
+	font-size: var(--g-fs-h3);
+	line-height: var(--g-lh-tight);
+	overflow-wrap: anywhere;
+}
+
+.sakura-admin .queue-drawer__meta {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 6px 8px;
+	font-size: 11.5px;
+	color: var(--g-muted);
+}
+
+.sakura-admin .queue-drawer__meta-id {
+	font-family: var(--g-font-mono);
+	color: var(--g-ink-soft);
+}
+
+.sakura-admin .queue-drawer__meta-user {
+	overflow-wrap: anywhere;
+}
+
+.sakura-admin .queue-drawer__close {
+	flex: 0 0 auto;
+	width: 32px;
+	height: 32px;
+	padding: 0;
+	border: 1px solid var(--g-line);
+	border-radius: 50%;
+	background: var(--g-wash);
+	color: var(--g-ink-soft);
+	font-size: 20px;
+	line-height: 1;
+	cursor: pointer;
+}
+
+.sakura-admin .queue-drawer__close:hover {
+	border-color: var(--g-line-strong);
+	color: var(--g-ink);
+}
+
+.sakura-admin .queue-drawer__close:focus-visible {
+	outline: 2px solid var(--g-select-focus);
+	outline-offset: 2px;
+}
+
+.sakura-admin .queue-drawer__body {
+	display: grid;
+	flex: 1 1 auto;
+	gap: 18px;
+	align-content: start;
+	min-height: 0;
+	padding: 16px 20px 22px;
+	overflow-y: auto;
+	overscroll-behavior: contain;
+}
+
+.sakura-admin .queue-meta {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+	gap: 10px 14px;
+	margin: 0;
+	padding: 0;
+}
+
+.sakura-admin .queue-meta > div {
+	min-width: 0;
+}
+
+.sakura-admin .queue-meta dt {
+	color: var(--g-muted);
+	font-size: 11px;
+	font-weight: 600;
+}
+
+.sakura-admin .queue-meta dd {
+	margin: 2px 0 0;
+	font-size: 12.5px;
+	overflow-wrap: anywhere;
+}
+
+.sakura-admin .queue-meta__sub {
+	display: inline-block;
+	margin-left: 6px;
+	color: var(--g-faint);
+	font-size: 11.5px;
+}
+
+.sakura-admin .queue-section {
+	display: grid;
+	gap: 10px;
+	min-width: 0;
+	padding-top: 14px;
+	border-top: 1px solid var(--g-line-soft);
+}
+
+.sakura-admin .queue-section__head {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: 10px;
+}
+
+.sakura-admin .queue-section__head h3 {
+	margin: 0;
+	font-size: 13px;
+	font-weight: 600;
+}
+
+.sakura-admin .queue-section__meta {
+	color: var(--g-muted);
+	font-size: 11.5px;
+	white-space: nowrap;
+}
+
+.sakura-admin .queue-thumbs {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+	gap: 8px;
+}
+
+.sakura-admin .queue-thumb {
+	display: grid;
+	gap: 3px;
+	min-width: 0;
+	padding: 0;
+	border: 0;
+	background: none;
+	color: inherit;
+	font: inherit;
+	text-align: left;
+	cursor: pointer;
+}
+
+.sakura-admin .queue-thumb__frame {
+	position: relative;
+	display: grid;
+	place-items: center;
+	aspect-ratio: 4 / 3;
+	overflow: hidden;
+	border: 1px solid var(--g-line);
+	border-radius: var(--g-radius-sm);
+	background: var(--g-wash);
+}
+
+.sakura-admin .queue-thumb:hover .queue-thumb__frame,
+.sakura-admin .queue-thumb:focus-visible .queue-thumb__frame {
+	border-color: var(--g-line-strong);
+}
+
+.sakura-admin .queue-thumb:focus-visible {
+	outline: 2px solid var(--g-select-focus);
+	outline-offset: 2px;
+	border-radius: var(--g-radius-sm);
+}
+
+.sakura-admin .queue-thumb__frame img {
+	position: absolute;
+	inset: 0;
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+}
+
+.sakura-admin .queue-thumb__frame img[hidden] {
+	display: none;
+}
+
+.sakura-admin .queue-thumb__badge {
+	position: absolute;
+	inset-block-end: 6px;
+	inset-inline-end: 6px;
+	z-index: 1;
+	max-width: calc(100% - 12px);
+	padding: 2px 6px;
+	border-radius: 999px;
+	background: var(--g-ink);
+	color: var(--g-card);
+	font-size: 10px;
+	font-weight: 600;
+	line-height: 1.4;
+	opacity: 0.86;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.sakura-admin .queue-thumb__name {
+	display: -webkit-box;
+	color: var(--g-ink-soft);
+	font-size: 11.5px;
+	line-height: 1.35;
+	overflow: hidden;
+	overflow-wrap: anywhere;
+	-webkit-box-orient: vertical;
+	-webkit-line-clamp: 2;
+}
+
+.sakura-admin .queue-thumb__meta {
+	color: var(--g-faint);
+	font-size: 10.5px;
+	white-space: nowrap;
+}
+
+.sakura-admin .queue-drawer__note {
+	margin: 0;
+	color: var(--g-muted);
+	font-size: 12px;
+}
+
+.sakura-admin .queue-drawer__note.is-error {
+	color: var(--g-bad);
+}
+
+.sakura-admin .queue-context__missing {
+	padding: 10px 12px;
+	border: 1px dashed var(--g-line-strong);
+	border-radius: var(--g-radius-sm);
+	background: var(--g-wash);
+}
+
+.sakura-admin .queue-context__missing strong {
+	color: var(--g-ink-soft);
+	font-size: 12.5px;
+}
+
+.sakura-admin .queue-context__missing p {
+	margin: 3px 0 0;
+	color: var(--g-muted);
+	font-size: 12px;
+}
+
+.sakura-admin .queue-context__head {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 6px 8px;
+}
+
+.sakura-admin .queue-context__name {
+	font-size: 13px;
+	overflow-wrap: anywhere;
+}
+
+.sakura-admin .queue-context__login {
+	color: var(--g-muted);
+	font-size: 12px;
+}
+
+.sakura-admin .queue-context__stats {
+	display: grid;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	gap: 8px;
+}
+
+.sakura-admin .queue-stat {
+	display: grid;
+	gap: 2px;
+	min-width: 0;
+	padding: 8px 10px;
+	border: 1px solid var(--g-line-soft);
+	border-radius: var(--g-radius-sm);
+	background: var(--g-wash);
+}
+
+.sakura-admin .queue-stat span {
+	color: var(--g-muted);
+	font-size: 11px;
+}
+
+.sakura-admin .queue-stat strong {
+	font-size: 13px;
+	font-variant-numeric: tabular-nums;
+	overflow-wrap: anywhere;
+}
+
+.sakura-admin .queue-context__usage {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin-top: 10px;
+}
+
+.sakura-admin .queue-context__usage .usage__track {
+	flex: 1 1 auto;
+	height: 6px;
+	border-radius: 999px;
+	background: var(--g-wash);
+	overflow: hidden;
+}
+
+.sakura-admin .queue-context__usage .usage__fill {
+	display: block;
+	height: 100%;
+	border-radius: inherit;
+	background: var(--g-accent);
+}
+
+.sakura-admin .queue-context__usage .usage__fill.is-high {
+	background: var(--g-warn);
+}
+
+.sakura-admin .queue-context__usage > span {
+	color: var(--g-muted);
+	font-size: 11.5px;
+	white-space: nowrap;
+}
+
+.sakura-admin .queue-drawer__foot {
+	display: flex;
+	flex: 0 0 auto;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 8px;
+	padding: 14px 20px;
+	border-top: 1px solid var(--g-line);
+	background: var(--g-wash);
+}
+
+.sakura-admin .queue-drawer__actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	margin-left: auto;
+}
+
+.sakura-admin .queue-drawer__foot .btn {
+	min-height: var(--g-btn-h-sm);
+}
+
+.sakura-admin .queue-drawer__foot .queue-drawer__note {
+	flex: 1 1 100%;
+}
+
+.sakura-admin[data-sakura-page="files-queue"] [data-sakura-card="execute"],
+.sakura-admin[data-sakura-page="files-queue"] [data-sakura-card="users"] {
+	scroll-margin-top: 24px;
+}
+
+@media (max-width: 782px) {
+	.sakura-admin .queue-drawer {
+		width: 100vw;
+		border-inline-start: 0;
+	}
+
+	.sakura-admin .queue-drawer__head {
+		padding: 14px 14px 12px;
+	}
+
+	.sakura-admin .queue-drawer__body {
+		padding: 12px 14px 18px;
+	}
+
+	.sakura-admin .queue-drawer__foot {
+		padding: 12px 14px;
+		gap: 10px;
+	}
+
+	.sakura-admin .queue-drawer__actions {
+		width: 100%;
+		margin-left: 0;
+	}
+
+	.sakura-admin .queue-drawer__actions .btn {
+		flex: 1 1 auto;
+		min-height: 38px;
+	}
+
+	.sakura-admin .queue-context__stats {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+
+	.sakura-admin .queue-thumbs {
+		grid-template-columns: repeat(auto-fill, minmax(82px, 1fr));
+	}
+
+	.sakura-admin[data-sakura-page="files-queue"] [data-sakura-card="execute"],
+	.sakura-admin[data-sakura-page="files-queue"] [data-sakura-card="users"] {
+		scroll-margin-top: 56px;
+	}
+}
+
+/*
+ * Half-width cards: keep the moved tables readable at 6/12.
+ *
+ * The full-width rules reserve fixed widths for the usage, quota and
+ * sanction columns. At 600px those widths squeeze the user cell into an
+ * ellipsis and wrap "15 files" onto two lines. Tighten only the table
+ * internals in the two-up layout; the single-column breakpoint keeps its
+ * existing responsive rules.
+ */
+@media (min-width: 783px) {
+	.sakura-admin[data-sakura-page="files-queue"] .card--half .sakura-files-table th,
+	.sakura-admin[data-sakura-page="files-queue"] .card--half .sakura-files-table td {
+		padding-inline: 8px;
+	}
+
+	.sakura-admin[data-sakura-page="files-queue"] .card--half .user-cell strong,
+	.sakura-admin[data-sakura-page="files-queue"] .card--half .user-cell span {
+		overflow: visible;
+		text-overflow: clip;
+		white-space: normal;
+	}
+
+	.sakura-admin[data-sakura-page="files-queue"] .card--half .usage {
+		min-width: 0;
+	}
+
+	.sakura-admin[data-sakura-page="files-queue"] .card--half .quota-cell {
+		min-width: 0;
+	}
+
+	.sakura-admin[data-sakura-page="files-queue"] .card--half .quota-cell input {
+		width: 72px;
+	}
+}
+
+/*
+ * view=users: below the two-up breakpoint the users card is the fourth
+ * stacked card, so offer a user-initiated jump. Above it the card is already
+ * a full-width row near the top and the static outline is enough.
+ */
+.sakura-admin[data-sakura-page="files-queue"] .view-users-jump {
+	display: none;
+	margin: -4px 0 14px;
+}
+
+@media (max-width: 1100px) {
+	.sakura-admin[data-sakura-page="files-queue"] .view-users-jump {
+		display: flex;
+		justify-content: flex-end;
+	}
+}
+
+/*
+ * view=users: mark the users card instead of scrolling to it.
+ *
+ * The old code waited for both lists and then called scrollIntoView(), so a
+ * reader who scrolled up during the first second was pulled back. A static
+ * outline has no timing and cannot move the viewport; the card is already a
+ * full-width row near the top of the page.
+ */
+.sakura-admin[data-sakura-page="files-queue"] .card-grid > .card--target {
+	border-color: var(--g-accent);
+	outline: 2px solid var(--g-accent);
+	outline-offset: 2px;
+}
+
+/* ============================================================
+ * beta-29: full-width quota and permission cards
+ *
+ * The quota and permission cards no longer share a row: both tables need
+ * the full 12 columns. The sanction header and its row button share one
+ * right baseline; the permission matrix scrolls inside its own card on
+ * phones instead of widening the page. The 10 permission descriptions are
+ * a compact grid below the matrix rather than one long legend line.
+ * ============================================================ */
+
+.sakura-admin[data-sakura-page="files-queue"] [data-sakura-card="users"] .sakura-files-table th:nth-child(5),
+.sakura-admin[data-sakura-page="files-queue"] [data-sakura-card="users"] .sakura-files-table td:nth-child(5) {
+	text-align: right;
+}
+
+.sakura-admin[data-sakura-page="files-queue"] [data-sakura-card="users"] .sanction-cell {
+	justify-content: flex-end;
+}
+
+/* The permission matrix -------------------------------------------------- */
+
+.sakura-admin[data-sakura-page="files-queue"] [data-sakura-card="capability-matrix"] .table-scroll {
+	overflow-x: auto;
+	overscroll-behavior-x: contain;
+}
+
+.sakura-admin[data-sakura-page="files-queue"] [data-sakura-card="capability-matrix"] .caps-matrix {
+	min-width: 760px;
+}
+
+.sakura-admin[data-sakura-page="files-queue"] [data-sakura-card="capability-matrix"] .caps-matrix thead th:first-child,
+.sakura-admin[data-sakura-page="files-queue"] [data-sakura-card="capability-matrix"] .caps-matrix tbody th[scope="row"] {
+	width: 22%;
+}
+
+.sakura-admin[data-sakura-page="files-queue"] [data-sakura-card="capability-matrix"] .caps-matrix th,
+.sakura-admin[data-sakura-page="files-queue"] [data-sakura-card="capability-matrix"] .caps-matrix td {
+	padding-block: 11px;
+}
+
+.sakura-admin[data-sakura-page="files-queue"] [data-sakura-card="capability-matrix"] .caps-matrix thead th:first-child {
+	position: sticky;
+	left: 0;
+	z-index: 2;
+	background: var(--g-card-surface, var(--g-card));
+	box-shadow: 1px 0 0 var(--g-line-soft);
+}
+
+.sakura-admin[data-sakura-page="files-queue"] [data-sakura-card="capability-matrix"] .caps-matrix tbody th[scope="row"] {
+	position: sticky;
+	left: 0;
+	z-index: 1;
+	background: var(--g-card-surface, var(--g-card));
+	box-shadow: 1px 0 0 var(--g-line-soft);
+}
+
+/* Ten permissions, one line each: abbreviation, name, single-sentence hint. */
+.sakura-admin[data-sakura-page="files-queue"] .caps-legend {
+	display: grid;
+	grid-template-columns: repeat(5, minmax(0, 1fr));
+	gap: 14px 18px;
+	margin: 16px 0 0;
+	padding: 16px 0 0;
+	border-top: 1px solid var(--g-line-soft);
+	list-style: none;
+}
+
+.sakura-admin[data-sakura-page="files-queue"] .caps-legend__item {
+	display: grid;
+	grid-template-columns: 26px minmax(0, 1fr);
+	gap: 9px;
+	align-items: start;
+	min-width: 0;
+}
+
+.sakura-admin[data-sakura-page="files-queue"] .caps-legend__abbr {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 26px;
+	height: 26px;
+	border-radius: 8px;
+	background: var(--g-paper-deep);
+	color: var(--g-accent);
+	font-size: 12px;
+	font-weight: 700;
+	line-height: 1;
+}
+
+.sakura-admin[data-sakura-page="files-queue"] .caps-legend__body {
+	display: grid;
+	gap: 2px;
+	min-width: 0;
+}
+
+.sakura-admin[data-sakura-page="files-queue"] .caps-legend__label {
+	color: var(--g-ink);
+	font-size: 13px;
+	font-weight: 600;
+	line-height: 1.45;
+}
+
+.sakura-admin[data-sakura-page="files-queue"] .caps-legend__hint {
+	color: var(--g-muted);
+	font-size: 12px;
+	line-height: 1.55;
+}
+
+/* The old single-line legend remains as a fallback only. */
+.sakura-admin[data-sakura-page="files-queue"] .caps-matrix__legend {
+	font-size: 12px;
+	line-height: 1.7;
+}
+
+@media (max-width: 1199px) {
+	.sakura-admin[data-sakura-page="files-queue"] .caps-legend {
+		grid-template-columns: repeat(3, minmax(0, 1fr));
+	}
+}
+
+@media (max-width: 782px) {
+	.sakura-admin[data-sakura-page="files-queue"] .caps-legend {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+
+	.sakura-admin[data-sakura-page="files-queue"] [data-sakura-card="users"] .sakura-files-table th:nth-child(5),
+	.sakura-admin[data-sakura-page="files-queue"] [data-sakura-card="users"] .sakura-files-table td:nth-child(5) {
+		text-align: left;
+	}
+
+	.sakura-admin[data-sakura-page="files-queue"] [data-sakura-card="users"] .sanction-cell {
+		justify-content: flex-start;
+	}
+}
+
+@media (max-width: 560px) {
+	.sakura-admin[data-sakura-page="files-queue"] .caps-legend {
+		grid-template-columns: minmax(0, 1fr);
+	}
+}
+
+/* Mobile quota cards ------------------------------------------------
+ * The desktop table becomes stacked records below 783px, which costs a
+ * 92px label column and leaves a lot of dead space in a 358px card. Below
+ * that breakpoint the table is replaced by one compact article per user:
+ * identity + sanction in the header, usage/files in two columns, and the
+ * quota input + save on one line. Desktop keeps the table unchanged. */
+.sakura-admin[data-sakura-page="files-queue"] .users-mobile {
+	display: none;
+}
+
+@media (max-width: 782px) {
+	.sakura-admin[data-sakura-page="files-queue"] [data-sakura-card="users"] .table-scroll {
+		display: none;
+	}
+
+	.sakura-admin[data-sakura-page="files-queue"] .users-mobile {
+		display: block;
+	}
+
+	.sakura-admin[data-sakura-page="files-queue"] .users-mobile__card {
+		padding: 10px 0;
+		border-top: 1px solid var(--g-line-soft);
+	}
+
+	.sakura-admin[data-sakura-page="files-queue"] .users-mobile__card:first-child {
+		padding-top: 2px;
+		border-top: 0;
+	}
+
+	.sakura-admin[data-sakura-page="files-queue"] .users-mobile__head {
+		display: flex;
+		align-items: flex-start;
+		justify-content: space-between;
+		gap: 10px;
+	}
+
+	.sakura-admin[data-sakura-page="files-queue"] .users-mobile__identity {
+		display: grid;
+		gap: 2px;
+		min-width: 0;
+	}
+
+	.sakura-admin[data-sakura-page="files-queue"] .users-mobile__identity strong {
+		font-size: 14.5px;
+		line-height: 1.4;
+		overflow-wrap: anywhere;
+	}
+
+	.sakura-admin[data-sakura-page="files-queue"] .users-mobile__identity span {
+		color: var(--g-muted);
+		font-size: 11.5px;
+		overflow-wrap: anywhere;
+	}
+
+	.sakura-admin[data-sakura-page="files-queue"] .users-mobile__head-actions {
+		display: flex;
+		align-items: center;
+		gap: 6px;
+		flex: 0 0 auto;
+	}
+
+	.sakura-admin[data-sakura-page="files-queue"] .users-mobile__stats {
+		display: grid;
+		grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+		gap: 8px 14px;
+		margin: 8px 0 0;
+	}
+
+	.sakura-admin[data-sakura-page="files-queue"] .users-mobile__stats > div {
+		min-width: 0;
+	}
+
+	.sakura-admin[data-sakura-page="files-queue"] .users-mobile__stats dt {
+		margin: 0;
+		color: var(--g-faint);
+		font-size: 11px;
+		font-weight: 600;
+		letter-spacing: .03em;
+		line-height: 1.4;
+	}
+
+	.sakura-admin[data-sakura-page="files-queue"] .users-mobile__stats dd {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: baseline;
+		gap: 3px;
+		margin: 2px 0 0;
+		color: var(--g-ink);
+		font-size: 13px;
+		line-height: 1.45;
+	}
+
+	.sakura-admin[data-sakura-page="files-queue"] .users-mobile__stats dd strong {
+		font-size: 13.5px;
+		font-weight: 600;
+	}
+
+	.sakura-admin[data-sakura-page="files-queue"] .users-mobile__track {
+		margin-top: 4px;
+		height: 4px;
+	}
+
+	.sakura-admin[data-sakura-page="files-queue"] .users-mobile__quota {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		margin-top: 9px;
+	}
+
+	.sakura-admin[data-sakura-page="files-queue"] .users-mobile__quota > label {
+		flex: 0 0 auto;
+		color: var(--g-faint);
+		font-size: 11px;
+		font-weight: 600;
+		line-height: 1.3;
+	}
+
+	.sakura-admin[data-sakura-page="files-queue"] .users-mobile__quota-row {
+		display: flex;
+		align-items: center;
+		gap: 6px;
+		flex: 1 1 auto;
+		min-width: 0;
+	}
+
+	.sakura-admin[data-sakura-page="files-queue"] .users-mobile__quota-row input {
+		flex: 1 1 auto;
+		width: auto;
+		min-width: 0;
+		height: 34px;
+		padding: 0 9px;
+		font-size: 13px;
+	}
+
+	.sakura-admin[data-sakura-page="files-queue"] .users-mobile__quota-row .btn {
+		flex: 0 0 auto;
+	}
+
+	.sakura-admin[data-sakura-page="files-queue"] .users-mobile__loading {
+		margin: 8px 0;
+		color: var(--g-muted);
+		font-size: 12px;
+	}
+
+	.sakura-admin[data-sakura-page="files-queue"] [data-sakura-card="users"] .live-note {
+		min-height: 0;
+		margin-bottom: 4px;
+	}
+
+	.sakura-admin[data-sakura-page="files-queue"] [data-sakura-card="users"] .pagination {
+		margin-top: 10px;
+		gap: 8px 10px;
+		font-size: 11.5px;
+	}
+
+	.sakura-admin[data-sakura-page="files-queue"] [data-sakura-card="users"] .pagination__summary {
+		order: 3;
+		flex: 1 1 100%;
+	}
+
+	.sakura-admin[data-sakura-page="files-queue"] [data-sakura-card="users"] .pagination__link {
+		min-width: 32px;
+		height: 30px;
+		padding: 0 10px;
+	}
+
+	.sakura-admin[data-sakura-page="files-queue"] [data-sakura-card="users"] .card__body {
+		padding-bottom: 12px;
 	}
 }

@@ -1,0 +1,65 @@
+{
+  "date": "2026-11-28",
+  "version": "1.30.0-beta-29",
+  "choices": {
+    "fold": "keep-fold",
+    "sanction_align": "right"
+  },
+  "desktop_1440": {
+    "pageScrollWidth": 1440,
+    "gridWidth": 1220,
+    "users": {
+      "width": 1220,
+      "top": 933,
+      "height": 374
+    },
+    "capabilityMatrix": {
+      "width": 1220,
+      "top": 1327,
+      "height": 759,
+      "open": true
+    },
+    "sanction": {
+      "headerTextRight": 1371,
+      "buttonRight": 1371,
+      "usersTableClient": 1170,
+      "usersTableScroll": 1170
+    },
+    "matrix": {
+      "tableWidth": 1168,
+      "scrollClient": 1170,
+      "scrollWidth": 1170,
+      "legendItems": 10,
+      "legendColumns": 5,
+      "headerSticky": "sticky"
+    }
+  },
+  "mobile_390": {
+    "pageScrollWidth": 390,
+    "users": {
+      "width": 358,
+      "tableDisplay": "block",
+      "headerDisplay": "none"
+    },
+    "capabilityMatrix": {
+      "width": 358,
+      "tableWidth": 760,
+      "scrollClient": 322,
+      "scrollWidth": 762,
+      "legendColumns": 1,
+      "headerSticky": "sticky",
+      "open": true
+    },
+    "sanctionButton": {
+      "x": 106,
+      "y": 1502,
+      "width": 46,
+      "height": 30
+    }
+  },
+  "console": {
+    "errors": 0,
+    "warnings": 0,
+    "logs": 3
+  }
+}

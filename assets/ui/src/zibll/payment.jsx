@@ -1,26 +1,44 @@
 import { Card } from '../shared/ui.jsx';
 import Form from './form.jsx';
-import { FieldRow } from './controls.jsx';
+import { FieldRow, cardTitleProps } from './controls.jsx';
+import { useCardSave, useDraft } from './save.js';
 
-export default function Payment( { card, strings, config } ) {
+export default function Payment( { card, rest, strings, onSections, onNotice } ) {
 	const data = card.data || {};
-	const option = config.spaceOption;
+	const methods = Array.isArray( data.methods ) ? data.methods : [];
+	const [ selected, setSelected ] = useDraft( methods, ( list ) => list.filter( ( method ) => method.checked ).map( ( method ) => method.id ) );
+	const [ points, setPoints ] = useDraft( Boolean( data.points_on ), Boolean );
+	const [ failure, save, pending ] = useCardSave( { cardId: 'space_payment', rest, strings, onSections, onNotice } );
+
+	const toggle = ( id, checked ) => setSelected( ( current ) => (
+		checked ? [ ...current, id ] : current.filter( ( value ) => value !== id )
+	) );
+
+	const submit = ( event ) => {
+		event.preventDefault();
+
+		if ( pending ) {
+			return;
+		}
+
+		save( { allowed_methods: selected, points_enabled: points ? 1 : 0 } );
+	};
 
 	return (
-		<Card card={ card }>
-			<Form card={ card }>
+		<Card card={ card } titleProps={ cardTitleProps }>
+			<Form label={ card.save } saving={ strings.saving } pending={ pending } failure={ failure } onSubmit={ submit }>
 				<FieldRow label={ strings.themeMethods } hint={ strings.themeMethodsHint }>
-					{ ! ( data.methods || [] ).length ? (
+					{ ! methods.length ? (
 						<p className="zibll-muted">{ strings.noThemeMethods }</p>
 					) : (
 						<div className="zibll-method-list">
-							{ ( data.methods || [] ).map( ( method ) => (
+							{ methods.map( ( method ) => (
 								<label className="check zibll-method" key={ method.id }>
 									<input
 										type="checkbox"
-										name={ option + '[allowed_methods][]' }
 										value={ method.id }
-										defaultChecked={ method.checked }
+										checked={ selected.includes( method.id ) }
+										onChange={ ( event ) => toggle( method.id, event.target.checked ) }
 									/>
 									<span className="check__box" aria-hidden="true" />
 									<span className="check__text">
@@ -35,14 +53,8 @@ export default function Payment( { card, strings, config } ) {
 				</FieldRow>
 
 				<FieldRow label={ strings.points } hint={ strings.pointsHint }>
-					<input type="hidden" name={ option + '[points][enabled]' } value="0" />
 					<label className="check">
-						<input
-							type="checkbox"
-							name={ option + '[points][enabled]' }
-							value="1"
-							defaultChecked={ Boolean( data.points_on ) }
-						/>
+						<input type="checkbox" checked={ points } onChange={ ( event ) => setPoints( event.target.checked ) } />
 						<span className="check__box" aria-hidden="true" />
 						<span className="check__text">{ strings.pointsEnabled }</span>
 					</label>

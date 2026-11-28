@@ -1,0 +1,71 @@
+{
+  "toolbar": "0.28 秒 15.5MB 0.00 秒 18次查询 时间线 数据库查询 18 计时 4 日志 请求 管理界面 脚本 21 样式 40 钩子和动作 语言 HTTP API 调用 瞬态数据更新 权限检查 环境 is_admin() is_blog_admin() is_ssl() Object Cache (98.16%)",
+  "captured_at": "2026-11-27T16:56:55.698Z",
+  "url": "https://demo.77il.cn/wp-admin/admin.php?page=sakura-tools-files&t=queue#qm-overview",
+  "user": "yexu",
+  "page": {
+    "time_taken_s": 0.2795088291168213,
+    "time_limit_ms": 100,
+    "memory_bytes": 16294896,
+    "memory_mb": 15.54,
+    "memory_limit_bytes": 536870912,
+    "memory_usage_pct": 3.04
+  },
+  "db": {
+    "total_qs": 18,
+    "errors": 0,
+    "expensive": null,
+    "row_count": 18,
+    "top_queries": [
+      {
+        "sql": "SHOW FULL COLUMNS FROM `wp_options`",
+        "ltime_ms": 0.398,
+        "component": "插件：sakura-tools"
+      },
+      {
+        "sql": "UPDATE `wp_options` SET `option_value` = 'a:21:{i:1795798531;a:2:{s:28:\\\"objectcache_metri",
+        "ltime_ms": 0.33,
+        "component": "插件：sakura-tools"
+      },
+      {
+        "sql": "SELECT COUNT(*) FROM wp_sio_s3_deletes WHERE state = 'dead'",
+        "ltime_ms": 0.224,
+        "component": "插件：sakura-tools"
+      }
+    ]
+  },
+  "timing": {
+    "count": 4,
+    "entries": [
+      {
+        "function": "Sakura boot",
+        "time_ms": 2.586,
+        "memory_bytes": 324424
+      },
+      {
+        "function": "Sakura modules",
+        "time_ms": 1.2,
+        "memory_bytes": 17648
+      },
+      {
+        "function": "Sakura register hooks",
+        "time_ms": 0.194,
+        "memory_bytes": 188536
+      },
+      {
+        "function": "Sakura admin page files/queue",
+        "time_ms": 4.447,
+        "memory_bytes": 167520
+      }
+    ]
+  },
+  "panel_dom_present": false,
+  "qm_ids": [
+    "qm-cache-container",
+    "qm-cache",
+    "qm-cache-caption",
+    "qm-cache-commands-container",
+    "qm-cache-commands",
+    "qm-cache-commands-caption"
+  ]
+}

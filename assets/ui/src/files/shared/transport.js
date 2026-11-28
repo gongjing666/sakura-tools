@@ -42,7 +42,9 @@ export function apiUrl( config, path, params ) {
 		}
 	} );
 
-	return config.restUrl + path + ( query.toString() ? '?' + query.toString() : '' );
+	const base = config.url || config.restUrl || '';
+
+	return base + path + ( query.toString() ? '?' + query.toString() : '' );
 }
 
 export async function apiGet( config, path, params, signal ) {

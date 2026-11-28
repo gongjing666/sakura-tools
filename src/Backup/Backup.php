@@ -428,8 +428,14 @@ class Backup {
 		}
 
 		// 建立「备份绝对路径 → attachment_id」映射，便于删除文件时同步清 meta。
-		$base_dir   = rtrim( wp_upload_dir()['basedir'], '/' );
-		$path_to_id = self::build_path_to_id_map();
+		$base_dir = rtrim( wp_upload_dir()['basedir'], '/' );
+		$wanted   = array();
+
+		foreach ( $files as $file ) {
+			$wanted[] = $file['path'];
+		}
+
+		$path_to_id = self::build_path_to_id_map( $wanted );
 
 		$freed   = 0;
 		$count   = 0;
@@ -505,23 +511,55 @@ class Backup {
 	 *
 		 * @return array<string,int>
 	 */
-	private static function build_path_to_id_map() {
+	private static function build_path_to_id_map( array $wanted = array() ): array {
 		global $wpdb;
-		$rows = $wpdb->get_results(
-			$wpdb->prepare( "SELECT post_id, meta_value FROM {$wpdb->postmeta} WHERE meta_key = %s", self::META_KEY )
-		);
-		$map  = array();
-		if ( $rows ) {
-			foreach ( $rows as $row ) {
-				$meta = maybe_unserialize( $row->meta_value );
-				if ( is_array( $meta ) && ! empty( $meta['backup_rel'] ) ) {
-					$abs = self::resolve_upload_path( $meta['backup_rel'], true, true );
-					if ( false !== $abs ) {
-						$map[ $abs ] = (int) $row->post_id;
-					}
-				}
+
+		$filter = array();
+
+		foreach ( $wanted as $path ) {
+			if ( is_string( $path ) && '' !== $path ) {
+				$filter[ $path ] = true;
 			}
 		}
+
+		$map   = array();
+		$after  = 0;
+		$batch  = 500;
+
+		do {
+			$rows = $wpdb->get_results(
+				$wpdb->prepare(
+					"SELECT meta_id, post_id, meta_value FROM {$wpdb->postmeta} WHERE meta_key = %s AND meta_id > %d ORDER BY meta_id ASC LIMIT %d", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+					self::META_KEY,
+					$after,
+					$batch
+				)
+			);
+
+			$fetched = is_array( $rows ) ? count( $rows ) : 0;
+
+			foreach ( (array) $rows as $row ) {
+				$after = (int) $row->meta_id;
+				$meta  = maybe_unserialize( $row->meta_value );
+
+				if ( ! is_array( $meta ) || empty( $meta['backup_rel'] ) ) {
+					continue;
+				}
+
+				$abs = self::resolve_upload_path( $meta['backup_rel'], true, true );
+
+				if ( false === $abs ) {
+					continue;
+				}
+
+				if ( $filter && ! isset( $filter[ $abs ] ) ) {
+					continue;
+				}
+
+				$map[ $abs ] = (int) $row->post_id;
+			}
+		} while ( $fetched === $batch );
+
 		return $map;
 	}
 

@@ -13,6 +13,7 @@ declare( strict_types=1 );
 
 namespace Sakura\ImageOptimizer\Admin\Rest;
 
+use Sakura\ImageOptimizer\Admin\App_Manifest;
 use Sakura\ImageOptimizer\S3\Sync_Center_Module;
 use WP_REST_Request;
 use WP_REST_Response;
@@ -149,7 +150,7 @@ final class Sync_Controller {
 	 * @return bool
 	 */
 	public static function can_manage(): bool {
-		return current_user_can( 'manage_options' );
+		return App_Manifest::can_view( 'storage-sync' );
 	}
 
 	/**

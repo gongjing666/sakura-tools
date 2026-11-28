@@ -77,12 +77,6 @@ final class Layout {
 				'queue' => array( 1, 1, 12 ),
 			),
 		),
-		'files-users' => array(
-			'order' => array( 'users' ),
-			'cards' => array(
-				'users' => array( 1, 1, 12 ),
-			),
-		),
 		'files-log' => array(
 			'order' => array( 'log' ),
 			'cards' => array(
@@ -136,6 +130,12 @@ final class Layout {
 				'access' => array( 2, 1, 8 ),
 			),
 		),
+		'image-stats' => array(
+			'order' => array( 'history' ),
+			'cards' => array(
+				'history' => array( 1, 1, 12 ),
+			),
+		),
 		'sync' => array(
 			'order' => array( 'ignored', 'tasks', 'health', 'storage', 'notes', 'reconcile', 'logs' ),
 			'cards' => array(
@@ -166,14 +166,14 @@ final class Layout {
 			),
 		),
 		'files-queue' => array(
-			'order' => array( 'execute', 'capability-matrix', 'queue' ),
+			'order' => array( 'queue', 'execute', 'users', 'capability-matrix' ),
+			// Review/execute stay two-up; the quota and permission cards
+			// need the full 12 columns for their tables.
 			'cards' => array(
-				'execute' => array( 1, 1, 6 ),
-				// The matrix is six narrow checkbox columns plus a role column;
-				// half a row leaves ~700px at 1480, which is what it was
-				// designed for. Full width would leave a mostly empty band.
-				'capability-matrix' => array( 1, 7, 6 ),
-				'queue' => array( 2, 1, 12 ),
+				'queue'             => array( 1, 1, 6 ),
+				'execute'           => array( 1, 7, 6 ),
+				'users'             => array( 2, 1, 12 ),
+				'capability-matrix' => array( 3, 1, 12 ),
 			),
 		),
 		'files-space' => array(

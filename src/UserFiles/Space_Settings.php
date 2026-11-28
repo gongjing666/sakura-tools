@@ -307,7 +307,7 @@ final class Space_Settings {
 	public static function order_icon(): string {
 		$settings = self::get();
 
-		return self::sanitize_icon_url( (string) ( $settings['order_icon'] ?? '' ) );
+		return self::sanitize_icon_url( self::scalar_string( $settings['order_icon'] ?? '' ) );
 	}
 
 	/**
@@ -319,10 +319,10 @@ final class Space_Settings {
 	public static function with_points_label( $row ): array {
 		$row = is_array( $row ) ? $row : array();
 
-		$label = isset( $row['label'] ) ? (string) $row['label'] : '';
+		$label = self::scalar_string( $row['label'] ?? '' );
 
 		if ( '' === $label ) {
-			$label = self::points_label( (float) ( $row['gb'] ?? 0 ), (int) ( $row['days'] ?? 0 ) );
+			$label = self::points_label( self::scalar_float( $row['gb'] ?? 0 ), self::scalar_int( $row['days'] ?? 0 ) );
 		}
 
 		$row['label'] = $label;
@@ -426,7 +426,7 @@ final class Space_Settings {
 		$out['enabled']             = true === (bool) ( $merged['enabled'] ?? false );
 		$out['apply_bonuses']       = true === (bool) ( $merged['apply_bonuses'] ?? true );
 		$out['quota_override_mode'] = self::sanitize_mode( $merged['quota_override_mode'] ?? 'cap' );
-		$out['order_icon']          = self::sanitize_icon_url( (string) ( $merged['order_icon'] ?? '' ) );
+		$out['order_icon']          = self::sanitize_icon_url( self::scalar_string( $merged['order_icon'] ?? '' ) );
 		$out['level_bonus']         = self::sanitize_level_bonus( $value, $merged, $defaults );
 		$out['level_rule']          = self::sanitize_level_rule( $value, $merged, $defaults );
 		$out['vip_bonus']           = self::sanitize_vip_bonus( $value, $merged, $defaults );
@@ -501,19 +501,19 @@ final class Space_Settings {
 		$posted  = isset( $value['level_rule'] ) && is_array( $value['level_rule'] ) ? $value['level_rule'] : null;
 		$source  = null !== $posted ? $posted : ( isset( $merged['level_rule'] ) && is_array( $merged['level_rule'] ) ? $merged['level_rule'] : $shipped );
 
-		$points = isset( $source['points_per_step'] ) ? (int) $source['points_per_step'] : 1000;
+		$points = self::scalar_int( $source['points_per_step'] ?? 1000, 1000 );
 		$points = max( 1, min( 10000000, $points ) );
 
-		if ( isset( $source['bytes_per_step_mb'] ) ) {
+		if ( isset( $source['bytes_per_step_mb'] ) && is_scalar( $source['bytes_per_step_mb'] ) ) {
 			$bytes = (int) round( max( 0.0, (float) $source['bytes_per_step_mb'] ) * self::MB );
-		} elseif ( isset( $source['bytes_per_step'] ) ) {
+		} elseif ( isset( $source['bytes_per_step'] ) && is_scalar( $source['bytes_per_step'] ) ) {
 			$bytes = (int) $source['bytes_per_step'];
 		} else {
-			$bytes = isset( $shipped['bytes_per_step'] ) ? (int) $shipped['bytes_per_step'] : 100 * self::MB;
+			$bytes = self::scalar_int( $shipped['bytes_per_step'] ?? ( 100 * self::MB ), 100 * self::MB );
 		}
 
 		return array(
-			'enabled'         => ! empty( $source['enabled'] ),
+			'enabled'         => ! empty( self::scalar_int( $source['enabled'] ?? 0 ) ),
 			'points_per_step' => $points,
 			'bytes_per_step'  => max( 0, min( self::MAX_BYTES, $bytes ) ),
 		);
@@ -579,34 +579,35 @@ final class Space_Settings {
 				continue;
 			}
 
-			// Rows marked for deletion never reach the option.
-			if ( ! empty( $package['remove'] ) ) {
+			// Rows marked for deletion never reach the option. A posted array is
+			// not a delete flag: only a scalar truthy value removes the row.
+			if ( isset( $package['remove'] ) && is_scalar( $package['remove'] ) && ! empty( $package['remove'] ) ) {
 				continue;
 			}
 
 			if ( isset( $package['bytes_gb'] ) ) {
-				$bytes = self::gb_to_bytes( $package['bytes_gb'] );
+				$bytes = self::gb_to_bytes( self::scalar_float( $package['bytes_gb'] ) );
 			} elseif ( isset( $package['bytes_mb'] ) ) {
-				$bytes = self::mb_to_bytes( $package['bytes_mb'] );
+				$bytes = self::mb_to_bytes( self::scalar_float( $package['bytes_mb'] ) );
 			} elseif ( isset( $package['bytes'] ) ) {
-				$bytes = self::clamp_bytes( $package['bytes'] );
+				$bytes = self::clamp_bytes( self::scalar_int( $package['bytes'] ) );
 			} else {
 				$bytes = 0;
 			}
 
-			$price = isset( $package['price'] ) ? round( (float) $package['price'], 2 ) : 0.0;
+			$price = round( self::scalar_float( $package['price'] ?? 0.0 ), 2 );
 			if ( 0.0 > $price ) {
 				$price = 0.0;
 			}
 
-			$label = isset( $package['label'] ) ? sanitize_text_field( (string) $package['label'] ) : '';
+			$label = sanitize_text_field( self::scalar_string( $package['label'] ?? '' ) );
 
 			// A freshly added row the admin never filled in is not a package.
 			if ( 0 >= $bytes && 0.0 >= $price && '' === $label ) {
 				continue;
 			}
 
-			$days = isset( $package['days'] ) ? (int) $package['days'] : 0;
+			$days = self::scalar_int( $package['days'] ?? 0 );
 			if ( 0 > $days ) {
 				$days = 0;
 			}
@@ -618,11 +619,11 @@ final class Space_Settings {
 				$label = '';
 			}
 
-			$id = self::plan_id( isset( $package['id'] ) ? (string) $package['id'] : '', 'a', $seen );
+			$id = self::plan_id( self::scalar_string( $package['id'] ?? '' ), 'a', $seen );
 
 			$seen[ $id ] = true;
 
-			$image = isset( $package['image'] ) ? esc_url_raw( trim( (string) $package['image'] ) ) : '';
+			$image = esc_url_raw( trim( self::scalar_string( $package['image'] ?? '' ) ) );
 
 			if ( '' !== $image && ! in_array( (string) wp_parse_url( $image, PHP_URL_SCHEME ), array( 'http', 'https' ), true ) ) {
 				$image = '';
@@ -635,7 +636,7 @@ final class Space_Settings {
 				'price'  => $price,
 				'days'   => $days,
 				'image'  => $image,
-				'active' => true === (bool) ( $package['active'] ?? false ),
+				'active' => ! empty( self::scalar_int( $package['active'] ?? 0 ) ),
 			);
 
 			if ( count( $packages ) >= 100 ) {
@@ -681,27 +682,28 @@ final class Space_Settings {
 				continue;
 			}
 
-			// Rows marked for deletion never reach the option.
-			if ( ! empty( $row['remove'] ) ) {
+			// Rows marked for deletion never reach the option. A posted array is
+			// not a delete flag: only a scalar truthy value removes the row.
+			if ( isset( $row['remove'] ) && is_scalar( $row['remove'] ) && ! empty( $row['remove'] ) ) {
 				continue;
 			}
 
-			$gb     = isset( $row['gb'] ) ? (float) $row['gb'] : 0.0;
-			$points = isset( $row['points'] ) ? (int) $row['points'] : 0;
+			$gb     = self::scalar_float( $row['gb'] ?? 0.0 );
+			$points = self::scalar_int( $row['points'] ?? 0 );
 
 			if ( $gb <= 0 || $points <= 0 ) {
 				continue;
 			}
 
-			$id = self::plan_id( isset( $row['id'] ) ? (string) $row['id'] : '', 'p', $seen );
+			$id = self::plan_id( self::scalar_string( $row['id'] ?? '' ), 'p', $seen );
 
 			$seen[ $id ] = true;
 
-			$days  = isset( $row['days'] ) ? max( 0, min( 3650, (int) $row['days'] ) ) : 365;
-			$label = isset( $row['label'] ) ? sanitize_text_field( (string) $row['label'] ) : '';
+			$days  = max( 0, min( 3650, self::scalar_int( $row['days'] ?? 365, 365 ) ) );
+			$label = sanitize_text_field( self::scalar_string( $row['label'] ?? '' ) );
 
 			if ( '' === $label ) {
-				$label = self::points_label( (float) $gb, $days );
+				$label = self::points_label( $gb, $days );
 			}
 
 			$out[] = array(
@@ -710,7 +712,7 @@ final class Space_Settings {
 				'gb'     => round( max( 0.5, min( 1024, $gb ) ), 2 ),
 				'points' => max( 1, min( 1000000, $points ) ),
 				'days'   => $days,
-				'active' => ! empty( $row['active'] ),
+				'active' => ! empty( self::scalar_int( $row['active'] ?? 0 ) ),
 			);
 
 			if ( count( $out ) >= 100 ) {
@@ -803,10 +805,10 @@ final class Space_Settings {
 		}
 
 		$points = array(
-			'enabled'          => true === (bool) ( $base['enabled'] ?? true ),
-			'points_per_gb'    => self::clamp_int( $base['points_per_gb'] ?? 90, 1, 100000 ),
-			'max_gb_per_order' => self::clamp_int( $base['max_gb_per_order'] ?? 10, 1, 1000 ),
-			'daily_cap_gb'     => self::clamp_int( $base['daily_cap_gb'] ?? 20, 1, 1000 ),
+			'enabled'          => true === (bool) self::scalar_int( $base['enabled'] ?? 1, 1 ),
+			'points_per_gb'    => self::clamp_int( self::scalar_int( $base['points_per_gb'] ?? 90, 90 ), 1, 100000 ),
+			'max_gb_per_order' => self::clamp_int( self::scalar_int( $base['max_gb_per_order'] ?? 10, 10 ), 1, 1000 ),
+			'daily_cap_gb'     => self::clamp_int( self::scalar_int( $base['daily_cap_gb'] ?? 20, 20 ), 1, 1000 ),
 		);
 
 		// Hard rule: a single order can never exceed the daily allowance.
@@ -831,7 +833,7 @@ final class Space_Settings {
 		foreach ( $map as $key => $megabytes ) {
 			$index = (int) $key;
 
-			if ( $index < $min_key || $index > $max_key ) {
+			if ( $index < $min_key || $index > $max_key || ! is_scalar( $megabytes ) ) {
 				continue;
 			}
 
@@ -857,7 +859,7 @@ final class Space_Settings {
 		foreach ( $map as $key => $bytes ) {
 			$index = (int) $key;
 
-			if ( $index < $min_key || $index > $max_key ) {
+			if ( $index < $min_key || $index > $max_key || ! is_scalar( $bytes ) ) {
 				continue;
 			}
 
@@ -876,6 +878,10 @@ final class Space_Settings {
 	 * @return int
 	 */
 	private static function gb_to_bytes( $gigabytes ): int {
+		if ( ! is_scalar( $gigabytes ) ) {
+			return 0;
+		}
+
 		return self::clamp_bytes( round( max( 0.0, (float) $gigabytes ) * self::GB ) );
 	}
 
@@ -886,6 +892,10 @@ final class Space_Settings {
 	 * @return int
 	 */
 	private static function mb_to_bytes( $megabytes ): int {
+		if ( ! is_scalar( $megabytes ) ) {
+			return 0;
+		}
+
 		$bytes = (int) round( (float) $megabytes * (float) self::MB );
 
 		return self::clamp_bytes( $bytes );
@@ -898,6 +908,10 @@ final class Space_Settings {
 	 * @return int
 	 */
 	private static function clamp_bytes( $bytes ): int {
+		if ( ! is_scalar( $bytes ) ) {
+			return 0;
+		}
+
 		$bytes = (int) round( (float) $bytes );
 
 		if ( 0 > $bytes ) {
@@ -912,6 +926,39 @@ final class Space_Settings {
 	}
 
 	/**
+	 * A scalar as a string, or the fallback when the value is not scalar.
+	 *
+	 * @param mixed  $value    Raw value.
+	 * @param string $fallback Fallback.
+	 * @return string
+	 */
+	private static function scalar_string( $value, string $fallback = '' ): string {
+		return is_scalar( $value ) ? (string) $value : $fallback;
+	}
+
+	/**
+	 * A scalar as a float, or the fallback when the value is not scalar.
+	 *
+	 * @param mixed $value    Raw value.
+	 * @param float $fallback Fallback.
+	 * @return float
+	 */
+	private static function scalar_float( $value, float $fallback = 0.0 ): float {
+		return is_scalar( $value ) ? (float) $value : $fallback;
+	}
+
+	/**
+	 * A scalar as an int, or the fallback when the value is not scalar.
+	 *
+	 * @param mixed $value    Raw value.
+	 * @param int   $fallback Fallback.
+	 * @return int
+	 */
+	private static function scalar_int( $value, int $fallback = 0 ): int {
+		return is_scalar( $value ) ? (int) $value : $fallback;
+	}
+
+	/**
 	 * Clamps an integer to an inclusive range.
 	 *
 	 * @param mixed $value Raw value.
@@ -920,6 +967,10 @@ final class Space_Settings {
 	 * @return int
 	 */
 	private static function clamp_int( $value, int $min, int $max ): int {
+		if ( ! is_scalar( $value ) ) {
+			return $min;
+		}
+
 		$value = (int) $value;
 
 		if ( $value < $min ) {

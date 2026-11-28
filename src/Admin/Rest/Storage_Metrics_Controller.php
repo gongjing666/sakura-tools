@@ -9,6 +9,7 @@ declare( strict_types=1 );
 
 namespace Sakura\ImageOptimizer\Admin\Rest;
 
+use Sakura\ImageOptimizer\Admin\App_Manifest;
 use Sakura\ImageOptimizer\Admin\Storage_Metrics_Card;
 use WP_REST_Response;
 use WP_REST_Server;
@@ -63,7 +64,7 @@ final class Storage_Metrics_Controller {
 	 * Capability gate: the card lives on a page only administrators can open.
 	 */
 	public static function can_manage(): bool {
-		return current_user_can( 'manage_options' );
+		return App_Manifest::can_view( 'storage-connection' );
 	}
 
 	/**

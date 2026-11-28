@@ -1,0 +1,56 @@
+{
+    "route": "PATCH \/sufm\/v1\/admin\/users\/999999\/quota",
+    "transport": "wp eval-file + rest_do_request (not HTTP; nginx blocks PATCH)",
+    "results": {
+        "admin": {
+            "user_id": 1,
+            "status": 404,
+            "code": "sufm_user_missing"
+        },
+        "review": {
+            "user_id": 6,
+            "status": 403,
+            "code": "rest_forbidden"
+        },
+        "delete": {
+            "user_id": 7,
+            "status": 403,
+            "code": "rest_forbidden"
+        },
+        "users": {
+            "user_id": 8,
+            "status": 404,
+            "code": "sufm_user_missing"
+        },
+        "audit": {
+            "user_id": 9,
+            "status": 403,
+            "code": "rest_forbidden"
+        },
+        "sync": {
+            "user_id": 10,
+            "status": 403,
+            "code": "rest_forbidden"
+        },
+        "review_users": {
+            "user_id": 11,
+            "status": 404,
+            "code": "sufm_user_missing"
+        },
+        "review_audit": {
+            "user_id": 12,
+            "status": 403,
+            "code": "rest_forbidden"
+        },
+        "review_sync": {
+            "user_id": 13,
+            "status": 403,
+            "code": "rest_forbidden"
+        },
+        "target": {
+            "user_id": 14,
+            "status": 403,
+            "code": "rest_forbidden"
+        }
+    }
+}

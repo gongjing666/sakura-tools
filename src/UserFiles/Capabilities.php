@@ -12,10 +12,12 @@ namespace Nboke\UserFiles;
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Owns the four capabilities from SECURITY-DELETE.md §1.
+ * Owns the capabilities this plugin checks.
  *
  * `sufm_admin_delete_files` is necessary but never sufficient: the executor
- * additionally needs `delete_post` on every attachment it touches.
+ * additionally needs `delete_post` on every attachment it touches. The A7
+ * split keeps user/quota management, audit reads and capacity sync on their
+ * own capabilities instead of borrowing the delete one.
  */
 final class Capabilities {
 
@@ -52,6 +54,30 @@ final class Capabilities {
 	public const SANCTION_USERS = 'sufm_admin_sanction_users';
 
 	/**
+	 * Read the user list and edit per-user quotas (including the reset action).
+	 *
+	 * Kept apart from DELETE_FILES: seeing every account and rewriting its
+	 * capacity is a management action, not a deletion action.
+	 */
+	public const MANAGE_USERS = 'sufm_manage_users';
+
+	/**
+	 * Read the audit trail (capability changes, reviews, deletions).
+	 *
+	 * Read-only and separate from REVIEW / DELETE_FILES so an operator can
+	 * inspect what happened without being able to act again.
+	 */
+	public const VIEW_AUDIT = 'sufm_view_audit';
+
+	/**
+	 * Start and inspect the capacity sync / reconcile job.
+	 *
+	 * Recomputes the ledger from the database; it neither deletes an attachment
+	 * nor reviews a request.
+	 */
+	public const MANAGE_SYNC = 'sufm_manage_sync';
+
+	/**
 	 * The two user-facing capabilities granted to every role.
 	 *
 	 * @return array<int, string>
@@ -61,12 +87,12 @@ final class Capabilities {
 	}
 
 	/**
-	 * The two administrator capabilities.
+	 * The administrator defaults; the matrix is the only way other roles get them.
 	 *
 	 * @return array<int, string>
 	 */
 	public static function admin_caps(): array {
-		return array( self::REVIEW, self::DELETE_FILES, self::MANAGE_MEDIA, self::TRANSFER, self::SANCTION_USERS );
+		return array( self::REVIEW, self::DELETE_FILES, self::MANAGE_USERS, self::VIEW_AUDIT, self::MANAGE_SYNC, self::MANAGE_MEDIA, self::TRANSFER, self::SANCTION_USERS );
 	}
 
 	/**
@@ -101,7 +127,7 @@ final class Capabilities {
 	/**
 	 * Remove every capability this plugin granted, from every role.
 	 *
-	 * Called on deactivation and uninstall. Removing all six (not just the two
+	 * Called on deactivation and uninstall. Removing every one (not just the two
 	 * media ones) keeps the role table honest: a site that deactivates the
 	 * plugin should not keep advertising capabilities that nothing checks.
 	 */
@@ -122,6 +148,7 @@ final class Capabilities {
 		}
 
 		delete_option( 'sufm_media_caps_version' );
+		delete_option( self::CAP_SPLIT_OPTION );
 		delete_option( self::SEED_OPTION );
 	}
 
@@ -133,6 +160,11 @@ final class Capabilities {
 	 * put it back on the next page load.
 	 */
 	public const SEED_OPTION = 'sufm_caps_seeded';
+
+	/**
+	 * Option remembering that the A7 management caps reached the administrator.
+	 */
+	public const CAP_SPLIT_OPTION = 'sufm_cap_split_version';
 
 	/**
 	 * Grant the defaults once per installation.
@@ -192,6 +224,32 @@ final class Capabilities {
 	}
 
 	/**
+	 * Grant the A7 management capabilities to the administrator once.
+	 *
+	 * `grant_defaults()` is already a no-op on existing sites, so a capability
+	 * added later has to travel through the same one-shot upgrade path as the
+	 * sanction and media capabilities. This is the plugin's documented admin
+	 * default, not a copy of DELETE_FILES: only the `administrator` role is
+	 * touched. Every other role receives the new capabilities solely through the
+	 * capability matrix, so a role that only has DELETE_FILES keeps just that.
+	 */
+	public static function upgrade_capability_split(): void {
+		if ( '1' === (string) get_option( self::CAP_SPLIT_OPTION, '' ) ) {
+			return;
+		}
+
+		$role = get_role( 'administrator' );
+
+		if ( $role ) {
+			$role->add_cap( self::MANAGE_USERS );
+			$role->add_cap( self::VIEW_AUDIT );
+			$role->add_cap( self::MANAGE_SYNC );
+		}
+
+		update_option( self::CAP_SPLIT_OPTION, '1', false );
+	}
+
+	/**
 	 * Current user may read and manage their own space.
 	 *
 	 * @param int $user_id User id.
@@ -217,5 +275,32 @@ final class Capabilities {
 	 */
 	public static function can_execute(): bool {
 		return current_user_can( self::DELETE_FILES );
+	}
+
+	/**
+	 * User list and per-user quota management.
+	 *
+	 * @return bool
+	 */
+	public static function can_manage_users(): bool {
+		return current_user_can( self::MANAGE_USERS );
+	}
+
+	/**
+	 * Audit-log read capability.
+	 *
+	 * @return bool
+	 */
+	public static function can_view_audit(): bool {
+		return current_user_can( self::VIEW_AUDIT );
+	}
+
+	/**
+	 * Capacity sync / reconcile capability.
+	 *
+	 * @return bool
+	 */
+	public static function can_manage_sync(): bool {
+		return current_user_can( self::MANAGE_SYNC );
 	}
 }

@@ -1,0 +1,104 @@
+{
+  "date": "2026-11-28",
+  "version": "1.30.0-beta-30",
+  "design": "mobile user cards at <=782px; desktop table unchanged",
+  "mobile_390": {
+    "pageScrollWidth": 390,
+    "card": {
+      "x": 16,
+      "y": 1739,
+      "width": 358,
+      "height": 480
+    },
+    "previousCardHeight": 634,
+    "item": {
+      "width": 322,
+      "height": 155
+    },
+    "tableDisplay": "none",
+    "mobileListDisplay": "block",
+    "pagination": {
+      "width": 322,
+      "height": 57
+    },
+    "gapAfterLastCard": 24,
+    "gapAfterPagination": 12,
+    "controls": {
+      "sanction": {
+        "x": 307,
+        "y": 1972,
+        "width": 49,
+        "height": 30
+      },
+      "quotaInput": {
+        "x": 126,
+        "y": 2078,
+        "width": 175,
+        "height": 38
+      },
+      "save": {
+        "x": 307,
+        "y": 2082,
+        "width": 49,
+        "height": 30
+      }
+    }
+  },
+  "desktop_1440": {
+    "pageScrollWidth": 1440,
+    "card": {
+      "x": 190,
+      "width": 1220,
+      "height": 374
+    },
+    "table": {
+      "display": "block",
+      "clientWidth": 1170,
+      "scrollWidth": 1170
+    },
+    "mobileListDisplay": "none",
+    "sanctionHeaderTextRight": 1371,
+    "sanctionButtonRight": 1371
+  },
+  "interactions": {
+    "pager50": true,
+    "pager25": true,
+    "searchValue": "yexu",
+    "searchCards": 1,
+    "quotaInvalid": "请输入不小于 0 的整数，或留空恢复默认容量。",
+    "quotaPatchSent": false,
+    "penalty": {
+      "modal": true,
+      "title": "处罚用户 beta30_target",
+      "returnFocus": true
+    }
+  },
+  "cleanup": {
+    "tempUser": "beta30_target",
+    "deleted": true,
+    "finalUsers": [
+      "yexu"
+    ],
+    "requests": 0,
+    "items": 0
+  },
+  "console": {
+    "logs": 3,
+    "errors": 0,
+    "warnings": 0
+  },
+  "gates": {
+    "tests": 996,
+    "assertions": 4565,
+    "skipped": 5,
+    "phpstan": "OK",
+    "phpcsStrict": 0,
+    "compat": 0,
+    "nodeCheck": true,
+    "diffCheck": 0
+  },
+  "bundle": {
+    "bytes": 493323,
+    "sha256": "54f66fc0d15c04a50ffff1aa33003447548b4ba972581a64b054d710cb8462a6"
+  }
+}

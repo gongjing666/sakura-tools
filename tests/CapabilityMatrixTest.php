@@ -13,7 +13,7 @@ namespace Sakura\ImageOptimizer\Tests {
 	use PHPUnit\Framework\TestCase;
 
 	/**
-	 * The matrix edits only the plugin's own six capabilities, pins the
+	 * The matrix edits only the plugin's own ten capabilities, pins the
 	 * administrator's direct delete and marks roles whose reach is limited to
 	 * their own attachments.
 	 */
@@ -37,19 +37,28 @@ namespace Sakura\ImageOptimizer\Tests {
 			parent::tearDown();
 		}
 
-		public function test_caps_are_exactly_the_seven_plugin_capabilities(): void {
+		public function test_caps_are_exactly_the_ten_plugin_capabilities(): void {
 			$this->assertSame(
 				array(
 					Capabilities::MANAGE_OWN,
 					Capabilities::REQUEST_DELETE,
 					Capabilities::REVIEW,
 					Capabilities::DELETE_FILES,
+					Capabilities::MANAGE_USERS,
+					Capabilities::VIEW_AUDIT,
+					Capabilities::MANAGE_SYNC,
 					Capabilities::MANAGE_MEDIA,
 					Capabilities::TRANSFER,
 					Capabilities::SANCTION_USERS,
 				),
 				array_keys( Capability_Matrix::caps() )
 			);
+		}
+
+		public function test_management_capabilities_are_not_locked(): void {
+			foreach ( array( Capabilities::MANAGE_USERS, Capabilities::VIEW_AUDIT, Capabilities::MANAGE_SYNC ) as $cap ) {
+				$this->assertFalse( Capability_Matrix::locked( 'administrator', $cap ) );
+			}
 		}
 
 		public function test_every_capability_has_a_label_and_hint(): void {

@@ -1,0 +1,16 @@
+# PATCH transport probe on demo.77il.cn (2026-11-28)
+# Goal: reach PATCH /sufm/v1/admin/users/{id}/quota through nginx/PHP-FPM.
+# Result: demo web layer rejects PATCH before WordPress; GET/POST work on the same URLs.
+
+GET    /?rest_route=/sufm/v1/admin/delete-requests            -> 200
+POST   /?rest_route=/sufm/v1/admin/delete-batches/preview     -> 400 (WP REST reached)
+PATCH  /?rest_route=/sufm/v1/admin/users/999999/quota         -> 405 (nginx HTML, not WP JSON)
+PATCH  /index.php?rest_route=.../quota                        -> 404 (nginx HTML)
+PATCH  /wp-json/sufm/v1/admin/users/999999/quota              -> 404 (nginx HTML)
+PATCH  /wp-json/                                              -> 404 (nginx HTML)
+GET    /index.php?rest_route=.../delete-requests              -> 200 (WP REST reached)
+
+# Same result with --noproxy '*' and with the outbound proxy; not a proxy artifact.
+# Site nginx config has no limit_except/request_method rule; the block is outside the
+# plugin and outside the allowed change set, so PATCH gate evidence is auxiliary
+# (aux-patch-dispatch.json: wp eval-file + rest_do_request).

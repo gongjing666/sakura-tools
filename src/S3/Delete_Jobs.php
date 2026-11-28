@@ -976,25 +976,46 @@ final class Delete_Jobs {
 	/**
 	 * Rows for the CSV export, oldest first.
 	 *
-	 * @param array<int,int> $ids Selected ids; empty exports everything.
+	 * @param array<int,int> $ids      Selected ids; empty exports everything.
+	 * @param int            $after_id Keyset cursor: only rows with a greater id.
+	 * @param int            $limit    Page size; 0 keeps the single-shot behaviour.
 	 * @return array<int,array<string,mixed>>
 	 */
-	public function export_rows( array $ids = array() ): array {
+	public function export_rows( array $ids = array(), int $after_id = 0, int $limit = 0 ): array {
 		global $wpdb;
 
-		$ids = self::clean_ids( $ids );
-		$sql = "SELECT id, attachment_id, profile_id, state, attempts, object_key, last_error, created_at, updated_at, completed_at, resolution FROM {$this->table}";
+		$ids    = self::clean_ids( $ids );
+		$where  = array();
+		$params = array();
 
 		if ( array() !== $ids ) {
-			$in  = implode( ',', array_fill( 0, count( $ids ), '%d' ) );
-			$sql = $wpdb->prepare( "{$sql} WHERE id IN ({$in})", $ids ); // phpcs:ignore WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare -- IN list and arguments both derive from $ids.
+			$in      = implode( ',', array_fill( 0, count( $ids ), '%d' ) );
+			$where[] = "id IN ({$in})";
+			$params  = array_merge( $params, $ids );
+		}
+
+		if ( $after_id > 0 ) {
+			$where[]  = 'id > %d';
+			$params[] = $after_id;
+		}
+
+		$sql = "SELECT id, attachment_id, profile_id, state, attempts, object_key, last_error, created_at, updated_at, completed_at, resolution FROM {$this->table}";
+
+		if ( array() !== $where ) {
+			$sql = $wpdb->prepare( $sql . ' WHERE ' . implode( ' AND ', $where ), $params ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare -- Placeholders built from counted %d only; values are prepared.
 		}
 
 		if ( ! is_string( $sql ) ) {
 			return array();
 		}
 
-		$rows = $wpdb->get_results( $sql . ' ORDER BY id ASC', ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Prepared above when needed.
+		$sql .= ' ORDER BY id ASC';
+
+		if ( $limit > 0 ) {
+			$sql = $wpdb->prepare( $sql . ' LIMIT %d', $limit ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Appends a single %d placeholder to an already-prepared statement.
+		}
+
+		$rows = $wpdb->get_results( $sql, ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Prepared above.
 
 		return is_array( $rows ) ? $rows : array();
 	}

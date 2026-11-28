@@ -945,7 +945,7 @@ final class Executor {
 			return false;
 		}
 
-		$live = $this->files->recursive_files( (int) $request->owner_id, (int) $item->object_id, $this->folders );
+		$live = $this->files->recursive_files( (int) $request->owner_id, (int) $item->object_id, $this->folders, 1 );
 
 		if ( $live ) {
 			Db_Transaction::rollback();
@@ -960,7 +960,7 @@ final class Executor {
 		usort( $descendants, static fn( $a, $b ) => (int) $b->depth <=> (int) $a->depth );
 
 		foreach ( $descendants as $child ) {
-			$left = $this->files->recursive_files( (int) $request->owner_id, (int) $child->id, $this->folders );
+			$left = $this->files->recursive_files( (int) $request->owner_id, (int) $child->id, $this->folders, 1 );
 
 			if ( $left ) {
 				Db_Transaction::rollback();

@@ -13,6 +13,7 @@
 import { createRoot } from 'react-dom/client';
 
 import { PageContent } from './app.jsx';
+import ErrorBoundary from '../shared/error-boundary.jsx';
 import { createRouter } from './router.js';
 import { createShell } from './shell.jsx';
 
@@ -120,10 +121,19 @@ if ( ! mainEl ) {
 		// (Page::render prints it), so the app is picked without the manifest.
 		const page = adminEl ? adminEl.getAttribute( 'data-sakura-page' ) || '' : '';
 
-		createRoot( mainEl ).render( <PageContent page={ page } boot={ boot } /> );
+		createRoot( mainEl ).render( <ErrorBoundary resetKey={ page }><PageContent page={ page } boot={ boot } /></ErrorBoundary> );
 	} else {
 		showFailure( mainEl );
 	}
+} else if ( ! boot ) {
+	window.__sakuraShellBooted = true;
+
+	/*
+	 * The manifest is on but the payload is missing (a broken cache, a proxy
+	 * that ate the island). Boot the shell would read boot.chrome on null and
+	 * leave the skeleton spinning forever, so fail loudly instead.
+	 */
+	showFailure( mainEl );
 } else {
 	window.__sakuraShellBooted = true;
 
@@ -151,7 +161,7 @@ if ( ! mainEl ) {
 
 		// Keyed by page: a different page is a different app state, and the two
 		// apps keep their draft values in useState.
-		content.render( <PageContent key={ page } page={ page } boot={ payload } /> );
+		content.render( <ErrorBoundary resetKey={ page }><PageContent key={ page } page={ page } boot={ payload } /></ErrorBoundary> );
 
 		/*
 		 * Never on the first paint. hydrateRoot() is asynchronous: re-rendering a

@@ -1,20 +1,34 @@
-import { useState } from 'react';
 import { Card } from '../shared/ui.jsx';
 import Form from './form.jsx';
-import { FieldRow, Switch } from './controls.jsx';
+import { FieldRow, Switch, cardTitleProps } from './controls.jsx';
+import { useCardSave, useDraft } from './save.js';
 
-export default function Gate( { card, strings, config } ) {
+export default function Gate( { card, rest, strings, onSections, onNotice } ) {
 	const data = card.data || {};
-	const option = config.spaceOption;
-	const [ enabled, setEnabled ] = useState( Boolean( data.enabled ) );
-	const [ bonuses, setBonuses ] = useState( Boolean( data.apply_bonuses ) );
+	const [ enabled, setEnabled ] = useDraft( Boolean( data.enabled ), Boolean );
+	const [ bonuses, setBonuses ] = useDraft( Boolean( data.apply_bonuses ), Boolean );
+	const [ mode, setMode ] = useDraft( 'replace' === data.mode ? 'replace' : 'cap', ( value ) => ( 'replace' === value ? 'replace' : 'cap' ) );
+	const [ failure, save, pending ] = useCardSave( { cardId: 'space_gate', rest, strings, onSections, onNotice } );
+
+	const submit = ( event ) => {
+		event.preventDefault();
+
+		if ( pending ) {
+			return;
+		}
+
+		save( {
+			enabled: enabled ? 1 : 0,
+			apply_bonuses: bonuses ? 1 : 0,
+			mode,
+		} );
+	};
 
 	return (
-		<Card card={ card }>
-			<Form card={ card }>
+		<Card card={ card } titleProps={ cardTitleProps }>
+			<Form label={ card.save } saving={ strings.saving } pending={ pending } failure={ failure } onSubmit={ submit }>
 				<FieldRow label={ strings.gateEnabled }>
 					<Switch
-						name={ option + '[enabled]' }
 						label={ strings.gateEnabled }
 						checked={ enabled }
 						onChange={ setEnabled }
@@ -26,7 +40,6 @@ export default function Gate( { card, strings, config } ) {
 
 				<FieldRow label={ strings.applyBonuses }>
 					<Switch
-						name={ option + '[apply_bonuses]' }
 						label={ strings.applyBonusesLabel }
 						checked={ bonuses }
 						onChange={ setBonuses }
@@ -39,12 +52,24 @@ export default function Gate( { card, strings, config } ) {
 				<FieldRow label={ strings.overrideMode }>
 					<div className="check-group">
 						<label className="check">
-							<input type="radio" name={ option + '[quota_override_mode]' } value="cap" defaultChecked={ 'replace' !== data.mode } />
+							<input
+								type="radio"
+								name="space-quota-mode"
+								value="cap"
+								checked={ 'replace' !== mode }
+								onChange={ () => setMode( 'cap' ) }
+							/>
 							<span className="check__box" aria-hidden="true" />
 							<span className="check__text">{ strings.modeCapShort }</span>
 						</label>
 						<label className="check">
-							<input type="radio" name={ option + '[quota_override_mode]' } value="replace" defaultChecked={ 'replace' === data.mode } />
+							<input
+								type="radio"
+								name="space-quota-mode"
+								value="replace"
+								checked={ 'replace' === mode }
+								onChange={ () => setMode( 'replace' ) }
+							/>
 							<span className="check__box" aria-hidden="true" />
 							<span className="check__text">{ strings.modeReplaceShort }</span>
 						</label>

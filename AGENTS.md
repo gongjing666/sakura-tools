@@ -2,8 +2,8 @@
 
 给在这个仓库里改代码的 AI 会话和开发者。**本文件只放「必须先知道」和「该去哪儿读」，规则正文一律在 `docs/开发规则/`，不要在这里复述。**
 
-- 版本基线 **1.29.0**，分支 `main`，要求 PHP 8.2+ / WordPress 6.4+
-- 开发期版本号写 `1.29.0-beta-N`（每次动代码 +1，纯 `.md` 不动），正式版本号只在开发者说「同步到 GitHub」时才加；**纯 `.md` 文档改动不碰版本号，直接 push `main`**——见 §5.1
+- 版本基线 **1.30.1**，分支 `main`，要求 PHP 8.2+ / WordPress 6.4+
+- 开发期版本号写 `1.30.1-beta-N`（每次动代码 +1，纯 `.md` 不动），正式版本号只在开发者说「同步到 GitHub」时才加；**纯 `.md` 文档改动不碰版本号，直接 push `main`**——见 §5.1
 - 类、方法、钩子、文件清单：`docs/sakura-tools-代码结构-1.28.3.md`（**生成物，不要手改**）。它由 `docs/tools/` 的五步管线产出，最后一次生成停在 1.28.3；1.28.4–1.29.0 新增的类没有进这份文档，改这些类前按 `src/` 目录直接看：`src/UserFiles/Services/Deletion.php`、`Deletion_Context.php`、`Deletion_Result.php`（P3 删除内核）、`src/UserFiles/Admin/Capability_Matrix.php`（P4 权限矩阵）、`src/UserFiles/Media/Cloud_State.php`（媒体库云端状态列）、`src/Admin/UI/Frontline.php`（V2 樱前线弧线）、`src/Admin/UI/Hero.php`（页头标语与印章的默认文案）、`src/Support/Profiler.php`（Query Monitor 计时桥）、`src/Zibll/`（授权缓存与只读请求守卫）、`src/UserFiles/Services/Takedown.php`（共享下架服务）、`src/UserFiles/Services/Sanction_Service.php`（处罚判决与执行点）
 - 设计动机（为什么这么做）：`DECISIONS.md`
 
@@ -71,7 +71,7 @@ docs/                   文档（不进发布包）
 | system | `sakura-tools` | `manage_options` | settings |
 | image | `sakura-tools-image` | `manage_options` | rules, thumb, backup, stats |
 | storage | `sakura-tools-storage` | `manage_options` | connection, sync, deletes, rewrite, cost |
-| files | `sakura-tools-files` | `review` | settings, users, queue, log, zibll |
+| files | `sakura-tools-files` | `review` | settings, queue, log, zibll |
 | zibll | `sakura-tools-zibll` | `manage_options` | performance |
 
 页签参数是 `t`，**不是 `tab`**；`Registry::url( $module, $tab )` :213 在默认页签时省略 `t`。`Registry::current()` 对非本插件页面返回 `array( '', '' )`——任何「当前是不是我的页」的判断都必须走它。
@@ -108,7 +108,7 @@ docs/                   文档（不进发布包）
 ## 4. 验证命令
 
 ```bash
-composer test          # PHPUnit，基线 918 tests / 3889 assertions / 6 skipped
+composer test          # PHPUnit，基线 996 tests / 4565 assertions / 5 skipped
 composer phpstan       # level 5，必须 [OK] No errors
 composer lint:strict   # PHPCS，必须 0 error / 0 warning（新增任何一条都当 error）
 composer lint:compat   # PHPCompatibility，8.2 语法下限 / 8.4 生产运行时，必须 0 error / 0 warning
@@ -134,19 +134,19 @@ git diff --check       # 行尾空白
 
 | 阶段 | 版本号 | 什么时候改 |
 |---|---|---|
-| 基准（已发布） | `1.29.0` | — |
-| 第 1 次代码改动 | `1.29.0-beta-1` | 动第一行 `.php` / `.js` / `.css` 前 |
-| 第 2 次代码改动 | `1.29.0-beta-2` | 下一次动代码前 +1 |
-| 开发者说「同步到 GitHub」 | `1.29.0` | 发版时收敛成正式号 |
+| 基准（已发布） | `1.30.1` | — |
+| 第 1 次代码改动 | `1.30.1-beta-1` | 动第一行 `.php` / `.js` / `.css` 前 |
+| 第 2 次代码改动 | `1.30.1-beta-2` | 下一次动代码前 +1 |
+| 开发者说「同步到 GitHub」 | `1.30.1` | 发版时收敛成正式号 |
 
 - **每次动代码就 +1**：只要改动涉及 `.php` / `.js` / `.css`，动第一行代码前就把三处版本号 +1；只有整轮只改 `.md` 时才完全不动版本号。
-- **三处一起改**：头部 `* Version:`、`SAKURA_TOOLS_VERSION`、`Stable tag:` 都写 `1.29.0-beta-N`。`release.yml` 与打包脚本的正则 `^[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$` 接受这个形式。
-- **正式版本号只由开发者拍板**：他说「同步到 GitHub」才把 beta 收敛成正式号，默认在基准上 PATCH +1（`1.29.0` → `1.29.1`）；这批改动若含新功能或破坏兼容，按 `06-发布流程.md` §1 的语义走 MINOR/MAJOR，具体号以他确认为准。
-- **beta 号不要 push 到 `main`**：`release.yml` 在 push `main` 时触发，会给 `1.29.0-beta-1` 打 `v1.29.0-beta-1` tag 并发 Release（不标 prerelease）；生产的插件目录就是 `main` 的 checkout，push 等于上线。beta 号留在本地，发布时才换成正式号推。
+- **三处一起改**：头部 `* Version:`、`SAKURA_TOOLS_VERSION`、`Stable tag:` 都写 `1.30.1-beta-N`。`release.yml` 与打包脚本的正则 `^[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$` 接受这个形式。
+- **正式版本号只由开发者拍板**：他说「同步到 GitHub」才把 beta 收敛成正式号，默认在基准上 PATCH +1（`1.30.1` → `1.30.2`）；这批改动若含新功能或破坏兼容，按 `06-发布流程.md` §1 的语义走 MINOR/MAJOR，具体号以他确认为准。
+- **beta 号不要 push 到 `main`**：`release.yml` 在 push `main` 时触发，会给 `1.30.1-beta-1` 打 `v1.30.1-beta-1` tag 并发 Release（不标 prerelease）；生产的插件目录就是 `main` 的 checkout，push 等于上线。beta 号留在本地，发布时才换成正式号推。
 - **changelog 只在发布时写**：beta 期不动 `readme.txt` 的 changelog，发布时把整批改动合并成一条 `= 正式版本号 =`，免得 Release 正文抽到空的 beta 段落。
 - **纯文档改动不碰版本号**：只改 `.md`（`AGENTS.md`、`docs/**`、`README.md`、`CONTRIBUTING.md`）时三处版本号原样不动，既不写 beta 号也不写正式号，changelog 也不动，这一轮不跑测试（没有代码变化）；提交后直接 push `main` 同步 GitHub——`release.yml` 的 `paths` 只认 `sakura-tools.php`、`readme.txt`、`bin/build-plugin-zip.sh` 与自身，纯文档提交不会打包发版。详见 `06-发布流程.md` §1。
-- **beta 号在数据库看来是降级**：`Upgrade_Guard::needs_upgrade()`（`src/Upgrade_Guard.php:60`）用 `version_compare( $installed, $current, '<' )` 判断，`1.29.0-beta-1` 比 `1.29.0` 小——已经装过 1.29.0 的站点在 beta 期**不会**自动补建表 / option / cron。beta 里新增了这些，验证前先把 `sakura_imgopt_version` 删掉或改小。
-- 本地可以出 beta 包做验证：`bin/build-plugin-zip.sh --version 1.29.0-beta-1 --out dist`。
+- **beta 号在数据库看来是降级**：`Upgrade_Guard::needs_upgrade()`（`src/Upgrade_Guard.php:60`）用 `version_compare( $installed, $current, '<' )` 判断，`1.30.1-beta-1` 比 `1.30.1` 小——已经装过 1.30.1 的站点在 beta 期**不会**自动补建表 / option / cron。beta 里新增了这些，验证前先把 `sakura_imgopt_version` 删掉或改小。
+- 本地可以出 beta 包做验证：`bin/build-plugin-zip.sh --version 1.30.1-beta-1 --out dist`。
 - **不自行发版**：不加正式号、不 push `main`、不打 tag。
 
 发布检查与打包：
@@ -171,7 +171,7 @@ chown -R www:www .        # 部署后属主会被 git 改成 root，必须修回
 - `dist/` 被 `.gitignore` 忽略，不进版本库。
 - 打包脚本用 `git archive` 只取**已跟踪文件**，然后删掉 `docs/`、`tests/`、`bin/`、`stubs/`、`.github/` 与各配置文件。`docs/` 下的文档不会进发布包，可以放心写细节；**但根目录新增的 `.md` 会进包**，要加进 `bin/build-plugin-zip.sh` 的 `rm -f` 列表。
 - `.agents/worktrees/` 下可能有多份工作副本（未被 git 跟踪），改之前确认自己在哪个分支，别改错副本。
-- 实验站：`https://demo.77il.cn`，宝塔面板本机站点，目录 `/www/wwwroot/demo.77il.cn`（PHP 8.4.28、MariaDB 12.3.2、WP 7.1.5，与生产同版本；DB `demo`、前缀 `wp_`，主题子比已授权，管理员 `yexu`，密码不写进仓库）。装的是同一插件的**实体副本**，不是符号链接，**同步时要整目录拷**，并且必须带上 `assets/ui/dist/admin-app.js`（唯一的 React 打包产物，16 个后台页面共用）：漏了它，所有后台页面的脚本都 404，页面会永远停在「正在读取页面信息…」的骨架屏。用这条命令，排除项里写 `/dist`（锚定根目录），**不要写 `dist`**——那样会把 `assets/ui/dist` 一起排掉：
+- 实验站：`https://demo.77il.cn`，宝塔面板本机站点，目录 `/www/wwwroot/demo.77il.cn`（PHP 8.4.28、MariaDB 12.3.2、WP 7.1.5，与生产同版本；DB `demo`、前缀 `wp_`，主题子比已授权，管理员 `yexu`，密码不写进仓库）。装的是同一插件的**实体副本**，不是符号链接，**同步时要整目录拷**，并且必须带上 `assets/ui/dist/admin-app.js`（唯一的 React 打包产物，15 个后台页面共用）：漏了它，所有后台页面的脚本都 404，页面会永远停在「正在读取页面信息…」的骨架屏。用这条命令，排除项里写 `/dist`（锚定根目录），**不要写 `dist`**——那样会把 `assets/ui/dist` 一起排掉：
 
 ```bash
 rsync -a --delete --exclude .git --exclude .agents --exclude .dsh-ops --exclude node_modules \
@@ -180,7 +180,7 @@ rsync -a --delete --exclude .git --exclude .agents --exclude .dsh-ops --exclude 
   && chown -R www:www /www/wwwroot/demo.77il.cn/wp-content/plugins/sakura-tools
 ```
 
-站上已装 sakura-tools（`wp-content/plugins/sakura-tools`，整目录拷贝，当前 `1.29.0`，25 张表已建、`wp sakura-sync` 可用）。旧的内置服务器实验站 `/root/sio-e2e`（`php -S 127.0.0.1:18080` + docker 的 MariaDB/MinIO）已于 2026-11-24 整体删除，备份在 `/root/backups/sio-e2e-20261124-1316/`（站点文件 tar 524M + 6 个库的 sql.gz），不再作为验收环境。
+站上已装 sakura-tools（`wp-content/plugins/sakura-tools`，整目录拷贝，当前 `1.30.1`，25 张表已建、`wp sakura-sync` 可用）。旧的内置服务器实验站 `/root/sio-e2e`（`php -S 127.0.0.1:18080` + docker 的 MariaDB/MinIO）已于 2026-11-24 整体删除，备份在 `/root/backups/sio-e2e-20261124-1316/`（站点文件 tar 524M + 6 个库的 sql.gz），不再作为验收环境。
 - **代码改动要测，纯文档改动不测。** 改 PHP / JS / CSS 必须跑完 §4 的静态三关（外加 `php -l` / `node --check` / `git diff --check`）；需要真实 WordPress 才看得出的验证（第 10 条的 1440/390、保存与弹窗回流、console）跑在**开发者指定的环境**，他没指定就不要自行部署到实验站或生产站，只把要看的点写进交付说明。**只改 `.md` 的整轮不测**，也不动版本号，直接 push `main`。详见 `05-测试与质量.md` §6。
 - 生产站 `/www/wwwroot/www.nboke.com`，DB 前缀 `nb_`；主题是子比（zibll），部分后台能力与它耦合（`Zibll_Bridge`）。
 

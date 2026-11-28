@@ -9,6 +9,8 @@ declare( strict_types=1 );
 
 namespace Nboke\UserFiles\Rest;
 
+use Nboke\UserFiles\Admin\Capability_Matrix;
+use Nboke\UserFiles\Admin\Files_Admin_Payload;
 use Nboke\UserFiles\Capabilities;
 use Nboke\UserFiles\Repositories\Events;
 use Nboke\UserFiles\Repositories\Files;
@@ -105,7 +107,7 @@ final class Controller {
 			array(
 				'methods'             => 'GET',
 				'callback'            => array( __CLASS__, 'admin_space_grants' ),
-				'permission_callback' => array( __CLASS__, 'space_can_review' ),
+				'permission_callback' => array( __CLASS__, 'space_can_manage_users' ),
 			)
 		);
 
@@ -148,6 +150,49 @@ final class Controller {
 				'permission_callback' => array( __CLASS__, 'space_can_manage' ),
 			)
 		);
+
+		register_rest_route(
+			self::NS,
+			'/admin/caps',
+			array(
+				'methods'             => 'POST',
+				'callback'            => array( __CLASS__, 'save_caps' ),
+				'permission_callback' => array( __CLASS__, 'space_can_edit_caps' ),
+			)
+		);
+	}
+
+	/**
+	 * Save the file-space capability matrix.
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return WP_REST_Response|WP_Error
+	 */
+	public static function save_caps( WP_REST_Request $request ) {
+		$caps = $request->get_param( 'caps' );
+
+		if ( ! is_array( $caps ) ) {
+			return new WP_Error(
+				'sufm_caps_invalid',
+				__( '权限矩阵格式不正确。', 'sakura-imgopt' ),
+				array( 'status' => 400 )
+			);
+		}
+
+		$diff    = Capability_Matrix::apply( $caps );
+		$payload = new Files_Admin_Payload();
+
+		return rest_ensure_response(
+			array(
+				'caps'   => $payload->caps_matrix(),
+				'notice' => array(
+					'tone' => 'ok',
+					'text' => $diff
+						? __( '权限矩阵已保存。', 'sakura-imgopt' )
+						: __( '权限矩阵没有变化。', 'sakura-imgopt' ),
+				),
+			)
+		);
 	}
 
 	/**
@@ -179,6 +224,20 @@ final class Controller {
 	}
 
 	/**
+	 * Permission callback for the expansion grant ledger.
+	 *
+	 * The ledger carries account ids, order numbers and money; reviewing a
+	 * deletion request does not require it. Use the same capability as the
+	 * user/quota routes (not manage_options): the matrix decides who may see
+	 * accounts, and the ledger follows that decision.
+	 *
+	 * @return bool
+	 */
+	public static function space_can_manage_users(): bool {
+		return Capabilities::can_manage_users();
+	}
+
+	/**
 	 * Permission callback for money moving actions (grant / revoke / extend).
 	 *
 	 * Deliberately stricter than space_can_review(): reviewers may read the
@@ -188,6 +247,22 @@ final class Controller {
 	 */
 	public static function space_can_manage(): bool {
 		return current_user_can( 'manage_options' );
+	}
+
+	/**
+	 * Permission callback for the capability matrix save route.
+	 *
+	 * Mirrors the admin-post handler (Capability_Matrix::save()): the operator
+	 * must be an administrator and able to review deletions. manage_options
+	 * alone is intentionally not enough: the matrix decides who may delete
+	 * outright, so whoever edits it must also exercise the review queue. The
+	 * two write paths must stay in lockstep; routing REST through the generic
+	 * money gate quietly dropped the review half.
+	 *
+	 * @return bool
+	 */
+	public static function space_can_edit_caps(): bool {
+		return current_user_can( 'manage_options' ) && Capabilities::can_review();
 	}
 
 	/**
@@ -562,9 +637,12 @@ final class Controller {
 	 * @return void
 	 */
 	public function register(): void {
-		$user  = array( $this, 'can_use_files' );
-		$review = array( $this, 'can_review' );
+		$user    = array( $this, 'can_use_files' );
+		$review  = array( $this, 'can_review' );
 		$execute = array( $this, 'can_execute' );
+		$users   = array( $this, 'can_manage_users' );
+		$audit   = array( $this, 'can_view_audit' );
+		$sync    = array( $this, 'can_manage_sync' );
 
 		$routes = array(
 			array( '/summary', 'GET', 'summary', $user ),
@@ -590,16 +668,16 @@ final class Controller {
 			array( '/admin/delete-batches', 'POST', 'admin_batch', $execute ),
 			array( '/admin/delete-batches/(?P<id>\d+)', 'GET', 'admin_batch_get', $execute ),
 			array( '/admin/delete-batches/(?P<id>\d+)/stop', 'POST', 'admin_batch_stop', $execute ),
-			array( '/admin/users', 'GET', 'admin_users', $execute ),
-			array( '/admin/events', 'GET', 'admin_events', $execute ),
-			array( '/admin/users/(?P<id>\d+)/quota', 'PATCH', 'admin_quota', $execute ),
+			array( '/admin/users', 'GET', 'admin_users', $users ),
+			array( '/admin/events', 'GET', 'admin_events', $audit ),
+			array( '/admin/users/(?P<id>\d+)/quota', 'PATCH', 'admin_quota', $users ),
 			array( '/admin/users/(?P<id>\d+)/sanction', 'GET', 'admin_sanction_get', array( $this, 'can_sanction_users' ) ),
 			array( '/admin/users/(?P<id>\d+)/sanction', 'POST', 'admin_sanction_create', array( $this, 'can_sanction_users' ) ),
 			array( '/admin/sanctions/(?P<id>\d+)/revoke', 'POST', 'admin_sanction_revoke', array( $this, 'can_sanction_users' ) ),
-			array( '/admin/reconcile', 'POST', 'admin_reconcile', $execute ),
-			array( '/admin/reset-quotas', 'POST', 'admin_reset_quotas', $execute ),
-			array( '/admin/sync', 'POST', 'admin_sync_start', $execute ),
-			array( '/admin/sync', 'GET', 'admin_sync_status', $execute ),
+			array( '/admin/reconcile', 'POST', 'admin_reconcile', $sync ),
+			array( '/admin/reset-quotas', 'POST', 'admin_reset_quotas', $users ),
+			array( '/admin/sync', 'POST', 'admin_sync_start', $sync ),
+			array( '/admin/sync', 'GET', 'admin_sync_status', $sync ),
 			array( '/admin/folders', 'GET', 'admin_folders', array( $this, 'can_manage_media' ) ),
 			array( '/admin/folders', 'POST', 'admin_folder_create', array( $this, 'can_manage_media' ) ),
 			array( '/admin/folders/(?P<id>\d+)', 'PATCH', 'admin_folder_update', array( $this, 'can_manage_media' ) ),
@@ -654,6 +732,33 @@ final class Controller {
 	 */
 	public function can_execute(): bool {
 		return Capabilities::can_execute();
+	}
+
+	/**
+	 * Capability: read the user list and edit per-user quotas.
+	 *
+	 * @return bool
+	 */
+	public function can_manage_users(): bool {
+		return Capabilities::can_manage_users();
+	}
+
+	/**
+	 * Capability: read the audit trail.
+	 *
+	 * @return bool
+	 */
+	public function can_view_audit(): bool {
+		return Capabilities::can_view_audit();
+	}
+
+	/**
+	 * Capability: run the capacity sync / reconcile job.
+	 *
+	 * @return bool
+	 */
+	public function can_manage_sync(): bool {
+		return Capabilities::can_manage_sync();
 	}
 
 	/**
@@ -1649,13 +1754,26 @@ final class Controller {
 		$status   = sanitize_key( (string) $request->get_param( 'status' ) );
 		$search   = sanitize_text_field( (string) $request->get_param( 'search' ) );
 		$page     = max( 1, absint( $request->get_param( 'page' ) ?: 1 ) );
-		$per_page = min( 50, max( 1, absint( $request->get_param( 'per_page' ) ?: 20 ) ) );
+		$per_page  = min( 50, max( 1, absint( $request->get_param( 'per_page' ) ?: 20 ) ) );
+		$unbatched = rest_sanitize_boolean( $request->get_param( 'unbatched' ) );
 
-		$result = $this->requests->admin_queue( $status, $search, $page, $per_page );
-		$rows   = array();
+		$result        = $this->requests->admin_queue( $status, $search, $page, $per_page, $unbatched );
+		$request_ids   = array_map(
+			static function ( $row ): int {
+				return (int) $row->id;
+			},
+			$result['rows']
+		);
+		$summaries     = $this->requests->summaries( $request_ids );
+		$status_counts = $this->requests->status_counts();
+		$rows          = array();
 
 		foreach ( $result['rows'] as $row ) {
-			$rows[] = $this->describe_request( $row );
+			$summary = $summaries[ (int) $row->id ] ?? array(
+				'item_count' => 0,
+				'bytes'      => 0,
+			);
+			$rows[]  = $this->describe_request( $row, $summary, false );
 		}
 
 		return rest_ensure_response(
@@ -1663,10 +1781,10 @@ final class Controller {
 				'rows'   => $rows,
 				'total'  => (int) $result['total'],
 				'counts' => array(
-					'pending_review' => $this->requests->count( 0, Requests::PENDING ),
-					'approved'       => $this->requests->count( 0, Requests::APPROVED ),
-					'needs_review'   => $this->requests->count( 0, Requests::NEEDS ),
-					'queued'         => $this->requests->count( 0, Requests::QUEUED ),
+					'pending_review' => (int) ( $status_counts[ Requests::PENDING ] ?? 0 ),
+					'approved'       => (int) ( $status_counts[ Requests::APPROVED ] ?? 0 ),
+					'needs_review'   => (int) ( $status_counts[ Requests::NEEDS ] ?? 0 ),
+					'queued'         => (int) ( $status_counts[ Requests::QUEUED ] ?? 0 ),
 				),
 			)
 		);
@@ -1695,10 +1813,11 @@ final class Controller {
 		return rest_ensure_response(
 			array(
 				'request' => array(
-					'id'         => (int) $row->id,
-					'owner_id'   => (int) $row->owner_id,
-					'owner_name' => $owner ? (string) $owner->display_name : '',
-					'status'     => (string) $row->status,
+					'id'          => (int) $row->id,
+					'owner_id'    => (int) $row->owner_id,
+					'owner_name'  => $owner ? (string) $owner->display_name : '',
+					'owner_login' => $owner ? (string) $owner->user_login : '',
+					'status'      => (string) $row->status,
 				),
 				'items'   => $this->request_gallery( $row ),
 			)
@@ -1796,7 +1915,7 @@ final class Controller {
 				array(
 					'action'     => 'sakura_sufm_download',
 					'attachment' => $attachment,
-					'_wpnonce'   => wp_create_nonce( 'sakura_sufm_download' ),
+					'_wpnonce'   => wp_create_nonce( 'sakura_sufm_download_' . $attachment ),
 				),
 				admin_url( 'admin-post.php' )
 			);
@@ -2091,6 +2210,8 @@ final class Controller {
 		$page   = max( 1, absint( $request->get_param( 'page' ) ?: 1 ) );
 		$per    = min( 100, max( 5, absint( $request->get_param( 'per_page' ) ?: 25 ) ) );
 
+		$can_sanction = current_user_can( Capabilities::SANCTION_USERS );
+
 		$query = new \WP_User_Query(
 			array(
 				'search'         => '' === $search ? '' : '*' . esc_attr( $search ) . '*',
@@ -2115,7 +2236,7 @@ final class Controller {
 		$files    = $this->files->counts_by_owner( $ids );
 		$folders  = $this->folders->counts_by_owner( $ids );
 		$pending  = $this->requests->pending_counts_by_owner( $ids );
-		$active   = $this->sanctions ? $this->sanctions->repo()->active_map( $ids ) : array();
+		$active   = $can_sanction && $this->sanctions ? $this->sanctions->repo()->active_map( $ids ) : array();
 
 		$rows = array();
 
@@ -2133,22 +2254,21 @@ final class Controller {
 				'id'       => $id,
 				'name'     => (string) $user->display_name,
 				'login'    => (string) $user->user_login,
-				'email'    => (string) $user->user_email,
 				'quota'    => (int) $snapshot['quota'],
 				'used'     => (int) $snapshot['used'],
 				'reserved' => (int) $snapshot['reserved'],
 				'files'    => isset( $files[ $id ] ) ? (int) $files[ $id ] : 0,
 				'folders'  => isset( $folders[ $id ] ) ? (int) $folders[ $id ] : 0,
 				'pending'  => isset( $pending[ $id ] ) ? (int) $pending[ $id ] : 0,
-				'sanction'  => null === $sanction ? null : array(
+				'sanction'  => $can_sanction && null !== $sanction ? array(
 					'id'    => (int) $sanction->id,
 					'type'  => (string) $sanction->type,
 					'badge' => Sanction_Service::badge( $sanction ),
 					'ends'  => (string) ( $sanction->ends_at ?? '' ),
-				),
+				) : null,
 				// Server-side decision so the UI never offers a button the
 				// endpoint would reject anyway.
-				'can_sanction' => $this->sanctions ? $this->sanctions->can_sanction( $id ) : false,
+				'can_sanction' => $can_sanction && $this->sanctions ? $this->sanctions->can_sanction( $id ) : false,
 			);
 		}
 
@@ -2392,6 +2512,14 @@ final class Controller {
 		$type = sanitize_key( (string) $request->get_param( 'type' ) );
 		$days = (int) $request->get_param( 'days' );
 
+		/* A negative duration used to fall through the permanent-confirmation
+		 * branch and was then clamped to 0 by Sanction_Service, turning
+		 * days=-1 into an unconfirmed permanent ban. Reject it at the boundary
+		 * instead of silently changing its meaning. */
+		if ( $days < 0 ) {
+			return new WP_Error( 'sufm_sanction_days', __( '处罚天数不能为负数。', 'sakura-imgopt' ), array( 'status' => 400 ) );
+		}
+
 		if ( ! Sanctions::is_type( $type ) ) {
 			return new WP_Error( 'sufm_sanction_type', __( '处罚类型不合法。', 'sakura-imgopt' ), array( 'status' => 400 ) );
 		}
@@ -2577,11 +2705,31 @@ final class Controller {
 	/**
 	 * Path-free request payload.
 	 *
-	 * @param object $row Request row.
+	 * The admin queue passes a pre-aggregated summary and with_items=false:
+	 * its React screen only renders item_count/bytes and opens the dedicated
+	 * per-request gallery for the file list, so loading every item again would
+	 * add two SQL per row for data no client reads. The user-facing endpoints
+	 * keep the default so their list payload is unchanged.
+	 *
+	 * @param object                    $row        Request row.
+	 * @param array{item_count:int,bytes:int}|null $summary Pre-aggregated counts.
+	 * @param bool                      $with_items Whether to load item rows.
 	 * @return array<string, mixed>
 	 */
-	private function describe_request( object $row ): array {
-		$items = $this->requests->items( (int) $row->id );
+	private function describe_request( object $row, ?array $summary = null, bool $with_items = true ): array {
+		$items = $with_items ? $this->requests->items( (int) $row->id ) : array();
+
+		$owner_login = (string) ( $row->owner_login ?? '' );
+		$owner_name  = (string) ( $row->owner_name ?? '' );
+
+		if ( '' === $owner_login || '' === $owner_name ) {
+			$owner = get_userdata( (int) $row->owner_id );
+
+			if ( $owner ) {
+				$owner_login = '' === $owner_login ? (string) $owner->user_login : $owner_login;
+				$owner_name  = '' === $owner_name ? (string) $owner->display_name : $owner_name;
+			}
+		}
 
 		return array(
 			'id'                  => (int) $row->id,
@@ -2602,13 +2750,14 @@ final class Controller {
 				},
 				$items
 			),
-			'item_count'          => count( $items ),
-			'bytes'               => $this->requests->bytes( (int) $row->id ),
+			'item_count'          => $with_items ? count( $items ) : (int) ( $summary['item_count'] ?? 0 ),
+			'bytes'               => $with_items ? $this->requests->bytes( (int) $row->id ) : (int) ( $summary['bytes'] ?? 0 ),
 			'created_at'          => (string) $row->created_at,
 			'reviewed_at'         => (string) $row->reviewed_at,
 			'approval_revision'   => (int) $row->approval_revision,
 			'batch_id'            => (int) $row->batch_id,
-			'owner_name'          => (string) ( $row->owner_name ?? '' ),
+			'owner_name'          => $owner_name,
+			'owner_login'         => $owner_login,
 		);
 	}
 

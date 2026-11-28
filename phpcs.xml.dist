@@ -106,6 +106,9 @@
 				<element value="sufm_request_delete_own_files"/>
 				<element value="sufm_admin_delete_files"/>
 				<element value="sufm_admin_review_deletions"/>
+				<element value="sufm_manage_users"/>
+				<element value="sufm_view_audit"/>
+				<element value="sufm_manage_sync"/>
 			</property>
 		</properties>
 	</rule>

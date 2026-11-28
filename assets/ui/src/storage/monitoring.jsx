@@ -196,9 +196,21 @@ function TextRow( { field, value, onChange } ) {
  * @return {JSX.Element} Card.
  */
 export default function MonitoringCard( { section, rest, nonce, onSaved } ) {
-	const strings = section.strings;
-	const prometheus = section.prometheus;
-	const alert = section.alert;
+	// A payload section can degrade to {} when the server cannot build it; the
+	// card must then render empty values instead of throwing and blanking the page.
+	const source = section && 'object' === typeof section ? section : {};
+	const strings = source.strings || {};
+	const prometheus = source.prometheus || {};
+	const alertSource = source.alert && 'object' === typeof source.alert ? source.alert : {};
+	const alert = {
+		...alertSource,
+		enabled: {
+			id: 'sakura-alert-enabled',
+			label: '',
+			hint: '',
+			...( alertSource.enabled && 'object' === typeof alertSource.enabled ? alertSource.enabled : {} ),
+		},
+	};
 	const enabledHintId = alert.enabled.id + '-hint';
 
 	const [ saved, setSaved ] = useState( section.values || {} );

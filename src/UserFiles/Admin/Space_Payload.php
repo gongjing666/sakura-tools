@@ -2,25 +2,20 @@
 /**
  * Bootstrap payload for the Zibll-only file space tab.
  *
- * The old view computed every value inline. This class keeps that math in PHP
- * (theme diagnostics, level/VIP bonuses, package normalisation, comparison
- * values) and only hands the React island display-ready data plus the native
- * options.php form markers.
+ * The page keeps the six-key contract: page / head / chrome / cards / strings /
+ * rest. Card data travels on each card, the REST endpoints are named in `rest`,
+ * and every write happens through Space_Settings_Controller. There is no
+ * options.php form left on this screen.
  *
- * @package Sakura_Image_Optimizer
+ * @package Sakura_ImageOptimizer
  */
 
 declare( strict_types=1 );
 
 namespace Nboke\UserFiles\Admin;
 
-use Nboke\UserFiles\Frontend\Entry;
-use Nboke\UserFiles\Services\Space_Rules;
-use Nboke\UserFiles\Services\Space_Store;
-use Nboke\UserFiles\Services\Zibll_Bridge;
-use Nboke\UserFiles\Settings;
-use Nboke\UserFiles\Space_Settings;
 use Sakura\ImageOptimizer\Admin\Layout;
+use Sakura\ImageOptimizer\Admin\Payload_Contract;
 use Sakura\ImageOptimizer\Admin\Shell;
 use Sakura\ImageOptimizer\Admin\UI;
 
@@ -32,77 +27,55 @@ defined( 'ABSPATH' ) || exit;
 final class Space_Payload {
 
 	/**
-	 * Stable card order, matching the old view and Layout placements.
-	 *
-	 * @var array<int,string>
+	 * Page id, also the App_Manifest route and the payload contract id.
 	 */
-	private const CARD_ORDER = array(
-		'space_diag',
-		'space_payment',
-		'space_entry',
-		'space_editor',
-		'space_gate',
-		'space_level',
-		'space_vip',
-		'space_plans',
-		'space_grants',
-		'space_reconcile',
-	);
+	public const PAGE = 'files-zibll';
 
 	/**
-	 * Build the complete island document.
+	 * Build the complete contract document.
+	 *
+	 * Card order comes from Layout::PAGES, never from a second list: the page
+	 * contract test compares the two, and a mismatch reorders cards silently.
 	 *
 	 * @return array<string,mixed>
 	 */
 	public function build(): array {
-		$bridge = Zibll_Bridge::instance();
-		$diag   = $bridge->diagnostics();
-		$theme  = $this->theme( $diag );
-		$caps   = $this->caps( $diag );
-		$entry  = ( new Entry() )->status();
-		$data   = array(
-			'diag'    => $this->diagnostics( $diag, $theme, $caps, $entry ),
-			'payment' => $this->payment( $diag ),
-			'entry'   => $this->entry( $entry, $theme ),
-			'editor'  => array( 'enabled' => Settings::editor_enabled() ),
-			'gate'    => array(
-				'enabled'       => Space_Settings::enabled(),
-				'apply_bonuses' => Space_Settings::apply_bonuses(),
-				'mode'          => Space_Settings::mode(),
-			),
-			'level'   => $this->level(),
-			'vip'     => $this->vip(),
-			'plans'   => $this->plans(),
-		);
+		$layout   = Layout::layout_for_page( self::PAGE );
+		$order    = Layout::PAGES[ $layout ]['order'] ?? array();
+		$sections = array();
 
-		$page = $this->page_args( $data['diag'] );
-		$cards = $this->cards( $data );
+		foreach ( $order as $id ) {
+			$sections[ $id ] = Space_Cards::data( $id );
+		}
+
+		$page = $this->page_args( $sections[ Space_Cards::DIAG ] ?? array() );
 
 		return array(
 			'version' => defined( 'SAKURA_TOOLS_VERSION' ) ? (string) SAKURA_TOOLS_VERSION : '0',
 			'page'    => $page,
 			'head'    => UI\Page::head_data( $page ),
 			'chrome'  => Shell::header_data( 'files', Space_Page::TAB ),
-			'cards'   => $cards,
-			'config'  => array(
-				'restUrl'       => esc_url_raw( rest_url( 'sufm/v1/' ) ),
-				'nonce'         => wp_create_nonce( 'wp_rest' ),
-				'spaceOption'   => Space_Settings::OPTION,
-				'settingsOption' => 'sufm_settings',
-				'strings'       => $this->strings(),
-			),
+			'cards'   => $this->cards( $layout, $order, $sections ),
+			'strings' => $this->strings(),
+			'rest'    => $this->rest(),
+			'data'    => array( 'layout' => $layout ),
 		);
 	}
 
 	/**
-	 * Page chrome.
+	 * Page chrome derived from the diagnostics snapshot.
 	 *
-	 * @param array<string,mixed> $diag Diagnostic data.
+	 * @param array<string,mixed> $diag Diagnostic card data.
 	 * @return array<string,mixed>
 	 */
 	private function page_args( array $diag ): array {
+		$theme = isset( $diag['theme'] ) && is_array( $diag['theme'] ) ? $diag['theme'] : array();
+		$ready = (int) ( $diag['ready'] ?? 0 );
+		$total = (int) ( $diag['total'] ?? 0 );
+		$name  = (string) ( $theme['name'] ?? '' );
+
 		return array(
-			'id'      => 'files-zibll',
+			'id'      => self::PAGE,
 			'module'  => 'files',
 			'tab'     => Space_Page::TAB,
 			'eyebrow' => 'ZIBLL BRIDGE / ' . ( defined( 'SAKURA_TOOLS_VERSION' ) ? SAKURA_TOOLS_VERSION : '' ),
@@ -110,553 +83,64 @@ final class Space_Payload {
 			'lede'    => __( '主题能力、支付通道、前台入口与等级加成集中在这里；所有数值都在运行时从 zibll 读取，不写死主题侧的名称或价格。', 'sakura-imgopt' ),
 			'status'  => array(
 				'label' => __( '子比桥接', 'sakura-imgopt' ),
-				'value' => $diag['ready'] . ' / ' . $diag['total'],
+				'value' => $ready . ' / ' . $total,
 				'unit'  => __( '项能力', 'sakura-imgopt' ),
-				'sub'   => '' !== $diag['theme']['name'] ? $diag['theme']['name'] : __( '未识别主题', 'sakura-imgopt' ),
-				'tone'  => $diag['ready'] === $diag['total'] ? 'ok' : ( $diag['ready'] >= 5 ? 'warn' : 'bad' ),
+				'sub'   => '' !== $name ? $name : __( '未识别主题', 'sakura-imgopt' ),
+				'tone'  => $ready === $total ? 'ok' : ( $ready >= 5 ? 'warn' : 'bad' ),
 			),
 		);
 	}
 
 	/**
-	 * Card metadata and per-card data.
+	 * Card descriptors in Layout order, each carrying its own data.
 	 *
-	 * @param array<string,array<string,mixed>> $data Computed data.
+	 * @param string                            $layout   Layout id.
+	 * @param array<int,string>                 $order    Layout reading order.
+	 * @param array<string,array<string,mixed>> $sections Per-card data.
 	 * @return array<int,array<string,mixed>>
 	 */
-	private function cards( array $data ): array {
+	private function cards( string $layout, array $order, array $sections ): array {
 		$cards = array();
 
-		foreach ( self::CARD_ORDER as $id ) {
-			$card = $this->card_meta( $id );
-			if ( ! $card ) {
+		foreach ( $order as $id ) {
+			$meta = Space_Cards::meta( $id );
+
+			if ( null === $meta ) {
 				continue;
 			}
 
-			$key                 = substr( $id, 6 );
-			$card['placement']   = Layout::card( 'files-space', $id ) ?? array( 0, 1, 12 );
-			$card['data']        = $data[ $key ] ?? array();
-			$card['form']        = $this->form( $id );
-			$cards[]             = $card;
+			if ( Space_Cards::LEVEL === $id ) {
+				$meta['description'] = sprintf(
+					/* translators: %d: number of theme levels. */
+					__( '按主题等级自动折算：当前主题共 %d 级，等级名与门槛积分都读自主题。每满一定积分增加一定容量，等级越高、门槛越高，加成越大。', 'sakura-imgopt' ),
+					(int) ( $sections[ $id ]['max'] ?? 0 )
+				);
+			}
+
+			$meta['id']        = $id;
+			$meta['placement'] = Layout::card( $layout, $id ) ?? array( 0, 1, 12 );
+			$meta['data']      = $sections[ $id ] ?? array();
+
+			$cards[] = $meta;
 		}
 
 		return $cards;
 	}
 
 	/**
-	 * Static card copy.
-	 *
-	 * @param string $id Card id.
-	 * @return array<string,mixed>|null
-	 */
-	private function card_meta( string $id ): ?array {
-		$map = array(
-			'space_diag'     => array(
-				'kicker'      => 'DIAGNOSE',
-				'title'       => __( '主题诊断', 'sakura-imgopt' ),
-				'description' => __( '本页所有数值都在运行时读取主题，不写死任何主题侧的名称或价格。', 'sakura-imgopt' ),
-				'wide'        => true,
-			),
-			'space_payment'  => array(
-				'kicker'      => 'PAYMENT',
-				'title'       => __( '支付方式', 'sakura-imgopt' ),
-				'description' => __( '只有勾选并保存的通道才会出现在前台收银台。默认只启用余额；支付宝、微信等外部渠道需自行确认对账与退款流程。', 'sakura-imgopt' ),
-				'wide'        => true,
-				'save'        => __( '保存支付方式', 'sakura-imgopt' ),
-			),
-			'space_entry'    => array(
-				'kicker'      => 'ENTRY',
-				'title'       => __( '前台入口', 'sakura-imgopt' ),
-				'description' => __( '只控制系统用户中心里是否出现「文件管理」入口，以及前台上传 / 删除接口。关闭不会删除任何文件。', 'sakura-imgopt' ),
-				'wide'        => true,
-				'save'        => __( '保存入口设置', 'sakura-imgopt' ),
-			),
-			'space_editor'   => array(
-				'kicker'      => 'EDITOR',
-				'title'       => __( '编辑器文件面板', 'sakura-imgopt' ),
-				'description' => __( '在写文章 / 发帖页的编辑器工具栏加一个入口，点开后在正文左侧固定打开文件空间，写作时直接复用旧附件。面板只读：不能上传、不能删除、不占配额。', 'sakura-imgopt' ),
-				'wide'        => true,
-				'save'        => __( '保存编辑器面板设置', 'sakura-imgopt' ),
-			),
-			'space_gate'     => array(
-				'kicker'      => 'GATE',
-				'title'       => __( '门禁与开关', 'sakura-imgopt' ),
-				'description' => __( '总开关默认关闭；「计算加成」是紧急止血阀：关闭后已购容量立即停止生效（等级 / VIP 加成仍按主题计算）。', 'sakura-imgopt' ),
-				'wide'        => true,
-				'save'        => __( '保存开关', 'sakura-imgopt' ),
-			),
-			'space_level'    => array(
-				'kicker'      => 'BONUS',
-				'title'       => __( '等级加成', 'sakura-imgopt' ),
-				'description' => '',
-				'wide'        => true,
-				'save'        => __( '保存等级加成', 'sakura-imgopt' ),
-			),
-			'space_vip'      => array(
-				'kicker'      => 'BONUS',
-				'title'       => __( 'VIP / SVIP 加成', 'sakura-imgopt' ),
-				'description' => __( '名称在运行时解析：过滤器 → 主题选项 → 降级标签。', 'sakura-imgopt' ),
-				'wide'        => true,
-				'save'        => __( '保存 VIP 加成', 'sakura-imgopt' ),
-			),
-			'space_plans'    => array(
-				'kicker'      => 'PLANS',
-				'title'       => __( '空间套餐', 'sakura-imgopt' ),
-				'description' => __( '两种支付方式卖同一份空间：现金套餐（A 开头）走主题支付，积分套餐（P 开头）直接扣积分。下架或删除只影响新订单，已售出的授权按购买时的快照继续生效。', 'sakura-imgopt' ),
-				'wide'        => true,
-				'save'        => __( '保存套餐', 'sakura-imgopt' ),
-			),
-			'space_grants'   => array(
-				'kicker'      => 'GRANTS',
-				'title'       => __( '授权流水', 'sakura-imgopt' ),
-				'description' => __( '最近 20 条授权记录，时间已按站点时区显示。到期时间留空表示永久。', 'sakura-imgopt' ),
-				'wide'        => true,
-			),
-			'space_reconcile' => array(
-				'kicker'      => 'RECONCILE',
-				'title'       => __( '对账与重试', 'sakura-imgopt' ),
-				'description' => __( '「检查差异」只读，找出已付款但没有授权的子比订单；「修复差异」按订单快照补发，幂等（同一订单不会重复授予）。', 'sakura-imgopt' ),
-				'wide'        => true,
-			),
-		);
-
-		return isset( $map[ $id ] ) ? array_merge( array( 'id' => $id ), $map[ $id ] ) : null;
-	}
-
-	/**
-	 * Native options.php form markers for one card.
-	 *
-	 * @param string $id Card id.
-	 * @return array<string,mixed>
-	 */
-	private function form( string $id ): array {
-		$space = array(
-			'action'     => admin_url( 'options.php' ),
-			'group'      => Space_Page::GROUP,
-			'nonce'      => wp_create_nonce( Space_Page::GROUP . '-options' ),
-			'markers'    => 'option_fields',
-			'option'     => Space_Settings::OPTION,
-			'markerCard' => $id,
-			'hidden'     => array( Space_Settings::OPTION . '[_partial]' => '1' ),
-		);
-
-		if ( 'space_payment' === $id ) {
-			$space['hidden'][ Space_Settings::OPTION . '[allowed_methods_present]' ] = '1';
-		}
-
-		if ( in_array( $id, array( 'space_entry', 'space_editor' ), true ) ) {
-			return array(
-				'action'     => admin_url( 'options.php' ),
-				'group'      => 'sufm_settings_group',
-				'nonce'      => wp_create_nonce( 'sufm_settings_group-options' ),
-				'markers'    => 'option_fields',
-				'option'     => 'sufm_settings',
-				'markerCard' => $id,
-				'hidden'     => array( 'sufm_settings[_partial]' => '1' ),
-			);
-		}
-
-		return $space;
-	}
-
-	/**
-	 * Theme diagnostics and capabilities.
-	 *
-	 * @param array<string,mixed> $diag  Raw diagnostics.
-	 * @param array<string,mixed> $theme Normalised theme.
-	 * @param array<int,array<string,mixed>> $caps Capabilities.
-	 * @param array<string,mixed> $entry Entry status.
-	 * @return array<string,mixed>
-	 */
-	private function diagnostics( array $diag, array $theme, array $caps, array $entry ): array {
-		$ready = 0;
-		foreach ( $caps as $cap ) {
-			if ( $cap['ok'] ) {
-				++$ready;
-			}
-		}
-
-		$methods = array();
-		$allowed = Space_Settings::allowed_methods();
-		$raw     = isset( $diag['payment_methods'] ) && is_array( $diag['payment_methods'] ) ? $diag['payment_methods'] : array();
-		foreach ( $raw as $id => $method ) {
-			if ( ! is_array( $method ) || ! in_array( (string) $id, $allowed, true ) ) {
-				continue;
-			}
-			$methods[] = array(
-				'id'   => (string) $id,
-				'name' => isset( $method['name'] ) ? (string) $method['name'] : (string) $id,
-			);
-		}
-
-		$breakdown = Space_Rules::breakdown( (int) get_current_user_id() );
-		$mode      = isset( $breakdown['mode'] ) ? (string) $breakdown['mode'] : 'cap';
-
-		return array(
-			'ready'     => $ready,
-			'total'     => count( $caps ),
-			'theme'     => $theme,
-			'caps'      => $caps,
-			'methods'   => $methods,
-			'points_on' => Space_Settings::points_enabled(),
-			'entry'     => $entry,
-			'breakdown' => array(
-				'base'     => $this->size( $breakdown['base'] ?? 0 ),
-				'level'    => $this->level_line( $breakdown ),
-				'vip'      => $this->vip_line( $breakdown ),
-				'granted'  => $this->size( $breakdown['granted_bytes'] ?? 0 ),
-				'computed' => $this->size( $breakdown['computed'] ?? 0 ),
-				'override' => null === ( $breakdown['override'] ?? null ) || '' === ( $breakdown['override'] ?? '' ) ? null : $this->size( $breakdown['override'] ),
-				'final'    => $this->size( $breakdown['final'] ?? 0 ),
-				'mode'     => 'replace' === $mode ? 'replace' : 'cap',
-			),
-		);
-	}
-
-	/**
-	 * Payment card data.
-	 *
-	 * @param array<string,mixed> $diag Diagnostics.
-	 * @return array<string,mixed>
-	 */
-	private function payment( array $diag ): array {
-		$raw     = isset( $diag['payment_methods'] ) && is_array( $diag['payment_methods'] ) ? $diag['payment_methods'] : array();
-		$allowed = Space_Settings::allowed_methods();
-		$methods = array();
-
-		foreach ( $raw as $id => $method ) {
-			if ( ! is_array( $method ) ) {
-				continue;
-			}
-			$id = (string) $id;
-			$methods[] = array(
-				'id'      => $id,
-				'name'    => isset( $method['name'] ) ? (string) $method['name'] : $id,
-				'note'    => 'balance' === $id ? 'balance' : 'external',
-				'checked' => in_array( $id, $allowed, true ),
-			);
-		}
-
-		return array(
-			'methods'   => $methods,
-			'points_on' => Space_Settings::points_enabled(),
-		);
-	}
-
-	/**
-	 * Entry card data.
-	 *
-	 * @param array<string,mixed> $entry Entry status.
-	 * @param array<string,mixed> $theme Theme diagnostic data.
-	 * @return array<string,mixed>
-	 */
-	private function entry( array $entry, array $theme ): array {
-		$name = isset( $entry['theme'] ) ? (string) $entry['theme'] : '';
-
-		return array(
-			'enabled' => Settings::entry_enabled(),
-			'status'  => $entry,
-			'theme'   => '' !== $name ? $name : (string) ( $theme['name'] ?? '' ),
-			'label'   => isset( $entry['label'] ) ? (string) $entry['label'] : '',
-			'url'     => isset( $entry['url'] ) ? (string) $entry['url'] : '',
-			'generic' => ! empty( $entry['generic'] ),
-		);
-	}
-
-	/**
-	 * Level bonus data.
+	 * Named REST endpoints. `url` is the sufm/v1 namespace, like the file list
+	 * pages; every saving/reading action below has its own absolute URL.
 	 *
 	 * @return array<string,mixed>
 	 */
-	private function level(): array {
-		$options   = get_option( 'zibll_options' );
-		$options   = is_array( $options ) ? $options : array();
-		$level_max = isset( $options['user_level_max'] ) ? (int) $options['user_level_max'] : 10;
-		$level_max = max( 1, min( 20, $level_max ) );
-		$level_opt = isset( $options['user_level_opt'] ) && is_array( $options['user_level_opt'] ) ? $options['user_level_opt'] : array();
-		$bonus     = Space_Settings::get()['level_bonus'] ?? array();
-		$rule      = Space_Settings::level_rule();
-		$rule_on   = ! empty( $rule['enabled'] );
-		$rows      = array();
-		$total     = 0.0;
+	private function rest(): array {
+		$rest = Payload_Contract::rest_for( rest_url( 'sufm/v1/' ), self::PAGE );
 
-		for ( $level = 1; $level <= $level_max; $level++ ) {
-			$key       = 'upgrade_integral_' . $level;
-			$threshold = isset( $level_opt[ $key ] ) && is_scalar( $level_opt[ $key ] ) ? (int) $level_opt[ $key ] : null;
-			$bytes     = $rule_on
-				? intdiv( max( 0, (int) $threshold ), max( 1, (int) $rule['points_per_step'] ) ) * (int) $rule['bytes_per_step']
-				: ( isset( $bonus[ $level ] ) ? (int) $bonus[ $level ] : 0 );
-			$bytes     = max( 0, $bytes );
-			$total    += $bytes / 1048576;
-			$rows[]    = array(
-				'level'     => $level,
-				'threshold' => null === $threshold ? null : (string) $threshold,
-				'mb'        => $this->mb( $bytes ),
-			);
-		}
+		$rest['settings']  = array( 'url' => esc_url_raw( rest_url( 'sufm/v1/admin/space/settings' ) ) );
+		$rest['grants']    = array( 'url' => esc_url_raw( rest_url( 'sufm/v1/admin/space/grants' ) ) );
+		$rest['reconcile'] = array( 'url' => esc_url_raw( rest_url( 'sufm/v1/admin/space/reconcile' ) ) );
 
-		return array(
-			'rule'  => array(
-				'enabled'     => $rule_on,
-				'points'      => (string) $rule['points_per_step'],
-				'bytes_mb'    => (string) round( (int) $rule['bytes_per_step'] / 1048576, 2 ),
-			),
-			'max'   => $level_max,
-			'rows'  => $rows,
-			'total' => $this->format_mb( $total ),
-		);
-	}
-
-	/**
-	 * VIP bonus data.
-	 *
-	 * @return array<string,mixed>
-	 */
-	private function vip(): array {
-		$labels = Space_Rules::vip_labels();
-		$map    = Space_Settings::get()['vip_bonus'] ?? array();
-		$rows   = array();
-		$total  = 0.0;
-
-		for ( $vip = 0; $vip <= 2; $vip++ ) {
-			$bytes = isset( $map[ $vip ] ) ? (int) $map[ $vip ] : 0;
-			$total += max( 0, $bytes ) / 1048576;
-			$rows[] = array(
-				'vip'   => $vip,
-				'label' => isset( $labels[ $vip ] ) ? (string) $labels[ $vip ] : 'VIP ' . $vip,
-				'mb'    => $this->mb( $bytes ),
-			);
-		}
-
-		return array(
-			'rows'  => $rows,
-			'total' => $this->format_mb( $total ),
-		);
-	}
-
-	/**
-	 * Package, pricing and comparison data.
-	 *
-	 * @return array<string,mixed>
-	 */
-	private function plans(): array {
-		$packages  = Space_Settings::packages();
-		$points    = Space_Settings::points();
-		$ppkgs     = Space_Settings::points_packages();
-		$icon      = Space_Settings::order_icon();
-		$default   = Space_Store::product_image_url();
-		$options   = get_option( 'zibll_options' );
-		$options   = is_array( $options ) ? $options : array();
-		$pay_rate  = isset( $options['pay_points_rate'] ) && is_numeric( $options['pay_points_rate'] ) ? (float) $options['pay_points_rate'] : 0.0;
-		$per_gb    = isset( $points['points_per_gb'] ) ? max( 1, (int) $points['points_per_gb'] ) : 90;
-		$cheapest  = null;
-
-		$cash = array();
-		foreach ( $packages as $pkg ) {
-			$bytes  = isset( $pkg['bytes'] ) ? (float) $pkg['bytes'] : 0.0;
-			$price  = isset( $pkg['price'] ) ? (float) $pkg['price'] : 0.0;
-			$cash[] = array(
-				'key'    => (string) ( $pkg['id'] ?? '' ),
-				'id'     => strtoupper( (string) ( $pkg['id'] ?? '' ) ),
-				'label'  => isset( $pkg['label'] ) ? (string) $pkg['label'] : '',
-				'gb'     => $this->gb( $bytes ),
-				'price'  => $this->decimal( $price, 2 ),
-				'days'   => (string) ( isset( $pkg['days'] ) ? (int) $pkg['days'] : 365 ),
-				'active' => ! empty( $pkg['active'] ),
-			);
-
-			if ( $bytes > 0 && $price > 0 ) {
-				$per = $price / ( $bytes / 1073741824 );
-				if ( null === $cheapest || $per < $cheapest ) {
-					$cheapest = $per;
-				}
-			}
-		}
-
-		$point_rows = array();
-		foreach ( $ppkgs as $pkg ) {
-			$gb     = isset( $pkg['gb'] ) ? (float) $pkg['gb'] : 0.0;
-			$label  = isset( $pkg['label'] ) && '' !== (string) $pkg['label'] ? (string) $pkg['label'] : ( $gb > 0 ? Space_Settings::points_label( $gb, (int) ( $pkg['days'] ?? 365 ) ) : '' );
-			$point_rows[] = array(
-				'key'    => (string) ( $pkg['id'] ?? '' ),
-				'id'     => strtoupper( (string) ( $pkg['id'] ?? '' ) ),
-				'label'  => $label,
-				'gb'     => $this->decimal( $gb, 2 ),
-				'points' => (string) (int) ( $pkg['points'] ?? 0 ),
-				'days'   => (string) (int) ( $pkg['days'] ?? 365 ),
-				'active' => ! empty( $pkg['active'] ),
-			);
-		}
-
-		$today = Space_Store::instance()->points_today_totals();
-		$cash_gb = $pay_rate > 0 ? ( $per_gb / $pay_rate ) : 0.0;
-
-		return array(
-			'packages'     => $cash,
-			'points'       => array(
-				'enabled'   => Space_Settings::points_enabled(),
-				'per_gb'    => (string) $per_gb,
-				'max_gb'    => (string) max( 1, (int) ( $points['max_gb_per_order'] ?? 1 ) ),
-				'daily_cap' => (string) max( 1, (int) ( $points['daily_cap_gb'] ?? 1 ) ),
-				'pay_rate'  => $pay_rate > 0 ? $this->decimal( $pay_rate, 2 ) : null,
-			),
-			'points_packages' => $point_rows,
-			'icon'         => $icon,
-			'default_icon' => $default,
-			'compare'      => array(
-				'cheapest' => null === $cheapest ? null : $this->decimal( $cheapest, 2 ),
-				'cash_gb'  => $pay_rate > 0 ? $this->decimal( $cash_gb, 2 ) : null,
-				'far'      => null !== $cheapest && $cheapest > 0 && $cash_gb > ( $cheapest * 2 ),
-			),
-			'today'        => array(
-				'gb'    => $this->decimal( (float) ( $today['gb'] ?? 0 ), 2 ),
-				'count' => (int) ( $today['count'] ?? 0 ),
-			),
-		);
-	}
-
-	/**
-	 * Theme normalisation.
-	 *
-	 * @param array<string,mixed> $diag Diagnostics.
-	 * @return array<string,mixed>
-	 */
-	private function theme( array $diag ): array {
-		$theme = isset( $diag['theme'] ) && is_array( $diag['theme'] ) ? $diag['theme'] : array();
-
-		return wp_parse_args(
-			$theme,
-			array(
-				'name'       => '',
-				'version'    => '',
-				'stylesheet' => '',
-				'template'   => '',
-				'is_child'   => false,
-			)
-		);
-	}
-
-	/**
-	 * Capability list.
-	 *
-	 * @param array<string,mixed> $diag Diagnostics.
-	 * @return array<int,array<string,mixed>>
-	 */
-	private function caps( array $diag ): array {
-		$labels = array(
-			'theme'       => __( '主题识别（zibll）', 'sakura-imgopt' ),
-			'level'       => __( '等级读取 zib_get_user_level', 'sakura-imgopt' ),
-			'vip'         => __( 'VIP 读取 zib_get_user_vip_level', 'sakura-imgopt' ),
-			'points'      => __( '积分函数 zibpay_update_user_points', 'sakura-imgopt' ),
-			'pay_methods' => __( '支付方式 zibpay_get_payment_methods', 'sakura-imgopt' ),
-			'pay_initiate'=> __( '发起支付 zibpay_initiate_pay', 'sakura-imgopt' ),
-			'orders'      => __( '订单类 ZibPay', 'sakura-imgopt' ),
-			'user_center' => __( '用户中心 zib_get_user_center_url', 'sakura-imgopt' ),
-		);
-		$state = isset( $diag['capabilities'] ) && is_array( $diag['capabilities'] ) ? $diag['capabilities'] : array();
-		$out   = array();
-
-		foreach ( $labels as $key => $label ) {
-			$out[] = array(
-				'key'   => $key,
-				'label' => $label,
-				'ok'    => ! empty( $state[ $key ] ),
-			);
-		}
-
-		return $out;
-	}
-
-	/**
-	 * Pre-formatted level breakdown line.
-	 *
-	 * @param array<string,mixed> $breakdown Breakdown.
-	 * @return string
-	 */
-	private function level_line( array $breakdown ): string {
-		return sprintf(
-			/* translators: 1: theme level number, 2: capacity granted by that level. */
-			__( 'LV%1$s · %2$s', 'sakura-imgopt' ),
-			$breakdown['level'] ?? 0,
-			$this->size( $breakdown['level_bytes'] ?? 0 )
-		);
-	}
-
-	/**
-	 * Pre-formatted VIP breakdown line.
-	 *
-	 * @param array<string,mixed> $breakdown Breakdown.
-	 * @return string
-	 */
-	private function vip_line( array $breakdown ): string {
-		return sprintf(
-			/* translators: 1: zibll vip level number, 2: capacity granted by that VIP level. */
-			__( 'vip_level=%1$s · %2$s', 'sakura-imgopt' ),
-			$breakdown['vip'] ?? 0,
-			$this->size( $breakdown['vip_bytes'] ?? 0 )
-		);
-	}
-
-	/**
-	 * WordPress size string.
-	 *
-	 * @param mixed $bytes Bytes.
-	 * @return string
-	 */
-	private function size( $bytes ): string {
-		return (string) size_format( max( 0, (int) $bytes ) );
-	}
-
-	/**
-	 * Number of MB as a compact string.
-	 *
-	 * @param mixed $bytes Bytes.
-	 * @return string
-	 */
-	private function mb( $bytes ): string {
-		$mb = ( (float) $bytes ) / 1048576;
-
-		return $mb <= 0 ? '0' : rtrim( rtrim( number_format( $mb, 2, '.', '' ), '0' ), '.' );
-	}
-
-	/**
-	 * Number of GB as a compact string.
-	 *
-	 * @param mixed $bytes Bytes.
-	 * @return string
-	 */
-	private function gb( $bytes ): string {
-		$gb = ( (float) $bytes ) / 1073741824;
-
-		return $gb > 0 ? rtrim( rtrim( number_format( $gb, 3, '.', '' ), '0' ), '.' ) : '';
-	}
-
-	/**
-	 * Decimal string without trailing zeros.
-	 *
-	 * @param mixed $value Value.
-	 * @param int   $precision Precision.
-	 * @return string
-	 */
-	private function decimal( $value, int $precision ): string {
-		return rtrim( rtrim( number_format( (float) $value, $precision, '.', '' ), '0' ), '.' );
-	}
-
-	/**
-	 * MB formatter used by the level/VIP totals.
-	 *
-	 * @param float $mb Megabytes.
-	 * @return string
-	 */
-	private function format_mb( float $mb ): string {
-		if ( $mb <= 0 ) {
-			return '0 ' . __( 'MB', 'sakura-imgopt' );
-		}
-		if ( $mb >= 1024 ) {
-			return (string) round( $mb / 1024, 1 ) . ' ' . __( 'GB', 'sakura-imgopt' );
-		}
-
-		return (string) round( $mb, 1 ) . ' ' . __( 'MB', 'sakura-imgopt' );
+		return $rest;
 	}
 
 	/**
@@ -664,10 +148,17 @@ final class Space_Payload {
 	 *
 	 * @return array<string,string>
 	 */
-	private function strings(): array {
+	private static function strings(): array {
 		return array(
 			'unitMb' => __( 'MB', 'sakura-imgopt' ),
 			'unitGb' => __( 'GB', 'sakura-imgopt' ),
+			'saving' => __( '正在保存…', 'sakura-imgopt' ),
+			'failed' => __( '保存失败，请稍后重试。', 'sakura-imgopt' ),
+			'network' => __( '网络请求失败，服务器没有响应。', 'sakura-imgopt' ),
+			'close' => __( '关闭', 'sakura-imgopt' ),
+			'dismiss' => __( '知道了', 'sakura-imgopt' ),
+			'closeIcon' => UI\Modal::close_icon(),
+			'mascot' => UI\Modal::mascot(),
 			'confirmTitle' => __( '请确认', 'sakura-imgopt' ),
 			'confirm' => __( '确认', 'sakura-imgopt' ),
 			'cancel' => __( '取消', 'sakura-imgopt' ),
@@ -751,8 +242,6 @@ final class Space_Payload {
 			'bonusMb' => __( '加成（MB）', 'sakura-imgopt' ),
 			'total' => __( '加成合计：', 'sakura-imgopt' ),
 			'vipLevel' => __( 'VIP 等级', 'sakura-imgopt' ),
-			/* translators: %d: number of theme levels. */
-			'levelDescription' => __( '按主题等级自动折算：当前主题共 %d 级，等级名与门槛积分都读自主题。每满一定积分增加一定容量，等级越高、门槛越高，加成越大。', 'sakura-imgopt' ),
 			'cashPackages' => __( '现金套餐', 'sakura-imgopt' ),
 			'cashHint' => __( '用户在弹窗里看到的价格档位，按下单顺序展示；价格取主题支付通道。', 'sakura-imgopt' ),
 			'pointsPackages' => __( '积分套餐', 'sakura-imgopt' ),

@@ -2,7 +2,7 @@
  * The rules tab: four cards, each one POST away from being saved.
  */
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { BusyLabel, Card } from '../shared/ui.jsx';
 import { ImageField, RuleComposer, SizeTable } from './fields.jsx';
 import { call, same } from './transport.js';
@@ -18,10 +18,15 @@ function SettingsCard( { card, rest, strings, sections, scanned, scan, scanning,
 	const [ saved, setSaved ] = useState( card.values );
 	const [ saving, setSaving ] = useState( false );
 
-	useEffect( () => {
+	// Props to state, compared during render: no useEffect sync (14 section 5).
+	const [ lastKey, setLastKey ] = useState( () => JSON.stringify( card.values ) );
+	const valuesKey = JSON.stringify( card.values );
+
+	if ( valuesKey !== lastKey ) {
+		setLastKey( valuesKey );
 		setSaved( card.values );
 		setDraft( card.values );
-	}, [ card.values ] );
+	}
 
 	const dirty = ! same( draft, saved );
 	const change = ( key, value ) => setDraft( ( current ) => ( { ...current, [ key ]: value } ) );

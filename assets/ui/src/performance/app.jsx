@@ -1,89 +1,156 @@
-import { useState } from 'react';
-import { Badge, Card, PageHead } from '../shared/ui.jsx';
+import { useRef, useState } from 'react';
+import { Badge, Card, PageHead, Prompt } from '../shared/ui.jsx';
 
-function NativeForm( { card, children } ) {
-	const form = card.form || {};
+/**
+ * POST JSON to a REST path. `path` is appended to rest.url.
+ *
+ * @param {Object} rest REST block.
+ * @param {string} path Path, '' for the base endpoint.
+ * @param {Object} body JSON body.
+ * @return {Promise<Object>} Decoded response.
+ */
+async function post( rest, path, body ) {
+	const base = String( rest.url || '' ).replace( /\/$/, '' );
+	const response = await fetch( base + path, {
+		method: 'POST',
+		credentials: 'same-origin',
+		headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': rest.nonce },
+		body: JSON.stringify( body || {} ),
+	} );
+	const payload = await response.json().catch( () => null );
 
-	return (
-		<form className="card__form" method="post" action={ form.action }>
-			<input type="hidden" name="option_page" value={ form.group } />
-			<input type="hidden" name="action" value="update" />
-			<input type="hidden" name="_wpnonce" value={ form.nonce } />
-			<input type="hidden" name={ form.option + '[_sakura_card]' } value={ form.markerCard } />
-			<input type="hidden" name={ form.option + '[_sakura_partial]' } value="1" />
-			{ children }
-			<div className="card__savebar">
-				<button type="submit" className="btn btn--primary">{ card.save || '保存更改' }</button>
-			</div>
-		</form>
-	);
+	if ( ! response.ok ) {
+		throw new Error( ( payload && payload.message ) || '' );
+	}
+
+	return payload || {};
 }
 
-function LicenseCache( { card, strings, config } ) {
+function LicenseCache( { card, strings, rest, onSection, onHead } ) {
 	const data = card.data || {};
 	const [ enabled, setEnabled ] = useState( !! data.enabled );
 	const [ unit, setUnit ] = useState( data.unit || 'forever' );
 	const [ duration, setDuration ] = useState( String( data.duration ?? 1 ) );
-	const [ busy, setBusy ] = useState( false );
+	const [ ack, setAck ] = useState( false );
+	const [ saving, setSaving ] = useState( false );
 	const [ warm, setWarm ] = useState( { text: '', tone: '' } );
+	const [ notice, setNotice ] = useState( null );
+	const saveRef = useRef( null );
 	const forever = 'forever' === unit;
-	const option = data.option || 'sakura_imgopt_zibll';
+	const key = JSON.stringify( [ data.enabled, data.unit, data.duration ] );
+	const [ lastKey, setLastKey ] = useState( () => key );
 
-	const revalidate = () => {
-		if ( busy ) {
+	if ( key !== lastKey ) {
+		setLastKey( key );
+		setEnabled( !! data.enabled );
+		setUnit( data.unit || 'forever' );
+		setDuration( String( data.duration ?? 1 ) );
+		setAck( false );
+	}
+
+	const openNotice = ( payload ) => {
+		const fallback = 'bad' === ( payload && payload.tone ) ? strings.failedNotice : strings.savedNotice;
+		const copy = fallback || {};
+
+		setNotice( {
+			...copy,
+			...( payload || {} ),
+			closeLabel: strings.close || '',
+			closeIcon: strings.closeIcon || '',
+			mascot: strings.mascot || '',
+			button: strings.dismiss || '',
+		} );
+	};
+
+	const apply = ( payload ) => {
+		if ( payload.sections ) {
+			Object.entries( payload.sections ).forEach( ( [ id, section ] ) => onSection( id, section ) );
+		}
+
+		if ( payload.head && onHead ) {
+			onHead( payload.head );
+		}
+	};
+
+	const submit = async ( event ) => {
+		event.preventDefault();
+
+		if ( saving ) {
 			return;
 		}
 
-		if ( ! enabled ) {
+		setSaving( true );
+		setNotice( null );
+		setWarm( { text: '', tone: '' } );
+
+		try {
+			const payload = await post( rest, '', {
+				card: 'license-cache',
+				fields: {
+					license_cache: enabled ? '1' : '',
+					duration: String( duration ),
+					unit,
+					unsupported_ack: ack ? '1' : '',
+				},
+			} );
+
+			apply( payload );
+			openNotice( payload.notice );
+		} catch ( error ) {
+			openNotice( { tone: 'bad', message: error.message || ( strings.failedNotice && strings.failedNotice.message ) || '' } );
+		} finally {
+			setSaving( false );
+		}
+	};
+
+	const revalidate = async () => {
+		if ( saving || ! enabled ) {
 			setWarm( { text: strings.disabled, tone: 'bad' } );
 			return;
 		}
 
-		const admin = window.SakuraAdmin;
-
-		if ( ! admin || ! admin.api || ! config.action || ! config.nonce ) {
+		if ( ! rest.warm ) {
 			setWarm( { text: strings.failed, tone: 'bad' } );
 			return;
 		}
 
-		setBusy( true );
+		setSaving( true );
+		setNotice( null );
 		setWarm( { text: strings.checking, tone: '' } );
 
-		admin.api.ajax( config.action, { nonce: config.nonce }, { timeout: 60000 } )
-			.then( ( payload ) => {
-				const message = ( payload && payload.message ) || strings.checked;
-				setWarm( { text: message, tone: 'ok' } );
-				if ( admin.ui ) {
-					admin.ui.toast( message, 'ok' );
-				}
-			} )
-			.catch( ( error ) => {
-				let message = strings.failed;
+		try {
+			const response = await fetch( rest.warm, {
+				method: 'POST',
+				credentials: 'same-origin',
+				headers: { 'X-WP-Nonce': rest.nonce },
+			} );
+			const payload = await response.json().catch( () => null );
 
-				if ( error && error.payload && error.payload.data && error.payload.data.message ) {
-					message = error.payload.data.message;
-				}
+			if ( ! response.ok ) {
+				throw new Error( ( payload && payload.message ) || strings.failed );
+			}
 
-				setWarm( { text: message, tone: 'bad' } );
-				if ( admin.ui ) {
-					admin.ui.toast( message, 'bad', { duration: 6000 } );
-				}
-			} )
-			.then( () => setBusy( false ) );
+			apply( payload );
+			const notice = ( payload && payload.notice ) || {};
+			setWarm( { text: notice.text || strings.checked, tone: 'bad' === notice.tone ? 'bad' : 'ok' } );
+		} catch ( error ) {
+			setWarm( { text: error.message || strings.failed, tone: 'bad' } );
+		} finally {
+			setSaving( false );
+		}
 	};
 
 	return (
-		<Card card={ card }>
-			<NativeForm card={ card }>
+		<>
+			<Card card={ card }>
+				<form className="card__form" onSubmit={ submit } noValidate>
+
 				<div className="zibll-switch">
-					<input type="hidden" name={ option + '[license_cache]' } value="0" />
 					<label className="check">
 						<input
 							className="is-switch"
 							type="checkbox"
 							id="zibll-license-cache"
-							name={ option + '[license_cache]' }
-							value="1"
 							checked={ enabled }
 							onChange={ ( event ) => setEnabled( event.target.checked ) }
 						/>
@@ -95,8 +162,8 @@ function LicenseCache( { card, strings, config } ) {
 							type="button"
 							className="btn btn--ghost btn--small"
 							id="zibll-warm"
-							disabled={ ! enabled || busy }
-							aria-busy={ busy ? 'true' : undefined }
+							disabled={ ! enabled || saving }
+							aria-busy={ saving ? 'true' : undefined }
 							onClick={ revalidate }
 						>
 							{ strings.revalidate }
@@ -121,7 +188,6 @@ function LicenseCache( { card, strings, config } ) {
 							<input
 								id="zibll-duration"
 								type="number"
-								name={ option + '[duration]' }
 								value={ duration }
 								min="1"
 								max={ data.max || 9999 }
@@ -138,7 +204,6 @@ function LicenseCache( { card, strings, config } ) {
 						<div className="field__control">
 							<select
 								id="zibll-unit"
-								name={ option + '[unit]' }
 								value={ unit }
 								onChange={ ( event ) => setUnit( event.target.value ) }
 							>
@@ -164,7 +229,7 @@ function LicenseCache( { card, strings, config } ) {
 						<div className="field field--checkbox">
 							<div className="field__control">
 								<label className="check">
-									<input type="checkbox" name={ option + '[' + data.ack + ']' } value="1" />
+									<input type="checkbox" checked={ ack } onChange={ ( event ) => setAck( event.target.checked ) } />
 									<span className="check__box" aria-hidden="true" />
 									<span className="check__text">{ strings.ackLabel }</span>
 								</label>
@@ -179,8 +244,16 @@ function LicenseCache( { card, strings, config } ) {
 						<p>{ strings.invalidNotice }</p>
 					</div>
 				) : null }
-			</NativeForm>
+
+				<div className="card__savebar">
+					<button ref={ saveRef } type="submit" className="btn btn--primary" disabled={ saving }>
+						{ card.save || strings.save || '' }
+					</button>
+				</div>
+			</form>
 		</Card>
+			{ notice ? <Prompt notice={ notice } onClose={ () => setNotice( null ) } returnFocus={ saveRef } /> : null }
+		</>
 	);
 }
 
@@ -217,19 +290,33 @@ function CacheStatus( { card, strings } ) {
 }
 
 export default function App( { boot } ) {
-	const config = boot.config || {};
-	const strings = config.strings || {};
+	const strings = boot.strings || {};
+	const rest = boot.rest || {};
+	const [ head, setHead ] = useState( boot.head );
+	const [ cards, setCards ] = useState( boot.cards || [] );
 	const byId = {};
 
-	( boot.cards || [] ).forEach( ( card ) => {
+	cards.forEach( ( card ) => {
 		byId[ card.id ] = card;
 	} );
 
+	const onSection = ( id, section ) => setCards( ( current ) => current.map( ( card ) => (
+		card.id === id ? { ...card, ...section } : card
+	) ) );
+
 	return (
 		<>
-			<PageHead head={ boot.head } />
+			<PageHead head={ head } />
 			<div className="card-grid" data-sakura-layout="zibll-performance" data-sakura-group="main">
-				{ byId[ 'license-cache' ] ? <LicenseCache card={ byId[ 'license-cache' ] } strings={ strings } config={ config } /> : null }
+				{ byId[ 'license-cache' ] ? (
+					<LicenseCache
+						card={ byId[ 'license-cache' ] }
+						strings={ strings }
+						rest={ rest }
+						onSection={ onSection }
+						onHead={ setHead }
+					/>
+				) : null }
 				{ byId[ 'cache-status' ] ? <CacheStatus card={ byId[ 'cache-status' ] } strings={ strings } /> : null }
 			</div>
 		</>

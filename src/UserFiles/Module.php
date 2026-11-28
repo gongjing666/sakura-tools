@@ -267,6 +267,7 @@ final class Module implements Module_Contract {
 		Schema::maybe_install();
 		Capabilities::upgrade_media_caps();
 		Capabilities::upgrade_sanction_caps();
+		Capabilities::upgrade_capability_split();
 		// Roles are a per-site option, not a schema version: grant the defaults
 		// once on sites that installed the module before those capabilities
 		// existed. After that the matrix card owns them, so a per-request grant
@@ -294,6 +295,9 @@ final class Module implements Module_Contract {
 			$services['sync'],
 			$services['sanctioning']
 		) )->register();
+
+		( new Rest\Settings_Controller() )->register();
+		( new Rest\Space_Settings_Controller() )->register();
 	}
 
 	/**

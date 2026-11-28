@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { Card } from '../shared/ui.jsx';
-import { apiPost, confirmAction, errorText, toast } from '../files/shared/transport.js';
-import { fmt } from './controls.jsx';
+import { post } from '../shared/transport.js';
+import { confirm, errorText, fmt, toast } from './controls.jsx';
 
-export default function Reconcile( { card, strings, config } ) {
+export default function Reconcile( { card, rest, strings } ) {
 	const [ summary, setSummary ] = useState( strings.reconcileNotChecked );
 	const [ items, setItems ] = useState( [] );
 	const [ missing, setMissing ] = useState( 0 );
@@ -17,12 +17,13 @@ export default function Reconcile( { card, strings, config } ) {
 
 		setBusy( true );
 		setSummary( apply ? strings.reconcileHealing : strings.reconcileChecking );
-		apiPost( config, 'admin/space/reconcile', { dry_run: apply ? 0 : 1 } )
+		post( rest, rest.reconcile.url, { dry_run: apply ? 0 : 1 }, strings )
 			.then( ( payload ) => {
 				if ( ! payload || false === payload.ready ) {
 					const message = payload && payload.error ? String( payload.error ) : strings.reconcileFailed;
 					setSummary( message );
 					toast( message, 'bad' );
+
 					return;
 				}
 
@@ -32,6 +33,7 @@ export default function Reconcile( { card, strings, config } ) {
 					setMissing( count );
 					setSummary( count ? fmt( strings.reconcileMissing, [ count ] ) : strings.reconcileClean );
 					setItems( Array.isArray( payload.items ) ? payload.items : [] );
+
 					return;
 				}
 
@@ -52,7 +54,8 @@ export default function Reconcile( { card, strings, config } ) {
 		if ( ! missing ) {
 			return;
 		}
-		confirmAction( fmt( strings.reconcileConfirm, [ missing ] ), {
+
+		confirm( fmt( strings.reconcileConfirm, [ missing ] ), {
 			title: strings.confirmTitle,
 			confirmText: strings.confirm,
 			cancelText: strings.cancel,

@@ -41,7 +41,7 @@ export default function Pager( { page, per, total, sizes, strings, onChange } ) 
 				>
 					‹
 				</button>
-				<span className="pagination__now">{ now }</span>
+				<span className="pagination__link is-current" aria-current="page">{ now }</span>
 				<button
 					type="button"
 					className="pagination__link"

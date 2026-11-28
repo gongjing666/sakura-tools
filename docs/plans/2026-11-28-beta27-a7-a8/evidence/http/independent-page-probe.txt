@@ -1,0 +1,16 @@
+time=2026-11-28T00:40:19+08:00
+role=review code=200 final=https://demo.77il.cn/wp-admin/admin.php?page=sakura-tools-files&t=queue version=1.30.0-beta-27
+  perms="permissions":{"execute":false,"users":false,"audit":false,"sync":false,"sanction":false}
+  cards="id":"files-queue" "id":"files-queue" "id":"" "id":"" "id":"" "id":"system" "id":"image" "id":"storage" "id":"files" "id":"zibll" "id":"settings" "id":"queue" "id":"" "id":"queue" "id":"execute"
+role=review_users code=200 final=https://demo.77il.cn/wp-admin/admin.php?page=sakura-tools-files&t=queue version=1.30.0-beta-27
+  perms="permissions":{"execute":false,"users":true,"audit":false,"sync":false,"sanction":false}
+  cards="id":"files-queue" "id":"files-queue" "id":"" "id":"" "id":"" "id":"system" "id":"image" "id":"storage" "id":"files" "id":"zibll" "id":"settings" "id":"queue" "id":"" "id":"queue" "id":"execute" "id":"users"
+role=users code=403 final=https://demo.77il.cn/wp-admin/admin.php?page=sakura-tools-files&t=queue version=
+  perms=
+  cards=
+role=audit code=403 final=https://demo.77il.cn/wp-admin/admin.php?page=sakura-tools-files&t=queue version=
+  perms=
+  cards=
+role=sync code=403 final=https://demo.77il.cn/wp-admin/admin.php?page=sakura-tools-files&t=queue version=
+  perms=
+  cards=

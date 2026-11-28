@@ -11,6 +11,8 @@ namespace Sakura\ImageOptimizer\Zibll;
 
 use Sakura\ImageOptimizer\Admin\Layout;
 use Sakura\ImageOptimizer\Admin\Shell;
+use Sakura\ImageOptimizer\Admin\Payload_Contract;
+use Sakura\ImageOptimizer\Admin\UI\Modal;
 use Sakura\ImageOptimizer\Admin\UI\Page;
 
 defined( 'ABSPATH' ) || exit;
@@ -49,17 +51,17 @@ final class Performance_Payload {
 		);
 		$strings = $this->strings();
 
+		$rest         = Payload_Contract::rest_for( rest_url( 'sakura-tools/v1/zibll/performance' ), self::PAGE );
+		$rest['warm'] = esc_url_raw( rest_url( 'sakura-tools/v1/zibll/performance/warm' ) );
+
 		return array(
 			'version' => defined( 'SAKURA_TOOLS_VERSION' ) ? (string) SAKURA_TOOLS_VERSION : '0',
 			'page'    => $page,
 			'head'    => Page::head_data( $page ),
 			'chrome'  => Shell::header_data( 'zibll', 'performance' ),
 			'cards'   => $this->cards( $enabled, $valid, $supported, $version, $state, $cache ),
-			'config'  => array(
-				'action'  => Admin_Module::ACTION,
-				'nonce'   => wp_create_nonce( Admin_Module::NONCE ),
-				'strings' => $strings,
-			),
+			'strings' => $strings,
+			'rest'    => $rest,
 		);
 	}
 
@@ -115,7 +117,6 @@ final class Performance_Payload {
 				'kicker'      => 'License',
 				'title'       => __( 'Zibll 授权缓存', 'sakura-imgopt' ),
 				'description' => __( '子比 8.8 起每个请求（含 wp-admin）都会跑一次授权校验：9.2 约 33 ms，其中大半是 OPcache 存不下的 eval。这里只缓存“已经真实通过”的结论。', 'sakura-imgopt' ),
-				'form'        => $this->form(),
 				'save'        => __( '保存并验证', 'sakura-imgopt' ),
 			),
 			'cache-status' => array(
@@ -158,22 +159,6 @@ final class Performance_Payload {
 	}
 
 	/**
-	 * Native options.php form description.
-	 *
-	 * @return array<string,string>
-	 */
-	private function form(): array {
-		return array(
-			'action'     => admin_url( 'options.php' ),
-			'group'      => Settings::GROUP,
-			'nonce'      => wp_create_nonce( Settings::GROUP . '-options' ),
-			'markers'    => 'option_fields',
-			'option'     => Settings::OPTION,
-			'markerCard' => Settings::CARD,
-		);
-	}
-
-	/**
 	 * Status table rows.
 	 *
 	 * @param array<string,mixed> $state     Cache payload.
@@ -188,6 +173,7 @@ final class Performance_Payload {
 		$sources      = array(
 			'admin_enable' => __( '保存时启用验证', 'sakura-imgopt' ),
 			'ajax_manual'  => __( '手动复验', 'sakura-imgopt' ),
+			'rest_manual'  => __( '手动复验', 'sakura-imgopt' ),
 			'cron'         => __( '每日复验', 'sakura-imgopt' ),
 			'manual'       => __( '手动验证', 'sakura-imgopt' ),
 		);
@@ -291,13 +277,42 @@ final class Performance_Payload {
 	}
 
 	/**
-	 * UI copy.
+	 * Shared Prompt copy for a successful save.
 	 *
 	 * @return array<string,string>
+	 */
+	public static function saved_notice(): array {
+		return array(
+			'tone'    => 'ok',
+			'kicker'  => 'LICENSE / SAVED',
+			'title'   => __( '设置已保存', 'sakura-imgopt' ),
+			'message' => __( '授权缓存设置已保存，状态卡已同步更新。', 'sakura-imgopt' ),
+		);
+	}
+
+	/**
+	 * Shared Prompt copy for a failed save.
+	 *
+	 * @return array<string,string>
+	 */
+	public static function failed_notice(): array {
+		return array(
+			'tone'    => 'bad',
+			'kicker'  => 'LICENSE / ERROR',
+			'title'   => __( '设置未保存', 'sakura-imgopt' ),
+			'message' => __( '保存失败，请稍后重试。', 'sakura-imgopt' ),
+		);
+	}
+
+	/**
+	 * UI copy.
+	 *
+	 * @return array<string,mixed>
 	 */
 	private function strings(): array {
 		return array(
 			'cacheSwitch'  => __( '启用授权缓存', 'sakura-imgopt' ),
+			'save'         => __( '保存更改', 'sakura-imgopt' ),
 			'revalidate'   => __( '重新验证', 'sakura-imgopt' ),
 			'checking'     => __( '正在验证…', 'sakura-imgopt' ),
 			'checked'      => __( '验证通过，缓存已刷新。', 'sakura-imgopt' ),
@@ -314,6 +329,12 @@ final class Performance_Payload {
 			'statusProject' => __( '项目', 'sakura-imgopt' ),
 			'statusValue'   => __( '当前值', 'sakura-imgopt' ),
 			'statusNote'   => __( '缓存与主题版本、站点地址、授权内容绑定；换域名、改授权或换主题都会让它自动失效。复验按上面设置的有效期排程，到期后自动重新预热。', 'sakura-imgopt' ),
+			'close'        => __( '关闭', 'sakura-imgopt' ),
+			'dismiss'      => __( '知道了', 'sakura-imgopt' ),
+			'closeIcon'    => Modal::close_icon(),
+			'mascot'       => Modal::mascot(),
+			'savedNotice'  => self::saved_notice(),
+			'failedNotice' => self::failed_notice(),
 		);
 	}
 }

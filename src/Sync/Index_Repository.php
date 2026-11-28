@@ -1381,11 +1381,12 @@ final class Index_Repository {
 		$token  = bin2hex( random_bytes( 16 ) );
 		$updated = $wpdb->query(
 			$wpdb->prepare(
-				"UPDATE {$this->jobs} SET state = 'running', lease_until = %s, claim_token = %s, updated_at = %s WHERE id = %d AND state = 'queued'",
+				"UPDATE {$this->jobs} SET state = 'running', lease_until = %s, claim_token = %s, updated_at = %s WHERE id = %d AND ( state = 'queued' OR ( state = 'running' AND lease_until < %s ) )",
 				gmdate( 'Y-m-d H:i:s', time() + self::JOB_LEASE_SECONDS ),
 				$token,
 				$this->now(),
-				$job_id
+				$job_id,
+				$this->now()
 			)
 		);
 		return 1 === (int) $updated ? $token : false;
@@ -2255,9 +2256,10 @@ final class Index_Repository {
 		$like = $wpdb->esc_like( $stem ) . '.%';
 		$rows = $wpdb->get_col(
 			$wpdb->prepare(
-				"SELECT object_key FROM {$this->index} WHERE target_hash=%s AND object_key LIKE %s", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name from Schema.
+				"SELECT object_key FROM {$this->index} WHERE target_hash=%s AND object_key LIKE %s ORDER BY object_key ASC LIMIT %d", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Table name from Schema.
 				$bucket,
-				$like
+				$like,
+				500
 			)
 		);
 

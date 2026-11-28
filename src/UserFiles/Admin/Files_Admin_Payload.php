@@ -15,7 +15,7 @@ namespace Nboke\UserFiles\Admin;
 
 use Nboke\UserFiles\Capabilities;
 use Sakura\ImageOptimizer\Admin\Layout;
-use Sakura\ImageOptimizer\Admin\Registry;
+use Sakura\ImageOptimizer\Admin\Payload_Contract;
 use Sakura\ImageOptimizer\Admin\Shell;
 use Sakura\ImageOptimizer\Admin\UI;
 
@@ -31,7 +31,7 @@ final class Files_Admin_Payload {
 	 *
 	 * @var array<int, string>
 	 */
-	private const PAGES = array( 'files-users', 'files-queue', 'files-log' );
+	private const PAGES = array( 'files-queue', 'files-log' );
 
 	/**
 	 * Build one page document.
@@ -40,10 +40,17 @@ final class Files_Admin_Payload {
 	 * @return array<string,mixed>
 	 */
 	public function build( string $page ): array {
-		$page = in_array( $page, self::PAGES, true ) ? $page : 'files-users';
+		$page = in_array( $page, self::PAGES, true ) ? $page : 'files-queue';
 		$args = $this->page_args( $page );
 		$data    = ( new Page() )->page_data( $page );
 		$strings = isset( $data['strings'] ) && is_array( $data['strings'] ) ? $data['strings'] : array();
+
+		if ( 'files-queue' === $page ) {
+			$users = ( new Page() )->page_data( 'files-users' );
+			$strings = array_merge( isset( $users['strings'] ) && is_array( $users['strings'] ) ? $users['strings'] : array(), $strings );
+			$data['defaultQuotaMb'] = (int) ( $users['defaultQuotaMb'] ?? 0 );
+		}
+
 		$strings['refresh'] = __( '刷新', 'sakura-imgopt' );
 		$strings['userColumn'] = __( '用户', 'sakura-imgopt' );
 		$strings['usageColumn'] = __( '容量使用', 'sakura-imgopt' );
@@ -61,7 +68,7 @@ final class Files_Admin_Payload {
 		$strings['phrasePlaceholder'] = __( '输入“删除”', 'sakura-imgopt' );
 		$strings['deleteHint'] = __( '执行中可以停止，但已经开始的对象无法撤回。', 'sakura-imgopt' );
 		$strings['saveCaps'] = __( '保存权限', 'sakura-imgopt' );
-		$strings['capsNote'] = __( '「删」仍要同时具备 WordPress 的 delete_post 权限；管理员一栏锁死不可关闭；⚠ 表示实际值与配置值不一致。', 'sakura-imgopt' );
+		$strings['capsNote'] = __( '「删」还需 WordPress 的 delete_post 权限；「户 / 志 / 同」需单独授予；管理员始终开启；⚠ 表示实际值与配置值不一致。', 'sakura-imgopt' );
 		$strings['reasonLabel'] = __( '理由', 'sakura-imgopt' );
 		$strings['searchUser'] = __( '搜索用户', 'sakura-imgopt' );
 		$strings['filterLabel'] = __( '筛选当前页', 'sakura-imgopt' );
@@ -69,6 +76,36 @@ final class Files_Admin_Payload {
 		$strings['capsDriftOff'] = __( '配置里有，但实际未生效：可能被其它插件或过滤器拒绝。', 'sakura-imgopt' );
 		$strings['capsLocked'] = __( '管理员直删不受此页控制，始终开启。', 'sakura-imgopt' );
 		$strings['capsFixed'] = __( '（固定开启）', 'sakura-imgopt' );
+		$strings['capsFailed'] = __( '权限矩阵保存失败，请稍后重试。', 'sakura-imgopt' );
+		$strings['detail'] = __( '详情', 'sakura-imgopt' );
+		$strings['reviewDetail'] = __( '审核详情', 'sakura-imgopt' );
+		$strings['closeDetail'] = __( '关闭详情', 'sakura-imgopt' );
+		$strings['attachments'] = __( '附件', 'sakura-imgopt' );
+		$strings['noAttachments'] = __( '没有可预览的附件。', 'sakura-imgopt' );
+		$strings['openGallery'] = __( '查看大图', 'sakura-imgopt' );
+		$strings['applicant'] = __( '申请人', 'sakura-imgopt' );
+		$strings['userContext'] = __( '用户与容量', 'sakura-imgopt' );
+		$strings['userContextFailed'] = __( '未取到该用户的容量信息。', 'sakura-imgopt' );
+		$strings['usage'] = __( '容量使用', 'sakura-imgopt' );
+		$strings['addToExecute'] = __( '加入执行', 'sakura-imgopt' );
+		$strings['alreadySelected'] = __( '已在执行列表', 'sakura-imgopt' );
+		$strings['capsCollapse'] = __( '权限矩阵（低频）', 'sakura-imgopt' );
+		$strings['capsCollapseHint'] = __( '展开后修改谁能申请、审核、直接删除与处罚。', 'sakura-imgopt' );
+		$strings['capsLegendTitle'] = __( '权限含义', 'sakura-imgopt' );
+		$strings['drawerTitle'] = __( '审核详情', 'sakura-imgopt' );
+		$strings['attachmentsCount'] = __( '{count} 个附件', 'sakura-imgopt' );
+		$strings['attachmentsEmpty'] = __( '没有可预览的附件。', 'sakura-imgopt' );
+		$strings['applicantContext'] = __( '申请人', 'sakura-imgopt' );
+		$strings['applicantMissing'] = __( '未取到该用户的容量信息。', 'sakura-imgopt' );
+		$strings['quota'] = __( '容量', 'sakura-imgopt' );
+		$strings['used'] = __( '已用', 'sakura-imgopt' );
+		$strings['reserved'] = __( '预留', 'sakura-imgopt' );
+		$strings['files'] = __( '文件', 'sakura-imgopt' );
+		$strings['folders'] = __( '文件夹', 'sakura-imgopt' );
+		$strings['pending'] = __( '待审申请', 'sakura-imgopt' );
+		$strings['addedToExecute'] = __( '已加入执行列表', 'sakura-imgopt' );
+		$strings['capsSummary'] = __( '权限矩阵（低频）', 'sakura-imgopt' );
+		$strings['viewUsersJump'] = __( '跳到用户容量卡', 'sakura-imgopt' );
 		$strings['perPage'] = __( '每页', 'sakura-imgopt' );
 		$strings['prevPage'] = __( '上一页', 'sakura-imgopt' );
 		$strings['nextPage'] = __( '下一页', 'sakura-imgopt' );
@@ -79,22 +116,19 @@ final class Files_Admin_Payload {
 			'head'    => UI\Page::head_data( $args ),
 			'chrome'  => Shell::header_data( 'files', substr( $page, 6 ) ),
 			'cards'   => $this->cards( $page ),
-			'config'  => array(
-				'restUrl' => esc_url_raw( rest_url( 'sufm/v1/' ) ),
-				'nonce'   => wp_create_nonce( 'wp_rest' ),
-				'strings' => $strings,
-				'page'    => $page,
+			'strings' => $strings,
+			'rest'    => Payload_Contract::rest_for( rest_url( 'sufm/v1/' ), $page ),
+			'data'    => array(
 				'defaultQuotaMb' => (int) ( $data['defaultQuotaMb'] ?? 0 ),
-				'queueStatuses' => $this->queue_statuses(),
-				'logReasons'    => $this->log_reasons(),
-				'caps'          => $this->caps_matrix(),
-				'capsForm'      => array(
-					'action'      => admin_url( 'admin-post.php' ),
-					'actionName'  => Capability_Matrix::ACTION,
-					'redirectTo'  => Registry::url( 'files', 'queue' ),
-					'nonce'       => wp_create_nonce( Capability_Matrix::NONCE ),
-					'notice'      => $this->caps_notice(),
-				),
+				'queueStatuses'  => $this->queue_statuses(),
+				'logReasons'     => $this->log_reasons(),
+				'permissions'    => 'files-queue' === $page ? array(
+					'execute'  => Capabilities::can_execute(),
+					'users'    => Capabilities::can_manage_users(),
+					'audit'    => Capabilities::can_view_audit(),
+					'sync'     => Capabilities::can_manage_sync(),
+					'sanction' => current_user_can( Capabilities::SANCTION_USERS ),
+				) : array(),
 			),
 		);
 	}
@@ -108,8 +142,7 @@ final class Files_Admin_Payload {
 	private function page_args( string $page ): array {
 		$data  = ( new Page() )->page_data( $page );
 		$ledes = array(
-			'files-users' => __( '逐个用户查看空间占用、文件数与单独容量；留空表示使用默认容量。', 'sakura-imgopt' ),
-			'files-queue' => __( '用户提交删除申请后，管理员在这里审核；批准不等于删除，需要在下方勾选范围并确认后才会真正执行。', 'sakura-imgopt' ),
+			'files-queue' => __( '审核删除申请、查看附件并直接处罚违规用户；批准不等于删除，勾选已批准的范围并确认后才会真正执行。', 'sakura-imgopt' ),
 			'files-log'   => __( '只记录动作与结果，不记录文件路径、对象键或凭证。', 'sakura-imgopt' ),
 		);
 		$statuses     = array(
@@ -143,7 +176,7 @@ final class Files_Admin_Payload {
 			'module'  => 'files',
 			'tab'     => substr( $page, 6 ),
 			'eyebrow' => 'USER FILE SPACE / ' . ( defined( 'SAKURA_TOOLS_VERSION' ) ? SAKURA_TOOLS_VERSION : '' ),
-			'title'   => __( '文件管理', 'sakura-imgopt' ),
+			'title'   => 'files-queue' === $page ? __( '审核与处置', 'sakura-imgopt' ) : ( 'files-log' === $page ? __( '最近操作', 'sakura-imgopt' ) : __( '文件管理', 'sakura-imgopt' ) ),
 			'lede'    => $ledes[ $page ],
 			'status'  => $statuses[ $page ],
 			'actions' => array(
@@ -168,18 +201,6 @@ final class Files_Admin_Payload {
 	 * @return array<int,array<string,mixed>>
 	 */
 	private function cards( string $page ): array {
-		if ( 'files-users' === $page ) {
-			return array(
-				array(
-					'id'          => 'users',
-					'kicker'      => 'QUOTA',
-					'title'       => __( '用户容量', 'sakura-imgopt' ),
-					'description' => __( '留空表示使用默认容量；已用容量包含文件空间上传与已纳入账本的媒体库文件。', 'sakura-imgopt' ),
-					'placement'   => Layout::card( $page, 'users' ) ?? array( 1, 1, 12 ),
-				),
-			);
-		}
-
 		if ( 'files-log' === $page ) {
 			return array(
 				array(
@@ -192,30 +213,65 @@ final class Files_Admin_Payload {
 			);
 		}
 
-		return array(
+		$cards = array(
 			array(
 				'id'          => 'queue',
 				'kicker'      => 'REVIEW',
 				'title'       => __( '删除申请队列', 'sakura-imgopt' ),
-				'description' => __( '批准只会改变申请状态；驳回或撤销会立即解除对象锁。', 'sakura-imgopt' ),
+				'description' => __( '点“详情”查看附件、用户容量并直接处罚；批准只改变申请状态，驳回或撤销会立即解除对象锁。', 'sakura-imgopt' ),
 				'wide'        => true,
 				'placement'   => Layout::card( $page, 'queue' ) ?? array( 1, 1, 12 ),
 			),
 			array(
 				'id'          => 'execute',
 				'kicker'      => 'EXECUTE',
-				'title'       => __( '执行删除', 'sakura-imgopt' ),
+				'title'       => __( '待执行删除', 'sakura-imgopt' ),
 				'description' => __( '只能选择已批准的申请；确认前会再次核对范围哈希。', 'sakura-imgopt' ),
-				'placement'   => Layout::card( $page, 'execute' ) ?? array( 2, 1, 6 ),
+				'placement'   => Layout::card( $page, 'execute' ) ?? array( 2, 1, 12 ),
+			),
+			array(
+				'id'          => 'users',
+				'kicker'      => 'QUOTA',
+				'title'       => __( '用户容量', 'sakura-imgopt' ),
+				'description' => __( '留空表示使用默认容量；已用容量包含文件空间上传与已纳入账本的媒体库文件。', 'sakura-imgopt' ),
+				'placement'   => Layout::card( $page, 'users' ) ?? array( 3, 1, 12 ),
 			),
 			array(
 				'id'          => 'capability-matrix',
 				'kicker'      => 'ACCESS',
-				'title'       => __( '权限矩阵', 'sakura-imgopt' ),
-				'description' => __( '决定谁能直接删除、谁只能提交申请。只改本插件的能力，不动 WordPress 原生的 delete_posts / delete_others_posts。', 'sakura-imgopt' ),
-				'placement'   => Layout::card( $page, 'capability-matrix' ) ?? array( 2, 7, 6 ),
+				'title'       => __( '权限设置', 'sakura-imgopt' ),
+				'description' => __( '决定谁能直接删除、谁只能提交申请。默认折叠，只改本插件的能力。', 'sakura-imgopt' ),
+				'placement'   => Layout::card( $page, 'capability-matrix' ) ?? array( 4, 1, 12 ),
+				'caps'        => $this->caps_matrix(),
 			),
 		);
+
+		$hidden = array();
+
+		if ( ! current_user_can( 'manage_options' ) ) {
+			$hidden[] = 'capability-matrix';
+		}
+
+		// The users card reads the whole-site user list and edits quotas, so a
+		// reviewer without MANAGE_USERS must not see a card whose first request
+		// would be rejected. Same rule for the matrix above: hide, do not half-
+		// render a control the server will deny.
+		if ( ! current_user_can( Capabilities::MANAGE_USERS ) ) {
+			$hidden[] = 'users';
+		}
+
+		if ( $hidden ) {
+			$cards = array_values(
+				array_filter(
+					$cards,
+					static function ( $card ) use ( $hidden ) {
+						return ! in_array( (string) $card['id'], $hidden, true );
+					}
+				)
+			);
+		}
+
+		return $cards;
 	}
 
 	/**
@@ -254,7 +310,7 @@ final class Files_Admin_Payload {
 	 *
 	 * @return array<string,mixed>
 	 */
-	private function caps_matrix(): array {
+	public function caps_matrix(): array {
 		$caps  = Capability_Matrix::caps();
 		$roles = Capability_Matrix::roles();
 		$out   = array();
@@ -303,28 +359,4 @@ final class Files_Admin_Payload {
 		);
 	}
 
-	/**
-	 * Result of the last native capability save.
-	 *
-	 * @return array{tone:string,text:string}|null
-	 */
-	private function caps_notice(): ?array {
-		$saved = isset( $_GET['sufm_caps'] ) ? sanitize_key( (string) wp_unslash( $_GET['sufm_caps'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only notice flag.
-
-		if ( 'saved' === $saved ) {
-			return array(
-				'tone' => 'ok',
-				'text' => __( '权限已保存，立即生效；变更已写入审计（cap_change）。', 'sakura-imgopt' ),
-			);
-		}
-
-		if ( 'same' === $saved ) {
-			return array(
-				'tone' => 'info',
-				'text' => __( '没有改动，权限保持原样。', 'sakura-imgopt' ),
-			);
-		}
-
-		return null;
-	}
 }

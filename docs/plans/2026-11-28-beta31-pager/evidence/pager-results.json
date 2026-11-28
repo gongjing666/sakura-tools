@@ -1,0 +1,72 @@
+{
+  "date": "2026-11-28",
+  "version": "1.30.0-beta-31",
+  "change": "shared files Pager current page uses span.pagination__link.is-current + aria-current=page",
+  "desktop_1440": {
+    "pageScrollWidth": 1440,
+    "current": {
+      "text": "1 / 1",
+      "tag": "SPAN",
+      "ariaCurrent": "page",
+      "width": 53,
+      "height": 36,
+      "color": "rgb(255, 255, 255)",
+      "backgroundImage": "linear-gradient(140deg, rgb(210,58,102), rgb(199,51,91) 48%, rgb(176,42,79))"
+    },
+    "sizes": {
+      "25": true,
+      "50": false,
+      "100": false
+    }
+  },
+  "mobile_390": {
+    "pageScrollWidth": 390,
+    "current": {
+      "text": "1 / 1",
+      "tag": "SPAN",
+      "ariaCurrent": "page",
+      "width": 49,
+      "height": 30,
+      "color": "rgb(255, 255, 255)",
+      "backgroundImage": "linear-gradient(140deg, rgb(210,58,102), rgb(199,51,91) 48%, rgb(176,42,79))"
+    },
+    "sizes": {
+      "25": true,
+      "50": false,
+      "100": false
+    }
+  },
+  "interactions": {
+    "perPage50": true,
+    "perPage25": true,
+    "prevDisabled": true,
+    "nextDisabled": true
+  },
+  "console": {
+    "logs": 3,
+    "errors": 0,
+    "warnings": 0
+  },
+  "gates": {
+    "tests": 996,
+    "assertions": 4565,
+    "skipped": 5,
+    "phpstan": "OK",
+    "phpcsStrict": 0,
+    "compat": 0,
+    "nodeCheck": true,
+    "diffCheck": 0
+  },
+  "bundle": {
+    "bytes": 493357,
+    "sha256": "4f8565046314fa80aeb0724192bceee5616a11d519b8c95fa63d1f26136df58b"
+  },
+  "cleanup": {
+    "users": [
+      "yexu"
+    ],
+    "requests": 0,
+    "items": 0,
+    "debugLogLines": 165
+  }
+}

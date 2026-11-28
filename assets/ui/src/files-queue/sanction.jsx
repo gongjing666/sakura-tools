@@ -17,10 +17,16 @@ function Field( { id, label, hint, children } ) {
  * The sanction dialog keeps the legacy decision rules: the server owns the
  * ladder and the closed reason list, while a permanent upload ban requires
  * typing the target login name.
+ *
+ * It is a native <dialog>, so the browser owns the focus trap. Focus return
+ * is explicit: React unmounts the dialog before the platform can hand focus
+ * back, which left document.activeElement on <body>. The opener is recorded
+ * on mount and restored on every close path, falling back to the card title.
  */
-export default function SanctionDialog( { user, config, onClose, onSaved } ) {
-	const strings = config.strings || {};
+export default function SanctionDialog( { user, rest, strings, onClose, onSaved, returnFocus } ) {
 	const dialogRef = useRef( null );
+	const opener = useRef( null );
+	const fallback = useRef( null );
 	const [ data, setData ] = useState( null );
 	const [ loading, setLoading ] = useState( true );
 	const [ busy, setBusy ] = useState( false );
@@ -30,11 +36,11 @@ export default function SanctionDialog( { user, config, onClose, onSaved } ) {
 	useEffect( () => {
 		const controller = new AbortController();
 
-		apiGet( config, 'admin/users/' + encodeURIComponent( user.id ) + '/sanction', {}, controller.signal )
+		apiGet( rest, 'admin/users/' + encodeURIComponent( user.id ) + '/sanction', {}, controller.signal )
 			.then( ( response ) => {
 				if ( ! response.can_sanction ) {
 					toast( strings.sanctionAdmin || '', 'bad' );
-					onClose();
+					close();
 					return;
 				}
 
@@ -61,8 +67,12 @@ export default function SanctionDialog( { user, config, onClose, onSaved } ) {
 				setLoading( false );
 			} )
 			.catch( ( error ) => {
+				if ( error && 'AbortError' === error.name ) {
+					return;
+				}
+
 				toast( errorText( error, strings.sanctionLoadFailed ), 'bad' );
-				onClose();
+				close();
 			} );
 
 		return () => controller.abort();
@@ -70,6 +80,20 @@ export default function SanctionDialog( { user, config, onClose, onSaved } ) {
 
 	useEffect( () => {
 		const dialog = dialogRef.current;
+		const trigger = ( returnFocus && returnFocus.current ) || document.activeElement;
+
+		opener.current = trigger && trigger !== document.body ? trigger : null;
+
+		const card = trigger && trigger.closest ? trigger.closest( '.card' ) : null;
+		const title = card ? card.querySelector( '.card__title' ) : document.querySelector( '[data-sakura-return-target]' );
+
+		// A heading is not focusable by default; the contract's fallback target
+		// must accept programmatic focus when the opener is gone.
+		if ( title && ! title.hasAttribute( 'tabindex' ) ) {
+			title.setAttribute( 'tabindex', '-1' );
+		}
+
+		fallback.current = title || null;
 
 		if ( dialog && ! dialog.open ) {
 			dialog.showModal();
@@ -82,13 +106,40 @@ export default function SanctionDialog( { user, config, onClose, onSaved } ) {
 		};
 	}, [] );
 
+	const restoreFocus = () => {
+		const trigger = opener.current;
+		const title = fallback.current;
+
+		opener.current = null;
+		fallback.current = null;
+
+		window.setTimeout( () => {
+			if ( trigger && document.contains( trigger ) ) {
+				trigger.focus( { preventScroll: true } );
+				return;
+			}
+
+			if ( title && document.contains( title ) ) {
+				title.focus( { preventScroll: true } );
+			}
+		}, 0 );
+	};
+
 	const close = () => {
 		if ( settled.current ) {
 			return;
 		}
 
 		settled.current = true;
+
+		// Close while the element is still attached so the native focus return
+		// runs; the timer then restores focus even if React unmounts first.
+		if ( dialogRef.current && dialogRef.current.open ) {
+			dialogRef.current.close();
+		}
+
 		onClose();
+		restoreFocus();
 	};
 
 	const types = ( data && data.types ) || [];
@@ -117,7 +168,7 @@ export default function SanctionDialog( { user, config, onClose, onSaved } ) {
 		}
 
 		setBusy( true );
-		apiPost( config, 'admin/users/' + encodeURIComponent( user.id ) + '/sanction', body )
+		apiPost( rest, 'admin/users/' + encodeURIComponent( user.id ) + '/sanction', body )
 			.then( () => {
 				toast( fill( strings.sanctionApplied || '', { name: user.name || user.login } ), 'ok' );
 				onSaved();
@@ -145,7 +196,7 @@ export default function SanctionDialog( { user, config, onClose, onSaved } ) {
 			}
 
 			setBusy( true );
-			apiPost( config, 'admin/sanctions/' + encodeURIComponent( data.active.id ) + '/revoke', {} )
+			apiPost( rest, 'admin/sanctions/' + encodeURIComponent( data.active.id ) + '/revoke', {} )
 				.then( () => {
 					toast( fill( strings.sanctionRevoked || '', { name: user.name || user.login } ), 'ok' );
 					onSaved();

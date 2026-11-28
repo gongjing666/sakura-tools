@@ -1,0 +1,44 @@
+=== timestamp ===
+2026-11-28T00:40:15+08:00
+=== plugin header ===
+ * Version:     1.30.0-beta-27
+=== plugin list ===
+name,status,version
+object-cache-pro,active,1.25.6
+query-monitor,inactive,4.1.1
+sakura-tools,active,1.30.0-beta-27
+object-cache.php,dropin,
+=== option version ===
+1.30.0
+=== bundle ===
+3b946d61fbfaa267c2754aca89604af73e8bed0ae8c014c7b4982f198d17fc1e  /www/wwwroot/demo.77il.cn/wp-content/plugins/sakura-tools/assets/ui/dist/admin-app.js
+www:www 644 489780
+=== queue counts ===
+t	n
+requests	0
+items	0
+
+=== a7a8 users ===
+ID,user_login,roles
+9,a7a8_audit,subscriber
+7,a7a8_delete,subscriber
+6,a7a8_review,subscriber
+12,a7a8_review_audit,subscriber
+13,a7a8_review_sync,subscriber
+11,a7a8_review_users,subscriber
+10,a7a8_sync,subscriber
+14,a7a8_target,subscriber
+8,a7a8_users,subscriber
+=== disable_admin ===
+value=0
+=== qm ===
+inactive
+=== debug.log ===
+165 /www/wwwroot/demo.77il.cn/wp-content/debug.log
+417da014f3ab49979b56a3cfb825afe7  /www/wwwroot/demo.77il.cn/wp-content/debug.log
+=== sync state ===
+{"state":"done","cursor":86,"total":11,"scanned":11,"updated":0,"owned":11,"imported":0,"started":1795759158,"finished":1795759158,"last":"\u626b\u63cf 11 \u4e2a\u9644\u4ef6\uff0c\u7eb3\u5165 0 \u4e2a\u5a92\u4f53\u5e93\u6587\u4ef6\uff0c\u66f4\u65b0 0 \u4e2a\u6587\u4ef6\uff0c\u4fee\u6b63 0 \u4e2a\u8d26\u672c"}
+=== cap split ===
+1
+=== admin caps ===
+switch_themes edit_themes activate_plugins edit_plugins edit_users edit_files manage_options moderate_comments manage_categories manage_links upload_files import unfiltered_html edit_posts edit_others_posts edit_published_posts publish_posts edit_pages read level_10 level_9 level_8 level_7 level_6 level_5 level_4 level_3 level_2 level_1 level_0 edit_others_pages edit_published_pages publish_pages delete_pages delete_others_pages delete_published_pages delete_posts delete_others_posts delete_published_posts delete_private_posts edit_private_posts read_private_posts delete_private_pages edit_private_pages read_private_pages delete_users create_users unfiltered_upload edit_dashboard update_plugins delete_plugins install_plugins update_themes install_themes update_core list_users remove_users promote_users edit_theme_options delete_themes export sufm_manage_media_folders sufm_transfer_media_files sufm_admin_sanction_users sufm_request_delete_own_files sufm_admin_review_deletions sufm_admin_delete_files sufm_manage_own_files sufm_manage_users sufm_view_audit sufm_manage_sync administrator

@@ -64,7 +64,6 @@ final class AppManifestTest extends TestCase {
 				'storage-rewrite',
 				'storage-cost',
 				'files-settings',
-				'files-users',
 				'files-queue',
 				'files-log',
 				'files-zibll',
@@ -133,11 +132,11 @@ final class AppManifestTest extends TestCase {
 		self::assertStringContainsString( '/pages', (string) $manifest['endpoint'] );
 		self::assertNotSame( '', (string) $manifest['nonce'] );
 		/*
-		 * Fourteen, not sixteen: the two zibll tabs are gated on the theme, and the
+		 * Thirteen, not fifteen: the two zibll tabs are gated on the theme, and the
 		 * shim has no theme bridge, so `enabled` is false for them — which is the
 		 * behaviour this asserts: a blocked tab is not fetchable.
 		 */
-		self::assertCount( 14, $manifest['routes'] );
+		self::assertCount( 13, $manifest['routes'] );
 		self::assertArrayNotHasKey( 'files-zibll', $manifest['routes'] );
 		self::assertArrayNotHasKey( 'zibll-performance', $manifest['routes'] );
 		self::assertSame( Registry::url( 'image', 'thumb' ), $manifest['routes']['image-thumb']['url'] );

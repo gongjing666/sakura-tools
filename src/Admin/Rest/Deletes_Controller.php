@@ -13,6 +13,7 @@ declare( strict_types=1 );
 
 namespace Sakura\ImageOptimizer\Admin\Rest;
 
+use Sakura\ImageOptimizer\Admin\App_Manifest;
 use Sakura\ImageOptimizer\Admin\Deletes_Payload;
 use Sakura\ImageOptimizer\S3\Delete_Jobs;
 use WP_Error;
@@ -33,6 +34,15 @@ final class Deletes_Controller {
 	public const NS = 'sakura-tools/v1';
 
 	/**
+	 * Permission callback: the same tab gate as the page.
+	 *
+	 * @return bool
+	 */
+	public static function can_manage(): bool {
+		return App_Manifest::can_view( 'storage-deletes' );
+	}
+
+	/**
 	 * Register every route this controller owns.
 	 */
 	public static function register(): void {
@@ -44,7 +54,7 @@ final class Deletes_Controller {
 			array(
 				'methods'             => WP_REST_Server::READABLE,
 				'callback'            => array( self::class, 'read' ),
-				'permission_callback' => array( Storage_Controller::class, 'can_manage' ),
+				'permission_callback' => array( self::class, 'can_manage' ),
 				'args'                => $args,
 			)
 		);
@@ -55,7 +65,7 @@ final class Deletes_Controller {
 			array(
 				'methods'             => WP_REST_Server::CREATABLE,
 				'callback'            => array( self::class, 'dispatch' ),
-				'permission_callback' => array( Storage_Controller::class, 'can_manage' ),
+				'permission_callback' => array( self::class, 'can_manage' ),
 			)
 		);
 
@@ -65,7 +75,7 @@ final class Deletes_Controller {
 			array(
 				'methods'             => WP_REST_Server::CREATABLE,
 				'callback'            => array( self::class, 'mutate' ),
-				'permission_callback' => array( Storage_Controller::class, 'can_manage' ),
+				'permission_callback' => array( self::class, 'can_manage' ),
 				'args'                => array_merge(
 					$args,
 					array(

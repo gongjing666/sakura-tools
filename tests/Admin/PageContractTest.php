@@ -13,14 +13,14 @@ namespace Sakura\ImageOptimizer\Tests;
 
 use PHPUnit\Framework\TestCase;
 use Sakura\ImageOptimizer\Admin\App_Manifest;
+use Sakura\ImageOptimizer\Admin\Layout;
 use Sakura\ImageOptimizer\Admin\Payload_Contract;
 
 /**
  * Every allowlisted route must return the six-key payload.
  *
- * The six pages outside this round's scope (file space and the Zibll tabs)
- * are enumerated but only checked for `page` / `head` / `cards`: they still
- * carry `config` and have no `rest` block until their own migration.
+ * The current manifest contains all 15 routes. Each route is checked for the
+ * full payload contract, ordered cards, layout registration, and REST refresh.
  */
 final class PageContractTest extends TestCase {
 
@@ -40,20 +40,11 @@ final class PageContractTest extends TestCase {
 		'storage-deletes',
 		'storage-rewrite',
 		'storage-cost',
-	);
-
-	/**
-	 * Pages still on the legacy payload shape.
-	 *
-	 * @var array<int,string>
-	 */
-	private const LEGACY = array(
 		'files-settings',
-		'files-users',
 		'files-queue',
 		'files-log',
-		'files-zibll',
 		'zibll-performance',
+		'files-zibll',
 	);
 
 	/**
@@ -94,14 +85,14 @@ final class PageContractTest extends TestCase {
 	}
 
 	/**
-	 * Every route on the allowlist is inspected; the ten migrated pages pass.
+	 * Every route on the allowlist is inspected; all fifteen pages pass.
 	 *
 	 * @return void
 	 */
 	public function test_every_route_meets_the_page_contract(): void {
 		$routes = App_Manifest::routes();
 
-		self::assertCount( 16, $routes );
+		self::assertCount( 15, $routes );
 
 		foreach ( array_keys( $routes ) as $page ) {
 			try {
@@ -115,13 +106,7 @@ final class PageContractTest extends TestCase {
 
 			self::assertIsArray( $raw, $page . ': no payload' );
 
-			if ( in_array( $page, self::LEGACY, true ) ) {
-				foreach ( array( 'page', 'head', 'cards' ) as $required ) {
-					self::assertArrayHasKey( $required, $raw, $page . ': missing ' . $required );
-				}
-			} else {
-				self::assertSame( array(), Payload_Contract::missing( $raw ), $page . ': missing ' . implode( ',', Payload_Contract::missing( $raw ) ) );
-			}
+			self::assertSame( array(), Payload_Contract::missing( $raw ), $page . ': missing ' . implode( ',', Payload_Contract::missing( $raw ) ) );
 
 			$cards = Payload_Contract::cards( $raw['cards'] ?? array() );
 			self::assertNotEmpty( $cards, $page . ': cards must be a non-empty list' );
@@ -130,9 +115,13 @@ final class PageContractTest extends TestCase {
 				self::assertArrayHasKey( 'id', $card, $page . ': every card needs an id' );
 			}
 
-			if ( ! in_array( $page, self::STRICT, true ) ) {
-				continue;
-			}
+			$layout = Layout::layout_for_page( (string) $page );
+			self::assertArrayHasKey( $layout, Layout::PAGES, $page . ': layout not registered' );
+			self::assertSame(
+				array_values( Layout::PAGES[ $layout ]['order'] ),
+				array_map( static fn( array $card ): string => (string) $card['id'], $cards ),
+				$page . ': cards must follow Layout order'
+			);
 
 			self::assertSame( array(), Payload_Contract::stray_keys( $raw ), $page . ': stray top-level ' . implode( ',', Payload_Contract::stray_keys( $raw ) ) );
 			self::assertIsArray( $raw['strings'], $page . ': strings' );

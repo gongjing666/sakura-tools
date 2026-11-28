@@ -4,7 +4,7 @@ Tags: image optimization, webp, avif, imagick, media library
 Requires at least: 6.4
 Tested up to: 7.1.5
 Requires PHP: 8.2
-Stable tag: 1.30.0
+Stable tag: 1.30.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -79,6 +79,16 @@ Access Key 和 Secret 会加密后存进数据库，页面和源码都不会显�
 插件目前没有接管这个跳转。等出现「既要防直链、又要保留购买校验」的需求时再研发，方向是在主题之前拦截下载请求，由插件代理输出或签发短时有效的预签名地址；若暂时需要这层保护，请关闭「上传后删除本地文件」，让文件保留在本地。
 
 == Changelog ==
+
+= 1.30.1 =
+
+* 新增：**后台权限拆分（A7）**——用户/容量管理、审计查看、容量同步各自使用 `sufm_manage_users` / `sufm_view_audit` / `sufm_manage_sync`，不再借用删除权限；REST 与页签按页面能力校验，旧站点升级时只给管理员一次性补权，其他角色仍由权限矩阵授予。
+* 调整：**文件空间用户列表并入「审核与处置」页**——移除独立 `files-users` 路由，用户容量、搜索、分页与处罚入口在队列页统一呈现；移动端改为独立紧凑用户卡，桌面端保留整行表格。
+* 调整：**后台视觉统一**——能力矩阵整行布局、粘性首列与图例；审核/队列卡片重排；共享分页当前页统一；粉色实心按钮改为 `#F585AC → #FFD6E5` 樱花淡粉渐变 + 白字（危险按钮仍砖红）。
+* 调整：**Zibll 性能页写路径迁到 REST**——保存、手动复验与状态刷新不再走 `options.php` / `wp_ajax_`，统一用页面契约的 `rest`；状态卡与共享提示同步更新。
+* 修复：REST 处罚 `days` 负数可绕过永久确认；卡片数组与非标量输入（`*_mb`、Zibll/Space 设置）加边界校验；审核队列批量聚合与空间卡 option 锁的一致性修复。
+* 测试：新增权限拆分、页签门、队列汇总、处罚天数、卡片标量输入、设置保存、空间卡锁等回归；基线 996 tests / 4565 assertions / 5 skipped。
+* 文档：同步 03/10/12 的 UI 规则与 14 的页面契约细节，更新 AGENTS 基线与 1.30.1 发布记录。
 
 = 1.30.0 =
 

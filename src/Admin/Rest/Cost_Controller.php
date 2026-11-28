@@ -52,12 +52,12 @@ final class Cost_Controller {
 	}
 
 	/**
-	 * Permission callback: manage_options plus the same tab gate as the page.
+	 * Permission callback: the same tab gate as the page.
 	 *
 	 * @return true|WP_Error
 	 */
 	public static function can_manage() {
-		if ( ! current_user_can( 'manage_options' ) || ! App_Manifest::can_view( self::PAGE ) ) {
+		if ( ! App_Manifest::can_view( self::PAGE ) ) {
 			return new WP_Error(
 				'rest_forbidden',
 				__( '权限不足。', 'sakura-imgopt' ),

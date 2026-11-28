@@ -9,6 +9,7 @@ declare( strict_types=1 );
 
 namespace Sakura\ImageOptimizer\Admin\Rest;
 
+use Sakura\ImageOptimizer\Admin\App_Manifest;
 use Sakura\ImageOptimizer\S3\Alerting;
 use Sakura\ImageOptimizer\S3\Prometheus;
 use WP_Error;
@@ -212,7 +213,7 @@ final class Storage_Monitoring_Controller {
 	 * @return bool
 	 */
 	public static function can_manage(): bool {
-		return current_user_can( 'manage_options' );
+		return App_Manifest::can_view( 'storage-connection' );
 	}
 
 	/**

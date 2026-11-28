@@ -1,9 +1,9 @@
 # 12 React 代码规范
 
-后台的 React 层（1.29.0 起 16 个后台页面的**外壳与内容区都由 React 拥有**：外壳 `hydrateRoot` 接管 PHP 打印的首帧标记，内容区 `createRoot`）怎么写。**先读 [03-后台UI](03-后台UI.md) §9.3 的分工表**——哪块归 PHP、哪块归 React 由那张表定；本篇只讲 React 这一侧怎么写。**本篇管写法，不管视觉**——样式规则在 [03-后台UI](03-后台UI.md)，资源加载在 [10-静态资源手册](10-静态资源手册.md)。
+后台的 React 层（迁移完成时 16 个、当前 15 个后台页面的**外壳与内容区都由 React 拥有**：外壳 `hydrateRoot` 接管 PHP 打印的首帧标记，内容区 `createRoot`）怎么写。**先读 [03-后台UI](03-后台UI.md) §9.3 的分工表**——哪块归 PHP、哪块归 React 由那张表定；本篇只讲 React 这一侧怎么写。**本篇管写法，不管视觉**——样式规则在 [03-后台UI](03-后台UI.md)，资源加载在 [10-静态资源手册](10-静态资源手册.md)。
 
 - 基线版本：`react@19.3.1` / `react-dom@19.3.1`（`package.json` 写 `^19.0.0`，实际解析到 19.3.1，2026-11-24 核对）、`esbuild@0.25.12`
-- **为什么追最新 19**：插件把 React 打进自己的 bundle（`var SakuraUI`，不读 `window.React`），与 wp-admin 自带的 18.3.1 **互不共享**，所以不存在「同页两个副本版本打架」的问题；开发者 2026-11-24 决定以最新版为基准（推翻了当天早些时候「跟随 WordPress」的方案，原因见 `DECISIONS.md`）。代价是包体更大（19 版单页 bundle 254 KB vs 18 版 176 KB；1.29.0-beta-5 合并成 `admin-app.js` 后 472,007 B，开发期 gzip 约 130 KB），换来 19 的写法（Actions、`ref` 当 prop、`<Ctx value>`）可用。
+- **为什么追最新 19**：插件把 React 打进自己的 bundle（`var SakuraUI`，不读 `window.React`），与 wp-admin 自带的 18.3.1 **互不共享**，所以不存在「同页两个副本版本打架」的问题；开发者 2026-11-24 决定以最新版为基准（推翻了当天早些时候「跟随 WordPress」的方案，原因见 `DECISIONS.md`）。代价是包体更大（19 版单页 bundle 254 KB vs 18 版 176 KB；1.29.0-beta-5 合并成 `admin-app.js` 后当时 472,007 B，2026-11-27 复核约 478 KB（构建后会变，以 `stat` 为准），开发期 gzip 约 130 KB），换来 19 的写法（Actions、`ref` 当 prop、`<Ctx value>`）可用。
 - 参考：[React v19 发布说明](https://react.dev/blog/2024/12/05/react-19)、[React 19.2 新特性](https://react.dev/blog/2025/10/01/react-19-2)、[React Compiler](https://react.dev/learn/react-compiler)（仍不用，见 §1）
 - 适用文件：`assets/ui/src/**`（`shared/ui.jsx` 与各页面模块）
 
@@ -11,7 +11,7 @@
 
 这三条比任何通用 React 最佳实践都优先，因为它们决定了「什么不能做」：
 
-1. **顶栏、页签条、页头、骨架由 PHP 渲染，React 永远不碰它们。** React 的挂载点是 `.sakura-admin > .sakura-admin__main`，只接管 `<main>` 里的内容。理由见 [03-后台UI](03-后台UI.md) §9.3：同模块页签切换不能整页刷新，而顶栏/页签在每个页签里完全一样，重建一次就是一次无意义重绘。
+1. **PHP输出首帧，React接管既有外壳但不得重建或重复绘制。** `createShell()` 用 `hydrateRoot()` 接管 PHP 已打印的顶栏与页签节点，后续导航通过同一 root 更新其内容并保留节点；内容区 `.sakura-admin > .sakura-admin__main` 由 `createRoot()` 拥有。不要让页面 App 再画一份顶栏/页签，也不要在首次 hydration 前更新外壳。理由见 [03-后台UI](03-后台UI.md) §9.3。
 2. **引导数据是 PHP 写进文档的 JSON，不是接口。** `<script type="application/json" id="sakura-*-bootstrap">` 必须在挂载节点**之外**（`Page::render()` 的 `island` 分支负责），`admin-app/index.jsx` 读它、`JSON.parse` 失败就显示失败态。REST 只用于**动作**（保存、扫描、翻页、重置），不用于首屏。
 3. **服务端算出来的东西必须由服务端回传，不在前端猜。** 卡片上的「已保存值」「摘要文案」「派生字符串」（如 `固定文本 · Sakura`）都由 PHP 拼好；保存接口的响应要带回落库后的值，前端拿它覆盖本地状态。**前端复刻业务计算是禁止行为。**
 
@@ -46,7 +46,7 @@
 1. `npm view react version` 看最新版；记下 `react` 与 `react-dom` 是否是同一版本（两者必须一致）。
 2. 改 `package.json`（保持 `^19.0.0` 这种范围，或临时写死精确版本做对比），`npm install`。
 3. `npm run build`，确认 `assets/ui/dist/admin-app.js` 已更新（banner 里有 `sakura-tools admin bundle <版本>`），记下它的大小与 gzip 体积。
-4. 跑 §10 的自检 + 1440/390 的全部 16 个后台页面（至少覆盖系统设置、图像四页、存储五页、文件五页与子比增强）。
+4. 跑 §10 的自检 + 1440/390 的全部 15 个后台页面（至少覆盖系统设置、图像四页、存储五页、文件四页与子比增强）。
 5. 改本文件文首的基线行、§11 的包体数字，再提交。**升级单独一次提交**，不要和功能改动混在一起。
 
 > 附注：WordPress 7.1.4 自带的是 React 18.3.1（见 `wp-includes/js/dist/vendor/react.js` 的 `ReactVersion`）。我们不用它，因为 bundle 自包含；但如果哪天要改成读 WP 的那份，先读这个文件确认版本，再按「同页两个副本」的风险表逐项验证——2026-11-24 走过一遍，包体小 74/80 KB，随后被开发者否掉。
@@ -65,8 +65,7 @@ assets/ui/src/
   rewrite/            ← app.jsx target.jsx scan.jsx preview.jsx run.jsx history.jsx status.js transport.js
   cost/               ← app.jsx transport.js
   files/              ← app.jsx form.jsx policy.jsx appearance.jsx color.js entry-gate.jsx shared/{EmptyState,Pager,transport}
-  files-users/        ← app.jsx sanction.jsx
-  files-queue/        ← app.jsx caps.jsx
+  files-queue/        ← app.jsx drawer.jsx users.jsx sanction.jsx caps.jsx
   files-log/          ← app.jsx
   zibll/              ← app.jsx diagnostics.jsx payment.jsx entry.jsx gate.jsx bonus.jsx plans.jsx grants.jsx reconcile.jsx controls.jsx form.jsx
   performance/        ← app.jsx
@@ -193,22 +192,22 @@ git diff --check
 - [ ] 键盘：Tab 不出弹窗、Esc 关闭、焦点回触发元素
 - [ ] 1440 与 390 两个宽度：无横向溢出，控制台 0 error / 0 warning
 
-## 11. 现状盘点（2026-11-26，1.29.0-beta-5）
+## 11. 现状盘点（2026-11-26 快照；2026-11-27 复核页面数、Actions 与体积）
 
-对 `assets/ui/src` 的实测统计，写在这里是为了让下一次改动知道「已经站在哪」：
+对 `assets/ui/src` 的实测统计，写在这里是为了让下一次改动知道「已经站在哪」；文件数与字节数会随开发变化，精确值以 `find` / `wc` / `stat` 为准：
 
 | 项 | 数量 | 结论 |
 |---|---|---|
-| 文件 / 行数 | 76 个 / 13,845 行 | 1 个壳入口 + 1 个产物：`admin-app/` 5 个文件，13 个页面目录（image 7、storage 8、sync 12、deletes 4、rewrite 8、cost 2、files 9、files-users 2、files-queue 2、files-log 1、system 3、zibll 11、performance 1），shared 1 |
-| `useState` | 214 | 集中在各页 `app.jsx` 与卡片的 draft/saved（含 import 计数） |
+| 文件 / 行数 | 78 个（2026-11-27 复核；行数随开发变化，以 `find` / `wc` 为准） | 1 个壳入口 + 1 个产物：`admin-app/` 5 个文件，12 个页面目录（image 7、storage 6、sync 11、deletes 5、rewrite 8、cost 2、files 7、files-queue 6、files-log 1、system 3、zibll 12、performance 1），shared 4 |
+| `useState` | 246（含 import；实际调用 209） | 集中在各页 `app.jsx` 与卡片的 draft/saved |
 | `useEffect` | 62 | 全部带清理或只读依赖键（click / popstate / keydown / 定时器 / 值变化） |
-| `useRef` / `useCallback` | 45 / 12 | 合理个例 |
-| `useMemo` / `memo` / `createContext` | 3 / 0 / 0 | 仅为稳定引用与大列表渲染；未引入 Compiler |
-| `forwardRef` / `PropTypes` / `defaultProps` / class 组件 | 0 | 无旧写法残留 |
-| `dangerouslySetInnerHTML` | 7 | 全部是服务端字符串（品牌 SVG、tagline、弹窗图标、吉祥物） |
+| `useRef` / `useCallback` | 65 / 13 | 合理个例 |
+| `useMemo` / `memo` / `createContext` | 2 / 0 / 0 | 仅为稳定引用与大列表渲染；未引入 Compiler |
+| `forwardRef` / `PropTypes` / `defaultProps` / class 组件 | 0 / 0 / 0 / 1 | 唯一 class 是 `shared/error-boundary.jsx` 的 `ErrorBoundary`（错误边界只能 class） |
+| `dangerouslySetInnerHTML` | 6 | 全部是服务端字符串（品牌 SVG、tagline、弹窗图标、吉祥物） |
 | 下标作 key | 6 | 全部是静态字符串列表（hint / warning / note / card.desc / 告警行） |
-| React 19 Actions（`useActionState` / `useOptimistic`） | 0 | 19.3 已具备，现有页签仍是手写 `saving`；按 §5 逐个页签迁移，不批量重写 |
-| 打包产物 | `admin-app.js` 461 KB（472,007 B）/ 开发期 gzip 约 130 KB | React 19.3.1 minified，16 个页面共用一个产物；拆分前的 per-page 数据（19.3.1 单页 227–267 KB）已随 1.29.0-beta-5 作废 |
+| React 19 Actions（`useActionState` / `useOptimistic`） | 6 / 0（3 个文件、3 处调用） | `files/policy.jsx`、`files/appearance.jsx`、`zibll/save.js` 已用 `useActionState` 接管保存的 pending/failure；其余页签仍手写 `saving`，按 §5 逐个页签迁移 |
+| 打包产物 | `admin-app.js` 约 478 KB（2026-11-27 复核 489,276 B，构建后会变，以 `stat` 为准；2026-11-26 快照为 472,007 B）/ 开发期 gzip 约 130 KB | React 19.3.1 minified，15 个路由页面共用一个产物；拆分前的 per-page 数据（19.3.1 单页 227–267 KB）已随 1.29.0-beta-5 作废 |
 
 结论：**没有需要立刻返工的旧版写法**；基线与 `package.json` 一致（`^19.0.0` → 19.3.1）。下一步真正有价值的是按 §5 把保存动作迁到 `useActionState`，而不是先加 `memo`。
 
@@ -233,11 +232,11 @@ git diff --check
 - **轮询只有一处**：`app.jsx` 里活动状态 4s、空闲 15s，连续失败按 ×2 退避到 30s；`document.hidden` 时暂停，`visibilitychange` 回来后立即拉一次。定时器在 effect 里 set/clear，不用 `setInterval` 叠请求；`load()` 同时只允许一个请求在飞。
 - **操作不整页刷新**：retry / drop 的响应直接带回新 snapshot，`apply()` 合并；筛选与分页用 `history.replaceState` 写 `state` / `paged`，越界页由服务端夹回范围。
 - **状态语义**：`done` 行保留 7 天（`Delete_Jobs::DONE_RETENTION_DAYS`），worker 每小时最多清一次；重试只覆盖 queued / failed / dead，**不重试 done**（同一 key 可能已被重新上传，重跑会删掉新对象）；已完成记录可导出 CSV。
-- per-page bundle 已在 1.29.0-beta-5 删除：16 个路由统一由 `admin-app.js` 渲染，没有旧页脚本，也没有 classic 视图兜底。
+- per-page bundle 已在 1.29.0-beta-5 删除（当时16个路由，当前15个；用户容量页已并入 `files-queue`）：所有路由统一由 `admin-app.js` 渲染，没有旧页脚本，也没有 classic 视图兜底。
 
 ### 11.3 链接改写岛（1.28.8-beta-56）
 
-- **PHP 侧两件事分开**：`src/Admin/Rewrite_Payload.php` 只组装 `page/head/cards/config`；`src/S3/Url_Rewrite_Scope.php` 只回答「当前活动配置的附件 URL 路径前缀是什么」。扫描、执行、预览、回滚仍然走原来的 `wp_ajax_sakura_url_rewrite_*`，岛与后台服务共用同一套游标、时间盒与账本，不新增 REST。
+- **PHP 侧两件事分开**：`src/Admin/Rewrite_Payload.php` 只组装 `page/head/chrome/cards/strings/rest`；`src/S3/Url_Rewrite_Scope.php` 只回答「当前活动配置的附件 URL 路径前缀是什么」。扫描、执行、预览、回滚仍然走原来的 `wp_ajax_sakura_url_rewrite_*`，岛与后台服务共用同一套游标、时间盒与账本，不新增 REST。
 - **路径前缀优先级**：活动配置的 `upload_url_path` 有路径就用它的路径；没有路径才回落 `upload_path`。页面只读展示 `/{prefix}/` 与来源，不提供覆盖输入（旧桶前缀不同时，本轮明确不处理）。
 - **URL 级而不是整值替换**：`Link_Rewriter` 构造器第三个参数是 `?string $path_prefix`；传 `null` 保持旧的全域名替换（老测试仍覆盖它），传字符串进入 scoped 模式。scoped 模式先匹配 scheme-qualified URL（`http://`、`https://`、`//`，含 JSON 的 `\/` 写法），再匹配裸 `host/path`；host 必须精确、path 必须以 `/{prefix}/` 开头、大小写敏感；命中的只替换 host，同一行里的其它链接原样保留。序列化数据仍走 `rewrite_value()` 的递归与长度修复。
 - **扫描是粗筛，写库前精确匹配**：`Url_Rewrite_Service::scan_column()` 以旧域名 + 路径前缀（plain 与 JSON escaped 两种 LIKE）做候选集，多个 needle 必须是 `AND (a OR b)`；任务行数是候选行数，执行时 `Link_Rewriter` 再按 URL 精确判断，粗筛到但没命中的行计入「已跳过」。这个区别在页面上由执行卡的第一条 notes 说明。
@@ -256,41 +255,43 @@ git diff --check
 
 ### 11.5 文件空间设置岛（1.28.8-beta-58）
 
-- **数据与渲染分开**：`src/UserFiles/Admin/Files_Settings_Payload.php` 组装 `page/head/cards/config`，页面参数、入口提示、两张卡、策略字段、主题限制、允许类型与全部文案都在 PHP 侧完成；`includes/views/files-settings-island.php` 只打印 bootstrap 和空 `UI::page()` 外壳，React 通过 `assets/ui/src/files/` 挂载。
+- **数据与渲染分开**：`src/UserFiles/Admin/Files_Settings_Payload.php` 组装 `page/head/chrome/cards/strings/rest`，页面参数、入口提示、两张卡、策略字段、主题限制、允许类型与全部文案都在 PHP 侧完成；`includes/views/files-settings-island.php` 只打印 bootstrap 和空 `UI::page()` 外壳，React 通过 `assets/ui/src/files/` 挂载。
 - **健康卡同源**：新增 `src/UserFiles/Admin/Health.php`，从 `Zibll_Bridge::capabilities()/theme()`、`Settings::entry_enabled()` 与 `Entry::status()` 取同一份快照。设置页显示「子比桥接 N/M 项能力 + 主题名 + 前台入口状态/入口标签」；子比专属页仍用同一组桥接数据，设置页同样改用 `Health::status()`。
 - **保存不另造通道**：两张卡仍是原生 `options.php` 表单。外观卡提交 `tree_style` 与 `folder_accent`，策略卡提交数字字段、主题限制与允许类型；`Settings::sanitize()` 在收到 `sufm_settings[_partial]` 时先合并已存值。**这里必须用模块自己的 `_partial`，不是 `Card_Form::PARTIAL_FIELD` 的 `_sakura_partial`**，否则保存外观会清掉入口开关与主题限制（本轮实测踩到并修复）。
 - **自定义文件夹颜色**：`folder_accent` 支持空 / 六个预设 / `#rrggbb`。`Settings::accent_class()` 对自定义色只输出 `sufm-accent-custom`，`Settings::accent_style()` 输出 `--sufm-folder-ink` 与由该色混白 28% 得到的 `--sufm-folder-fill`。前台用户中心、前台写文章编辑面板和媒体库三处都通过同一对变量取色；预设色仍走旧 CSS 类，不写内联样式。外观卡（当时还有旧页版本）也补了自定义色单选、取色器、hex 输入和实时预览；旧页已随 1.29.0-beta-5 删除。
 - **界面**：外观卡保留原左右预览/选择布局与六个预设胶囊，新增自定义颜色行；390px 下改为单列，自定义取色、hex 与按钮换行但不横向溢出。策略卡沿用原分组、字段名与提示，主题限制和允许类型仍在原位置；策略卡头部不再放入口按钮，旧的入口迁移提示已删除。允许类型网格在 ≤782px 被全局规则压成单列时，用文件设置页自己的断点改回两列（390px 实测 139×2，卡片高度 2508→2264）。
-- **兜底与资源**：per-page bundle 与 `userfiles-admin.php` 兜底已在 1.29.0-beta-5 删除，文件空间五个页签只由 `admin-app.js` 渲染。`Page::boot_height()` 增加 appearance/settings 的骨架高度，入口关闭时 gate 卡把两张卡整体下移一行。
+- **兜底与资源**：per-page bundle 与 `userfiles-admin.php` 兜底已在 1.29.0-beta-5 删除，文件空间当前四个路由页签只由 `admin-app.js` 渲染（用户容量与处罚控件并入 `files-queue`）。`Page::boot_height()` 增加 appearance/settings 的骨架高度，入口关闭时 gate 卡把两张卡整体下移一行。
 - **验收**：1440 与 390 均无页面横溢、控制台 0 error；外观/策略分别保存且互不清空；自定义色保存后三处读到的 ink/fill 一致；预设 amber + mac 仍走原类且无内联变量。
 
-### 11.6 文件空间三页岛（1.28.8-beta-60）
+### 11.6 文件空间两页岛（审核与处置合并后）
 
-- **一个 payload，三个入口**：`src/UserFiles/Admin/Files_Admin_Payload.php` 按 `files-users` / `files-queue` / `files-log` 输出 `page/head/cards/config`；页面参数复用 `Page::page_data()` 的 strings，不复制第二份文案。`includes/views/files-admin-island.php` 打印同一个 bootstrap id，三个入口分别打 `files-users.js` / `files-queue.js` / `files-log.js`，各自目录下共享 transport/Pager/空态。
-- **业务逻辑零迁移**：用户容量、处罚、审核、预览、批次执行、停止、审计仍走原来的 `sufm/v1/admin/*`；React 只负责列表状态、按钮启用条件与刷新时机。权限矩阵仍是原生 `admin-post.php` 表单（`sufm_save_caps` + `_wpnonce` + 锁定管理员行），保存后按旧 notice 参数回流。
-- **用户容量**：搜索、25/50/100 分页、刷新、同步容量（1.2s 轮询）、重置容量确认、每行 MB 输入与保存、用法条、处罚徽标与处罚弹窗。处罚弹窗保留服务端下发的类型/期限/理由/建议，永久禁上传必须输入登录名；撤销走 `admin/sanctions/{id}/revoke`。
-- **审核与执行**：状态筛选、用户搜索、分页、批准/驳回/撤销、申请文件预览、已批准勾选、范围预览与哈希、短语 `删除`、建立批次、4s 批次轮询与停止。卡片顺序沿用 `Layout::PAGES['files-queue']`：执行卡与权限矩阵在第一行、申请队列在第二行；不要在 payload 里另写一份顺序。
-- **最近操作**：服务端只返回当前页，结果/理由/文字筛选都在当前页内做，保持旧语义；分页与刷新回服务端。
-- **验收**：1440/390 三页均无页面横溢、console 0 error；容量保存与清除、处罚弹窗打开/永久输入/申请与撤销、权限矩阵保存、日志筛选均实测。390 下用户表按 `data-label` 堆叠，权限矩阵在卡片内完整显示。
+- **一个 payload，两个入口**：`src/UserFiles/Admin/Files_Admin_Payload.php` 按 `files-queue` / `files-log` 输出六键 `page/head/chrome/cards/strings/rest` + `data`；`files-queue` 额外并入内部数据键 `files-users` 的全部 strings 与默认容量（`files-users` 不是路由，别去找页面）。`includes/views/files-admin-island.php` 打印同一个 bootstrap id，两个入口分别打 `files-queue.js` / `files-log.js`。
+- **业务逻辑仍走原 REST**：用户容量、处罚、审核、预览、批次执行、停止、审计都在 `sufm/v1/admin/*`；权限矩阵改为 `POST sufm/v1/admin/caps`，与旧 `admin-post.php` 共用 `Capability_Matrix::apply()`，不再有 options.php 表单。
+- **用户容量与处罚**：`assets/ui/src/files-queue/users.jsx` 复用原列表（搜索、25/50/100 分页、刷新、同步容量 1.2s 轮询、重置容量确认、每行 MB 输入与保存、用法条、处罚徽标）；`sanction.jsx` 仍是 `<dialog>`，保留服务端下发的类型/期限/理由/建议，永久禁上传必须输入登录名，撤销走 `admin/sanctions/{id}/revoke`；关闭（取消 / Esc / 加载失败 / 保存成功）统一走同一个 `close()`，在下一拍把焦点交还触发按钮，找不到则回卡片标题。
+- **删除申请与详情抽屉**：`app.jsx` 的队列表格保留筛选/分页/批准/驳回/撤销；每行「详情」打开 `drawer.jsx`，展示申请范围、附件缩略图（点击走 `admin.ui.mediaPreview` 大图）、申请人容量与用量，并可直接批准/驳回/处罚（`SanctionDialog`）。抽屉的「加入执行」把申请加入现有勾选集合，滚到执行卡。
+- **执行与权限**：执行卡仍是已批准申请的批量视图，保留范围预览哈希与「删除」确认短语；权限矩阵在卡内 `<details>` 默认折叠，保存走 REST。卡片顺序由 `Layout::PAGES['files-queue']` 决定：`queue → execute → users → capability-matrix`；1440 下 queue/execute 按 6/6 一行，users 与 capability-matrix 各占整行（12 列），1100px 以下退回单列。权限矩阵全宽时首列 22%，表头「角色」与行标题在卡片内横向滚动时 sticky；处罚列的表头与行内按钮共用右基线。用户容量卡在 ≤782px 不堆叠表格，改用独立 `.users-mobile` 用户卡列表：身份与处罚同排、容量/文件两列、容量输入与保存一行；桌面表格不变。
+- **旧地址**：`t=users` 由 `Menu::redirect_legacy()` 302 到 `t=queue&view=users`；`view=users` 只在首帧给用户容量卡加静态描边（`card--target`），**不再延迟滚动**，避免进入后 1 秒内上滚又被拉回。1100px 以下额外显示「跳到用户容量卡」按钮，点击才滚动；不保留第二个页签。
+- **验收**：1440 四卡 2×2、390 单列，均无页面横溢、console 0 error；同一页完成「打开详情 → 看附件 → 处罚」、容量保存与清除、权限矩阵保存、执行批次与日志筛选。390 下抽屉全宽，用户表按 `data-label` 堆叠。
 
 ### 11.7 子比专属岛（1.28.8-beta-61）
 
-- **10 卡 / 7 表单**：`src/UserFiles/Admin/Space_Payload.php` 把诊断、支付方式、前台入口、编辑器面板、门禁、等级/VIP 加成、套餐、授权流水、对账全部转成 `page/head/cards/config`；`assets/ui/src/zibll/` 负责渲染。只读卡不提交表单，7 个可编辑卡仍各自 POST 到 `options.php`，字段名、`option_page`、`_partial`、`allowed_methods_present`、`packages[_present]`、`points_packages[_present]` 与旧页一致。
+- **10 卡 / 7 表单**：`src/UserFiles/Admin/Space_Payload.php` 把诊断、支付方式、前台入口、编辑器面板、门禁、等级/VIP 加成、套餐、授权流水、对账全部转成 `page/head/chrome/cards/strings/rest`；`assets/ui/src/zibll/` 负责渲染。只读卡不提交表单，7 个可编辑卡仍各自 POST 到 `options.php`，字段名、`option_page`、`_partial`、`allowed_methods_present`、`packages[_present]`、`points_packages[_present]` 与旧页一致。
 - **动态交互留在前端**：套餐新增/删除行、图标媒体选择、等级/VIP 合计、等级规则禁用联动、开关确认、授权延长/撤销、对账 dry-run/apply；授权与对账继续走 `sufm/v1/admin/space/grants`、`.../extend`、`.../revoke` 与 `.../reconcile`，不新增接口。
 - **纯岛页**：旧 `includes/views/userfiles-space-admin.php`、`assets/ui/js/pages/files-zibll.js` 与 `Space_Page::page_data()` 已删除；`Space_Page::render()` 权限守卫后直接 `require` 岛视图，没有第二条路径。主题不可用时仍走原只读提示。
 - **验收**：1440/390 无页面横溢、console 0 error；7 个表单逐个无改动保存后两个 option 的 JSON 与备份完全一致；开关关闭保存只改目标键；套餐新增保存后恢复备份；授权延长/撤销与对账检查实测后清理测试数据。
 
-### 11.8 子比增强 · 性能优化岛（1.28.8-beta-63）
+### 11.8 子比增强 · 性能优化岛（1.30.0-beta-7）
 
-- **2 卡 / 1 表单**：`src/Zibll/Performance_Payload.php` 输出页头、授权缓存卡与状态卡；`assets/ui/src/performance/` 渲染。保存仍走原生 `options.php`，`sakura_imgopt_zibll` 的 `license_cache`、`duration`、`unit` 与 `_sakura_card` / `_sakura_partial` 全部不变。
-- **交互留在前端**：单位选「永久」时禁用时长输入（禁用字段不提交，服务端沿用旧值）；「重新验证」继续调用 `wp_ajax_sakura_zibll_warm`，成功/失败状态与 toast 保持原行为；状态表的版本、缓存时间、来源、有效期、授权到期和下次复验仍由 PHP 预格式化。
-- **纯岛页**：旧 `includes/views/zibll-performance.php` 与 `assets/ui/js/pages/zibll-performance.js` 已删除；`render()` 权限守卫后直接 `require` 岛视图，没有第二条路径。页面 CSS 选择器逐个对照新 DOM，全部仍被使用，只删掉了不再生效的 `.zibll-duration .field { margin: 0; }` 冗余规则。
-- **布局**：两张卡固定 6/6 等宽；状态卡改用 `table--records`，窄屏按记录行排布，值、胶囊与说明同行流式换行，胶囊不再独占一行。表格胶囊与值统一 `var(--g-check-gap)` 10px，系统设置页的运行时表也复用这条规则。
-- **验收**：1440/390 无页面横溢、console 0 error；无改动保存后 option 逐字节一致；`forever` 保存与回读、开关关闭/重新启用、AJAX 重验均实测，随后恢复原 option。
+- **2 卡 / 六键**：`src/Zibll/Performance_Payload.php` 输出 `page/head/chrome/cards/strings/rest`；`assets/ui/src/performance/` 只渲染授权缓存卡与状态卡。`rest.url` 是保存地址，`rest.warm` 是复验地址；没有 `config`，也没有卡片级 `form`。
+- **保存**：`src/Zibll/Rest/Performance_Controller.php` 的 `POST sakura-tools/v1/zibll/performance` 接收 `fields`，补上 `Card_Form` 的 partial/card 标记后交给 `Settings::sanitize()`，再 `update_option()` 写入 `sakura_imgopt_zibll`；响应带新的 `sections`、`head` 和 `notice`，前端只覆盖两张卡与页头。`options.php` 表单、旧 `wp_ajax_sakura_zibll_warm` 处理器以及只为表单服务的 `register_setting` / `Card_Form::guard_options` 注册都已删除，写入口只剩 REST。
+- **重新验证**：`POST .../warm` 真实调用 `License_Cache::warm( 'rest_manual' )`；成功时 `Revalidate::reschedule()` 把单次 cron 对齐到新的 `cache_until`，失败时清缓存并 `Revalidate::unschedule()`。失败仍返回新的 `sections/head` 和 `bad` notice（HTTP 200），让状态卡立即显示“已失效”，而不是停在旧结论。
+- **交互**：单位选「永久」时禁用时长输入，服务端负责 clamp；按钮、提示、状态表标签全部来自 `strings`。保存成功/失败打开共享 `Prompt`（标题、正文、按钮、关闭图标都由 payload 下发，关闭后焦点回到保存按钮）；复验的进行中与结果仍在状态行。不触发 `location.reload()`，也不复用 admin notice。
+- **布局**：两张卡固定 6/6 等宽；状态卡用 `table--records`，窄屏按记录行排布，值与说明同行流式换行。1440 两列、390 单列，均无页面横溢。
+- **验收**：1440/390 无页面横溢、console 0 error；无改动保存只打 `POST /zibll/performance`、复验只打 `POST /zibll/performance/warm`，均 200 且页面不刷新；复验后状态卡的验证时间、来源和下次复验同步更新；失败路径返回新 `sections` 与 `bad` notice。
 
 ## 12. 持久壳实验：hydration 契约（2026-11-26，1.29.0-beta-1）
 
-16 个后台页面统一加载 `assets/ui/src/admin-app/` 打出的 `admin-app.js`：PHP 照旧打印顶栏与页签条，React 用 `hydrateRoot()` 就地接管这两个节点，内容区另开 `createRoot()`。**没有开关，也没有第二套渲染路径**（1.29.0-beta-5 起拆掉了实验开关与 per-page bundle）。方案与勘误见 `docs/plans/2026-11-26-admin-persistent-shell.md`。
+15 个后台页面统一加载 `assets/ui/src/admin-app/` 打出的 `admin-app.js`：PHP 照旧打印顶栏与页签条，React 用 `hydrateRoot()` 就地接管这两个节点，内容区另开 `createRoot()`。**没有开关，也没有第二套渲染路径**（1.29.0-beta-5 起拆掉了实验开关与 per-page bundle）。方案与勘误见 `docs/plans/2026-11-26-admin-persistent-shell.md`。
 
 ### 12.1 三条硬规则（违反就整树重绘）
 
@@ -319,7 +320,7 @@ React 19 的 hydration 比对的是**节点和文本**，不是字符串内容�
 
 ### 12.6 路由铺满之后的新约定（1.29.0-beta-2）
 
-- `admin-app` 现在装下全部 16 个页面 App，`admin-app/app.jsx` 的 `APPS` 表按**页面 id** 映射；新增页面 = 表里加一行 + 服务端加路由。
+- `admin-app` 在路由铺满时装下16个页面App；当前15个路由页App在 `admin-app/app.jsx` 的 `APPS` 表按**页面 id** 映射，用户容量页已并入 `files-queue`；新增页面 = 表里加一行 + 服务端加路由。
 - 壳的 manifest 由 `Page::render()` 统一打印（`#sakura-app-manifest`），不再依赖某个页面的 payload；页面自己的 bootstrap 用**形状**识别（带 `page` 与 `head` 的 JSON 块），因为 id 每页不同。
 - 路由页的脚本只有一个 `admin-app.js`：`Page_Assets::enqueue()` 用 `App_Manifest::is_route()` 把 `pages/{page}.js` 限制在非路由页，路由页没有第二条挂载路径，不需要 `__sakuraShellBooted` 守卫。
 - 首帧不要再回写 hydration root（见 12.3）；导航时才 `shell.update()`。
@@ -341,7 +342,7 @@ React 19 的 hydration 比对的是**节点和文本**，不是字符串内容�
 | 5 | 拆分大型组件，缩小重渲染范围 | **已在用** | 一页签一文件 + 卡组件。当前最大风险点是 `assets/ui/src/image/fields.jsx`（各类型字段的渲染函数集中在一起，约 500 行）：再长就按 field type 拆文件，而不是靠 `memo` |
 | 6 | `useContext` + `useReducer` 管全局状态，避免 props 透传 | **不用** | 现在 0 个 context。payload 从 `app` 逐层传到卡，深度只有 2–3 层；引入 context 后「哪张卡会重渲」变得不可预测。跨卡共享只有页头 status 与 usage KPI，`app.jsx` 两条 state 足够。`useReducer` 只在**单卡 ≥ 3 个互相约束字段**时考虑（典型是尺寸表的行 + 校验 + 脏值） |
 | 7 | 虚拟列表（`react-window` / `react-virtualized`） | **不用** | 统计页上限 100 行且分页 25/50/100；虚拟化会破坏窄屏 `td[data-label]` 折行与打印 |
-| 8 | 路由懒加载（`React.lazy` + `Suspense`） | **不用** | 后台只有 `admin-app.js`，16 个页面已在首屏加载；页签切换是换数据，懒加载等于多一次往返 |
+| 8 | 路由懒加载（`React.lazy` + `Suspense`） | **不用** | 后台只有 `admin-app.js`，当前15个页面已在首屏加载；页签切换是换数据，懒加载等于多一次往返 |
 | 9 | 组件懒加载（弹窗、抽屉等非首屏） | **不用** | 我们的提示框是 `Prompt`，几十行，且图标/吉祥物是服务端给的字符串；拆包收益为负 |
 | 10 | 优化资源打包（按需引入 UI 库、gzip、图片 WebP + 懒加载） | **部分已在用** | 已做：esbuild `minify` + `define NODE_ENV=production`、单一 `admin-app.js` 产物、SVG 内联。不做/不适用：没有 UI 库可「按需引入」；gzip 由 Web 服务器负责；后台没有大图可懒加载 |
 | 11 | 预加载关键资源（preload / preconnect） | **有等价物，暂缓** | 我们的等价做法是「悬停/空闲预取页签载荷」（感知卡顿多在网络往返），2026-11-24 讨论后决定暂缓；`preload`/`preconnect` 对同源静态文件收益很小 |

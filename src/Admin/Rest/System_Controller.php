@@ -13,6 +13,7 @@ declare( strict_types=1 );
 
 namespace Sakura\ImageOptimizer\Admin\Rest;
 
+use Sakura\ImageOptimizer\Admin\App_Manifest;
 use Sakura\ImageOptimizer\Admin\System_Layout_Settings;
 use Sakura\ImageOptimizer\Admin\System_Payload;
 use WP_REST_Request;
@@ -101,7 +102,7 @@ final class System_Controller {
 	 * @return bool
 	 */
 	public static function can_manage(): bool {
-		return current_user_can( 'manage_options' );
+		return App_Manifest::can_view( 'system-settings' );
 	}
 
 	/**

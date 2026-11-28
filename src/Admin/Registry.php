@@ -77,17 +77,13 @@ final class Registry {
 				'caps'  => 'review',
 				'tabs'  => array(
 					'settings' => array( 'label' => __( '样式与策略', 'sakura-imgopt' ) ),
-					'users'    => array(
-						'label' => __( '用户容量', 'sakura-imgopt' ),
-						'gate'  => array( 'caps' => 'execute' ),
-					),
 					'queue'    => array(
-						'label' => __( '审核与执行', 'sakura-imgopt' ),
-						'gate'  => array( 'caps' => 'execute' ),
+						'label' => __( '审核与处置', 'sakura-imgopt' ),
+						'gate'  => array( 'caps' => 'review' ),
 					),
 					'log'      => array(
 						'label' => __( '最近操作', 'sakura-imgopt' ),
-						'gate'  => array( 'caps' => 'execute' ),
+						'gate'  => array( 'caps' => 'audit' ),
 					),
 					'zibll'    => array(
 						'label' => __( '子比专属', 'sakura-imgopt' ),
@@ -358,6 +354,10 @@ final class Registry {
 
 		if ( 'execute' === $caps && class_exists( '\\Nboke\\UserFiles\\Capabilities' ) ) {
 			return \Nboke\UserFiles\Capabilities::can_execute();
+		}
+
+		if ( 'audit' === $caps && class_exists( '\\Nboke\\UserFiles\\Capabilities' ) ) {
+			return \Nboke\UserFiles\Capabilities::can_view_audit();
 		}
 
 		return false;

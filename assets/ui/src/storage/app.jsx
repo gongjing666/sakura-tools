@@ -11,6 +11,7 @@ import { Fragment, useCallback, useRef, useState } from 'react';
 import { Dialog } from '../shared/Dialog.jsx';
 import { post } from '../shared/transport.js';
 import { PageHead, Prompt } from '../shared/ui.jsx';
+import ErrorBoundary from '../shared/error-boundary.jsx';
 import BehaviourCard from './behaviour.jsx';
 import ConnectionCard from './connection.jsx';
 import MetricsCard from './metrics.jsx';
@@ -465,37 +466,47 @@ export default function App( { boot } ) {
 				) : null }
 
 				<div className="card-grid" data-sakura-layout={ payload.page.id }>
-					<ProfilesCard
-						card={ profiles }
-						busy={ busyProfile }
-						onAdd={ addProfile }
-						onToggle={ toggle }
-						onDelete={ remove }
-						onProbe={ probeProfile }
-					/>
-					<ConnectionCard
-						card={ connection }
-						strings={ strings }
-						saving={ 'connection' === savingCard }
-						resetToken={ resetToken }
-						onSave={ ( body ) => saveCard( 'connection', body ) }
-						onProbe={ probeForm }
-						onDoge={ resolveDoge }
-					/>
-					<BehaviourCard
-						card={ behaviour }
-						strings={ strings }
-						saving={ 'behaviour' === savingCard }
-						onSave={ ( body ) => saveCard( 'behaviour', body ) }
-						askRisk={ askRisk }
-					/>
-					<MetricsCard section={ metrics } rest={ rest } nonce={ rest.nonce } />
-					<MonitoringCard
-						section={ monitoring }
-						rest={ rest }
-						nonce={ rest.nonce }
-						onSaved={ ( next ) => merge( next ) }
-					/>
+					<ErrorBoundary>
+						<ProfilesCard
+							card={ profiles }
+							busy={ busyProfile }
+							onAdd={ addProfile }
+							onToggle={ toggle }
+							onDelete={ remove }
+							onProbe={ probeProfile }
+						/>
+					</ErrorBoundary>
+					<ErrorBoundary>
+						<ConnectionCard
+							card={ connection }
+							strings={ strings }
+							saving={ 'connection' === savingCard }
+							resetToken={ resetToken }
+							onSave={ ( body ) => saveCard( 'connection', body ) }
+							onProbe={ probeForm }
+							onDoge={ resolveDoge }
+						/>
+					</ErrorBoundary>
+					<ErrorBoundary>
+						<BehaviourCard
+							card={ behaviour }
+							strings={ strings }
+							saving={ 'behaviour' === savingCard }
+							onSave={ ( body ) => saveCard( 'behaviour', body ) }
+							askRisk={ askRisk }
+						/>
+					</ErrorBoundary>
+					<ErrorBoundary>
+						<MetricsCard section={ metrics } rest={ rest } nonce={ rest.nonce } />
+					</ErrorBoundary>
+					<ErrorBoundary>
+						<MonitoringCard
+							section={ monitoring }
+							rest={ rest }
+							nonce={ rest.nonce }
+							onSaved={ ( next ) => merge( next ) }
+						/>
+					</ErrorBoundary>
 				</div>
 			</div>
 

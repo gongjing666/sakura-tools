@@ -1,0 +1,42 @@
+{
+    "base": "/root/work/sakura-tools",
+    "warnings": [],
+    "settings": {
+        "quota_default_bytes": 536870912,
+        "max_file_bytes": 52428800,
+        "max_user_files": 1000,
+        "daily_upload_bytes": 536870912,
+        "max_folder_depth": 8,
+        "tree_style": "windows",
+        "folder_accent": "",
+        "allowed_types": [
+            "image/webp"
+        ]
+    },
+    "space": {
+        "order_icon": "",
+        "level_rule": {
+            "enabled": false,
+            "points_per_step": 1000,
+            "bytes_per_step": 104857600
+        },
+        "points": {
+            "enabled": true,
+            "points_per_gb": 90,
+            "max_gb_per_order": 10,
+            "daily_cap_gb": 20
+        },
+        "packages": [
+            {
+                "id": "a1",
+                "label": "a1",
+                "bytes": 10737418240,
+                "price": 30,
+                "days": 0,
+                "image": "",
+                "active": false
+            }
+        ],
+        "points_packages": []
+    }
+}

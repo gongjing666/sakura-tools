@@ -177,7 +177,8 @@ final class Delete_Queue_Panel {
 	 * @param array<int,int> $ids Selected row ids; empty exports everything.
 	 */
 	private function stream_csv( array $ids ): void {
-		$rows = ( new Delete_Jobs() )->export_rows( $ids );
+		$jobs  = new Delete_Jobs();
+		$batch = 500;
 
 		nocache_headers();
 		header( 'Content-Type: text/csv; charset=utf-8' );
@@ -189,8 +190,18 @@ final class Delete_Queue_Panel {
 		}
 
 		fputcsv( $out, array( 'id', 'attachment_id', 'profile_id', 'state', 'attempts', 'object_key', 'last_error', 'created_at', 'updated_at', 'completed_at', 'resolution' ), ',', '"', '' );
-		foreach ( $rows as $row ) {
-			fputcsv( $out, array_values( $row ), ',', '"', '' );
+
+		$after   = 0;
+		$fetched = $batch;
+
+		while ( $fetched === $batch ) {
+			$rows    = $jobs->export_rows( $ids, $after, $batch );
+			$fetched = count( $rows );
+
+			foreach ( $rows as $row ) {
+				fputcsv( $out, array_values( $row ), ',', '"', '' );
+				$after = (int) $row['id'];
+			}
 		}
 
 		fclose( $out );

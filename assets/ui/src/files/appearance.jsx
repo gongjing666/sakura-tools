@@ -1,58 +1,116 @@
-import { useState } from 'react';
-import { Card } from '../shared/ui.jsx';
-import { Form } from './form.jsx';
-import { isHex } from './color.js';
+import { useActionState, useState } from "react";
+import { BusyLabel, Card } from "../shared/ui.jsx";
+import { post } from "../shared/transport.js";
+import { isHex } from "./color.js";
 
-const DEFAULT_COLOR = '#c8932b';
+const FALLBACK_COLOR = "#c8932b";
+
+/**
+ * Ink of a preset, or the colour itself when it is already a hex value.
+ */
+function inkFor( accent, choices ) {
+	if ( isHex( accent ) ) {
+		return accent;
+	}
+
+	const choice = choices.find( ( item ) => item.value === accent );
+
+	return choice && choice.ink ? choice.ink : FALLBACK_COLOR;
+}
 
 /**
  * Folder appearance card: style preview, preset palette and a free colour.
  */
-export default function Appearance( { card, config } ) {
-	const strings = config.strings || {};
-	const choices = config.accentChoices || [];
-	const styles = config.styles || [];
-	const fallbackColor = config.current.customColor || DEFAULT_COLOR;
-	const [ style, setStyle ] = useState( config.current.treeStyle || 'windows' );
-	const [ accent, setAccent ] = useState( config.current.folderAccent || '' );
-	const [ hex, setHex ] = useState( isHex( config.current.folderAccent ) ? config.current.folderAccent : fallbackColor );
-	const [ error, setError ] = useState( '' );
+export default function Appearance( { card, rest, strings, onSection, onNotice } ) {
+	const choices = card.accentChoices || [];
+	const styles = card.styles || [];
+	const [ saved, setSaved ] = useState( card.values );
+	const [ draft, setDraft ] = useState( card.values );
+	const [ hex, setHex ] = useState( () => inkFor( card.values.folder_accent, choices ) );
+	const [ error, setError ] = useState( "" );
+	const [ lastKey, setLastKey ] = useState( () => JSON.stringify( card.values ) );
 
-	const custom = isHex( accent );
-	const colorValue = custom ? accent : ( isHex( hex ) ? hex : fallbackColor );
-	const styleMeta = styles.find( ( item ) => item.value === style ) || {};
-	const accentMeta = choices.find( ( item ) => item.value === accent );
-	const accentLabel = custom ? strings.customColor : ( accentMeta ? accentMeta.label : config.current.accentLabel );
-	const summary = ( strings.currentSummary || '' )
-		.replace( '{style}', styleMeta.label || config.current.styleLabel || '' )
-		.replace( '{accent}', accentLabel || '' );
+	const valuesKey = JSON.stringify( card.values );
+
+	/*
+	 * Props to state, compared during render: the contract forbids syncing a
+	 * draft from props in useEffect, and a remount would drop the focus target.
+	 */
+	if ( valuesKey !== lastKey ) {
+		setLastKey( valuesKey );
+		setSaved( card.values );
+		setDraft( card.values );
+		setHex( inkFor( card.values.folder_accent, choices ) );
+		setError( "" );
+	}
+
+	const custom = isHex( draft.folder_accent );
+	const colorValue = custom ? draft.folder_accent : ( isHex( hex ) ? hex : FALLBACK_COLOR );
+	const styleMeta = styles.find( ( item ) => item.value === draft.tree_style ) || {};
+	const accentMeta = choices.find( ( item ) => item.value === draft.folder_accent );
+	const accentLabel = custom ? strings.customColor : ( accentMeta ? accentMeta.label : card.current.accentLabel );
+	const summary = ( strings.currentSummary || "" )
+		.replace( "{style}", styleMeta.label || card.current.styleLabel || "" )
+		.replace( "{accent}", accentLabel || "" );
+	const dirty = draft.tree_style !== saved.tree_style || draft.folder_accent !== saved.folder_accent;
+
+	const [ failure, save, pending ] = useActionState( async ( _prev, fields ) => {
+		try {
+			const payload = await post( rest, rest.url, { card: "appearance", fields }, strings );
+			const section = payload && payload.sections ? payload.sections.appearance : null;
+
+			if ( section ) {
+				onSection( "appearance", section );
+			}
+
+			if ( payload && payload.notice ) {
+				onNotice( payload.notice, "appearance" );
+			}
+
+			return "";
+		} catch ( err ) {
+			return err && err.message ? String( err.message ) : ( strings.failed || "" );
+		}
+	}, "" );
+
+	const submit = ( event ) => {
+		event.preventDefault();
+
+		if ( pending || ! dirty ) {
+			return;
+		}
+
+		save( { tree_style: draft.tree_style, folder_accent: draft.folder_accent } );
+	};
+
+	const selectStyle = ( value ) => setDraft( ( current ) => ( { ...current, tree_style: value } ) );
 
 	const selectPreset = ( value ) => {
-		const choice = choices.find( ( item ) => item.value === value );
-		setAccent( value );
-		setHex( choice && choice.ink ? choice.ink : fallbackColor );
-		setError( '' );
+		setDraft( ( current ) => ( { ...current, folder_accent: value } ) );
+		setHex( inkFor( value, choices ) );
+		setError( "" );
 	};
 
 	const selectCustom = () => {
-		const value = isHex( hex ) ? hex : DEFAULT_COLOR;
-		setAccent( value );
+		const value = isHex( hex ) ? hex : FALLBACK_COLOR;
+
+		setDraft( ( current ) => ( { ...current, folder_accent: value } ) );
 		setHex( value );
-		setError( '' );
+		setError( "" );
 	};
 
 	const onColour = ( value ) => {
-		setAccent( value );
+		setDraft( ( current ) => ( { ...current, folder_accent: value } ) );
 		setHex( value );
-		setError( '' );
+		setError( "" );
 	};
 
 	const onHex = ( value ) => {
 		setHex( value );
-		setError( '' );
+		setError( "" );
 
 		if ( isHex( value ) ) {
-			setAccent( value );
+			setDraft( ( current ) => ( { ...current, folder_accent: value } ) );
 		}
 	};
 
@@ -62,11 +120,11 @@ export default function Appearance( { card, config } ) {
 			return;
 		}
 
-		setAccent( hex );
-		setError( '' );
+		setDraft( ( current ) => ( { ...current, folder_accent: hex } ) );
+		setError( "" );
 	};
 
-	const previewStyle = custom ? { '--folder-ink': accent } : undefined;
+	const previewStyle = custom ? { "--folder-ink": draft.folder_accent } : undefined;
 	const rows = [
 		{ name: strings.previewImages, count: 128, active: true },
 		{ name: strings.previewArchive, count: 36, nested: true },
@@ -74,14 +132,14 @@ export default function Appearance( { card, config } ) {
 	];
 
 	return (
-		<Card card={ card }>
-			<Form config={ config } card="appearance">
+		<Card card={ card } titleProps={ { tabIndex: -1, "data-sakura-return-target": "1" } }>
+			<form className="card__form" onSubmit={ submit } noValidate>
 				<div className="appearance-grid">
 					<div
 						className="tree-preview"
 						data-tree-preview
-						data-style={ style }
-						data-accent={ custom ? 'custom' : ( accent || 'auto' ) }
+						data-style={ draft.tree_style }
+						data-accent={ custom ? "custom" : ( draft.folder_accent || "auto" ) }
 						style={ previewStyle }
 					>
 						<div className="tree-preview__bar" aria-hidden="true">
@@ -92,7 +150,7 @@ export default function Appearance( { card, config } ) {
 						{ rows.map( ( row ) => (
 							<div
 								key={ row.name }
-								className={ row.active ? 'tree-preview__row is-active' : ( row.nested ? 'tree-preview__row is-nested' : 'tree-preview__row' ) }
+								className={ row.active ? "tree-preview__row is-active" : ( row.nested ? "tree-preview__row is-nested" : "tree-preview__row" ) }
 							>
 								<span className="tree-folder" aria-hidden="true" />
 								<span className="tree-preview__name">{ row.name }</span>
@@ -109,12 +167,12 @@ export default function Appearance( { card, config } ) {
 									<label className="style-choice" key={ item.value } data-label={ item.label }>
 										<input
 											type="radio"
-											name="sufm_settings[tree_style]"
+											name="tree_style"
 											value={ item.value }
-											checked={ style === item.value }
-											onChange={ () => setStyle( item.value ) }
+											checked={ draft.tree_style === item.value }
+											onChange={ () => selectStyle( item.value ) }
 										/>
-										<span className={ 'style-choice__visual style-choice__visual--' + item.value } aria-hidden="true">
+										<span className={ "style-choice__visual style-choice__visual--" + item.value } aria-hidden="true">
 											<span />
 											<span />
 											<span />
@@ -134,29 +192,29 @@ export default function Appearance( { card, config } ) {
 							<div className="accent-choices">
 								{ choices.map( ( choice ) => (
 									<label
-										className={ 'accent-choice' + ( choice.value === accent ? ' is-selected' : '' ) }
-										key={ choice.value || 'auto' }
-										data-accent={ choice.value || 'auto' }
+										className={ "accent-choice" + ( choice.value === draft.folder_accent ? " is-selected" : "" ) }
+										key={ choice.value || "auto" }
+										data-accent={ choice.value || "auto" }
 										data-label={ choice.label }
 									>
 										<input
 											type="radio"
-											name="sufm_settings[folder_accent]"
+											name="folder_accent"
 											value={ choice.value }
-											checked={ choice.value === accent }
+											checked={ choice.value === draft.folder_accent }
 											onChange={ () => selectPreset( choice.value ) }
 										/>
 										<span
-											className={ 'accent-choice__dot accent-choice__dot--' + ( choice.value || 'auto' ) }
+											className={ "accent-choice__dot accent-choice__dot--" + ( choice.value || "auto" ) }
 											aria-hidden="true"
 										/>
 										<span>{ choice.label }</span>
 									</label>
 								) ) }
-								<label className={ 'accent-choice' + ( custom ? ' is-selected' : '' ) } data-accent="custom" data-label={ strings.customColor }>
+								<label className={ "accent-choice" + ( custom ? " is-selected" : "" ) } data-accent="custom" data-label={ strings.customColor }>
 									<input
 										type="radio"
-										name="sufm_settings[folder_accent]"
+										name="folder_accent"
 										value={ colorValue }
 										checked={ custom }
 										onChange={ selectCustom }
@@ -202,12 +260,15 @@ export default function Appearance( { card, config } ) {
 				<p className="field__hint style-summary" aria-live="polite">
 					{ summary }
 				</p>
+				{ failure ? (
+					<p className="field__hint accent-custom__error" role="alert">{ failure }</p>
+				) : null }
 				<div className="card__savebar">
-					<button type="submit" className="btn btn--primary">
-						{ strings.saveAppearance }
+					<button type="submit" className="btn btn--primary" disabled={ ! dirty } aria-busy={ pending ? "true" : "false" }>
+						<BusyLabel idle={ strings.saveAppearance } active={ strings.savingAppearance } busy={ pending } />
 					</button>
 				</div>
-			</Form>
+			</form>
 		</Card>
 	);
 }

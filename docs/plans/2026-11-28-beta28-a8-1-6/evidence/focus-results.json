@@ -1,0 +1,65 @@
+{
+  "date": "2026-11-28",
+  "version": "1.30.0-beta-28",
+  "browser": "Chrome via Playwright MCP",
+  "url": "https://demo.77il.cn/wp-admin/admin.php?page=sakura-tools-files&t=queue",
+  "pre_fix_beta27": {
+    "source": "docs/plans/2026-11-28-beta27-a7-a8/evidence/browser.md §3",
+    "active": {
+      "tag": "BODY",
+      "text": ""
+    },
+    "note": "beta-27 关闭处罚弹窗后 document.activeElement 为 BODY（已先 focus 触发按钮再复测）"
+  },
+  "sanction_cancel": {
+    "active": {
+      "tag": "BUTTON",
+      "text": "处罚",
+      "cls": "btn btn--small btn--ghost",
+      "row": "A8 Focus Target a8focus_target 0 B / 512.0 MB 0 个文件 0 个文件夹 保存 处罚"
+    },
+    "dialog_open": false
+  },
+  "sanction_escape": {
+    "active": {
+      "tag": "BUTTON",
+      "text": "处罚",
+      "cls": "btn btn--small btn--ghost",
+      "row": "A8 Focus Target a8focus_target 0 B / 512.0 MB 0 个文件 0 个文件夹 保存 处罚"
+    },
+    "dialog_open": false
+  },
+  "drawer": {
+    "first_open_close": {
+      "closed_by": "关闭详情",
+      "active": {
+        "tag": "BUTTON",
+        "text": "详情",
+        "row": "#219 A8 Focus Target ID 15 1 项 1.00 MB 待审核 2026-11-28 08:22:58 详情 批准 驳回 查看文件"
+      },
+      "dialog_open": false
+    },
+    "second_open_close": {
+      "closed_by": "Escape",
+      "active": {
+        "tag": "BUTTON",
+        "text": "详情",
+        "row": "#219 A8 Focus Target ID 15 1 项 1.00 MB 待审核 2026-11-28 08:22:58 详情 批准 驳回 查看文件"
+      },
+      "dialog_open": false
+    }
+  },
+  "console": {
+    "errors": 0,
+    "warnings": 0,
+    "messages": 3
+  },
+  "cleanup": {
+    "requests": 0,
+    "items": 0,
+    "users": [
+      "yexu"
+    ],
+    "debug_log_lines": 165
+  }
+}

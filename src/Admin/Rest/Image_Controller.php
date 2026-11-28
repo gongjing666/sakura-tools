@@ -9,6 +9,7 @@ declare( strict_types=1 );
 
 namespace Sakura\ImageOptimizer\Admin\Rest;
 
+use Sakura\ImageOptimizer\Admin\App_Manifest;
 use Sakura\ImageOptimizer\Admin\Backup_Payload;
 use Sakura\ImageOptimizer\Admin\Backup_Settings;
 use Sakura\ImageOptimizer\Admin\Image_Payload;
@@ -185,8 +186,14 @@ final class Image_Controller {
 	 *
 	 * @return bool
 	 */
-	public static function can_manage(): bool {
-		return current_user_can( 'manage_options' );
+	public static function can_manage( WP_REST_Request $request ): bool {
+		$route = (string) $request->get_route();
+
+		if ( ! preg_match( '#/image/(rules|thumb|backup|stats)(?:/|$)#', $route, $match ) ) {
+			return false;
+		}
+
+		return App_Manifest::can_view( 'image-' . $match[1] );
 	}
 
 	/**

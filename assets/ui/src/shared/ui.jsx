@@ -12,6 +12,7 @@
  */
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import ErrorBoundary from './error-boundary.jsx';
 
 export function Badge( { tone = 'neutral', children } ) {
 	return <span className={ `badge badge--${ tone }` }>{ children }</span>;
@@ -312,8 +313,10 @@ export function BusyLabel( { idle, active, busy } ) {
  * One card. Placement travels as CSS custom properties so Layout::card() stays
  * the single source of the grid, exactly like Card::render().
  */
-export function Card( { card, titleProps, actions, children } ) {
+export function Card( { card, titleProps, actions, children, className = '' } ) {
 	const style = {};
+	const placement = Array.isArray( card.placement ) ? card.placement : null;
+	const half = placement && Number( placement[ 2 ] ) > 0 && Number( placement[ 2 ] ) < 12;
 
 	if ( card.placement ) {
 		const [ row, column, span ] = card.placement;
@@ -328,7 +331,7 @@ export function Card( { card, titleProps, actions, children } ) {
 
 	return (
 		<section
-			className={ card.wide ? 'card card--wide' : 'card' }
+			className={ [ card.wide ? 'card card--wide' : 'card', half ? 'card--half' : '', className ].filter( Boolean ).join( ' ' ) }
 			data-sakura-card={ card.id }
 			style={ style }
 		>
@@ -348,7 +351,7 @@ export function Card( { card, titleProps, actions, children } ) {
 				   with the title. */ }
 				{ actions ? <div className="card__actions">{ actions }</div> : null }
 			</header>
-			<div className="card__body">{ children }</div>
+			<div className="card__body"><ErrorBoundary>{ children }</ErrorBoundary></div>
 		</section>
 	);
 }

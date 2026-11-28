@@ -80,7 +80,7 @@
    写法：`function f( ?string $x = null )`。**现状 0 处**（273 个文件 / 2525 个函数声明全扫过，2026-11-26）。
 2. **CSV 的 `$escape` 默认值。** `fputcsv()` / `fgetcsv()` / `str_getcsv()` / `SplFileObject::fputcsv()` 等同名方法不传 `$escape` 会报：
    `Deprecated: fputcsv(): the $escape parameter must be provided as its default value will change`
-   **现状 0 处**（2026-11-24 修完 7 处：`includes/class-s3-cli.php` 2 处、`src/S3/Delete_Queue_Panel.php` 2 处、`src/S3/Sync_Center_Module.php` 3 处；全部是导出侧 CSV，仓库里没有 `fgetcsv()` 读回路径）。
+   **现状 0 处**（2026-11-24 修完 7 处：`src/S3/CLI.php`（原 `includes/class-s3-cli.php`）2 处、`src/S3/Delete_Queue_Panel.php` 2 处、`src/S3/Sync_Center_Module.php` 3 处；全部是导出侧 CSV，仓库里没有 `fgetcsv()` 读回路径）。
    写法：五个参数全部显式给出，`$escape` 传空串（RFC 4180，也是 PHP 9 的默认值；不再使用专有的反斜杠转义）。由 `composer lint:compat` 守护（§6.3）。
 3. **`E_STRICT` 常量与错误级别已移除**：代码里不要引用（现状 0 处）。
 4. 其余 8.4 弃用项（现状均 0 处，新代码同样禁写）：`trigger_error( ..., E_USER_ERROR )`、`lcg_value()`、`mysqli_ping/kill/refresh`、`session_set_save_handler()` 多参、`stream_context_set_option()` 双参、`xml_set_object()`、`DatePeriod` 字符串构造、`SplFileObject` CSV 默认 escape。
@@ -91,14 +91,14 @@
 
 | 变化 | 官方口径 | 对本插件 |
 |---|---|---|
-| `round()` 重写 | 修正舍入实现与精度：`round( 0.49999999999999994 )` 旧版 `1.0`、8.4 为 `0.0`；`round( 4503599627370495.5 )` 旧版返回原值、8.4 为 `4503599627370496`；负数精度生效 | **66 处**。集中在 `src/S3/Cost_Estimator.php`（报价）与 `src/S3/Upload_Metrics.php`（速率 / 体积展示）；PNG 质量映射 `includes/class-gd-handler.php:140` 也用。展示值可能差一个最小单位，报价类要核对边界 |
+| `round()` 重写 | 修正舍入实现与精度：`round( 0.49999999999999994 )` 旧版 `1.0`、8.4 为 `0.0`；`round( 4503599627370495.5 )` 旧版返回原值、8.4 为 `4503599627370496`；负数精度生效 | **66 处**。集中在 `src/S3/Cost_Estimator.php`（报价）与 `src/S3/Upload_Metrics.php`（速率 / 体积展示）；PNG 质量映射 `src/Image/Handlers/GD_Handler.php:141` 也用。展示值可能差一个最小单位，报价类要核对边界 |
 | `number_format()` 负精度 | 8.3 起负数 `$decimals` 真正生效（此前被忽略） | 现有调用全传正数，无影响 |
 | `range()` | 8.3 起非法 step / 非数值边界抛 `ValueError`、发 `E_WARNING` | 0 处 |
 | `unserialize()` | 8.2 起结构校验更严；8.3 把 `E_NOTICE` 升为 `E_WARNING`；8.4 校验 `allowed_classes` 类型 | 2 处直接调用都带 `array( 'allowed_classes' => false )`（`src/S3/Link_Rewriter.php:406`、`src/S3/Link_Rewriter.php:459`），其余走 `maybe_unserialize()`。新代码保持这个写法 |
 | `array_sum()` / `array_product()` | 8.3 起不可转数值的元素发警告 | 只用于数字数组；来自请求 / DB 时先 `array_map( 'intval', … )` |
 | `strtolower()` / `strtoupper()` | 8.2 起只做 ASCII 大小写，不再受 locale 影响 | 96 + 23 处；中文场景无影响，但不要指望它处理非 ASCII 大小写（用 `mb_strtolower()`） |
 | `str_split( '' )` | 8.2 起返回 `[]`（此前 `['']`） | 不要假设空串会得到 `['']` |
-| GD 输出函数 | 8.4 起非法 quality / size 抛异常（此前静默） | `includes/class-gd-handler.php:52` 已 `max( 1, min( 100, absint( … ) ) )`，不会触发；新增输出格式时仍要 clamp |
+| GD 输出函数 | 8.4 起非法 quality / size 抛异常（此前静默） | `src/Image/Handlers/GD_Handler.php:53` 已 `max( 1, min( 100, absint( … ) ) )`，不会触发；新增输出格式时仍要 clamp |
 | `password_hash()` | 8.4 起 bcrypt 默认 cost 10 → 12 | 插件不存密码（0 处）；不要在插件里自算用户密码 hash |
 | 上传 / 临时文件名 | 8.4 起比旧版长 13 字节 | 不要写死临时文件名长度或按固定长度截断 |
 | `PHP_DEBUG` / `PHP_ZTS` | 8.4 起是 bool | 用 `=== true`，不要用 `1 ===` |
@@ -197,9 +197,9 @@ namespace Sakura\ImageOptimizer\Admin;
 ```
 
 - 新文件**必须**带 `declare( strict_types=1 );`，且放在 namespace 之前。
-- 现有覆盖：`src/` 233 个文件里 215 个已声明，18 个没有（`src/S3/` 11 个、`src/Admin/` 4 个、`src/Sync/` 2 个、`src/UserFiles/` 1 个；`src/Zibll/` 已全覆盖）。**不要批量补**：strict_types 会改变参数强制转换行为，给旧文件补等于一次行为变更，必须单独提交并跑三道关。改到哪个文件、确认测试过了，再顺手补。
-- `includes/` 的 14 个旧类只有 1 个声明；`includes/views/` 的模板（岛挂载视图与非路由页）里只有 2 个。两者都保持原样：旧类是兼容层，模板只打印 bootstrap 与外壳，不做风格迁移。
-- 直访守卫：`src/` 里 221/233 有 `defined( 'ABSPATH' )` 守卫。新文件照写。
+- 现有覆盖：`src/` 260 个文件里 229 个已声明，31 个没有（`src/S3/` 14 个、`src/Admin/` 4 个、`src/Image/` 3 个、`src/Modules/` 3 个、`src/Sync/` 2 个，`src/Stats/`、`src/UserFiles/`、`src/Filesystem/`、`src/Thumbnail/`、`src/Backup/` 各 1 个；`src/Zibll/` 已全覆盖）。**不要批量补**：strict_types 会改变参数强制转换行为，给旧文件补等于一次行为变更，必须单独提交并跑三道关。改到哪个文件、确认测试过了，再顺手补。
+- `includes/` 已无类（1.29.0-beta-16 起全部迁入 `src/`）；`includes/views/` 的 15 个模板（岛挂载视图与非路由页）里只有 2 个声明 `strict_types`。模板保持原样：只打印 bootstrap 与外壳，不做风格迁移。
+- 直访守卫：`src/` 里 248/260 有 `defined( 'ABSPATH' )` 守卫。新文件照写。
 - 类文件不 `exit`、不输出、不产生副作用；钩子注册一律走 `register_hooks()`（见 [01-架构与装配](01-架构与装配.md)）。
 
 ### 3.2 类型
@@ -362,18 +362,18 @@ grep -rnE '\b(fputcsv|fgetcsv|str_getcsv)[[:space:]]*\(' src includes
 
 注意：grep 是提示不是判定——第 3 条会把 `?string $x = null` 也命中（那是正确写法）。最终以 `composer lint:compat`、CI 的 8.2 job 与代码评审为准。
 
-## 7. 现状盘点（2026-11-26 实测）
+## 7. 现状盘点（2026-11-26 实测；2026-11-27 复核 includes 口径与文件/函数数）
 
 扫描范围：`src/`、`includes/`、`sakura-tools.php`、`uninstall.php`、`fast-search.php`。方法：`token_get_all()` 一次性脚本统计函数声明与参数，配合 grep 统计调用；脚本未入库，结论是**快照**，改完代码按 §6.4 重跑。
 
 | 项目 | 实测 | 结论 |
 |---|---|---|
-| PHP 文件 / 函数声明 | 273 / 2525（`src/` 233、`includes/` 37、根目录 3） | — |
+| PHP 文件 / 函数声明 | 278 / 2572（`src/` 260、`includes/` 15、根目录 3） | — |
 | 隐式 nullable 参数 | **0** | 8.4 弃用为零；新代码保持 |
 | 8.3 / 8.4 独有语法 | 0 | 无 typed constants、无 `#[\Override]`、无 property hooks、无非对称可见性、无 `new Foo()->` |
 | 8.3 / 8.4 独有 API | 0（`vendor/` 里 symfony polyfill 不算） | 不用守卫也安全；新增时必须走 §2.2 |
 | CSV 未显式传 escape | **0**（2026-11-24 修完 7 处） | 由 `composer lint:compat` 守护，见 §1.3 第 2 条 |
-| `strict_types` 覆盖 | `src/` 215/233；`includes/` 3/37（1 个旧类、2 个视图） | 新文件必须；旧文件不批量补 |
+| `strict_types` 覆盖 | `src/` 229/260；`includes/` 2/15（仅 2 个视图） | 新文件必须；旧文件不批量补 |
 | `final class` / `readonly` 属性 | 223 / 7 | 默认 final、值对象 readonly 是现状 |
 | `match` / `fn` / `?->` / `enum` / `never` | 0 / 41 / 0 / 0 / 0 | `match` 与 `never` 未用；箭头函数 41 处 |
 | `WP_Error` / `throw` / 自定义异常 | 217 / 51 / 3 | 边界返回错误对象、内部抛异常已是现状 |

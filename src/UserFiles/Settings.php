@@ -216,42 +216,53 @@ final class Settings {
 
 		// Byte limits are entered in MB in the admin form; accept those keys and
 		// convert before clamping so the stored shape stays bytes everywhere else.
+		// A posted array is not a number: `(float)` would silently turn it into
+		// 1 MB, so treat any non-scalar as a missing field (the same contract as
+		// Settings_Cards::clean_fields() applies to the REST card writer).
 		foreach ( self::MB_FIELDS as $byte_key ) {
 			$mb_key = $byte_key . '_mb';
 
-			if ( isset( $value[ $mb_key ] ) && '' !== $value[ $mb_key ] ) {
-				$value[ $byte_key ] = (int) round( (float) $value[ $mb_key ] * 1048576 );
+			if ( ! isset( $value[ $mb_key ] ) || ! is_scalar( $value[ $mb_key ] ) || '' === (string) $value[ $mb_key ] ) {
+				continue;
 			}
+
+			$value[ $byte_key ] = (int) round( (float) $value[ $mb_key ] * 1048576 );
 		}
 
 		$out = array();
 
-		$out['enabled']                      = ! empty( $value['enabled'] );
-		$out['editor_enabled']               = ! empty( $value['editor_enabled'] );
-		$out['quota_default_bytes']          = self::clamp_bytes( $value['quota_default_bytes'] ?? $defaults['quota_default_bytes'], 1048576, 1099511627776 );
-		$out['max_file_bytes']               = self::clamp_bytes( $value['max_file_bytes'] ?? $defaults['max_file_bytes'], 1024, 1073741824 );
-		$out['max_user_files']               = self::clamp_int( $value['max_user_files'] ?? $defaults['max_user_files'], 1, 100000 );
-		$out['max_user_folders']             = self::clamp_int( $value['max_user_folders'] ?? $defaults['max_user_folders'], 1, 10000 );
-		$out['max_folder_depth']             = self::clamp_int( $value['max_folder_depth'] ?? $defaults['max_folder_depth'], 1, 32 );
-		$out['daily_upload_files']           = self::clamp_int( $value['daily_upload_files'] ?? $defaults['daily_upload_files'], 1, 100000 );
-		$out['daily_upload_bytes']           = self::clamp_bytes( $value['daily_upload_bytes'] ?? $defaults['daily_upload_bytes'], 1048576, 1099511627776 );
-		$out['max_concurrent_uploads']        = self::clamp_int( $value['max_concurrent_uploads'] ?? $defaults['max_concurrent_uploads'], 1, 8 );
-		$out['upload_requests_per_minute']   = self::clamp_int( $value['upload_requests_per_minute'] ?? $defaults['upload_requests_per_minute'], 1, 600 );
-		$out['max_pending_delete_requests']  = self::clamp_int( $value['max_pending_delete_requests'] ?? $defaults['max_pending_delete_requests'], 1, 200 );
-		$out['max_delete_request_items']     = self::clamp_int( $value['max_delete_request_items'] ?? $defaults['max_delete_request_items'], 1, 10000 );
-		$out['site_storage_budget_bytes']    = self::clamp_bytes( $value['site_storage_budget_bytes'] ?? $defaults['site_storage_budget_bytes'], 0, 1099511627776 );
-		$out['site_storage_warning_percent'] = self::clamp_int( $value['site_storage_warning_percent'] ?? $defaults['site_storage_warning_percent'], 10, 100 );
+		$out['enabled']                      = ! empty( self::pick( $value, 'enabled', $defaults['enabled'] ) );
+		$out['editor_enabled']               = ! empty( self::pick( $value, 'editor_enabled', $defaults['editor_enabled'] ) );
+		$out['quota_default_bytes']          = self::clamp_bytes( self::pick( $value, 'quota_default_bytes', $defaults['quota_default_bytes'] ), 1048576, 1099511627776 );
+		$out['max_file_bytes']               = self::clamp_bytes( self::pick( $value, 'max_file_bytes', $defaults['max_file_bytes'] ), 1024, 1073741824 );
+		$out['max_user_files']               = self::clamp_int( self::pick( $value, 'max_user_files', $defaults['max_user_files'] ), 1, 100000 );
+		$out['max_user_folders']             = self::clamp_int( self::pick( $value, 'max_user_folders', $defaults['max_user_folders'] ), 1, 10000 );
+		$out['max_folder_depth']             = self::clamp_int( self::pick( $value, 'max_folder_depth', $defaults['max_folder_depth'] ), 1, 32 );
+		$out['daily_upload_files']           = self::clamp_int( self::pick( $value, 'daily_upload_files', $defaults['daily_upload_files'] ), 1, 100000 );
+		$out['daily_upload_bytes']           = self::clamp_bytes( self::pick( $value, 'daily_upload_bytes', $defaults['daily_upload_bytes'] ), 1048576, 1099511627776 );
+		$out['max_concurrent_uploads']        = self::clamp_int( self::pick( $value, 'max_concurrent_uploads', $defaults['max_concurrent_uploads'] ), 1, 8 );
+		$out['upload_requests_per_minute']   = self::clamp_int( self::pick( $value, 'upload_requests_per_minute', $defaults['upload_requests_per_minute'] ), 1, 600 );
+		$out['max_pending_delete_requests']  = self::clamp_int( self::pick( $value, 'max_pending_delete_requests', $defaults['max_pending_delete_requests'] ), 1, 200 );
+		$out['max_delete_request_items']     = self::clamp_int( self::pick( $value, 'max_delete_request_items', $defaults['max_delete_request_items'] ), 1, 10000 );
+		$out['site_storage_budget_bytes']    = self::clamp_bytes( self::pick( $value, 'site_storage_budget_bytes', $defaults['site_storage_budget_bytes'] ), 0, 1099511627776 );
+		$out['site_storage_warning_percent'] = self::clamp_int( self::pick( $value, 'site_storage_warning_percent', $defaults['site_storage_warning_percent'] ), 10, 100 );
 
-		$out['theme_upload_limit_ten_minutes'] = self::clamp_int( $value['theme_upload_limit_ten_minutes'] ?? $defaults['theme_upload_limit_ten_minutes'], 0, 100000 );
-		$out['theme_upload_limit_day']         = self::clamp_int( $value['theme_upload_limit_day'] ?? $defaults['theme_upload_limit_day'], 0, 100000 );
-		$out['theme_upload_limit_source']      = sanitize_key( (string) ( $value['theme_upload_limit_source'] ?? $defaults['theme_upload_limit_source'] ) );
-		$out['theme_upload_limit_synced_at']   = sanitize_text_field( (string) ( $value['theme_upload_limit_synced_at'] ?? $defaults['theme_upload_limit_synced_at'] ) );
+		$out['theme_upload_limit_ten_minutes'] = self::clamp_int( self::pick( $value, 'theme_upload_limit_ten_minutes', $defaults['theme_upload_limit_ten_minutes'] ), 0, 100000 );
+		$out['theme_upload_limit_day']         = self::clamp_int( self::pick( $value, 'theme_upload_limit_day', $defaults['theme_upload_limit_day'] ), 0, 100000 );
+		$out['theme_upload_limit_source']      = sanitize_key( self::pick_string( $value, 'theme_upload_limit_source', $defaults['theme_upload_limit_source'] ) );
+		$out['theme_upload_limit_synced_at']   = sanitize_text_field( self::pick_string( $value, 'theme_upload_limit_synced_at', $defaults['theme_upload_limit_synced_at'] ) );
 
 		$raw_types = $value['allowed_types'] ?? $defaults['allowed_types'];
 		$raw_types = is_array( $raw_types ) ? $raw_types : array();
 
 		$types = array();
 		foreach ( $raw_types as $type ) {
+			// A posted nested array is not a MIME type; skip it instead of raising
+			// an Array to string conversion warning.
+			if ( ! is_scalar( $type ) ) {
+				continue;
+			}
+
 			$type = strtolower( trim( (string) $type ) );
 			if ( '' !== $type && preg_match( '#^[a-z0-9.+-]+/[a-z0-9.+-]+$#', $type ) ) {
 				$types[ $type ] = $type;
@@ -260,10 +271,10 @@ final class Settings {
 
 		$out['allowed_types'] = array_values( $types );
 
-		$style                            = isset( $value['tree_style'] ) ? (string) $value['tree_style'] : $defaults['tree_style'];
+		$style                            = self::pick_string( $value, 'tree_style', $defaults['tree_style'] );
 		$out['tree_style']                = in_array( $style, array( self::STYLE_WINDOWS, self::STYLE_MAC ), true ) ? $style : self::STYLE_WINDOWS;
 
-		$accent = isset( $value['folder_accent'] ) ? strtolower( trim( (string) $value['folder_accent'] ) ) : '';
+		$accent = strtolower( trim( self::pick_string( $value, 'folder_accent', '' ) ) );
 
 		if ( preg_match( '/^#[0-9a-f]{6}$/', $accent ) ) {
 			$out['folder_accent'] = $accent;
@@ -272,8 +283,8 @@ final class Settings {
 			$out['folder_accent'] = in_array( $accent, self::ACCENTS, true ) ? $accent : '';
 		}
 
-		$notice                            = isset( $value['reference_notice_version'] ) ? (string) $value['reference_notice_version'] : self::NOTICE_VERSION;
-		$out['reference_notice_version']   = preg_match( '/^\d{4}-\d{2}-\d{2}$/', $notice ) ? $notice : self::NOTICE_VERSION;
+		$notice                          = self::pick_string( $value, 'reference_notice_version', self::NOTICE_VERSION );
+		$out['reference_notice_version'] = preg_match( '/^\d{4}-\d{2}-\d{2}$/', $notice ) ? $notice : self::NOTICE_VERSION;
 
 		return $out;
 	}
@@ -452,6 +463,34 @@ final class Settings {
 			'rose'   => __( '海棠', 'sakura-imgopt' ),
 			'slate'  => __( '石墨', 'sakura-imgopt' ),
 		);
+	}
+
+	/**
+	 * A submitted scalar value, or the fallback when the field is not scalar.
+	 *
+	 * A posted array is not a number or a string: `(int)` / `(float)` would
+	 * silently turn it into 1 and `(string)` would raise a conversion warning.
+	 * Treating it as a missing field keeps the stored/default value instead.
+	 *
+	 * @param array<string,mixed> $value    Submitted payload.
+	 * @param string              $key      Field name.
+	 * @param mixed               $fallback Value used when missing or non-scalar.
+	 * @return mixed
+	 */
+	private static function pick( array $value, string $key, $fallback ) {
+		return isset( $value[ $key ] ) && is_scalar( $value[ $key ] ) ? $value[ $key ] : $fallback;
+	}
+
+	/**
+	 * A submitted scalar as a string, or the fallback when it is missing.
+	 *
+	 * @param array<string,mixed> $value    Submitted payload.
+	 * @param string              $key      Field name.
+	 * @param string              $fallback Value used when missing or non-scalar.
+	 * @return string
+	 */
+	private static function pick_string( array $value, string $key, string $fallback ): string {
+		return (string) self::pick( $value, $key, $fallback );
 	}
 
 	/**

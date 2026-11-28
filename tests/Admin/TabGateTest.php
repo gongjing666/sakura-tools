@@ -108,6 +108,49 @@ final class TabGateTest extends TestCase {
 	 *
 	 * @return void
 	 */
+	public function test_review_only_user_can_open_queue_but_not_the_audit_log(): void {
+		$GLOBALS['sakura_test_can'] = array(
+			'manage_options'                => false,
+			'sufm_admin_review_deletions'   => true,
+			'sufm_admin_delete_files'       => false,
+			'sufm_view_audit'               => false,
+		);
+
+		$queue = \Sakura\ImageOptimizer\Admin\Registry::tab_gate( 'files', 'queue' );
+		$log   = \Sakura\ImageOptimizer\Admin\Registry::tab_gate( 'files', 'log' );
+
+		$this->assertSame( 'review', $queue['caps'] );
+		$this->assertTrue( $queue['capable'] );
+		$this->assertSame( 'audit', $log['caps'] );
+		$this->assertFalse( $log['capable'] );
+	}
+
+	public function test_audit_capability_opens_the_log_tab_without_delete(): void {
+		$GLOBALS['sakura_test_can'] = array(
+			'manage_options'              => false,
+			'sufm_admin_review_deletions' => true,
+			'sufm_admin_delete_files'     => false,
+			'sufm_view_audit'             => true,
+		);
+
+		$log = \Sakura\ImageOptimizer\Admin\Registry::tab_gate( 'files', 'log' );
+
+		$this->assertSame( 'audit', $log['caps'] );
+		$this->assertTrue( $log['capable'] );
+	}
+
+	public function test_direct_delete_alone_no_longer_opens_the_audit_tab(): void {
+		$GLOBALS['sakura_test_can'] = array(
+			'manage_options'          => false,
+			'sufm_admin_delete_files' => true,
+			'sufm_view_audit'         => false,
+		);
+
+		$log = \Sakura\ImageOptimizer\Admin\Registry::tab_gate( 'files', 'log' );
+
+		$this->assertFalse( $log['capable'] );
+	}
+
 	public function test_tab_meta_returns_definition(): void {
 		$meta = \Sakura\ImageOptimizer\Admin\Registry::tab_meta( 'files', 'zibll' );
 

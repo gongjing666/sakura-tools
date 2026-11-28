@@ -1143,7 +1143,7 @@ final class Requests {
 	 * @param int    $per    Page size.
 	 * @return array{rows:array<int,object>,total:int}
 	 */
-	public function admin_queue( string $status = '', string $search = '', int $page = 1, int $per = 20 ): array {
+	public function admin_queue( string $status = '', string $search = '', int $page = 1, int $per = 20, bool $unbatched = false ): array {
 		global $wpdb;
 
 		$table  = Schema::table( 'delete_requests' );
@@ -1153,6 +1153,10 @@ final class Requests {
 		if ( '' !== $status ) {
 			$where   .= ' AND r.status=%s';
 			$params[] = $status;
+		}
+
+		if ( $unbatched ) {
+			$where .= ' AND r.batch_id=0';
 		}
 
 		if ( '' !== $search ) {
@@ -1165,7 +1169,9 @@ final class Requests {
 
 		$from = "{$table} r LEFT JOIN {$wpdb->users} u ON u.ID=r.owner_id";
 
-		$total = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$from} WHERE {$where}", $params ) ); // phpcs:ignore WordPress.DB.PreparedSQL,WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare -- $where is assembled from fixed fragments; $params gains one value per fragment.
+		$count_sql   = "SELECT COUNT(*) FROM {$from} WHERE {$where}";
+		$count_query = $params ? $wpdb->prepare( $count_sql, $params ) : $count_sql;
+		$total       = (int) $wpdb->get_var( $count_query );
 
 		$rows = $wpdb->get_results(
 			$wpdb->prepare( // phpcs:ignore WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber -- $where contributes a variable number of placeholders; LIMIT/OFFSET add two fixed ones.
@@ -1178,6 +1184,75 @@ final class Requests {
 			'rows'  => is_array( $rows ) ? $rows : array(),
 			'total' => $total,
 		);
+	}
+
+	/**
+	 * Item count and charged bytes for many requests in one query.
+	 *
+	 * The admin queue used to call items() + bytes() per row (2 SQL each); this
+	 * aggregates the same numbers with one GROUP BY. item_count keeps the old
+	 * "all items" meaning while bytes stays file-only, and requests with no
+	 * items are zero-filled so the caller never has to guess.
+	 *
+	 * @param array<int> $request_ids Request ids.
+	 * @return array<int,array{item_count:int,bytes:int}>
+	 */
+	public function summaries( array $request_ids ): array {
+		global $wpdb;
+
+		$ids = array_values( array_unique( array_filter( array_map( 'intval', $request_ids ) ) ) );
+
+		if ( ! $ids ) {
+			return array();
+		}
+
+		$table = Schema::table( 'delete_request_items' );
+		$marks = implode( ',', array_fill( 0, count( $ids ), '%d' ) );
+		$rows  = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT request_id, COUNT(*) AS item_count, COALESCE(SUM(CASE WHEN object_type='file' THEN charged_bytes ELSE 0 END),0) AS bytes FROM {$table} WHERE request_id IN ({$marks}) GROUP BY request_id", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare -- $marks is a generated %d list.
+				$ids
+			)
+		);
+
+		$out = array();
+
+		foreach ( is_array( $rows ) ? $rows : array() as $row ) {
+			$out[ (int) $row->request_id ] = array(
+				'item_count' => (int) $row->item_count,
+				'bytes'      => (int) $row->bytes,
+			);
+		}
+
+		foreach ( $ids as $id ) {
+			if ( ! isset( $out[ $id ] ) ) {
+				$out[ $id ] = array(
+					'item_count' => 0,
+					'bytes'      => 0,
+				);
+			}
+		}
+
+		return $out;
+	}
+
+	/**
+	 * Count every request status in one grouped query.
+	 *
+	 * @return array<string,int> Status => count.
+	 */
+	public function status_counts(): array {
+		global $wpdb;
+
+		$table = Schema::table( 'delete_requests' );
+		$rows  = $wpdb->get_results( "SELECT status, COUNT(*) AS total FROM {$table} GROUP BY status" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$out   = array();
+
+		foreach ( is_array( $rows ) ? $rows : array() as $row ) {
+			$out[ (string) $row->status ] = (int) $row->total;
+		}
+
+		return $out;
 	}
 
 	/**

@@ -46,6 +46,44 @@ final class ZibllSettingsTest extends TestCase {
 	}
 
 	/**
+	 * Arrays posted as duration/unit fall back to the stored pair, no warning.
+	 *
+	 * @return void
+	 */
+	public function test_array_duration_and_unit_fall_back_to_stored_values(): void {
+		update_option( Settings::OPTION, array( 'license_cache' => 1, 'duration' => 6, 'unit' => 'hour' ) );
+
+		$warnings = array();
+
+		set_error_handler(
+			static function ( int $errno, string $message ) use ( &$warnings ): bool {
+				$warnings[] = $message;
+
+				return true;
+			},
+			E_WARNING | E_USER_WARNING
+		);
+
+		try {
+			$result = Settings::sanitize(
+				$this->submission(
+					array(
+						'license_cache' => '0',
+						'duration'      => array( '6' ),
+						'unit'          => array( 'hour' ),
+					)
+				)
+			);
+		} finally {
+			restore_error_handler();
+		}
+
+		$this->assertSame( array(), $warnings, 'Non-scalar duration/unit must not warn.' );
+		$this->assertSame( 6, $result['duration'] );
+		$this->assertSame( 'hour', $result['unit'] );
+	}
+
+	/**
 	 * A save from another card must not flip this option.
 	 */
 	public function test_foreign_card_submission_is_ignored(): void {

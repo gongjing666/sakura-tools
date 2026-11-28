@@ -234,7 +234,16 @@ final class Menu implements Module {
 
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only routing parameter.
 		$slug = isset( $_GET['page'] ) ? sanitize_key( wp_unslash( $_GET['page'] ) ) : '';
-		$map  = Registry::legacy();
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only routing parameter.
+		$tab = isset( $_GET['t'] ) ? sanitize_key( wp_unslash( $_GET['t'] ) ) : '';
+
+		// The users list moved onto the review workspace; keep old bookmarks working.
+		if ( 'sakura-tools-files' === $slug && 'users' === $tab ) {
+			wp_safe_redirect( Registry::url( 'files', 'queue', array( 'view' => 'users' ) ) );
+			exit;
+		}
+
+		$map = Registry::legacy();
 
 		if ( '' === $slug || ! isset( $map[ $slug ] ) ) {
 			return;

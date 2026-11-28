@@ -1,27 +1,33 @@
 import { Card } from '../shared/ui.jsx';
 import Form from './form.jsx';
-import { FieldRow } from './controls.jsx';
+import { FieldRow, cardTitleProps } from './controls.jsx';
+import { useCardSave, useDraft } from './save.js';
 
-export function Entry( { card, strings, config } ) {
+export function Entry( { card, rest, strings, onSections, onNotice } ) {
 	const data = card.data || {};
-	const entry = data.status || {};
+	const [ enabled, setEnabled ] = useDraft( Boolean( data.enabled ), Boolean );
+	const [ failure, save, pending ] = useCardSave( { cardId: 'space_entry', rest, strings, onSections, onNotice } );
+
+	const submit = ( event ) => {
+		event.preventDefault();
+
+		if ( pending ) {
+			return;
+		}
+
+		save( { enabled: enabled ? 1 : 0 } );
+	};
 
 	return (
-		<Card card={ card }>
-			<Form card={ card }>
+		<Card card={ card } titleProps={ cardTitleProps }>
+			<Form label={ card.save } saving={ strings.saving } pending={ pending } failure={ failure } onSubmit={ submit }>
 				<FieldRow label={ strings.entryEnabled }>
-					<input type="hidden" name={ config.settingsOption + '[enabled]' } value="0" />
 					<label className="check">
-						<input
-							type="checkbox"
-							name={ config.settingsOption + '[enabled]' }
-							value="1"
-							defaultChecked={ Boolean( data.enabled ) }
-						/>
+						<input type="checkbox" checked={ enabled } onChange={ ( event ) => setEnabled( event.target.checked ) } />
 						<span className="check__box" aria-hidden="true" />
 						<span className="check__text">{ strings.entryEnabled }</span>
 					</label>
-					<p className="zibll-muted">{ data.enabled ? strings.entryOn : strings.entryOff }</p>
+					<p className="zibll-muted">{ enabled ? strings.entryOn : strings.entryOff }</p>
 				</FieldRow>
 
 				<dl className="zibll-meta zibll-meta--wide">
@@ -38,21 +44,27 @@ export function Entry( { card, strings, config } ) {
 	);
 }
 
-export function Editor( { card, strings, config } ) {
+export function Editor( { card, rest, strings, onSections, onNotice } ) {
 	const data = card.data || {};
+	const [ enabled, setEnabled ] = useDraft( Boolean( data.enabled ), Boolean );
+	const [ failure, save, pending ] = useCardSave( { cardId: 'space_editor', rest, strings, onSections, onNotice } );
+
+	const submit = ( event ) => {
+		event.preventDefault();
+
+		if ( pending ) {
+			return;
+		}
+
+		save( { editor_enabled: enabled ? 1 : 0 } );
+	};
 
 	return (
-		<Card card={ card }>
-			<Form card={ card }>
+		<Card card={ card } titleProps={ cardTitleProps }>
+			<Form label={ card.save } saving={ strings.saving } pending={ pending } failure={ failure } onSubmit={ submit }>
 				<FieldRow label={ strings.editorEnabled }>
-					<input type="hidden" name={ config.settingsOption + '[editor_enabled]' } value="0" />
 					<label className="check">
-						<input
-							type="checkbox"
-							name={ config.settingsOption + '[editor_enabled]' }
-							value="1"
-							defaultChecked={ Boolean( data.enabled ) }
-						/>
+						<input type="checkbox" checked={ enabled } onChange={ ( event ) => setEnabled( event.target.checked ) } />
 						<span className="check__box" aria-hidden="true" />
 						<span className="check__text">{ strings.editorEnabled }</span>
 					</label>

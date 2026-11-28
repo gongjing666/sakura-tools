@@ -162,4 +162,84 @@ final class SpaceSettingsTest extends TestCase {
 		$this->assertFalse( $out['points']['enabled'] );
 		$this->assertSame( 120, $out['points']['points_per_gb'] );
 	}
+
+	/**
+	 * A hand-edited option full of arrays must not warn or leak "Array" text.
+	 *
+	 * @return void
+	 */
+	public function test_non_scalar_package_fields_do_not_warn_or_leak_into_settings(): void {
+		update_option(
+			Space_Settings::OPTION,
+			array(
+				'order_icon'      => array( 'https://example.test/x.png' ),
+				'level_rule'      => array(
+					'enabled'         => array( 1 ),
+					'points_per_step' => array( 1000 ),
+					'bytes_per_step'  => array( 104857600 ),
+				),
+				'vip_bonus'       => array( 1 => array( 1073741824 ) ),
+				'level_bonus'     => array( 1 => array( 1073741824 ) ),
+				'packages'        => array(
+					array(
+						'id'     => array( 'a1' ),
+						'label'  => array( 'x' ),
+						'bytes'  => 10 * 1073741824,
+						'price'  => 30,
+						'days'   => array( 365 ),
+						'active' => array( 1 ),
+					),
+				),
+				'points'          => array(
+					'enabled'          => array( 1 ),
+					'points_per_gb'    => array( 90 ),
+					'max_gb_per_order' => array( 10 ),
+					'daily_cap_gb'     => array( 20 ),
+				),
+				'points_packages' => array(
+					array(
+						'id'     => array( 'p1' ),
+						'gb'     => array( 1 ),
+						'points' => array( 90 ),
+						'days'   => array( 365 ),
+						'active' => array( 1 ),
+					),
+				),
+			)
+		);
+
+		Space_Settings::flush();
+
+		$warnings = array();
+
+		set_error_handler(
+			static function ( int $errno, string $message ) use ( &$warnings ): bool {
+				$warnings[] = $message;
+
+				return true;
+			},
+			E_WARNING | E_USER_WARNING
+		);
+
+		try {
+			$clean = Space_Settings::get();
+		} finally {
+			restore_error_handler();
+		}
+
+		$this->assertSame( array(), $warnings, 'Non-scalar option fields must not raise conversion warnings.' );
+		$this->assertSame( '', $clean['order_icon'] );
+		$this->assertSame( 1000, $clean['level_rule']['points_per_step'] );
+		$this->assertSame( 104857600, $clean['level_rule']['bytes_per_step'] );
+		$this->assertSame( 90, $clean['points']['points_per_gb'] );
+		$this->assertSame( 10, $clean['points']['max_gb_per_order'] );
+		$this->assertSame( 20, $clean['points']['daily_cap_gb'] );
+
+		$this->assertCount( 1, $clean['packages'] );
+		$this->assertSame( 'a1', $clean['packages'][0]['label'] );
+		$this->assertSame( 0, $clean['packages'][0]['days'] );
+		$this->assertFalse( $clean['packages'][0]['active'] );
+		$this->assertSame( array(), $clean['points_packages'] );
+		$this->assertStringNotContainsString( 'Array', (string) json_encode( $clean ) );
+	}
 }

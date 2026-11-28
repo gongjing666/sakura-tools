@@ -30,11 +30,6 @@ final class Settings {
 	public const OPTION = 'sakura_imgopt_zibll';
 
 	/**
-	 * Settings group used by the options form.
-	 */
-	public const GROUP = 'sakura_imgopt_zibll';
-
-	/**
 	 * Card that owns the toggle, used by Card_Form.
 	 */
 	public const CARD = 'license-cache';
@@ -127,8 +122,9 @@ final class Settings {
 	 */
 	public static function duration(): int {
 		$value = self::get();
+		$raw   = $value[ self::DURATION_FIELD ] ?? 1;
 
-		return self::clamp_duration( $value[ self::DURATION_FIELD ] ?? 1 );
+		return self::clamp_duration( is_scalar( $raw ) ? $raw : 1 );
 	}
 
 	/**
@@ -138,8 +134,9 @@ final class Settings {
 	 */
 	public static function unit(): string {
 		$value = self::get();
+		$raw   = $value[ self::UNIT_FIELD ] ?? self::DEFAULT_UNIT;
 
-		return self::normalize_unit( (string) ( $value[ self::UNIT_FIELD ] ?? self::DEFAULT_UNIT ) );
+		return self::normalize_unit( is_scalar( $raw ) ? (string) $raw : self::DEFAULT_UNIT );
 	}
 
 	/**
@@ -180,8 +177,32 @@ final class Settings {
 		$old    = self::get();
 		$was_on = ! empty( $old['license_cache'] );
 
-		$duration = self::clamp_duration( $input[ self::DURATION_FIELD ] ?? $old[ self::DURATION_FIELD ] ?? 1 );
-		$unit     = self::normalize_unit( (string) ( $input[ self::UNIT_FIELD ] ?? $old[ self::UNIT_FIELD ] ?? self::DEFAULT_UNIT ) );
+		// A posted array is not a number or a unit key: (int)/(float) would
+		// silently turn it into 1 and (string) would raise a warning. Fall back
+		// to the stored value, then to the shipped default.
+		$duration_raw = $input[ self::DURATION_FIELD ] ?? $old[ self::DURATION_FIELD ] ?? 1;
+
+		if ( ! is_scalar( $duration_raw ) ) {
+			$duration_raw = $old[ self::DURATION_FIELD ] ?? 1;
+		}
+
+		if ( ! is_scalar( $duration_raw ) ) {
+			$duration_raw = 1;
+		}
+
+		$duration = self::clamp_duration( $duration_raw );
+
+		$unit_raw = $input[ self::UNIT_FIELD ] ?? $old[ self::UNIT_FIELD ] ?? self::DEFAULT_UNIT;
+
+		if ( ! is_scalar( $unit_raw ) ) {
+			$unit_raw = $old[ self::UNIT_FIELD ] ?? self::DEFAULT_UNIT;
+		}
+
+		if ( ! is_scalar( $unit_raw ) ) {
+			$unit_raw = self::DEFAULT_UNIT;
+		}
+
+		$unit = self::normalize_unit( (string) $unit_raw );
 		$base     = array(
 			'license_cache'      => 0,
 			self::DURATION_FIELD => $duration,

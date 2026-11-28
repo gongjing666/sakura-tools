@@ -7,7 +7,7 @@
  * a frozen card renders them as plain rows with a lock instead of checkboxes
  * that would look editable and then be discarded.
  */
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { BusyLabel, Card, LockIcon } from '../shared/ui.jsx';
 
 /**
@@ -27,9 +27,6 @@ export default function BehaviourCard( { card, strings, saving, onSave, askRisk 
 		upload_concurrency: card.concurrency.value,
 	} );
 
-	const [ draft, setDraft ] = useState( base );
-	const [ saved, setSaved ] = useState( base );
-
 	// Saving another card returns this section too; only a real change to the
 	// stored values should throw away what has been typed here.
 	const valuesKey =
@@ -37,7 +34,13 @@ export default function BehaviourCard( { card, strings, saving, onSave, askRisk 
 		'|' +
 		card.concurrency.value;
 
-	useEffect( () => {
+	const [ draft, setDraft ] = useState( base );
+	const [ saved, setSaved ] = useState( base );
+	const [ lastKey, setLastKey ] = useState( () => valuesKey );
+
+	// Props to state, compared during render: no useEffect sync (14 section 5).
+	if ( valuesKey !== lastKey ) {
+		setLastKey( valuesKey );
 		const next = {
 			no_thumb: card.switches[ 0 ].checked,
 			no_local_saving: card.switches[ 1 ].checked,
@@ -46,8 +49,7 @@ export default function BehaviourCard( { card, strings, saving, onSave, askRisk 
 
 		setDraft( next );
 		setSaved( next );
-		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [ valuesKey ] );
+	}
 
 	const dirty =
 		draft.no_thumb !== saved.no_thumb ||

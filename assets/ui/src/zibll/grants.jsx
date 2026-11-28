@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Card } from '../shared/ui.jsx';
-import { apiGet, apiPost, errorText, toast } from '../files/shared/transport.js';
+import { request, post } from '../shared/transport.js';
+import { errorText, toast } from './controls.jsx';
 
 function GrantDialog( { mode, strings, onCancel, onDone } ) {
 	const [ value, setValue ] = useState( 'extend' === mode ? '30' : '' );
@@ -24,13 +25,16 @@ function GrantDialog( { mode, strings, onCancel, onDone } ) {
 
 		if ( 'revoke' === mode && value.trim() !== strings.revokeWord ) {
 			toast( strings.invalidWord, 'bad' );
+
 			return;
 		}
 
 		if ( 'extend' === mode ) {
 			const days = parseInt( value, 10 );
+
 			if ( ! isFinite( days ) || days < 1 || days > 3650 ) {
 				toast( strings.invalidDays, 'bad' );
+
 				return;
 			}
 		}
@@ -72,7 +76,7 @@ function GrantDialog( { mode, strings, onCancel, onDone } ) {
 	);
 }
 
-export default function Grants( { card, strings, config } ) {
+export default function Grants( { card, rest, strings } ) {
 	const [ items, setItems ] = useState( [] );
 	const [ state, setState ] = useState( 'loading' );
 	const [ error, setError ] = useState( '' );
@@ -81,7 +85,7 @@ export default function Grants( { card, strings, config } ) {
 	const load = () => {
 		setState( 'loading' );
 		setError( '' );
-		apiGet( config, 'admin/space/grants', {} )
+		request( rest, rest.grants.url, { strings } )
 			.then( ( data ) => {
 				setItems( Array.isArray( data.items ) ? data.items : [] );
 				setState( 'ready' );
@@ -102,11 +106,12 @@ export default function Grants( { card, strings, config } ) {
 	}, [] );
 
 	const done = ( value ) => {
-		const request = 'extend' === action.mode
-			? apiPost( config, 'admin/space/grants/' + encodeURIComponent( action.id ) + '/extend', { days: parseInt( value, 10 ) } )
-			: apiPost( config, 'admin/space/grants/' + encodeURIComponent( action.id ) + '/revoke', { note: strings.revokeWord } );
+		const url = rest.grants.url + '/' + encodeURIComponent( action.id );
+		const requestPromise = 'extend' === action.mode
+			? post( rest, url + '/extend', { days: parseInt( value, 10 ) }, strings )
+			: post( rest, url + '/revoke', { note: strings.revokeWord }, strings );
 
-		return request
+		return requestPromise
 			.then( () => {
 				toast( 'extend' === action.mode ? strings.grantExtendDone : strings.grantRevokeDone, 'ok' );
 				setAction( null );
